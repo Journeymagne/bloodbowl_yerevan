@@ -38,6 +38,7 @@ import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderNewTeam } from "../screens/teams/new.mjs";
 import { renderSeason } from "../screens/season/index.mjs";
 import { renderMyGames } from "../screens/games/my-games.mjs";
+import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
 import { renderPreMatch } from "../screens/games/pre-match.mjs";
 import { renderPostMatch } from "../screens/games/post-match.mjs";
@@ -75,7 +76,7 @@ const screens = {
   teamSettings: ({ teamId }) => renderTeamManage(teamId, { settings: true }),
   teamRoster: ({ teamId }) => renderTeamRoster(teamId),
   teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),
-  teamMatches: () => renderMyGames(),
+  teamMatches: ({ teamId }) => renderTeamMatches(teamId),
   teamChallenges: () => renderMyGames(),
   coach: ({ userId }) => renderPlayerProfile(userId),
   coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),

@@ -341,6 +341,23 @@ test("a match card draws only the parts it was given, and a plain one is a headi
   assert.equal(bare.querySelector(".g-match__mid--score"), null);
 });
 
+test("a card labelled by a heading outside it has none of its own; a side with an address leads to its team", () => {
+  const card = mount(renderMatchCard({ labelledBy: "x", meta: { left: "Round 3 · home" }, home: { name: "A" }, away: { name: HOSTILE, sub: "Orc", href: "#/coaches/u2/teams/t9" },
+    statusHtml: renderStatusChip({ label: "Live", tone: "live" }) })).querySelector("article");
+  assert.equal(card.getAttribute("aria-labelledby"), "x");
+  assert.equal(card.querySelector(".g-match__head"), null, "no heading inside, nor the chip that sits in it");
+  assert.deepEqual(card.childNodes.map((node) => node.getAttribute("class")), ["g-match__meta", "g-match__teams"]);
+  const away = card.querySelector(".g-match__side--away a.g-match__name");
+  assert.equal(away.getAttribute("href"), "#/coaches/u2/teams/t9");
+  assert.equal(away.textContent, HOSTILE);
+  assert.equal(card.querySelector(".g-match__side").querySelector("a"), null, "no address, no link");
+  assertCspSafe(card.parentNode);
+  assert.throws(() => renderMatchCard({ home: { name: "A" }, away: { name: "B" } }), /needs a title/);
+  assert.throws(() => renderMatchCard({ labelledBy: "x", home: { name: "A" }, away: { name: "B", href: "javascript:alert(1)" } }));
+  // Without it, as before.
+  assert.equal(mount(renderMatchCard({ title: "T", home: { name: "A" }, away: { name: "B" } })).querySelector("article").hasAttribute("aria-labelledby"), false);
+});
+
 test("the two sides: the home one, then the away one that is aligned the other way", () => {
   const sides = mount(renderMatchCard({ title: "T", home: { name: "Home", sub: "Human" }, away: { name: "Away", sub: "Orc" } })).querySelectorAll(".g-match__side");
   assert.deepEqual(sides.map((side) => side.getAttribute("class")), ["g-match__side", "g-match__side g-match__side--away"]);

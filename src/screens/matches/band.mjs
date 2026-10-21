@@ -82,14 +82,16 @@ function nextItem(season) {
 }
 
 /**
- * The season as a desk's board pages it: the team's played matches, the oldest first (the league's of this season, the
- * friendlies settled since it was created), then the current one, or the opponent to come.
+ * The team's played matches of the season, the newest first, each with its game: the league's of this season and the
+ * friendlies settled since it was created (all of them while it does not say when, or with no season at all); a match
+ * still on is the current one's, not one of these. The board, the matches page's results and its calendar read the
+ * season the same way (pre-flight L13).
  * @param {object[]} games `/api/games`'s
  * @param {string} teamId
  * @param {object|null} seasonData `/api/season`'s
- * @returns {BandItem[]}
+ * @returns {(ReturnType<typeof recentResults>[number] & {game: object})[]}
  */
-export function bandItems(games, teamId, seasonData) {
+export function seasonResults(games, teamId, seasonData) {
   const season = seasonData?.season ?? null;
   const current = currentMatch(games, teamId);
   const since = Date.parse(season?.createdAt) || 0;
@@ -98,8 +100,21 @@ export function bandItems(games, teamId, seasonData) {
     const game = byId.get(gameId);
     return gameId !== current?.game.id && (friendly ? settledAt(game) >= since : Boolean(season?.id) && game.season?.id === season.id);
   };
-  const played = recentResults(games, teamId, Infinity).filter(ofSeason).reverse().map((result) => pastItem(result, byId.get(result.gameId), teamId));
-  const last = current ? currentItem(current, teamId) : nextItem(season);
+  return recentResults(games, teamId, Infinity).filter(ofSeason).map((result) => ({ ...result, game: byId.get(result.gameId) }));
+}
+
+/**
+ * The season as a desk's board pages it: the team's played matches, the oldest first (`seasonResults`), then the current
+ * one, or the opponent to come.
+ * @param {object[]} games `/api/games`'s
+ * @param {string} teamId
+ * @param {object|null} seasonData `/api/season`'s
+ * @returns {BandItem[]}
+ */
+export function bandItems(games, teamId, seasonData) {
+  const current = currentMatch(games, teamId);
+  const played = seasonResults(games, teamId, seasonData).reverse().map((result) => pastItem(result, result.game, teamId));
+  const last = current ? currentItem(current, teamId) : nextItem(seasonData?.season ?? null);
   return last ? [...played, last] : played;
 }
 

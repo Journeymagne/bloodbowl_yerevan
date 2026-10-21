@@ -1,0 +1,68 @@
+/**
+ * The lists of the matches page under the card (Matches.html): «Results» — the season's finished matches, the newest
+ * first, the record in its head — and «Later in the season» — the team's other open matches, then the next round, whose
+ * opponent the Swiss pairing gives once every result of the round is in.
+ *
+ * A phone's result row is one link, to the opponent's team (pre-flight L14: three links in a row give no thumb 44px);
+ * the race is text in its line.
+ */
+import { escapeHtml } from "../../core/dom.mjs";
+import { t } from "../../core/i18n.mjs";
+import { assertLinkHref } from "../../ui/markup.mjs";
+import { renderResultPill } from "../../ui/result-pill.mjs";
+
+/** A row's body: the pill, the opponent over the round, race and casualties, the MVP; the score at the end. */
+function resultBody({ result, opponent, line, mvp, score }) {
+  return `${renderResultPill({ result })}<span class="g-matches__text"><span class="g-matches__opponent">${escapeHtml(opponent)}</span>`
+    + `<span class="g-matches__line">${escapeHtml(line)}</span>${mvp ? `<span class="g-matches__line">${escapeHtml(mvp)}</span>` : ""}</span>`
+    + `<span class="g-matches__score">${escapeHtml(score)}</span>`;
+}
+
+/** One finished match: a link to the opponent's team, or the same row as text when the server names no team. */
+function resultRow(row) {
+  if (!row.href) return `<li class="g-matches__item"><div class="g-matches__row">${resultBody(row)}</div></li>`;
+  assertLinkHref(row.href);
+  return `<li class="g-matches__item"><a class="g-matches__row" href="${escapeHtml(row.href)}">${resultBody(row)}</a></li>`;
+}
+
+/**
+ * «Results», with «4 · 1 · 1» (the season's league record) at the right of its head; «No matches played yet» when none.
+ * @param {ReturnType<typeof import("./model.mjs").matchesModel>["results"]} rows
+ * @param {{wins: number, draws: number, losses: number}|null} record null outside the table
+ */
+export function resultsMarkup(rows, record) {
+  const tally = record
+    ? `<span class="g-matches__record"><span class="g-sr-only">${escapeHtml(t("teamOverview.tile.record"))}: </span>${record.wins} · ${record.draws} · ${record.losses}</span>`
+    : "";
+  const body = rows.length
+    ? `<ul class="g-matches__list">${rows.map(resultRow).join("")}</ul>`
+    : `<p class="g-matches__empty">${escapeHtml(t("matches.noResults"))}</p>`;
+  return `<section class="g-matches__section" aria-labelledby="matches-results"><div class="g-matches__bar">`
+    + `<h2 class="g-matches__title" id="matches-results">${escapeHtml(t("matches.results"))}</h2>${tally}</div>${body}</section>`;
+}
+
+/** One row of what comes later: the round's word at the left, the match and a note under it. */
+function laterBody({ label, title, note }) {
+  return `<span class="g-matches__round">${escapeHtml(label)}</span><span class="g-matches__text">`
+    + `<span class="g-matches__next">${escapeHtml(title)}</span><span class="g-matches__line">${escapeHtml(note)}</span></span>`;
+}
+
+/**
+ * «Later in the season»: the team's other open matches (each a link to its preparation, post-match or game), then the
+ * next round. Nothing when there is neither.
+ * @param {ReturnType<typeof import("./model.mjs").matchesModel>["others"]} rows
+ * @param {number|null} nextRound
+ */
+export function othersMarkup(rows, nextRound) {
+  const open = rows.map((row) => {
+    assertLinkHref(row.href);
+    return `<li class="g-matches__item"><a class="g-matches__later" href="${escapeHtml(row.href)}">${laterBody(row)}</a></li>`;
+  });
+  const next = nextRound
+    ? [`<li class="g-matches__item"><div class="g-matches__later">${laterBody({ label: t("matches.before.round", { round: nextRound }),
+      title: t("teamOverview.opponentLater", { round: nextRound - 1 }), note: t("matches.swiss") })}</div></li>`]
+    : [];
+  if (!open.length && !next.length) return "";
+  return `<section class="g-matches__section" aria-labelledby="matches-upcoming"><h2 class="g-matches__title g-matches__title--list" id="matches-upcoming">`
+    + `${escapeHtml(t("matches.upcoming"))}</h2><ul class="g-matches__list">${[...open, ...next].join("")}</ul></section>`;
+}
