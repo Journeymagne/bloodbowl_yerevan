@@ -27,6 +27,11 @@
  *
  * A random skill is two dice (the owner, 2026-10-20): both skills the player lacks, and different; the coach takes
  * one, and an advancement may name either (`rollFitsAdvancement`). It is stale only when he holds both.
+ *
+ * An open post-match rolls the same dice for its own advancements (stage 09b, server/season/post-match.mjs), under
+ * its locks, which take the team rows too: `rollForPlayer` reads the player as the post-match holds him and leaves
+ * out the rolls its choices already name (`exclude`) — they wait for its finish, not for the player — a choice that
+ * names a roll is held to it when it is made (`checkPostRoll`), and the finish uses them (`settleRosterRolls`).
  */
 import crypto from "node:crypto";
 
@@ -40,10 +45,13 @@ import { refuseSharedPlayerId, teamBySlug } from "../domain/roster.mjs";
 import { httpError } from "../http/errors.mjs";
 import { isUuid } from "./team-access.mjs";
 
+/** A player's waiting rolls, in their turn, the ones $3 names left out (an open post-match's choices name them). */
 const WAITING_ROLLS = `
   SELECT * FROM dice_rolls
-   WHERE saved_team_id = $1 AND player_id = $2 AND used_at IS NULL
+   WHERE saved_team_id = $1 AND player_id = $2 AND used_at IS NULL AND NOT (id = ANY($3::uuid[]))
    ORDER BY created_at, id`;
+
+const ROLL_OF_TEAM = "SELECT * FROM dice_rolls WHERE saved_team_id = $1 AND id = $2";
 
 /** Every roll of a team, used and waiting, in the order they were rolled. */
 const ROLLS_OF_TEAM = "SELECT * FROM dice_rolls WHERE saved_team_id = $1 ORDER BY created_at, id";
@@ -128,25 +136,28 @@ export async function teamRolls(db, teamId) {
  *
  * @param {{query: Function}} client the client of the transaction
  * @param {object} step
- * @param {object} step.teamRow the locked saved_teams row
+ * @param {object} step.teamRow the locked saved_teams row — or, for an open post-match, `{id, base_team_slug, roster}`
+ *   with the roster the post-match holds (its team rows locked by the post-match's own locks)
  * @param {string} step.playerId a player of the team's roster
  * @param {string} step.purpose one of `DICE_PURPOSES`, checked by the caller
  * @param {string} [step.category] the Skill Table category of a random skill; a characteristic does not read it
  * @param {string} step.userId who is asking: the roll is kept as theirs
  * @param {(sides: number) => number} [step.rng] the die; the server's own unless a test hands in another
+ * @param {string[]} [step.exclude] rolls that are not waiting for all their `used_at` is empty: those an open
+ *   post-match's choices name, which its finish uses (stage 09b). Anything but a UUID names no roll
  * @returns {Promise<object>} the dice_rolls row, with `stale: true` on a stale one
  * @throws 422 ROSTER_BREAKS_THE_RULES (DUPLICATE_PLAYER_ID) for an id two players of the blob share;
  *   404 PLAYER_NOT_FOUND; 409 DICE_ROLL_WAITING `{ purpose }` while the player's earliest waiting roll
  *   is of the other purpose;
  *   422 DICE_CATEGORY or DICE_NO_SKILL when a random skill cannot be rolled
  */
-export async function rollForPlayer(client, { teamRow, playerId, purpose, category, userId, rng = serverDie }) {
+export async function rollForPlayer(client, { teamRow, playerId, purpose, category, userId, rng = serverDie, exclude = [] }) {
   refuseSharedPlayerId(teamRow.roster, playerId); // a 2.x blob may name two players by one id: a roll would be for either
   const team = teamBySlug(teamRow.base_team_slug); // null for a race the site no longer knows: it has no players to find
   const player = team && normalizeDraftPlayers(team, teamRow.roster ?? {}).find((item) => item.id === playerId);
   if (!player) throw httpError(404, "PLAYER_NOT_FOUND");
   const position = rowsForTeam(team)[player.rowIndex];
-  const { rows: [earliest] } = await client.query(WAITING_ROLLS, [teamRow.id, player.id]);
+  const { rows: [earliest] } = await client.query(WAITING_ROLLS, [teamRow.id, player.id, exclude.filter(isUuid)]);
   if (earliest && earliest.purpose !== purpose) throw httpError(409, "DICE_ROLL_WAITING", { purpose: earliest.purpose });
   if (earliest) return heldSince(earliest, position, player) ? { ...earliest, stale: true } : earliest;
   const rolled = purpose === "stat"
@@ -157,6 +168,41 @@ export async function rollForPlayer(client, { teamRow, playerId, purpose, catego
   const { rows: [row] } = await client.query(INSERT_ROLL,
     [teamRow.id, player.id, purpose, JSON.stringify(params), JSON.stringify(rolled.result), userId]);
   return row;
+}
+
+/**
+ * Hold an advancement of an open post-match to the site roll it names (stage 09b), before the choice is kept, in
+ * the transaction that holds the post-match's locks — the team rows among them. The finish uses the roll
+ * (`settleRosterRolls`); this is what that holds a new reference to, asked when the choice is made, so the coach
+ * hears it then and not at the finish. A table roll, or none, asks nothing.
+ *
+ * The roll must be this team's, named by its id as the server gave it (Postgres's own spelling, which the finish
+ * reads it by), this player's, one the advancement could take (`rollFitsAdvancement`), and thrown again only
+ * against skills the player holds as the post-match holds him (`rerollsHeldBy`; an advancement adds none of
+ * them: a skill rerolled was held when the die was thrown) — else 422 DICE_ROLL_MISMATCH with the player. And it
+ * must be unused and his earliest waiting roll, the rolls the side's other choices name left out (`exclude`, as
+ * `rollForPlayer` hands them out) — else 409 DICE_ROLL_USED: a roll another choice took, or one out of turn.
+ *
+ * @param {{query: Function}} client the client of the post-match's transaction
+ * @param {object} check
+ * @param {string} check.teamId the side's team as the database holds its id
+ * @param {object|null} check.race the team's race page; none holds no skill
+ * @param {object} check.roster the side's roster as the post-match holds it, before this advancement
+ * @param {string} check.playerId the player the advancement is for
+ * @param {*} check.roll what the advancement names
+ * @param {{type: string, grants?: object}} check.advancement
+ * @param {string[]} [check.exclude] the site rolls the side's choices name already
+ * @throws 422 DICE_ROLL_MISMATCH `{ playerId }`; 409 DICE_ROLL_USED
+ */
+export async function checkPostRoll(client, { teamId, race = null, roster, playerId, roll, advancement, exclude = [] }) {
+  if (roll?.via !== "site") return;
+  const mismatch = () => httpError(422, "DICE_ROLL_MISMATCH", { playerId });
+  if (!isUuid(roll.id)) throw mismatch();
+  const { rows: [row] } = await client.query(ROLL_OF_TEAM, [teamId, roll.id]);
+  const held = heldByPlayer(race, roster).get(playerId) ?? new Set();
+  if (row?.id !== roll.id || row.player_id !== playerId || !rollFitsAdvancement(row, advancement) || !rerollsHeldBy(row, held)) throw mismatch();
+  const { rows: [earliest] } = await client.query(WAITING_ROLLS, [teamId, playerId, exclude.filter(isUuid)]);
+  if (row.used_at !== null || earliest?.id !== row.id) throw httpError(409, "DICE_ROLL_USED");
 }
 
 /** Whether a random-skill roll has dice, and the player holds now the skill every one of them came up (`rolledDice`). */

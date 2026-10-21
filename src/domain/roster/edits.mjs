@@ -16,7 +16,7 @@ import {
   canonicalSkillName, favouredSkillNames, heldSkillKeys, normalizePlayerAdvancements, normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills, setRosterCaptain, storedPlayerId,
 } from "./players.mjs";
-import { STAT_LIMITS, TARGET_STATS } from "./progression.mjs";
+import { STAT_LIMITS, TARGET_STATS, tieFavoured, untieFavoured } from "./progression.mjs";
 import { favouredSkillsForChoice, ruleLookupKey, teamFavouredOptions } from "./team-rules.mjs";
 import { PLAYER_STATS, categoriesForAccess, countToNumber, rowsForTeam } from "./values.mjs";
 
@@ -271,7 +271,8 @@ function markedAs(prior, player) {
  * Make a manual fix of a player, in place, once `fixRefusal` has none, as the server stores it: the Niggling
  * Injuries as a count (and the 2.x flag with it), the lasting injuries taken off (`healInjuries`), each
  * characteristic's correction on `statMods` alone (a key left at zero goes; `injuryStatMods` is the injuries'), the
- * contracts, the favoured skills added (`addFavouredSkill`) and taken off, and the skills no advancement gave taken off.
+ * contracts, the favoured skills added (`addFavouredSkill`) and taken off — either untied from an advancement whose D8
+ * brought it (`untieFavoured`) — and the skills no advancement gave taken off.
  *
  * @param {PlayerFix} fix
  * @returns {{applied: true, changed: boolean} | {applied: false, code: string, params: object}}
@@ -287,8 +288,10 @@ export function applyFix(team, draft, playerId, fix) {
   for (const [stat, step] of Object.entries(whole.stats)) if (step !== 0) player.statMods = withMod(player.statMods, stat, step);
   player.extendedContracts = whole.contracts;
   for (const skill of whole.favoured.add) addFavouredSkill(team, draft, row, player, skill);
-  const { remove } = whole.favoured, drop = whole.dropSkills;
+  const { add, remove } = whole.favoured, drop = whole.dropSkills;
   if (remove.length) player.favouredSkills = (player.favouredSkills ?? []).filter((skill) => !remove.includes(skillName(skill)));
+  // A god's skill put on or taken off by hand is no advancement's to take back with its undo (Task 10 review).
+  if (add.length || remove.length) untieFavoured(player, new Set([...add, ...remove]));
   if (drop.length) player.extraSkills = (player.extraSkills ?? []).filter((skill) => !drop.includes(skillName(skill)));
   return { applied: true, changed: editedValues(player) + injuryValues(player) !== before };
 }
@@ -332,6 +335,15 @@ export function favouredBonus(team, draft, row, player) {
 }
 
 /**
+ * Whether the god's D8 is rolled with an advancement (the owner, 2026-10-21; content «Team Management», «Favoured
+ * of…»: «Every time a player receives an advancement, roll a d8»): with every one of a roster «Favoured of…»
+ * (`favouredBonus`), unless the player holds every skill the god offers — the D8 could bring him nothing. The roster's
+ * sheet and the post-match ask it the same.
+ * @param {ReturnType<typeof favouredBonus>} bonus @returns {boolean}
+ */
+export const favouredRollAsked = (bonus) => Boolean(bonus?.skills.some(({ held }) => !held));
+
+/**
  * Give a player a favoured skill, in place, as the server stores it (`{name, access: "favoured"}`): one of the
  * roster's alignment that he does not hold. Mutates `player` only when it is applied.
  *
@@ -342,4 +354,15 @@ export function addFavouredSkill(team, draft, row, player, skill) {
   if (refusal) return { applied: false, ...refusal };
   player.favouredSkills = [...(player.favouredSkills ?? []), { name: skill, access: "favoured" }];
   return { applied: true };
+}
+
+/**
+ * The god's skill the D8 brought with the advancement the player has just taken (`addFavouredSkill`), tied to that
+ * advancement (`tieFavoured`) so that its undo takes the skill back with it. Nothing is tied when it is refused.
+ * @returns {ReturnType<typeof addFavouredSkill>}
+ */
+export function addAdvancementFavoured(team, draft, row, player, skill) {
+  const added = addFavouredSkill(team, draft, row, player, skill);
+  if (added.applied) tieFavoured(player, skill);
+  return added;
 }

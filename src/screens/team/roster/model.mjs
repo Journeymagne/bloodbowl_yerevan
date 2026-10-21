@@ -15,7 +15,9 @@
 import { gameSides } from "../../../data/team-record.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { SPP_EVENT_COUNTERS, careerCounters, eventTotal, statisticsFromEvents } from "../../../domain/post-match/events.mjs";
-import { ADVANCEMENT_BLOCKED, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights } from "../../../domain/roster/progression.mjs";
+import {
+  ADVANCEMENT_BLOCKED, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights, tiedFavoured,
+} from "../../../domain/roster/progression.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import { playerInjuries } from "../../../domain/roster/edits.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
@@ -120,13 +122,14 @@ function skillsOf(row, player, advancements) {
 
 /**
  * The advancements he has taken, in the order he took them: what each granted (null where nothing was written), how it was
- * rolled — `site` and the roll's id, `table`, or neither for one the roster has no roll for — and what it cost at the rank
- * it was taken at.
+ * rolled — `site` and the roll's id, `table`, or neither for one the roster has no roll for — what it cost at the rank
+ * it was taken at, and the god's skill its D8 brought, tied to it, while he holds it (`favoured`, `tiedFavoured`; only when there is one).
  */
 function advancementsOf(player) {
-  return player.advancements.map(({ type, grants, roll }, rank) => ({
-    type, grants: grants ?? null, via: roll?.via ?? "", rollId: roll?.id ?? "", cost: advancementRanks[rank]?.costs?.[type] ?? 0,
-  }));
+  return player.advancements.map((advancement, rank) => {
+    const { type, grants, roll } = advancement, favoured = tiedFavoured(player, advancement);
+    return { type, grants: grants ?? null, via: roll?.via ?? "", rollId: roll?.id ?? "", cost: advancementRanks[rank]?.costs?.[type] ?? 0, ...(favoured ? { favoured } : {}) };
+  });
 }
 
 /**
@@ -195,7 +198,7 @@ function keysOf(ids) {
  * @property {number} spent
  * @property {number} available earned − spent
  * @property {number} level advancements taken
- * @property {{type: string, grants: {skill?: string, stat?: string}|null, via: "site"|"table"|"", rollId: string, cost: number}[]} advancements
+ * @property {{type: string, grants: {skill?: string, stat?: string}|null, via: "site"|"table"|"", rollId: string, cost: number, favoured?: string}[]} advancements
  *   in the order taken; `via` how the result was rolled ("" where the roster has no roll for it), `rollId` the site roll's id ("" for none),
  *   `cost` the price of the type at the rank it was taken at
  * @property {ReturnType<typeof advancementOffers>|null} offers what he may take next on the roster's own SPP, the draft's — the blob, which the

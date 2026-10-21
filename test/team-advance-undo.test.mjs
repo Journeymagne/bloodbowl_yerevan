@@ -17,8 +17,8 @@ const { setMyTeams } = await import("../src/data/teams.mjs");
 // of the save queue: what it gave goes, its SPP come back, and the server frees its site roll, which the next advancement of
 // its type takes again. Since Task 23 (owner, 2026-10-20; decision 40) it stands in the fix by hand alone — the last block,
 // «Advancements» — and opens the question in the fix's place; the profile (Player.html) and the desk's panel (DeskRoster.html)
-// have none, as their prototypes. A roster «Favoured of…» is offered the god's bonus skill on the advancement's done step
-// (owner's answer 3). A skill an advancement gave says how in its sheet, and for a site roll what its dice showed, read from
+// have none, as their prototypes. A roster «Favoured of…» marks the god's D8 with every advancement, before «Take» (the
+// owner, 2026-10-21, in place of answer 3's bonus on done). A skill an advancement gave says how in its sheet, and for a site roll what its dice showed, read from
 // the server once a visit. The page, the coach and his team are helpers/roster-page.mjs's; ADVANCED is Cade 3 (a Catcher)
 // with Frenzy from a random skill rolled on the site.
 
@@ -689,149 +689,241 @@ test("an undo the server refuses for a used roll is said, and the roster read ag
   });
 });
 
-// Decision 17, owner's answer 3.
-test("Favoured of Nurgle: done offers the bonus skill, his own closed; added as one PATCH", async () => {
-  const favoured = () => view.querySelector("dialog#player-advance .g-favoured");
-  const items = () => favoured().querySelectorAll("[data-favoured-skill]");
-  const item = (name) => items().find((each) => each.getAttribute("data-favoured-skill") === name);
-  const add = () => favoured().querySelector("[data-favoured-add]");
-  const take = (category, skill) => {
-    const advancing = view.querySelector("dialog#player-advance");
-    fireEvent(advancing.querySelector('.g-options [data-option-value="primary"]'), "click");
-    fireEvent(advancing.querySelector("[data-advance-next]"), "click");
-    fireEvent(advancing.querySelector(`[data-advance-category="${category}"]`), "click");
-    fireEvent(advancing.querySelector("[data-advance-next]"), "click");
-    fireEvent(advancing.querySelector(`[data-advance-skill="${skill}"]`), "click");
-    fireEvent(advancing.querySelector("[data-advance-take]"), "click");
-  };
+// The owner, 2026-10-21 (content «Team Management», «Favoured of…»: «Every time a player receives an advancement, roll a
+// d8»), in place of decision 17's bonus after done: the god's D8 before «Take», with every advancement, the skill with it.
+const godSheet = () => view.querySelector("dialog#player-advance");
+const favoured = () => godSheet().querySelector(".g-favoured");
+const godLines = () => favoured().querySelectorAll(".g-favoured__line").map((line) => line.textContent);
+const godFace = (face) => favoured().querySelectorAll("[data-favoured-d8]").find((each) => each.getAttribute("data-favoured-d8") === String(face));
+const godItem = (name) => favoured().querySelectorAll("[data-favoured-skill]").find((each) => each.getAttribute("data-favoured-skill") === name);
+const godTake = () => godSheet().querySelector("[data-advance-take]");
+const NURGLE_SUB = "Roll a D8 at the table with every advancement: on a 7 the player gains one of the god's skills, at no cost to the value.";
+/** A chosen primary skill on a phone: the type, «Next», the category, «Next», the skill. */
+function choosePrimary(category, skill) {
+  fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
+  fireEvent(godSheet().querySelector("[data-advance-next]"), "click");
+  fireEvent(godSheet().querySelector(`[data-advance-category="${category}"]`), "click");
+  fireEvent(godSheet().querySelector("[data-advance-next]"), "click");
+  fireEvent(godSheet().querySelector(`[data-advance-skill="${skill}"]`), "click");
+}
+
+test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; on his face a skill or none; one PATCH with both", async () => {
   const mouth = { ...ROT, extraSkills: [{ name: "Monstrous Mouth", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Monstrous Mouth" } }] };
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
       await openPlayer(true, { id: "n1", teamAnswer: nurgle([ROT]) });
       fireEvent(advance(), "click");
-      api.reply(PATCH, 200, { team: nurgle([mouth], { revision: 5 }) });
-      take("Mutation", "Monstrous Mouth");
-      await settle();
-      assert.ok(view.querySelector(".g-advance__done"));
+      fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
+      assert.ok(!favoured(), "nothing to roll for before the advancement is whole");
+      fireEvent(godSheet().querySelector("[data-advance-next]"), "click");
+      fireEvent(godSheet().querySelector('[data-advance-category="Mutation"]'), "click");
+      fireEvent(godSheet().querySelector("[data-advance-next]"), "click");
+      assert.ok(!favoured());
+      fireEvent(godSheet().querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
       assert.equal(favoured().tagName, "SECTION");
       assert.equal(favoured().querySelector(".g-favoured__title").textContent, "Nurgle: a bonus skill");
-      assert.deepEqual(favoured().querySelectorAll(".g-favoured__line").map((line) => line.textContent),
-        ["Roll a D8 at the table: on a 7 the player gains one of these skills, at no cost to the value."], "Mutation in his primary access: he chooses");
+      assert.deepEqual(godLines(), [NURGLE_SUB], "Mutation in his primary access: he chooses");
+      const faces = favoured().querySelector(".g-favoured__d8");
+      assert.equal(faces.getAttribute("role"), "radiogroup");
+      assert.equal(faces.getAttribute("aria-label"), "The god's D8");
+      assert.deepEqual(faces.querySelectorAll("[data-favoured-d8]").map((face) => [face.textContent, face.getAttribute("role"), face.getAttribute("aria-checked")]),
+        ["1", "2", "3", "4", "5", "6", "7", "8"].map((face) => [face, "radio", "false"]));
+      assert.ok(!favoured().querySelector(".g-favoured__skills"), "no skills before the god's face");
+      // «Take» waits for the D8: a press sends nothing.
+      assert.equal(godTake().textContent, "Mark the god's D8");
+      assert.ok(godTake().hasAttribute("disabled"));
+      fireEvent(godTake(), "click");
+      assert.ok(!view.querySelector(".g-advance__done"));
+      // Another face: no bonus, «Take» open.
+      fireEvent(godFace(3), "click");
+      assert.equal(godFace(3).getAttribute("aria-checked"), "true");
+      assert.deepEqual(godLines(), [NURGLE_SUB, "D8 3: no bonus."]);
+      assert.ok(!favoured().querySelector(".g-favoured__skills"));
+      assert.equal(godTake().textContent, "Take Monstrous Mouth");
+      assert.ok(!godTake().hasAttribute("disabled"));
+      // The god's face: his skills — the one this advancement gives closed, saying why — and «No bonus»; «Take» waits for a choice.
+      fireEvent(godFace(7), "click");
+      assert.deepEqual(godLines(), [NURGLE_SUB, "D8 7: the god's face — choose the bonus skill, or none."]);
       const group = favoured().querySelector(".g-favoured__skills");
       assert.equal(group.getAttribute("role"), "radiogroup");
       assert.equal(group.getAttribute("aria-label"), "Bonus skill");
-      assert.deepEqual(items().map((each) => [each.getAttribute("data-favoured-skill"), each.getAttribute("role"), each.getAttribute("aria-checked"), closed(each)]),
-        [["Tentacles", "radio", "false", false], ["Monstrous Mouth", "radio", "false", true], ["Bone Hook", "radio", "false", false]]);
-      assert.equal(item("Monstrous Mouth").getAttribute("title"), "The player has this skill already.");
-      assert.deepEqual(items().map((each) => each.getAttribute("tabindex")), ["0", "-1", "-1"], "a roving tabindex");
-      assert.equal(add().textContent, "Choose the bonus skill");
-      assert.ok(add().hasAttribute("disabled"));
-      // His own says so on a press, and is not chosen.
-      fireEvent(item("Monstrous Mouth"), "click");
-      assert.equal(toasts().at(-1), "The player has this skill already.");
-      assert.equal(item("Monstrous Mouth").getAttribute("aria-checked"), "false");
-      fireEvent(item("Tentacles"), "click");
-      assert.equal(item("Tentacles").getAttribute("aria-checked"), "true");
-      assert.equal(add().textContent, "Add Tentacles");
-      assert.ok(!add().hasAttribute("disabled"));
+      assert.deepEqual(group.querySelectorAll("[data-favoured-skill]").map((each) => [each.getAttribute("data-favoured-skill"), each.getAttribute("aria-checked"), closed(each)]),
+        [["Tentacles", "false", false], ["Monstrous Mouth", "false", true], ["Bone Hook", "false", false], ["none", "false", false]]);
+      assert.equal(godItem("Monstrous Mouth").getAttribute("title"), "This advancement gives the player this skill.");
+      assert.equal(godItem("Monstrous Mouth").querySelector(".g-advance__tag").textContent, "with this advancement");
+      assert.equal(godItem("none").textContent, "No bonus");
+      assert.equal(godTake().textContent, "Choose the bonus skill");
+      assert.ok(godTake().hasAttribute("disabled"));
+      fireEvent(godItem("Monstrous Mouth"), "click");
+      assert.equal(toasts().at(-1), "This advancement gives the player this skill.");
+      assert.equal(godItem("Monstrous Mouth").getAttribute("aria-checked"), "false");
+      fireEvent(godItem("Tentacles"), "click");
+      assert.equal(godItem("Tentacles").getAttribute("aria-checked"), "true");
+      assert.equal(godTake().textContent, "Take Monstrous Mouth");
       assertCspSafe(view);
       assertStyled(view, ...UNDO_STYLES);
-      // K15: a match begun before the screen is drawn again — the press asks, and nothing goes.
-      const games = state.games.items;
-      state.games.items = [LIVE_GAME];
-      const reads = callsTo(TEAM_READ);
-      fireEvent(add(), "click");
-      assert.equal(toasts().at(-1), AFTER_POST);
-      state.games.items = games;
-      await settle();
-      assert.equal(patches().length, 1, "the advancement's only");
-      assert.equal(callsTo(TEAM_READ), reads, "no refusal of the queue's to read the roster again for (final wave, T11 N4)");
-      // Added: one PATCH, the block gone, the coach told.
+      // Taken: one PATCH with the advancement and the god's skill; done says what the D8 gave, nothing more to press.
       const added = { ...mouth, favouredSkills: [{ name: "Tentacles", access: "favoured" }] };
-      api.reply(PATCH, 200, { team: nurgle([added], { revision: 6 }) });
-      fireEvent(add(), "click");
-      assert.equal(toasts().at(-1), "Bonus skill: Tentacles");
-      assert.ok(!favoured(), "the bonus is taken");
-      assert.ok(view.querySelector(".g-advance__done"), "done stays");
+      api.reply(PATCH, 200, { team: nurgle([added], { revision: 5 }) });
+      fireEvent(godTake(), "click");
+      assert.ok(view.querySelector(".g-advance__done"));
+      assert.deepEqual(godLines(), ["D8 7: Tentacles, at no cost to the value"]);
+      assert.ok(!favoured().querySelector("button"), "nothing to press under done");
       assert.ok(document.activeElement === view.querySelector("[data-advance-done]"));
-      // Review Focus 2 (fix round 1, review Minor 2): a second press — a late «Add …» heard by the view — sends nothing more.
-      const late = document.createElement("button");
-      late.setAttribute("type", "button");
-      late.setAttribute("data-favoured-add", "true");
-      view.appendChild(late);
-      const before = callsTo(TEAM_READ);
-      fireEvent(late, "click");
-      view.removeChild(late);
-      assert.equal(toasts().filter((said) => said === "Bonus skill: Tentacles").length, 1);
       await settle();
-      assert.equal(patches().length, 2, "the advancement's and the bonus's: one PATCH for the bonus");
-      assert.equal(callsTo(TEAM_READ), before, "the late press read nothing either (final wave, T11 N4)");
-      assert.equal(patches().filter(({ body }) => (body.roster.players[0].favouredSkills ?? []).length).length, 1);
-      const rot = patches()[1].body.roster.players[0];
+      assert.equal(patches().length, 1, "the advancement and its bonus: one save");
+      const rot = sentOf("n1");
       assert.deepEqual(rot.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
-      assert.deepEqual(rot.advancements, mouth.advancements, "no advancement with it");
-      assert.equal(patches()[1].body.roster.favouredChoice, "Nurgle");
+      assert.deepEqual(rot.advancements, [{ ...mouth.advancements[0], favoured: "Tentacles" }], "the god's skill tied to its advancement (Task 10 review)");
+      assert.equal(patches()[0].body.roster.favouredChoice, "Nurgle");
     });
-    // A Rotspawn (no Mutation in his primary access): the skill is rolled for at the table too; his Tentacles closed.
+    // A Rotspawn (no Mutation in his primary access): the skill is rolled for at the table too; his own Tentacles closed; «No bonus».
     await withWindow({ phone: true }, async () => {
       await openPlayer(true, { id: "n2", teamAnswer: nurgle([SPAWN]) });
       fireEvent(advance(), "click");
-      api.reply(PATCH, 200, { team: nurgle([{ ...SPAWN, extraSkills: [{ name: "Guard", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Guard" } }] }], { revision: 5 }) });
-      take("Strength", "Guard");
-      assert.deepEqual(favoured().querySelectorAll(".g-favoured__line").map((line) => line.textContent), [
-        "Roll a D8 at the table: on a 7 the player gains one of these skills, at no cost to the value.",
-        "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too.",
-      ]);
-      assert.ok(closed(item("Tentacles")));
+      choosePrimary("Strength", "Guard");
+      assert.deepEqual(godLines(), [NURGLE_SUB, "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too."]);
+      fireEvent(godFace(7), "click");
+      assert.ok(closed(godItem("Tentacles")));
+      assert.equal(godItem("Tentacles").getAttribute("title"), "The player has this skill already.");
+      fireEvent(godItem("none"), "click");
+      assert.equal(godTake().textContent, "Take Guard");
+      const guard = { ...SPAWN, extraSkills: [{ name: "Guard", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Guard" } }] };
+      api.reply(PATCH, 200, { team: nurgle([guard], { revision: 5 }) });
+      fireEvent(godTake(), "click");
+      assert.deepEqual(godLines(), ["D8 7: no bonus taken"]);
       await settle();
+      assert.deepEqual(sentOf("n2").favouredSkills ?? [], [], "declined");
     });
-    // On a desk, under done in the window.
+    // On a desk, under the columns once the advancement is whole; done in the window says the D8 missed.
     await openPlayer(false, { id: "n1", teamAnswer: nurgle([ROT]) });
     fireEvent(advance(), "click");
-    const advancing = view.querySelector("dialog#player-advance");
-    fireEvent(advancing.querySelector('.g-options [data-option-value="primary"]'), "click");
-    fireEvent(advancing.querySelector('[data-advance-category="Mutation"]'), "click");
-    fireEvent(advancing.querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
-    api.reply(PATCH, 200, { team: nurgle([mouth], { revision: 5 }) });
-    fireEvent(advancing.querySelector("[data-advance-take]"), "click");
+    fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
+    fireEvent(godSheet().querySelector('[data-advance-category="Mutation"]'), "click");
+    assert.ok(!favoured());
+    fireEvent(godSheet().querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
     assert.equal(favoured().querySelector(".g-favoured__title").textContent, "Nurgle: a bonus skill");
+    assert.equal(godTake().textContent, "Mark the god's D8");
+    fireEvent(godFace(4), "click");
     assertStyled(view, ...UNDO_STYLES);
+    api.reply(PATCH, 200, { team: nurgle([mouth], { revision: 5 }) });
+    fireEvent(godTake(), "click");
+    assert.deepEqual(godLines(), ["D8 4: no bonus."]);
     await settle();
-    // No «Favoured of…», no block.
+    assert.deepEqual(sentOf("n1").favouredSkills ?? [], []);
+    // No «Favoured of…», no D8.
     await openPlayer(false, { teamAnswer: withOne(ADVANCED) });
     fireEvent(advance(), "click");
-    const humans = view.querySelector("dialog#player-advance");
+    const humans = godSheet();
     fireEvent(humans.querySelector('.g-options [data-option-value="primary"]'), "click");
     fireEvent(humans.querySelector('[data-advance-category="Agility"]'), "click");
     fireEvent(humans.querySelector('[data-advance-skill="Diving Catch"]'), "click");
+    assert.ok(!view.querySelector(".g-favoured"));
+    assert.equal(godTake().textContent, "Take Diving Catch");
     api.reply(PATCH, 200, { team: withOne(TWICE, { revision: 5 }) });
     fireEvent(humans.querySelector("[data-advance-take]"), "click");
     assert.ok(view.querySelector(".g-advance__done"));
-    assert.ok(!favoured());
+    assert.ok(!view.querySelector(".g-favoured"));
     await settle();
   });
 });
 
-// Fix round 1 (review Minor 10): nothing the god offers left to take, no block.
-test("a player holding every skill the god offers is offered no bonus", async () => {
+// The owner, 2026-10-21: no D8 when the god has nothing left to give — the advancement's own skill counted.
+test("a player holding every skill the god offers rolls no D8: said so, «Take» open", async () => {
   const held = { ...ROT, favouredSkills: [{ name: "Tentacles", access: "favoured" }, { name: "Bone Hook", access: "favoured" }] };
   const taken = { ...held, extraSkills: [{ name: "Monstrous Mouth", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Monstrous Mouth" } }] };
+  const SKIPPED = "The player holds every skill on the god's list: no D8 to roll.";
   await withoutTimers(async () => {
+    // On a desk: another skill leaves Monstrous Mouth the god's to give, this one leaves nothing.
+    await openPlayer(false, { id: "n1", teamAnswer: nurgle([held]) });
+    fireEvent(advance(), "click");
+    fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
+    fireEvent(godSheet().querySelector('[data-advance-category="General"]'), "click");
+    fireEvent(godSheet().querySelector('[data-advance-skill="Block"]'), "click");
+    assert.ok(godFace(1), "Monstrous Mouth is still the god's to give");
+    assert.equal(godTake().textContent, "Mark the god's D8");
+    fireEvent(godSheet().querySelector('[data-advance-category="Mutation"]'), "click");
+    fireEvent(godSheet().querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
+    assert.deepEqual(godLines(), [SKIPPED]);
+    assert.ok(!godFace(1));
+    await settle();
     await withWindow({ phone: true }, async () => {
       await openPlayer(true, { id: "n1", teamAnswer: nurgle([held]) });
       fireEvent(advance(), "click");
-      const advancing = view.querySelector("dialog#player-advance");
-      fireEvent(advancing.querySelector('.g-options [data-option-value="primary"]'), "click");
-      fireEvent(advancing.querySelector("[data-advance-next]"), "click");
-      fireEvent(advancing.querySelector('[data-advance-category="Mutation"]'), "click");
-      fireEvent(advancing.querySelector("[data-advance-next]"), "click");
-      fireEvent(advancing.querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
+      choosePrimary("Mutation", "Monstrous Mouth");
+      assert.deepEqual(godLines(), [SKIPPED], "Tentacles, Bone Hook and Monstrous Mouth are all his");
+      assert.equal(godTake().textContent, "Take Monstrous Mouth");
       api.reply(PATCH, 200, { team: nurgle([taken], { revision: 5 }) });
-      fireEvent(advancing.querySelector("[data-advance-take]"), "click");
+      fireEvent(godTake(), "click");
       assert.ok(view.querySelector(".g-advance__done"));
-      assert.ok(!view.querySelector(".g-favoured"), "Tentacles, Bone Hook and Monstrous Mouth are all his");
+      assert.deepEqual(godLines(), [SKIPPED]);
       await settle();
       assert.equal(patches().length, 1);
+      assert.deepEqual(sentOf("n1").favouredSkills, held.favouredSkills);
+    });
+  });
+});
+
+// Task 10 review (content «Team Management» :313 — one god's skill per advancement): the god's skill the D8 brought is tied
+// to its advancement, and «Undo the last» takes it back with it, as the post-match's own undo does; a take again rolls the
+// god's D8 for a clean player, never a second skill for one advancement.
+test("Favoured of Nurgle: undoing an advancement takes back the god's skill its D8 brought; a take again asks a fresh D8", async () => {
+  const BLOCK = { type: "primary", grants: { skill: "Block" } };
+  const blessed = { ...ROT, extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [{ name: "Tentacles", access: "favoured" }],
+    advancements: [{ ...BLOCK, favoured: "Tentacles" }] };
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true, { id: "n1", teamAnswer: nurgle([ROT]) });
+      fireEvent(advance(), "click");
+      choosePrimary("General", "Block");
+      fireEvent(godFace(7), "click");
+      fireEvent(godItem("Tentacles"), "click");
+      api.reply(PATCH, 200, { team: nurgle([blessed], { revision: 5 }) });
+      fireEvent(godTake(), "click");
+      await settle();
+      assert.deepEqual(sentOf("n1").advancements, [{ ...BLOCK, favoured: "Tentacles" }], "the god's skill tied to its advancement");
+      fireEvent(godSheet().querySelector("[data-advance-done]"), "click");
+      assert.ok(!godSheet());
+      // «Undo the last: Block» says the god's skill goes with it.
+      reopenFix();
+      assert.equal(undo().textContent, "Undo the last: Block");
+      fireEvent(undo(), "click");
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE], "nothing loose to point at");
+      api.reply(PATCH, 200, { team: nurgle([ROT], { revision: 6 }) });
+      fireEvent(send(), "click");
+      assert.equal(toasts().at(-1), "Advancement undone: Block and the god's Tentacles · 6 SPP back");
+      await settle();
+      assert.equal(patches().length, 2);
+      assert.deepEqual(sentOf("n1").advancements ?? [], []);
+      assert.deepEqual(sentOf("n1").favouredSkills ?? [], [], "the god's skill goes with its advancement");
+      assert.ok(!(sentOf("n1").extraSkills ?? []).some(({ name }) => name === "Block"));
+      // Taken again: the god's D8 for a clean player — Tentacles the god's to give again, not a second skill of one advancement.
+      fireEvent(advance(), "click");
+      choosePrimary("General", "Block");
+      assert.equal(godTake().textContent, "Mark the god's D8");
+      fireEvent(godFace(7), "click");
+      assert.ok(!closed(godItem("Tentacles")), "Tentacles is no longer his");
+    });
+  });
+});
+
+// Task 10 review: an advancement saved before the tie (2.x's, or a post-match finished before it) says nothing of a god's
+// skill; the undo names the god's skills no advancement names and points to taking one off by hand. Nothing else goes.
+test("an advancement without a tie: the undo names the loose god's skills and points to the fix by hand; they stay", async () => {
+  const legacy = { ...ROT, extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [{ name: "Tentacles", access: "favoured" }, { name: "Bone Hook", access: "favoured" }],
+    advancements: [{ type: "primary", grants: { skill: "Block" } }] };
+  const LOOSE = "The god's skills no advancement names (Tentacles, Bone Hook) stay: if this advancement brought one, take it off in «Fix by hand».";
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openUndo(true, { id: "n1", teamAnswer: nurgle([legacy]) });
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE, LOOSE]);
+      api.reply(PATCH, 200, { team: nurgle([{ ...ROT, favouredSkills: legacy.favouredSkills }], { revision: 5 }) });
+      fireEvent(send(), "click");
+      assert.equal(toasts().at(-1), "Advancement undone: Block · 6 SPP back");
+      await settle();
+      assert.deepEqual(sentOf("n1").favouredSkills, legacy.favouredSkills, "a god's skill no advancement names stays");
     });
   });
 });
@@ -1143,8 +1235,11 @@ test("every key in both dictionaries; styled; D2", () => {
   assert.equal(height(FIX, "max-width: 900px", ".g-player-fix__undo"), 44);
   assert.equal(height(FIX, "min-width: 901px", ".g-player-fix__undo"), 32);
   assert.ok(height(FIX, "min-width: 901px", ".g-player-fix__undo") >= 24);
-  assert.ok(height(ADVANCE, "max-width: 900px", "#player-advance .g-favoured .g-btn") >= 44);
-  assert.ok(height(ADVANCE, "min-width: 901px", "#player-advance .g-favoured .g-btn") >= 24);
+  // The god's D8 is the characteristic's faces (rolls.css), in a row of eight on a desk too; its skills the advancement's own.
+  assert.ok(height(ROLLS, "max-width: 900px", "#player-advance .g-advance__d8face") >= 44);
+  assert.ok(height(ROLLS, "min-width: 901px", "#player-advance .g-advance__d8face") >= 24);
+  assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-favoured .g-favoured__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))"]);
+  assert.doesNotMatch(bare(ADVANCE), /g-favoured \.g-btn/, "no «Add …» left");
   // The profile's page holds the page only (T8): the sheets' rules live in their own files.
   assert.doesNotMatch(bare(PROFILE), /unadvance|g-favoured|roster-skill/);
 });

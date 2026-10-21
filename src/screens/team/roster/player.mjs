@@ -2,8 +2,8 @@
  * What a player's own controls do (stage 07d): the pencil opens his edit — number, name, the captaincy — and «Save» is
  * one step of the save queue; on a desk the edit also carries his SPP counters outside a match (owner's D3), each press
  * a step of its own as on a phone. «Advancement» (the profile's) and «Advance» (the desk's panel) open his advancement,
- * whose presses are advance.mjs's; its done step offers a roster «Favoured of…» the god's bonus skill, one step more
- * (decision 17). «Undo the last: …» — in his fix by hand alone (decision 40) — asks first, then his last advancement
+ * whose presses are advance.mjs's — a roster «Favoured of…» rolls the god's D8 with it (favoured.mjs; the owner,
+ * 2026-10-21). «Undo the last: …» — in his fix by hand alone (decision 40) — asks first, then his last advancement
  * goes as one step (decision 18). None during a match (R8). What a sheet holds lives on the visit, as the marks' do.
  *
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a), saying how an advancement gave it;
@@ -13,10 +13,9 @@
  * button of his profile's «Career» opens and closes its list (career.mjs), which reads and writes nothing of its own.
  */
 import { t } from "../../../core/i18n.mjs";
-import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { identityOf } from "../../../domain/roster/edits.mjs";
-import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
+import { advanceHandlers, advanceSheetOf } from "./advance.mjs";
 import { careerHandlers } from "./career.mjs";
 import { fixChanged, fixHandlers, fixSheetOf } from "./fix.mjs";
 import { closeSheet, openerOf } from "./injury.mjs";
@@ -25,10 +24,10 @@ import { playerAt, rosterLineOf, savePlayerSheet, seededSheetOf } from "./player
 import { editCheck } from "./player-sheets.mjs";
 import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
-import { addFavoured, amendPlayer, undoAdvancement } from "./save.mjs";
+import { amendPlayer, undoAdvancement } from "./save.mjs";
 
-/** An advancement as the undo's sheet showed it — its type, what it gave, its roll — which is what the coach confirms. */
-const shownAs = ({ type, grants, via, rollId }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId]);
+/** An advancement as the undo's sheet showed it — its type, what it gave, its roll, the god's skill tied to it — which is what the coach confirms. */
+const shownAs = ({ type, grants, via, rollId, favoured }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId, favoured ?? ""]);
 
 /** The advancement the undo's sheet showed is still his last: in the same place, and the same advancement there. */
 const stillLast = (sheet, line) => sheet.index === line.advancements.length - 1 && shownAs(line.advancements[sheet.index]) === sheet.confirmed;
@@ -89,9 +88,10 @@ function saveEdit(saving, lent) {
 /**
  * «Undo advancement»: only from the undo that is open, while the advancement it showed is still his last — a press that
  * finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the queue
- * (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
- * sheet closes, the focus on the pencil its fix was opened from — the step's own draw has closed it already
- * (`undoSheetOf`), so the pencil is asked for here (`openerOf`) — and the coach is told what came back. A refusal
+ * (`undoAdvancement`): what it gave goes — the god's skill tied to it too — its SPP come back, and the save frees its
+ * site roll. In the same turn the sheet closes, the focus on the pencil its fix was opened from — the step's own draw has
+ * closed it already (`undoSheetOf`), so the pencil is asked for here (`openerOf`) — and the coach is told what went and
+ * what came back. A refusal
  * (another tab's coach, the rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422
  * asks for the server's roster again (`refused`).
  *
@@ -127,44 +127,7 @@ function sendUndo(saving, { now, refused }) {
   visit.rolls = null;
   closeSheet(saving);
   openerOf({ opener, sheet })?.focus();
-  toast(t("teamPlayer.undo.done", { what, spp: answer.cost }));
-}
-
-/** The advancement's sheet on its done step while a god's bonus can still be added there, or null. */
-const bonusSheet = (visit) => (visit.sheet?.kind === "advance" && visit.sheet.step === "done" && visit.sheet.favoured !== "added" ? visit.sheet : null);
-
-/**
- * «Add …» under done (decision 17): only from the done step whose bonus is chosen and not yet added — a second press
- * finds it added, and sends nothing. Why it is closed is asked again (K15: `undoClosed`, a match begun before the screen
- * was drawn again), then one step of the queue (`addFavoured`, the domain's refusal in words). The block goes in the
- * same turn, the focus on the sheet's button, and the coach is told; a refusal is said in the block, which stays.
- *
- * @param {import("./index.mjs").Saving} saving
- * @param {{now: () => object, refused: () => void}} lent
- */
-function addBonus(saving, { now, refused }) {
-  const { teamId, visit, draw } = saving;
-  const sheet = bonusSheet(visit);
-  const where = sheet?.bonus ? now() : null;
-  const line = where && rosterLineOf(where.lines, sheet.key);
-  if (!line) return;
-  const reason = undoClosed(line, where);
-  if (reason) {
-    toast(reason);
-    return;
-  }
-  const answer = addFavoured(teamId, where.race, line.id, sheet.bonus, { closed: () => undoClosed(line, now()) });
-  if (answer.refusal) {
-    sheet.refusal = answer.refusal;
-    draw();
-    refused();
-    return;
-  }
-  if (!answer.ok) return;
-  Object.assign(sheet, { favoured: "added", refusal: "" });
-  draw();
-  view.querySelector("[data-advance-done]")?.focus();
-  toast(t("teamPlayer.favoured.done", { skill: sheet.bonus }));
+  toast(answer.favoured ? t("teamPlayer.undo.doneFavoured", { what, skill: answer.favoured, spp: answer.cost }) : t("teamPlayer.undo.done", { what, spp: answer.cost }));
 }
 
 /**
@@ -204,9 +167,8 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
  * last refusal goes with the form it was said of; «Cancel» closes it, the focus back on the pencil; «Save» saves it
  * (`saveEdit`). «Undo the last» opens its sheet in the place of his fix by hand — only from that fix, open — on the
  * advancement that is his last at the press, unless something closes it or the fix's form is changed (said instead);
- * «Keep» closes it, «Undo advancement» sends it (`sendUndo`), the focus back on the pencil either way. On the
- * advancement's done step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it
- * (`addBonus`). His advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's
+ * «Keep» closes it, «Undo advancement» sends it (`sendUndo`), the focus back on the pencil either way. His
+ * advancement's presses are advance.mjs's (`advanceHandlers`), the god's D8 with them, his fix by hand's fix.mjs's
  * (`fixHandlers`), his career's button career.mjs's (`careerHandlers`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
@@ -248,15 +210,6 @@ export function playerHandlers(saving, lent) {
       if (visit.sheet?.kind === "unadvance") closeSheet(saving);
     },
     onUnadvanceSend: () => sendUndo(saving, lent),
-    // A skill the press does not find offered, or his own, is drawn back as it was: wireRadioGroups has flipped the group already.
-    onFavoured: (skill) => {
-      const sheet = bonusSheet(visit);
-      const where = sheet ? lent.now() : null;
-      const line = where && rosterLineOf(where.lines, sheet.key);
-      if (line && bonusOf(line, where)?.skills.some(({ name, held }) => name === skill && !held)) Object.assign(sheet, { bonus: skill, refusal: "" });
-      if (sheet) draw();
-    },
-    onFavouredAdd: () => addBonus(saving, lent),
     onEdit: (key, button) => {
       const player = playerAt(lent.now, key);
       if (player?.reason) toast(player.reason);

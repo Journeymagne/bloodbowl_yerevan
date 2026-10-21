@@ -208,6 +208,17 @@ test("a preparation that cannot be read says why, with the way back", async () =
   gate.release();
   await visiting;
   await flush();
+  // Back from the post-match, whose frame is the same class (stage 09b): its frame gives way to the loading status.
+  releaseCurrentScreen();
+  view.innerHTML = '<div class="g-prep g-prep--desk" data-screen="post-match"><header class="g-prep__band"><h1 class="g-prep__title" tabindex="-1">After the match</h1></header></div>';
+  const back = api.hold(READ);
+  const returning = renderPreMatch("g1", "");
+  assert.equal(view.querySelector('[role="status"]')?.textContent, "Loading the preparation…");
+  assert.equal(view.querySelector("h1").textContent, t("prep.title"));
+  back.release();
+  await returning;
+  await flush();
+  assert.ok(view.querySelector(".g-prep--desk .g-prep__card"), "the preparation drawn");
   api.reset();
 });
 

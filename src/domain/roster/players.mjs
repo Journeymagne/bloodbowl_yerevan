@@ -117,6 +117,11 @@ export function normalizeSppCounters(spp = {}) {
  * `roll` says how the result was rolled — on the site (`{ id, via: "site" }`,
  * `id` being `dice_rolls.id`) or at the table (`{ via: "table" }`). It is
  * optional, so every advancement saved before it reads unchanged.
+ *
+ * `favoured` names the god's skill the advancement's D8 brought a roster
+ * «Favoured of…» (stage 09b, Task 10 review), which its undo takes back
+ * (`removeAdvancement`). Optional too: one the D8 brought nothing, and every
+ * advancement saved before it, has none.
  */
 export function normalizePlayerAdvancements(advancements = []) {
   const source = Array.isArray(advancements) ? advancements : [];
@@ -126,7 +131,8 @@ export function normalizePlayerAdvancements(advancements = []) {
       if (!Object.hasOwn(advancementTypeLabels, type)) return null;
       const grants = normalizeAdvancementGrant(advancement?.grants);
       const roll = normalizeAdvancementRoll(advancement?.roll);
-      return { type, ...(grants ? { grants } : {}), ...(roll ? { roll } : {}) };
+      const favoured = typeof advancement?.favoured === "string" ? advancement.favoured.trim() : "";
+      return { type, ...(grants ? { grants } : {}), ...(roll ? { roll } : {}), ...(favoured ? { favoured } : {}) };
     })
     .filter(Boolean)
     .slice(0, advancementRanks.length);

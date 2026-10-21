@@ -121,10 +121,10 @@ test("a phone's table page: the season's name and the last round over, the table
   }
 });
 
-test("a desk's page: «Season» with its line, the table and the calendar side by side; an admin has the way to the season's administration", async () => {
+test("a desk's page: «Table» with its line, the table and the calendar side by side; an admin has the way to the season's administration", async () => {
   try {
     await visit("", { phone: false });
-    assert.equal(view.querySelector("h1").textContent, "Season");
+    assert.equal(view.querySelector("h1").textContent, "Table", "DeskSeason's title (the owner, 2026-10-21), not «Season»");
     assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Mock Season · teams: 5 · after round 2");
     const row = view.querySelector(".g-season__row");
     const table = view.querySelector(".g-season__table");
@@ -266,7 +266,7 @@ test("crossing 900px draws the other form, the focus kept or on the title", asyn
     const { cross } = await visit("");
     view.querySelector(".g-table__racetext").closest(".g-table__row").querySelector("a.g-table__link").focus();
     cross(false);
-    assert.equal(view.querySelector("h1").textContent, "Season", "drawn again as a desk's");
+    assert.equal(view.querySelector("h1").textContent, "Table", "drawn again as a desk's");
     assert.equal(view.querySelectorAll('.g-table [role="columnheader"]').length, 11);
     assert.ok(view.querySelector(".g-season__row"));
     view.querySelector("a.g-table__race").focus();

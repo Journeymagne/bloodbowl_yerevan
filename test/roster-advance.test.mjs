@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { expandCollections } from "../src/data/reference.mjs";
 import { sameValues } from "../src/domain/post-match/events.mjs";
 import { rollFitsAdvancement, rollRefusal, siteRollReferences, skillFaces, tableAdvancementFor } from "../src/domain/roster/dice.mjs";
+import { addAdvancementFavoured, applyFix } from "../src/domain/roster/edits.mjs";
 import {
   ADVANCE_REFUSALS, ADVANCEMENT_TYPES, MAX_STAT_GAIN, STAT_LIMITS, advancementCategories, advancementOffers, categorySkills,
   statChoices, statIncreaseRefusal, takeAdvancement, undoLastAdvancement,
@@ -247,6 +248,62 @@ test("the last advancement undone: what it granted goes, its SPP and its roll co
   assert.deepEqual(undoLastAdvancement(blocker), { removed: true, index: 1, type: "stat", grants: { skill: "Block" }, roll: null, cost: 16 });
   assert.deepEqual(blocker.extraSkills, [{ name: "Sure Hands", access: "primary" }]);
   assert.deepEqual(undoLastAdvancement(catcher(RICH)), { removed: false });
+});
+
+// Task 10 review (content «Team Management» :313: one god's skill per advancement, «in addition to the one taken for a
+// regular advancement»): the god's skill the D8 brought is tied to its advancement, so its undo takes it back, on the
+// roster as in the post-match, and a take again rolls a fresh D8 for a clean player.
+test("the god's skill an advancement's D8 brought is tied to it, kept as the server stores it, and goes with its undo", () => {
+  const nurgle = race("teams/nurgle"), rotter = rowsForTeam(nurgle)[0], draft = { favouredChoice: "Nurgle" };
+  const rot = player(0, RICH, { id: "n1", favouredSkills: [] });
+  assert.equal(takeAdvancement(nurgle, rotter, rot, { type: "primary", grant: { skill: "Block" } }, skillGroups).applied, true);
+  assert.deepEqual(addAdvancementFavoured(nurgle, draft, rotter, rot, "Tentacles"), { applied: true });
+  const tied = { type: "primary", grants: { skill: "Block" }, favoured: "Tentacles" };
+  assert.deepEqual(rot.advancements, [tied]);
+  assert.deepEqual(rot.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+  const stored = checkRoster("teams/nurgle", { favouredChoice: "Nurgle", players: [rot] }).roster.players[0];
+  assert.deepEqual(stored.advancements, [tied], "the server's normaliser keeps the tie");
+  assert.deepEqual(undoLastAdvancement(rot), { removed: true, index: 0, type: "primary", grants: { skill: "Block" }, roll: null, favoured: "Tentacles", cost: 6 });
+  assert.deepEqual([rot.advancements, rot.extraSkills, rot.favouredSkills], [[], [], []], "the god's skill goes with it");
+  // A refused bonus ties nothing: the god's skill he holds, or another god's.
+  const held = player(0, RICH, { favouredSkills: [{ name: "Tentacles", access: "favoured" }] });
+  takeAdvancement(nurgle, rotter, held, { type: "primary", grant: { skill: "Block" } }, skillGroups);
+  assert.equal(addAdvancementFavoured(nurgle, draft, rotter, held, "Tentacles").applied, false);
+  assert.equal(addAdvancementFavoured(nurgle, draft, rotter, held, "Horns").applied, false);
+  assert.deepEqual(held.advancements, [{ type: "primary", grants: { skill: "Block" } }]);
+  // A god's skill no advancement names (2.x's, or one added by hand) stays with an undo; only the tied one goes.
+  undoLastAdvancement(held);
+  assert.deepEqual(held.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+  const two = player(0, { touchdowns: 20 }, { favouredSkills: [{ name: "Bone Hook", access: "favoured" }] });
+  takeAdvancement(nurgle, rotter, two, { type: "primary", grant: { skill: "Block" } }, skillGroups);
+  addAdvancementFavoured(nurgle, draft, rotter, two, "Tentacles");
+  takeAdvancement(nurgle, rotter, two, { type: "primary", grant: { skill: "Wrestle" } }, skillGroups);
+  assert.equal(undoLastAdvancement(two).favoured, undefined, "the second brought none");
+  assert.deepEqual(two.favouredSkills.map(({ name }) => name), ["Bone Hook", "Tentacles"]);
+  undoLastAdvancement(two);
+  assert.deepEqual(two.favouredSkills.map(({ name }) => name), ["Bone Hook"]);
+  // A tie to a god's skill the player no longer holds (taken off by hand, or by a change of god) takes nothing and says nothing.
+  const lost = player(0, RICH, { favouredSkills: [{ name: "Bone Hook", access: "favoured" }], advancements: [{ ...tied }] });
+  assert.equal(undoLastAdvancement(lost).favoured, undefined);
+  assert.deepEqual(lost.favouredSkills.map(({ name }) => name), ["Bone Hook"]);
+  // The fix by hand that takes the god's skill off unties it, and so does one that adds by hand a skill an old tie names:
+  // that skill is no advancement's to take back.
+  const fixed = player(0, RICH, { id: "n1", extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [{ name: "Tentacles", access: "favoured" }],
+    advancements: [{ ...tied }] });
+  const draftOf = (one) => ({ favouredChoice: "Nurgle", players: [one] });
+  assert.deepEqual(applyFix(nurgle, draftOf(fixed), "n1", { favoured: { remove: ["Tentacles"] } }), { applied: true, changed: true });
+  assert.deepEqual([fixed.advancements, fixed.favouredSkills], [[{ type: "primary", grants: { skill: "Block" } }], []]);
+  const dormant = player(0, RICH, { id: "n1", favouredSkills: [], advancements: [{ ...tied }] });
+  assert.equal(applyFix(nurgle, draftOf(dormant), "n1", { favoured: { add: ["Tentacles"] } }).applied, true);
+  assert.deepEqual(dormant.advancements, [{ type: "primary", grants: { skill: "Block" } }]);
+  assert.equal(undoLastAdvancement(dormant).favoured, undefined, "the skill added by hand stays");
+  assert.deepEqual(dormant.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+  const other = player(0, RICH, { id: "n1", favouredSkills: [{ name: "Tentacles", access: "favoured" }, { name: "Bone Hook", access: "favoured" }], advancements: [{ ...tied }] });
+  applyFix(nurgle, draftOf(other), "n1", { favoured: { remove: ["Bone Hook"] } });
+  assert.deepEqual(other.advancements, [tied], "another god's skill taken off leaves the tie");
+  // A tie of no name is none.
+  assert.deepEqual(checkRoster("teams/nurgle", { players: [player(0, RICH, { advancements: [{ type: "primary", favoured: " " }, { type: "random", favoured: 7 }] })] })
+    .roster.players[0].advancements, [{ type: "primary" }, { type: "random" }]);
 });
 
 test("a roll's table: sixteen faces, a column shorter than that blank on the rest", () => {

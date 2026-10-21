@@ -3,9 +3,9 @@
  *
  * One form for each width, drawn again when the width crosses 900px. A phone's is League.html: the season's name
  * with the last round over at its right, the table's eight columns, the league's rules under it, then the season's
- * calendar. A desk's is DeskSeason.html without its board: the band «Season» with the season's line (and, for an
- * admin, the way to the season's administration until stage 12 moves it), the table's card at the left and the
- * calendar at its right.
+ * calendar. A desk's is DeskSeason.html without its board: the band «Table» (its `h1`, as the prototype's; the owner,
+ * 2026-10-21) with the season's line (and, for an admin, the way to the season's administration until stage 12 moves
+ * it), the table's card at the left and the calendar at its right.
  *
  * The season's calendar has no prototype (owner question 2): the league's rounds under way or over, newest first,
  * each pairing a line «Home — Away» built as DeskSeason.html's calendar draws a match, the score once confirmed,
@@ -112,11 +112,11 @@ function tableMarkup(model) {
 
 const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed" role="alert">${renderCallout({ tone: "danger", title: model.failure })}</div>` : "");
 
-/** A desk's: the band, then the table's card and the calendar side by side (DeskSeason.html without the board). */
+/** A desk's: the band «Table», then the table's card and the calendar side by side (DeskSeason.html without the board). */
 function deskMarkup(model) {
   const admin = model.admin
     ? `<a class="g-league__admin" href="${escapeHtml(seasonTabUrl("administration"))}">${escapeHtml(t("league.admin"))}</a>` : "";
-  const head = renderPageHead({ title: t("shell.side.season"), sub: model.line, metaHtml: admin });
+  const head = renderPageHead({ title: t("shell.tab.table"), sub: model.line, metaHtml: admin });
   const viewer = { viewerId: model.viewerId, signedIn: model.signedIn };
   return `${head}<div class="g-league">${failureMarkup(model)}<div class="g-season__row">`
     + `${tableCardMarkup({ titleId: "league-title", bodyHtml: tableMarkup(model) })}`

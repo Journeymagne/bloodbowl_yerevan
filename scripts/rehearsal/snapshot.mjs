@@ -17,7 +17,8 @@
  * match half-way through) go in the report for a person to read. Two things a
  * migration was not asked to do are problems all the same: a new journal, dice or
  * match-events table that starts with rows, and fallen players 015 carried over
- * that are not the ones its rule finds.
+ * that are not the ones its rule finds. What rehearsal:transitions seeded is marked
+ * in the report and not counted among the open states (`renderReport`'s `seed`).
  */
 const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kind }));
 
@@ -123,12 +124,14 @@ async function openStates(client) {
     ORDER BY p.id`);
   const awaiting = await client.query(`SELECT p.id, p.match_kind FROM season_pairings p
     WHERE p.result_status = 'awaiting_confirmation' ORDER BY p.id`);
-  const challenges = await client.query("SELECT count(*)::int AS n FROM friendly_challenges WHERE status = 'pending'");
+  const challenges = await client.query("SELECT id FROM friendly_challenges WHERE status = 'pending' ORDER BY id");
   return {
     preparing: LIST(preparing.rows),
     startedWithoutPost: LIST(started.rows),
     awaitingConfirmation: LIST(awaiting.rows),
-    pendingChallenges: challenges.rows[0].n,
+    pendingChallenges: challenges.rows.length,
+    // By id, so the report can tell the ones rehearsal:transitions seeded from the site's own.
+    pendingChallengeIds: challenges.rows.map((row) => row.id),
   };
 }
 
@@ -342,8 +345,42 @@ function reason(row) {
   return [row.entered && "entered in the current season", row.playedMatch && "has a played match"].filter(Boolean).join(", ") || "no entry, no match";
 }
 
-/** @param migrate what rehearsal:migrate recorded ({ applied, ms, runs }, see migrate-record.mjs), or null when it did not run */
-export function renderReport(before, after, comparison, migrate = null) {
+const SEEDED = "seeded by rehearsal:transitions";
+
+// One line of open states: the site's own, then what the seed made, named apart and not counted.
+function openLine(label, rows, seededIds) {
+  const listed = (list) => list.map((row) => `${row.id} (${row.matchKind})`).join(", ");
+  const own = rows.filter((row) => !seededIds.has(row.id)), seeded = rows.filter((row) => seededIds.has(row.id));
+  return `- ${label}: ${listed(own) || "none"}${seeded.length ? ` · ${SEEDED}, not counted: ${listed(seeded)}` : ""}`;
+}
+
+function challengesLine(open, seededIds) {
+  const seeded = (open.pendingChallengeIds ?? []).filter((id) => seededIds.has(id)).length;
+  return `- pending friendly challenges: ${open.pendingChallenges - seeded}${seeded ? ` · ${SEEDED}, not counted: ${seeded}` : ""}`;
+}
+
+function openStatesLines(open, seed) {
+  const pairings = new Set(seed?.pairingIds ?? []);
+  return [
+    openLine("preparing (pre-match begun, match not started)", open.preparing, pairings),
+    openLine("started, post-match not finished", open.startedWithoutPost, pairings),
+    openLine("result awaiting confirmation", open.awaitingConfirmation, pairings),
+    challengesLine(open, new Set(seed?.challengeIds ?? [])),
+  ];
+}
+
+function stageLines(stages, seed) {
+  if (!stages) return ["- (no stage column yet)"];
+  const teams = new Set(seed?.teamIds ?? []);
+  return stages.map((row) => `- ${row.name} — ${row.stage} — ${reason(row)}${teams.has(row.id) ? ` — ${SEEDED}` : ""}`);
+}
+
+/**
+ * @param migrate what rehearsal:migrate recorded ({ applied, ms, runs }, see migrate-record.mjs), or null when it did not run
+ * @param seed the rows rehearsal:transitions seeded ({ pairingIds, challengeIds, teamIds }, `seededRows`), or null:
+ *   marked in the stages and left out of the open states the day's inventory counts
+ */
+export function renderReport(before, after, comparison, migrate = null, seed = null) {
   const { problems, notes } = comparison;
   const { strong, rest } = verdict(before, after, comparison);
   const names = Object.fromEntries(Object.entries(after.teams).map(([id, team]) => [id, team.name]));
@@ -359,7 +396,7 @@ export function renderReport(before, after, comparison, migrate = null) {
     "",
     "## Stages",
     "",
-    ...(after.stages ? after.stages.map((row) => `- ${row.name} — ${row.stage} — ${reason(row)}`) : ["- (no stage column yet)"]),
+    ...stageLines(after.stages, seed),
     "",
     "## Fallen players carried over",
     "",
@@ -367,10 +404,7 @@ export function renderReport(before, after, comparison, migrate = null) {
     "",
     "## Open states",
     "",
-    `- preparing (pre-match begun, match not started): ${after.open.preparing.map((row) => `${row.id} (${row.matchKind})`).join(", ") || "none"}`,
-    `- started, post-match not finished: ${after.open.startedWithoutPost.map((row) => `${row.id} (${row.matchKind})`).join(", ") || "none"}`,
-    `- result awaiting confirmation: ${after.open.awaitingConfirmation.map((row) => `${row.id} (${row.matchKind})`).join(", ") || "none"}`,
-    `- pending friendly challenges: ${after.open.pendingChallenges}`,
+    ...openStatesLines(after.open, seed),
     "",
     `Before: ${before.takenAt}, ${before.migrations.length} migrations. After: ${after.migrations.length} migrations.`,
   ];

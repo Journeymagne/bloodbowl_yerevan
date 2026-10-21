@@ -36,8 +36,9 @@ const TEAM_ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/rolls$`, "i");
  * What a body asks for: one of the purposes dice are rolled for, and for a random skill a category.
  * Any non-empty string is a category here; `DICE_CATEGORY` says whether the player can take it. A
  * characteristic has no use for a category and does not read one. Anything else is a 400 for the field.
+ * The post-match's dice read a body the same way (server/routes/post-match.mjs).
  */
-function checkRoll(body) {
+export function checkRoll(body) {
   const { purpose, category } = body ?? {};
   if (!DICE_PURPOSES.includes(purpose)) throw httpError(400, "FIELD_INVALID", { field: "purpose" });
   if (purpose === "random_skill" && (typeof category !== "string" || category === "")) throw httpError(400, "FIELD_INVALID", { field: "category" });

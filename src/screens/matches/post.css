@@ -1,0 +1,200 @@
+/*
+ * The post-match 3.0 (screens/matches/post-model.mjs, post-steps.mjs and the steps after them): PostResult.html …
+ * PostReview.html on a phone, DeskPostResult.html … DeskPostReview.html on a desk, in the preparation's frame
+ * (prep.css). What every step shares is here — the card, its label, a row «label — value», a note, a big figure — and
+ * the score's and the income's own parts. Font, border, background, text-transform, letter-spacing and font-weight are
+ * set on purpose: the 2.x globals outlive this sheet until stage 13.
+ *
+ * Long lines wrap — a team's name over the steppers, a row's label —; nothing is cut with «…» (the owner's answer).
+ */
+
+/* Seven steps in the frame's row of dots, where the preparation has five. */
+.g-prep__dotlist:has(> :nth-child(7)) { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+/* A desk's chip of the opponent's line over the button (DeskPostResult.html): 12px, a 7px dot; it wraps, never cut. */
+.g-after__lead { display: flex; }
+.g-after__lead .g-status {
+  height: auto;
+  min-height: 26px;
+  padding: var(--space-4) var(--space-10);
+  font: 700 12px/1.3 var(--font-body);
+  white-space: normal;
+}
+.g-after__lead .g-status::before { width: 7px; height: 7px; }
+/* The post-match's button on a desk is the prototype's 48px, 16px words; the summary's (confirm, finish) DeskPostReview's
+   52px, 17px. */
+.g-after__lead ~ .g-prep__cta { min-height: 48px; font-size: 16px; }
+.g-after__lead ~ .g-prep__cta:is([data-prep-action="confirm"], [data-prep-action="finish"]) { min-height: 52px; font-size: 17px; }
+
+/* A step's card: white in the ring, 14 16 in, its parts 10 apart; a card of rows has none between them. */
+.g-after__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-14) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-after__card--tight { gap: var(--space-4); }
+.g-after__card--rows { gap: 0; }
+.g-after__card--switches { gap: 0; padding: 0 var(--space-16); }
+
+.g-after__label { color: var(--muted); font: 700 12px/1.3 var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; overflow-wrap: anywhere; }
+
+.g-after__note { margin: 0; color: var(--muted); font: 400 13px/1.45 var(--font-body); letter-spacing: 0; text-transform: none; }
+
+.g-after__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
+
+.g-after__tally { flex: none; color: var(--on-accent-tint); font: 700 12px/1.3 var(--font-body); }
+
+/* A row «label — value»: 44px, 6 0 in, a line under it; the label's quiet line 12px. */
+.g-after__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+  font: 400 15px/1.25 var(--font-body);
+}
+
+/* The label keeps its words whole (it gives way to the value only between words); the value wraps where it must. */
+.g-after__rowk { display: flex; flex-direction: column; color: var(--muted); overflow-wrap: break-word; }
+
+.g-after__rowsub { color: var(--muted); font: 400 12px/1.35 var(--font-body); }
+
+/* A value wraps where it must (a reason, a list of names); the score's totals keep to one line (PostResult.html). */
+.g-after__rowv { flex: 0 1 auto; min-width: 0; color: var(--ink); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.g-after__rowv--keep { flex: none; white-space: nowrap; }
+
+/* A total: its word at the left, the figure in Oswald 28 in the accent's ink. */
+.g-after__total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); padding-top: var(--space-8); }
+
+.g-after__totalk { color: var(--muted); font: 400 14px/1.35 var(--font-body); }
+
+.g-after__big { color: var(--on-accent-tint); font: 700 28px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+/* The score's steppers (PostResult.html): «ours | TD/CAS | theirs», the names over them wrapping. */
+.g-after__teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); font: 700 13px/1.3 var(--font-body); overflow-wrap: anywhere; }
+
+.g-after__teamr { text-align: right; }
+
+.g-after__score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-8); }
+.g-after__score > .g-after__counter:first-child { justify-self: start; }
+.g-after__score > .g-after__counter:last-child { justify-self: end; }
+
+.g-after__counter {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.g-after__step {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-after__step:disabled { color: var(--disabled); cursor: default; }
+
+.g-after__value { min-width: 30px; color: var(--ink); font: 700 20px/1 var(--font-display); text-align: center; font-variant-numeric: tabular-nums; }
+
+.g-after__counterk { color: var(--muted); font: 700 13px/1.2 var(--font-body); }
+
+.g-after__forrow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); padding-top: var(--space-4); }
+
+.g-after__for { color: var(--muted); font: 400 14px/1.35 var(--font-body); }
+
+.g-after__pts { flex: none; color: var(--on-accent-tint); font: 700 15px/1.3 var(--font-body); }
+
+/* «The score does not match the records»: the danger's tint, 14 round, 12 14 in. */
+.g-after__alert {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-xl);
+  background: var(--danger-tint);
+  color: var(--on-danger-tint);
+}
+
+.g-after__alerttitle { font: 700 14px/1.3 var(--font-body); }
+
+.g-after__alerttext { font: 400 13px/1.45 var(--font-body); }
+
+/* «How the match ended»: a 2×2 radio group, the chosen one in the soft tint inside the accent's ring. */
+.g-after__modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+
+.g-after__mode {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-after__mode[aria-checked="true"] { background: var(--accent-tint-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 700; }
+.g-after__mode[aria-disabled="true"] { cursor: default; }
+
+/* Under 370px the two steppers and their word do not fit in a row (2 × 128 + «CAS» + gaps): the word goes over them, the
+   figure narrower; the buttons keep 44px. A half of the modes' row is 109px inside at 320, short of «Safe concession»
+   (111) and «Сдача без штрафа» (128; 118 at 13px): the modes go one under another, each on a line of its own at 14px. */
+@media (max-width: 369px) {
+  .g-after__score { grid-template-columns: repeat(2, auto); justify-content: space-between; row-gap: var(--space-4); }
+  .g-after__score > .g-after__counterk { grid-row: 1; grid-column: 1 / -1; justify-self: center; }
+  .g-after__value { min-width: 24px; }
+  .g-after__modes { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The income: what the fans will be (the accent's ink when they grow), the switches as the prototype's 56px rows. */
+.g-after__fans { color: var(--muted); font: 700 16px/1.3 var(--font-body); }
+.g-after__fans--up { color: var(--on-accent-tint); }
+
+.g-after__card--switches .g-toggle { min-height: 56px; padding: var(--space-6) 0; }
+.g-after__card--switches .g-toggle:last-child { border-bottom: 0; }
+.g-after__card--switches .g-toggle__label { font: 600 15px/1.3 var(--font-body); }
+.g-after__card--switches .g-toggle__caption { font: 400 12px/1.35 var(--font-body); }
+
+/* From 901px the controls are the prototype's (D2: never under 24px): the score's steppers 40px. */
+@media (min-width: 901px) {
+  .g-after__step { width: 40px; height: 40px; }
+}

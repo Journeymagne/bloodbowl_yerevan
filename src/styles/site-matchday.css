@@ -53,7 +53,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .season-tabs { padding: 0; border: 0; background: none; gap: 7px; margin-bottom: 24px; }
 .season-tab { min-height: 48px; font-size: .8rem; background: var(--panel); border-color: var(--line); }
 .season-tab.active { border: 2px solid var(--line-bright); background: var(--panel-2); color: var(--text); }
-.season-overview-grid { gap: 24px; }
 .season-rounds { gap: 24px; }
 .season-round-header { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .season-round-header h2 { margin: 0; }
@@ -65,7 +64,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .game-card-flags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .game-card-flags .pre-badge { display: inline-flex; padding: 5px 8px; font: .6rem/1.5 var(--label-font); margin: 0; }
 .challenge-panel { margin-bottom: 28px; }
-.challenge-card, .pre-team-panel { border-color: var(--line); }
+.challenge-card { border-color: var(--line); }
 .challenge-card h3 { font: 800 1.7rem/1.2 var(--display-font); text-transform: uppercase; }
 .empty-state, .loading { background: var(--panel); border: 1px dashed var(--line-bright); padding: 30px; font-size: .85rem; }
 @media (min-width: 901px) {

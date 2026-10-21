@@ -22,7 +22,6 @@
 @import url("styles/pre-match.css");
 @import url("styles/challenges.css");
 @import url("styles/site-matchday.css");
-@import url("styles/post-match.css");
 @import url("styles/season-results.css");
 @import url("styles/season-entries.css");
 @import url("styles/saved-teams.css");
@@ -96,3 +95,6 @@
 @import url("screens/season/league.css");
 @import url("screens/coaches/team.css");
 @import url("screens/coaches/profile.css");
+@import url("screens/matches/post.css");
+@import url("screens/matches/post-players.css");
+@import url("screens/matches/post-money.css");

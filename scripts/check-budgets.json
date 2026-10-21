@@ -6,7 +6,9 @@
       "server",
       "scripts"
     ],
-    "maxFunctions": 0
+    "maxFunctions": 0,
+    "maxUnusedImports": 18,
+    "_note": "maxUnusedImports came in with stage 09b's fix wave at 18: named imports nothing in their module uses, every one in a file the stage did not touch (server/routes, saved-roster.mjs, roster-editor-shared.mjs and others; npm run check:dead-code lists them). Lower it as they go."
   },
   "structure": {
     "roots": [

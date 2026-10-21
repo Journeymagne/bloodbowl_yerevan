@@ -45,7 +45,7 @@ test("an admin has administration on the desktop; the mobile reaches it from Set
 test("each route lights the tab and the side item that own it", () => {
   const table = {
     home: ["overview", "overview"], team: ["overview", "overview"], teamManage: ["team", "roster"], teamPlayer: ["roster", "roster"],
-    teamChallenges: ["matches", "season"], postMatch: ["matches", "season"], coachTeam: ["table", "season"], season: ["table", "season"],
+    teamChallenges: ["matches", "season"], coachTeam: ["table", "season"], season: ["table", "season"],
     refSection: ["ref", "ref"], page: ["ref", "ref"], legal: ["ref", "ref"], settings: ["settings", "settings"],
   };
   for (const [name, [tab, side]] of Object.entries(table)) {
@@ -160,8 +160,16 @@ test("the preparation brings its own frame: no header, no tabs, no SideNav", () 
     assert.equal(model.mode, "bare", user.login);
     assert.deepEqual([model.tabs, model.side, model.drill], [[], [], false], user.login);
   }
-  // The rest of a match's pages keep the shell until their own stage: the game and its post-match.
-  for (const name of ["game", "postMatch"]) assert.equal(shellModel(at(name)).mode, "coach", name);
+  // The game's page keeps the shell until its own stage.
+  assert.equal(shellModel(at("game")).mode, "coach");
+});
+
+test("the post-match brings its own frame: no header, no tabs, no SideNav", () => {
+  for (const user of [COACH, ADMIN]) {
+    const model = shellModel(at("postMatch", { user }));
+    assert.equal(model.mode, "bare", user.login);
+    assert.deepEqual([model.tabs, model.side, model.drill], [[], [], false], user.login);
+  }
 });
 
 test("every link of the shell lights itself when it is the page", () => {
@@ -178,14 +186,14 @@ test("every link of the shell lights itself when it is the page", () => {
 
 test("every address the router knows lights one tab and one side item, or none for the way to a team", () => {
   const OWN = ["", "t/t1", "t/t1/team", "t/t1/settings", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u2", "coaches/u2/teams/t9",
-    "games/g1", "games/g1/post-match", "season", "season/rounds", "ref", "ref/skills", "no-such-slug", "overview/rules",
+    "games/g1", "season", "season/rounds", "ref", "ref/skills", "no-such-slug", "overview/rules",
     "legal", "settings", "administration", "administration/users/u2", "administration/users/u2/teams/t9/edit"];
   for (const route of OWN) {
     const model = shellModel({ ...at("home"), user: ADMIN, route: matchRoute(route || "home") });
     assert.deepEqual([current(model.tabs).length, current(model.side).length], [1, 1], route || "home");
   }
   // The pages with a frame of their own light nothing: they draw no tabs and no side items (stage 09a, decision 17).
-  for (const route of ["games/g1/pre-match", "games/g1/pre-match/weather", "teams/new", "login"]) {
+  for (const route of ["games/g1/pre-match", "games/g1/pre-match/weather", "games/g1/post-match", "games/g1/post-match/players", "teams/new", "login"]) {
     const model = shellModel({ ...at("home"), user: ADMIN, route: matchRoute(route) });
     assert.deepEqual([model.tabs.length, model.side.length], [0, 0], route);
   }

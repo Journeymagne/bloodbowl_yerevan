@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, blocks, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, t } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
@@ -430,11 +430,48 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   // Nothing cut: a step's name, the subtitle and a reason wrap.
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp/);
-  for (const selector of [".g-prep__dotlabel", ".g-prep__sub", ".g-prep__stepname", ".g-prep__why", ".g-prep__pname", ".g-prep__title"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  for (const selector of [".g-prep__sub", ".g-prep__stepname", ".g-prep__why", ".g-prep__pname", ".g-prep__title"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  // A dot's label is one word, never broken inside — not by the line, not by a hyphen —; one wider than its fifth or
+  // seventh stands centred under its dot, over the gap (J13: «Treasur|y», «Summar|y» at 320, «Индьюсмент|ы» to 386).
+  assert.deepEqual(own(".g-prep__dotlabel", "overflow-wrap"), ["normal"]);
+  assert.deepEqual(own(".g-prep__dotlabel", "max-width"), [], "as wide as its word, centred by the dot");
+  assert.doesNotMatch(bare, /hyphens:\s*auto/);
   assert.doesNotMatch(bare, /--focus-ring/);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  // Under 370px the labels are 9px, so the seven fit their cells of 40 at 320; the dots stay a thumb's high.
+  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
+  assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-prep__dotlabel", "font-size"), ["9px"]);
+  assert.deepEqual(blocks(mediaText(CSS, "max-width: 369px")).map((block) => block.selectors), [[".g-prep__dotlabel"]], "the label only");
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') > styles.indexOf('@import url("screens/matches/matches.css");'), "after the matches' sheet");
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') < styles.indexOf('@import url("screens/matches/prep-inducements.css");'), "before the inducements' sheet");
   assert.ok(!document.querySelector("script"));
+});
+
+test("a frame given none of the new props is drawn as before", () => {
+  // The markup stage 09a drew, taken before the post-match's props came (stage 09b Task 4): the same, string for string.
+  const before = JSON.parse(text("test/fixtures/prep-frame-09a.json"));
+  const phone = prepModel(payloadAt(FANS, { isAdmin: true }), "away", "fans", { data, userId: "admin", error: "Refused." });
+  assert.equal(prepFrameMarkup(phone, { phone: true, contentHtml: "<p>step</p>" }), before.phone);
+  const desk = modelAt([...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]);
+  assert.equal(prepFrameMarkup(desk, { phone: false, contentHtml: "<p>step</p>" }), before.desk);
+});
+
+test("with them: no opponent card, a lead before the button, notices under the head, the steps' own label", () => {
+  const model = { ...modelAt([...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]), stepsLabel: "Post-match steps" };
+  const props = { contentHtml: "<p>step</p>", opponentHtml: "", actionLeadHtml: '<span class="g-status">Lead</span>', noticesHtml: '<p class="g-prep__note">Said.</p>' };
+  const desk = mount(prepFrameMarkup(model, { phone: false, ...props }));
+  assert.ok(!desk.querySelector(".g-prep__panel--rows"), "no opponent card");
+  const panel = desk.querySelector(".g-prep__panel--action");
+  assert.deepEqual(panel.childNodes.map((node) => node.getAttribute("class")), ["g-status", "g-prep__cta"], "the lead before the button");
+  assert.equal(desk.querySelector(".g-prep__notices .g-prep__note").textContent, "Said.");
+  assert.equal(desk.querySelector(".g-prep__steps nav").getAttribute("aria-label"), "Post-match steps");
+  // Another card in the opponent's place, a lead with no button, notices after a refusal.
+  const other = mount(prepFrameMarkup({ ...model, footer: { kind: "none" }, error: "Refused." }, { phone: false, ...props, opponentHtml: '<div class="g-prep__panel">Theirs</div>' }));
+  assert.equal(other.querySelector(".g-prep__column").textContent, "TheirsLead");
+  const notices = other.querySelector(".g-prep__notices");
+  assert.deepEqual(notices.childNodes.map((node) => node.getAttribute("class")), ["g-prep__alert", "g-prep__note"], "the screen's own after the refusal");
+  const phone = mount(prepFrameMarkup(model, { phone: true, ...props }));
+  assert.equal(phone.querySelector("nav.g-prep__dots").getAttribute("aria-label"), "Post-match steps");
+  assert.equal(phone.querySelector(".g-prep__notices .g-prep__note").textContent, "Said.");
+  assert.ok(!phone.querySelector(".g-status"), "a phone has no lead: its footer says the opponent's line");
 });

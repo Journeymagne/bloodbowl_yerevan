@@ -112,16 +112,23 @@
 /* A later step leads nowhere yet. */
 .g-prep__dot--later { cursor: default; }
 
+/* A label is one word and is never broken inside it, by the line or by a hyphen (PreFans.html keeps it on one line): one
+   wider than its cell — «Индьюсменты» from 386px down — stands centred under its dot, over the gap and its neighbours'
+   empty sides. */
 .g-prep__dotlabel {
-  max-width: 100%;
   color: var(--header-tab);
   font: 500 10px/1.2 var(--font-body);
   letter-spacing: 0;
   text-align: center;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  overflow-wrap: normal;
 }
 .g-prep__dot--shown .g-prep__dotlabel { color: var(--header-ink); font-weight: 700; }
+
+/* Under 370px — the post-match's own narrow width (post.css) — a seventh of the row is 40px at 320: the labels go to 9px,
+   so «Treasury» and «Summary» (42 and 46 at 10px) fit it; the dots keep a thumb's height. */
+@media (max-width: 369px) {
+  .g-prep__dotlabel { font-size: 9px; }
+}
 
 /* An administrator's choice of side, and what is said under the head. */
 .g-prep__side,

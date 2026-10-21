@@ -10,8 +10,7 @@
 .match-result-team legend strong { display: block; font: 800 1.6rem/1.2 var(--display-font); text-transform: uppercase; }
 .match-result-team legend small { display: block; margin-top: 4px; color: var(--muted); font-size: .7rem; }
 .match-result-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.match-result-fields .filter-field, .post-match .match-result-fields .filter-field { margin-bottom: 0; }
-.match-result-team p { margin: 16px 0 0; color: var(--muted); font-size: .75rem; }
+.match-result-fields .filter-field { margin-bottom: 0; }
 @media (max-width: 600px) {
   .match-result-teams { grid-template-columns: minmax(0, 1fr); }
   .game-result-form > button { width: 100%; }

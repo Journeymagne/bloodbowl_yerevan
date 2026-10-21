@@ -218,9 +218,10 @@
 }
 
 /*
- * A god's bonus skill under done (decision 17; no prototype — Adv4Done's done step): a block on --surface-2, 14 round,
- * 12 14 in, its parts 10 apart, its words at the left; the title 15/700, the lines 13px/1.45 quiet; the skills the
- * advancement's own (`.g-advance__skills`); «Add …» white in its ring, 15/700, as PlayerDeadConfirm's button in its block.
+ * The god's D8 before «Take», and what it gave under done (the owner, 2026-10-21; no prototype — Adv3StatTable's faces,
+ * Adv3Skill's list): a block on --surface-2, 14 round, 12 14 in, its parts 10 apart, its words at the left; the title
+ * 15/700, the lines 13px/1.45 quiet; the faces a characteristic's D8's (rolls.css), eight in a row on a desk too; the
+ * skills the advancement's own (`.g-advance__skills`).
  */
 #player-advance .g-favoured {
   display: flex;
@@ -252,17 +253,7 @@
   font: 400 13px/1.45 var(--font-body);
 }
 #player-advance .g-favoured__skills { margin: 2px 0 0; }
-#player-advance .g-favoured .g-btn {
-  width: 100%;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--control-border);
-  color: var(--ink);
-  font: 700 15px/normal var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
+#player-advance .g-favoured .g-favoured__d8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 
 /* A step's hint (Adv2Category) and a D8's table in a line (rolls.css; Adv3Stat): 13px/1.45, quiet. */
 #player-advance .g-advance__hint,
@@ -336,7 +327,6 @@
 
   #player-advance .g-advance__done { padding: var(--space-8) 0 var(--space-4); }
   #player-advance .g-advance__donetitle { font: 700 28px/1.1 var(--font-display); }
-  #player-advance .g-favoured .g-btn { min-height: 48px; }
   #player-advance .g-advance__tiles {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -493,9 +483,8 @@
   }
   #player-advance .g-advance__donetitle { font: 700 34px/normal var(--font-display); }
   #player-advance .g-advance__lines { padding: var(--space-12) var(--space-24); }
-  /* The bonus under done in the window: the window's 24 at the sides; «Add …» 40px, as the skills. */
+  /* The god's D8 under the columns, and under done, in the window: the window's 24 at the sides. */
   #player-advance .g-favoured { margin: 0 var(--space-24) var(--space-20); }
-  #player-advance .g-favoured .g-btn { min-height: 40px; }
 
   #player-advance .g-sheet__foot {
     flex-wrap: wrap;

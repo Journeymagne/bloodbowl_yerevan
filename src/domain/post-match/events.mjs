@@ -22,7 +22,7 @@ import { normalizeSppCounters, storedPlayerId } from '../roster/players.mjs';
 import { boundedSppCounter } from '../roster/validate.mjs';
 import { PLAYER_STATS } from '../roster/values.mjs';
 import { SIDES } from '../match/rules.mjs';
-import { INJURIES, POST_STEPS, postCount } from './rules.mjs';
+import { INJURIES, PLAYERS_STAGE, postCount } from './rules.mjs';
 import { normalizeMatchStats } from './statistics.mjs';
 
 // The order of the CHECK on `counter` in 016.
@@ -32,7 +32,6 @@ export const SPP_EVENT_COUNTERS = Object.freeze(EVENT_COUNTERS.filter(counter =>
 // What a match taps and the post-match reads: the MVP is picked there, never tapped.
 export const MATCH_COUNTERS = Object.freeze(SPP_EVENT_COUNTERS.filter(counter => counter !== 'mvps'));
 const MAX_COUNT = 99; // postCount's bound
-const PLAYERS_STAGE = POST_STEPS.indexOf('players'); // a side past it keeps what its coach saved
 const isStep = event => event.delta === 1 || event.delta === -1;
 const isInjuryEvent = event => event.counter === 'injury';
 
