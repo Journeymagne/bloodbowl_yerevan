@@ -651,6 +651,45 @@ test("the prototype's measures: the six columns, the head in capitals, the rows,
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminseason__tabs .g-seg__item", "min-height"), ["38px"]);
 });
 
+/** A grid's tracks: `28px minmax(0, 1fr) 1fr` → ["28px", "minmax(0, 1fr)", "1fr"] (a space inside brackets stays). */
+function tracksOf(value) {
+  const tracks = [];
+  let depth = 0;
+  let track = "";
+  for (const character of value.trim()) {
+    if (character === "(") depth += 1;
+    if (character === ")") depth -= 1;
+    if (/\s/.test(character) && depth === 0) {
+      if (track) tracks.push(track);
+      track = "";
+    } else track += character;
+  }
+  return track ? [...tracks, track] : tracks;
+}
+
+test("a phone's pair: home and away on equal tracks whatever the button, a status word never split, «Result…» on a line of its own", () => {
+  const phone = (selector, property) => inMedia(CSS, "max-width: 900px", selector, property);
+  const tracks = tracksOf(phone(".g-adminseason__row", "grid-template-columns")[0]);
+  const lines = [...phone(".g-adminseason__row", "grid-template-areas")[0].matchAll(/"([^"]*)"/g)].map(([, line]) => line.trim().split(/\s+/));
+  assert.ok(lines.length && lines.every((line) => line.length === tracks.length), "every line names every track");
+  const tracksUnder = (area) => [...new Set(lines.flatMap((line) => line.flatMap((name, index) => (name === area ? [index] : []))))];
+  // The two teams share the first line as equals: the same tracks, and none of them sized by «Result…» (an `auto` track
+  // took «Результат…»'s 109px first and left home one narrow track while away spanned two — «Ashgr/ove» at 320).
+  assert.deepEqual(tracksUnder("home").map((index) => tracks[index]), tracksUnder("away").map((index) => tracks[index]), "home and away get equal tracks");
+  assert.ok(tracks.every((track) => /^\d+px$|fr\)?$/.test(track)), `fixed or flexible tracks only: ${tracks.join(" ")}`);
+  // «Result…» on a line of its own, under the teams; the score and the status on the line between.
+  const line = (area) => lines.find((names) => names.includes(area));
+  assert.ok(line("act").every((name) => name === "act" || name === "."), "«Result…» shares its line with nothing");
+  assert.equal(line("home"), line("away"));
+  assert.equal(line("score"), line("status"));
+  assert.ok(lines.indexOf(line("home")) < lines.indexOf(line("score")) && lines.indexOf(line("score")) < lines.indexOf(line("act")));
+  // A status is never cut inside its word: «Подтверждён» (103px in Golos 600 15px), «подтверждения» (119px) and
+  // «confirmation» (92px) set the floor of their own track, and the status breaks only between its words.
+  assert.deepEqual(tracksUnder("status").map((index) => tracks[index]), ["1fr"], "the status's track may not shrink below its longest word");
+  assert.deepEqual(phone(".g-adminseason__status", "min-width"), ["min-content"]);
+  assert.deepEqual(valuesOf(CSS, ".g-adminseason__status", "overflow-wrap"), ["break-word"]);
+});
+
 test("D2: «Result…», the segments, «+ Pair» — 44 on a phone, 24 and more from 901px", () => {
   const px = (value) => (value === "var(--size-touch)" ? 44 : Number(String(value).replace("px", "")));
   for (const selector of [".g-adminseason__btn", ".g-adminseason__result", ".g-resultsheet__select", ".g-adminseason__tabs .g-seg__item", ".g-resultsheet .g-seg__item"]) {

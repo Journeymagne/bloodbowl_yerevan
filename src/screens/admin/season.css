@@ -147,7 +147,11 @@
 .g-adminseason__home,
 .g-adminseason__away { font-weight: 700; }
 .g-adminseason__score { font-variant-numeric: tabular-nums; }
-.g-adminseason__status { font-weight: 600; }
+/* A status breaks between its words only: «Ждёт / подтверждения», never «Подтвержд / ён». */
+.g-adminseason__status {
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
 .g-adminseason__status--confirmed { color: var(--on-accent-tint); }
 .g-adminseason__status--awaiting { color: var(--on-warn-tint); }
 .g-adminseason__status--pending,
@@ -329,12 +333,19 @@
   .g-adminseason__result,
   .g-resultsheet__select { min-height: var(--size-touch); }
 
-  /* A pair in two lines: the table and the teams, then the score, the status and «Result…». */
+  /*
+   * A pair in three lines: the table and the two teams as equals, then the score under home and the status under away,
+   * then «Result…» at the right. The button has its own line: next to the score and the status it would take its 109px
+   * («Результат…») first, and up to ~440px the teams and «Ждёт подтверждения» would not fit beside it. The tracks are
+   * `1fr` (their minimum is their content's): the names, the score and the table keep `min-width: 0`, so only the
+   * status's longest word («подтверждения», 119px in Golos 600 15px) can widen its track, on the narrowest phones.
+   */
   .g-adminseason__row {
-    grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: 28px 1fr 1fr;
     grid-template-areas:
-      "no home away away"
-      ". score status act";
+      "no home away"
+      ". score status"
+      ". act act";
     gap: var(--space-6) var(--space-10);
     padding: var(--space-10) 0;
   }
@@ -342,7 +353,10 @@
   .g-adminseason__home { grid-area: home; }
   .g-adminseason__away { grid-area: away; }
   .g-adminseason__score { grid-area: score; }
-  .g-adminseason__status { grid-area: status; }
+  .g-adminseason__status {
+    grid-area: status;
+    min-width: min-content;
+  }
   .g-adminseason__act { grid-area: act; }
   /* The head's words name the desk's columns; a phone's two lines have none, and a screen reader still hears them. */
   .g-adminseason__row--head {
