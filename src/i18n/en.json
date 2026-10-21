@@ -1427,6 +1427,7 @@
   "teamPlayer.favoured.miss": "D8 {face}: no bonus.",
   "teamPlayer.favoured.none": "No bonus",
   "teamPlayer.favoured.given": "This advancement gives the player this skill.",
+  "teamPlayer.favoured.givenTag": "with this advancement",
   "teamPlayer.favoured.skipped": "The player holds every skill on the god's list: no D8 to roll.",
   "teamPlayer.favoured.gained": "D8 {face}: {skill}, at no cost to the value",
   "teamPlayer.favoured.declined": "D8 {face}: no bonus taken",
@@ -2219,5 +2220,8 @@
   "after.reopenAsk": "Advancements, roster, treasury and this side's confirmation are reset.",
   "after.resetAsk": "The side starts over from the team as it is now; the statistics are read from the records again.",
   "after.retry": "Read again",
-  "after.statFirst": "Pick the characteristic of the Lasting Injury first"
+  "after.statFirst": "Pick the characteristic of the Lasting Injury first",
+  "after.rollJourneyman": "A journeyman rolls at the table: there is no roster place yet",
+  "after.rollAdmin": "Only the team's coach rolls on the site",
+  "after.bindLater": "A roll is put on an advancement taken at the table on the «Roster», after the post-match"
 }

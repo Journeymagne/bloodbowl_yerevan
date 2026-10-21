@@ -16,6 +16,8 @@
  *   names its player apart (`data-sheet-player`, pre-flight L6), so a press never opens it again.
  * - The Roster step, each press a write: a staff counter, a position of the hiring sheet, a player of the selling sheet,
  *   «Keep», Raise Dead, «Undo the last».
+ * - The advancement (Task 10): «Advance» opens the roster's sheet, heard as the roster hears it (`wireAdvance`,
+ *   `wireReasons`), its presses post-advance.mjs's; «Undo» on a card takes the player's last advancement off.
  * - An administrator's side (`prep-side`): the page is the other side's, its drafts dropped. A press on what is closed
  *   (`aria-disabled`) says why. The width crossing 900px draws the other form, the focus kept or on the title.
  */
@@ -32,6 +34,9 @@ import { wireSheets } from "../../ui/sheet.mjs";
 import { wireStepButtons } from "../../ui/stepper.mjs";
 import { wireToggles } from "../../ui/toggle.mjs";
 import { onPhoneChange } from "../team/roster/screen.mjs";
+import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
+import { wireAdvance, wireReasons } from "../team/roster/wire.mjs";
+import { postAdvanceHandlers } from "./post-advance.mjs";
 import { playersSendable } from "./post-players.mjs";
 import { resultAction } from "./post-steps.mjs";
 
@@ -182,19 +187,34 @@ function wireRoster(visit, screen, events) {
   pick("[data-after-keep]", (button) => ({ operation: "keep", playerId: button.getAttribute("data-after-keep") }));
 }
 
+/**
+ * The advancement: «Advance» and its sheet as the roster hears them, the post-match lending its take, its dice and its
+ * bind (post-advance.mjs); «Undo» on a card, a write. Its presses are given back for the sheets' «Back».
+ */
+function wireAdvancement(visit, screen, events) {
+  const handlers = postAdvanceHandlers(visit, screen);
+  for (const off of wireAdvance(view, handlers)) events.own(off);
+  events.own(wireReasons(view, { onInjuryChoice() {}, onMarkChoice() {}, onAdvanceType: handlers.onAdvanceType }));
+  events.on("click", "[data-after-untake]", (event, button) => {
+    if (!closed(button)) void screen.send({ type: "undo-advance", playerId: button.getAttribute("data-after-untake") });
+  });
+  return handlers;
+}
+
 /** Open a sheet (`player` with its id, `hire`, `sell`) over the step, `opener` taking the focus back when it closes. */
 function openSheet(visit, screen, sheet, opener) {
   Object.assign(visit.ui, { sheet: { ...sheet, step: screen.model().step }, opener });
   screen.draw();
 }
 
-/** Close the sheet: the focus back on what opened it (or on its row drawn again), else on the title. */
+/** Close the sheet: the focus back on what opened it (or on its row, or its «Advance», drawn again), else on the title. */
 function closeSheet(visit, screen) {
   const { sheet, opener } = visit.ui;
   Object.assign(visit.ui, { sheet: null, opener: null });
   screen.draw({ refocus: false });
-  const again = sheet?.kind === "player" ? [...view.querySelectorAll("[data-after-player]")].find((row) => row.getAttribute("data-after-player") === sheet.playerId)
-    : view.querySelector(`[data-after-open="${sheet?.kind}"]`);
+  const named = (attribute, value) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === value);
+  const again = sheet?.kind === "player" ? named("data-after-player", sheet.playerId)
+    : sheet?.kind === "advance" ? named("data-player-advance", sheet.key) : view.querySelector(`[data-after-open="${sheet?.kind}"]`);
   (opener?.isConnected ? opener : again ?? view.querySelector("h1"))?.focus();
 }
 
@@ -205,26 +225,28 @@ function refusalOf(screen, element) {
   return t(screen.model().completed ? "after.completed" : "after.passed");
 }
 
-/** An administrator's side, the closed controls, the sheets, the width. */
-function wireCommon(visit, screen, events) {
+/** An administrator's side, the closed controls, the sheets (the advancement's «Back» its own), the width. */
+function wireCommon(visit, screen, events, advance) {
   events.own(wireSegmentedControls(view, (side) => {
     visit.sideName = side;
     Object.assign(visit.ui, { error: "", drafts: { result: null, fans: null, players: null, finance: null, next: null }, playersWaiting: false, unlocked: false, sheet: null, opener: null });
     screen.draw();
   }, { group: "prep-side" }));
-  // A counter's step says it through `onRefused`; every other closed control here.
+  // A counter's step says it through `onRefused`, the advancement's buttons and ways their own presses (advance.mjs);
+  // every other closed control here — the advancement's closed choices too, as the roster's `[data-roster-closed]`.
   events.on("click", '[aria-disabled="true"]', (event, element) => {
     if (element.hasAttribute("data-resource-step") || element.hasAttribute("data-action-step")) return;
+    if (element.closest(`#${ADVANCE_SHEET}`) && !element.hasAttribute("data-roster-closed")) return;
     event.preventDefault();
     toast(refusalOf(screen, element));
   });
-  events.own(wireSheets(view, { onClose: () => closeSheet(visit, screen) }));
+  events.own(wireSheets(view, { onClose: () => closeSheet(visit, screen), onBack: (id) => advance.onSheetBack(id) }));
   events.own(onPhoneChange(() => drawKeepingFocus(view, () => screen.draw({ refocus: false }), "h1")));
 }
 
 /**
  * Every press of the page. `screen` is post.mjs's: `model()`, `draw(options)`, `send(action, options)`, `players(change)`,
- * `keep(key, draft)`, `draftOf(key, model)`, `playersOf(model)`.
+ * `keep(key, draft)`, `draftOf(key, model)`, `playersOf(model)`, `readAgain()`.
  * @returns {() => void} takes every listener off
  */
 export function wirePost(visit, screen) {
@@ -234,6 +256,6 @@ export function wirePost(visit, screen) {
   wireKept(screen, events);
   wirePlayers(visit, screen, events);
   wireRoster(visit, screen, events);
-  wireCommon(visit, screen, events);
+  wireCommon(visit, screen, events, wireAdvancement(visit, screen, events));
   return () => events.release();
 }

@@ -59,10 +59,12 @@ import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
+import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
 import { prepFrameMarkup } from "./prep-frame.mjs";
 import { financeDraft, financeStep, nextDraft, nextStep } from "./post-money.mjs";
 import { postModel } from "./post-model.mjs";
 import { PLAYERS_SHEET, changePlayers, playerSheetMarkup, playersDraft, playersSendable, playersStep } from "./post-players.mjs";
+import { postAdvanceMarkup } from "./post-advance.mjs";
 import { completedMarkup, reviewStep } from "./post-review.mjs";
 import { HIRE_SHEET, SELL_SHEET, hireSheetMarkup, rosterStep, sellSheetMarkup } from "./post-roster.mjs";
 import { fansDraft, fansStep, opponentLeadMarkup, resultAction, resultDraft, resultStep } from "./post-steps.mjs";
@@ -110,12 +112,13 @@ const finishes = (payload, next) => payload?.postMatch.status !== "completed" &&
 /**
  * One visit of the page: the game, the step the address names, the post-match last read and the side shown; what the
  * page keeps (`ui`: a write on its way, the refusal said, the drafts, the other players shown, the sheet open and what
- * opened it, the score unlocked to change), the poll's state, the footer's arming.
+ * opened it, the score unlocked to change; `here` with the visit's, for the advancement's sheet, whose answers it asks
+ * — pre-flight L3), the poll's state, the footer's arming.
  */
 function createVisit(gameId, step) {
   return { gameId, step, path: `/api/games/${encodeURIComponent(gameId)}`, here: true, payload: null, sideName: "home", writes: 0, release: () => {},
     ui: { busy: false, error: "", drafts: { result: null, fans: null, players: null, finance: null, next: null }, playersWaiting: false,
-      open: false, sheet: null, opener: null, unlocked: false },
+      open: false, sheet: null, opener: null, unlocked: false, here: true },
     poll: { timer: 0, polling: false, failures: 0, wait: 0 }, footerAction: "", footerAfter: 0 };
 }
 
@@ -155,9 +158,16 @@ function stepOf(visit, model, phone) {
   return step ? step() : reviewStep(model);
 }
 
-/** The sheet open over the step, if it still belongs there: its markup and its dialog's id. */
+/**
+ * The sheet open over the step, if it still belongs there: its markup and its dialog's id. The advancement's is the
+ * roster's (post-advance.mjs), over the Players step, while it stands.
+ */
 function sheetOf(visit, model, phone) {
   const { sheet } = visit.ui;
+  if (sheet?.kind === "advance") {
+    const html = model.step === "players" ? postAdvanceMarkup(visit) : "";
+    return html ? { html, id: ADVANCE_SHEET } : null;
+  }
   if (!sheet || sheet.step !== model.step) return null;
   const html = sheet.kind === "player" ? playerSheetMarkup(model, playersOf(visit, model), sheet.playerId, { phone })
     : sheet.kind === "hire" ? hireSheetMarkup(model) : sheet.kind === "sell" ? sellSheetMarkup(model) : "";
@@ -475,7 +485,7 @@ async function openVisit(visit) {
   view.querySelector("h1")?.focus();
   visit.release = wirePost(visit, { model: () => modelOf(visit), draw: (options) => draw(visit, options), send: (action, options) => send(visit, action, options),
     players: (change) => pressPlayers(visit, change), keep: (key, draft) => keepDraft(visit, key, draft),
-    playersOf: (model) => playersOf(visit, model), draftOf: (key, model) => draftOf(visit, key, model) });
+    playersOf: (model) => playersOf(visit, model), draftOf: (key, model) => draftOf(visit, key, model), readAgain: () => readAgain(visit) });
   if (payload.postMatch.status !== "completed") visit.poll.timer = setInterval(() => void poll(visit), POLL_MS);
 }
 
@@ -493,6 +503,7 @@ export async function renderPostMatch(gameId, requestedStep = "") {
   const visit = createVisit(gameId, requestedStep);
   onScreenLeave("post-match", () => {
     visit.here = false;
+    visit.ui.here = false;
     clearInterval(visit.poll.timer);
     visit.release();
     for (const dialog of view.querySelectorAll("dialog")) if (dialog.open) dialog.close();

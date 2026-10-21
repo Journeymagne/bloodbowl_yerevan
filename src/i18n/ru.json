@@ -1427,6 +1427,7 @@
   "teamPlayer.favoured.miss": "D8 {face}: бонуса нет.",
   "teamPlayer.favoured.none": "Без бонуса",
   "teamPlayer.favoured.given": "Этот навык игрок получает этой прокачкой.",
+  "teamPlayer.favoured.givenTag": "этой прокачкой",
   "teamPlayer.favoured.skipped": "У игрока уже есть все навыки из списка бога: D8 не бросается.",
   "teamPlayer.favoured.gained": "D8 {face}: {skill}, без доплаты к стоимости",
   "teamPlayer.favoured.declined": "D8 {face}: без бонуса",
@@ -2219,5 +2220,8 @@
   "after.reopenAsk": "Прокачки, состав, казна и подтверждение этой стороны сбросятся.",
   "after.resetAsk": "Сторона начнётся заново с команды как она есть; статистика снова прочитается из записей.",
   "after.retry": "Прочитать снова",
-  "after.statFirst": "Сначала выберите характеристику для Lasting Injury"
+  "after.statFirst": "Сначала выберите характеристику для Lasting Injury",
+  "after.rollJourneyman": "Journeyman бросает за столом: места в составе ещё нет",
+  "after.rollAdmin": "Бросок на сайте — только у тренера команды",
+  "after.bindLater": "Привязать бросок к прокачке за столом можно в «Составе» после итогов"
 }

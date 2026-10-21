@@ -164,7 +164,7 @@ function favouredSkillsMarkup(god) {
   const items = god.skills.map(({ name, held, given }) => ({
     value: name, className: "g-advance__skill", data: { favouredSkill: name },
     reason: given ? t("teamPlayer.favoured.given") : held ? t("teamPlayer.favoured.held") : "",
-    html: `<span class="g-advance__skillname">${escapeHtml(name)}</span>${held ? tag(t("teamAdvance.held")) : ""}`,
+    html: `<span class="g-advance__skillname">${escapeHtml(name)}</span>${held ? tag(t(given ? "teamPlayer.favoured.givenTag" : "teamAdvance.held")) : ""}`,
   }));
   items.push({ value: NO_BONUS, className: "g-advance__skill", data: { favouredSkill: NO_BONUS }, reason: "",
     html: `<span class="g-advance__skillname">${escapeHtml(t("teamPlayer.favoured.none"))}</span>` });
@@ -292,7 +292,8 @@ function phoneParts(line, screen, sheet, choices) {
     case "stat": return [`${statRollMarkup({ sheet, choices })}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)];
     case "done": {
       const bodyHtml = `${doneMarkup(line, screen, sheet.taken)}${favouredDoneMarkup(sheet.taken.favoured)}`;
-      return [bodyHtml, renderButton({ label: t("teamAdvance.back"), kind: "primary", data: { advanceDone: true } })];
+      // The post-match's (stage 09b) goes back to its Players step, not to a player's page: «Done», as a desk's.
+      return [bodyHtml, renderButton({ label: t(screen.mode.kind === "post" ? "teamAdvance.finish" : "teamAdvance.back"), kind: "primary", data: { advanceDone: true } })];
     }
     default: return ["", ""];
   }

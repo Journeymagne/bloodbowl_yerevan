@@ -750,6 +750,7 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       assert.deepEqual(group.querySelectorAll("[data-favoured-skill]").map((each) => [each.getAttribute("data-favoured-skill"), each.getAttribute("aria-checked"), closed(each)]),
         [["Tentacles", "false", false], ["Monstrous Mouth", "false", true], ["Bone Hook", "false", false], ["none", "false", false]]);
       assert.equal(godItem("Monstrous Mouth").getAttribute("title"), "This advancement gives the player this skill.");
+      assert.equal(godItem("Monstrous Mouth").querySelector(".g-advance__tag").textContent, "with this advancement");
       assert.equal(godItem("none").textContent, "No bonus");
       assert.equal(godTake().textContent, "Choose the bonus skill");
       assert.ok(godTake().hasAttribute("disabled"));
