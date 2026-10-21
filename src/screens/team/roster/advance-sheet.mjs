@@ -7,8 +7,8 @@
  * lacks; then the category's skills in the Skill Table's order, his own marked and closed; then done — what he got, what
  * it cost and adds, his advancements now, and where the save stands. A desk (DeskRosterAdv.html): his number before the
  * title, the three choices side by side, a column waiting for the one before it saying so, the choice summed up at the
- * foot by «Cancel» and «Take»; done in the window, the save's state in the summary. Under done, on both, a roster
- * «Favoured of…» is offered the god's bonus skill (decision 17, Task 11).
+ * foot by «Cancel» and «Take»; done in the window, the save's state in the summary. Before «Take», on both, a roster
+ * «Favoured of…» marks the god's D8 and on his face a bonus skill or none (the owner, 2026-10-21); done says what it gave.
  *
  * A random skill and a characteristic are rolled (Adv3Random, Adv3Stat, Adv3StatTable; DeskRosterAdv, DeskRosterAdvStat):
  * a phone's third step is a random skill's two dice (the owner, 2026-10-20), its second the D8's, its button «Roll two
@@ -32,6 +32,7 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, refusedWords, stepBefore, takenHeld } from "./advance.mjs";
+import { NO_BONUS, favouredOf } from "./favoured.mjs";
 import { prepResetWords } from "./panel.mjs";
 import { closedMarkup } from "./player-access.mjs";
 import { radioGroupMarkup } from "./radio-group.mjs";
@@ -149,32 +150,53 @@ function doneMarkup(line, screen, taken) {
     + `<h3 class="g-advance__donetitle">${escapeHtml(title)}</h3><p class="g-advance__how">${escapeHtml(how)}</p>${tiles}${elite}${status}</div>`;
 }
 
-/**
- * The god's bonus skill under done (decision 17, owner's answer 3; no prototype — Adv4Done's done step, the skills as
- * Adv3Skill's): a roster «Favoured of…» rolls a D8 at the table with an advancement, and on its number the player gains
- * one of the god's skills at no cost to the value — chosen, or without Mutation in the primary access rolled for at the
- * table too. The skills are a radio group, his own closed and saying so; «Add …» once one is chosen, closed while the
- * screen is (`sheet.reason`), with the last refusal under it. None for a roster with no favour, nor once it is added,
- * nor when he holds every skill the god offers: nothing to take (fix round 1).
- * @param {object} sheet the done step's, with `bonus` the skill chosen and `favoured` "added" once added
- * @param {ReturnType<typeof bonusOf>} bonus
- */
-function favouredMarkup(sheet, bonus) {
-  if (!bonus || sheet.favoured === "added" || bonus.skills.every(({ held }) => held)) return "";
-  const held = `<span class="g-advance__tags"><span class="g-advance__tag g-advance__tag--held">${escapeHtml(t("teamAdvance.held"))}</span></span>`;
-  const items = bonus.skills.map(({ name, held: his }) => ({
-    value: name, className: "g-advance__skill", data: { favouredSkill: name }, reason: his ? t("teamPlayer.favoured.held") : "",
-    html: `<span class="g-advance__skillname">${escapeHtml(name)}</span>${his ? held : ""}`,
+/** The god's D8's eight faces at the table, as a characteristic's (roll-view.mjs): any one pressed, and pressed again. */
+function favouredFacesMarkup(god) {
+  const items = Array.from({ length: 8 }, (_, at) => ({
+    value: String(at + 1), className: "g-advance__d8face", data: { favouredD8: at + 1 }, reason: "", html: escapeHtml(String(at + 1)),
   }));
-  const chosen = sheet.bonus ?? "";
-  const label = chosen ? t("teamPlayer.favoured.add", { skill: chosen }) : t("teamPlayer.favoured.pick");
-  const add = sheet.reason ? closedMarkup({ className: "g-btn", label, reason: sheet.reason, data: { favouredAdd: true } })
-    : renderButton({ label, disabled: !chosen, data: { favouredAdd: true } });
+  return radioGroupMarkup({ className: "g-advance__d8 g-favoured__d8", label: t("teamPlayer.favoured.d8Label"), items, chosen: god.face ? String(god.face) : "" });
+}
+
+/** On the god's face: his skills (his own and the one this advancement gives closed, saying why) and «No bonus». */
+function favouredSkillsMarkup(god) {
+  const tag = (words) => `<span class="g-advance__tags"><span class="g-advance__tag g-advance__tag--held">${escapeHtml(words)}</span></span>`;
+  const items = god.skills.map(({ name, held, given }) => ({
+    value: name, className: "g-advance__skill", data: { favouredSkill: name },
+    reason: given ? t("teamPlayer.favoured.given") : held ? t("teamPlayer.favoured.held") : "",
+    html: `<span class="g-advance__skillname">${escapeHtml(name)}</span>${held ? tag(t("teamAdvance.held")) : ""}`,
+  }));
+  items.push({ value: NO_BONUS, className: "g-advance__skill", data: { favouredSkill: NO_BONUS }, reason: "",
+    html: `<span class="g-advance__skillname">${escapeHtml(t("teamPlayer.favoured.none"))}</span>` });
+  return radioGroupMarkup({ className: "g-advance__skills g-favoured__skills", label: t("teamPlayer.favoured.label"), items, chosen: god.choice });
+}
+
+/**
+ * The god's D8 before «Take» (the owner, 2026-10-21; content «Team Management», «Favoured of…»; no prototype —
+ * Adv3StatTable's faces, Adv3Skill's list): a roster «Favoured of…» rolls a D8 at the table with every advancement, and on
+ * the god's face the player may gain one of the god's skills at no cost to the value — chosen, or without Mutation in the
+ * primary access rolled for at the table too — or none. Shown once the advancement is chosen whole; the faces a radio
+ * group, the skills on the god's face another; skipped, and said so, when the player holds every skill the god offers.
+ * None for a roster with no favour.
+ * @param {ReturnType<typeof favouredOf>} god
+ */
+function favouredMarkup(god) {
+  if (!god) return "";
   const line = (words) => `<p class="g-favoured__line">${escapeHtml(words)}</p>`;
-  const alert = sheet.refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(sheet.refusal)}</p>` : "";
-  return `<section class="g-favoured"><h3 class="g-favoured__title">${escapeHtml(t("teamPlayer.favoured.title", { alignment: bonus.alignment }))}</h3>`
-    + `${line(t("teamPlayer.favoured.sub", { trigger: bonus.trigger }))}${bonus.random ? line(t("teamPlayer.favoured.random")) : ""}`
-    + `${radioGroupMarkup({ className: "g-advance__skills g-favoured__skills", label: t("teamPlayer.favoured.label"), items, chosen })}${add}${alert}</section>`;
+  const title = `<h3 class="g-favoured__title">${escapeHtml(t("teamPlayer.favoured.title", { alignment: god.alignment }))}</h3>`;
+  if (!god.asked) return `<section class="g-favoured">${title}${line(t("teamPlayer.favoured.skipped"))}</section>`;
+  const came = god.face ? line(t(god.hit ? "teamPlayer.favoured.hit" : "teamPlayer.favoured.miss", { face: god.face })) : "";
+  return `<section class="g-favoured">${title}${line(t("teamPlayer.favoured.sub", { trigger: god.trigger }))}${god.random ? line(t("teamPlayer.favoured.random")) : ""}`
+    + `${favouredFacesMarkup(god)}${came}${god.hit ? favouredSkillsMarkup(god) : ""}</section>`;
+}
+
+/** What the god's D8 gave, under done: the skill on his face, none, or that no D8 was rolled — nothing for a roster with no favour. */
+function favouredDoneMarkup(favoured) {
+  if (!favoured) return "";
+  const words = !favoured.asked ? t("teamPlayer.favoured.skipped") : !favoured.hit ? t("teamPlayer.favoured.miss", { face: favoured.face })
+    : favoured.skill ? t("teamPlayer.favoured.gained", { face: favoured.face, skill: favoured.skill }) : t("teamPlayer.favoured.declined", { face: favoured.face });
+  return `<section class="g-favoured"><h3 class="g-favoured__title">${escapeHtml(t("teamPlayer.favoured.title", { alignment: favoured.alignment }))}</h3>`
+    + `<p class="g-favoured__line">${escapeHtml(words)}</p></section>`;
 }
 
 /** Until it is taken: what a save resets during a preparation (R12), and the last refusal of «Take». */
@@ -206,15 +228,16 @@ function waitLabel(sheet, choices, desk) {
 }
 
 /**
- * «Take …», or what it waits for, shut while the choice is not whole; closed — the screen's reason (`reason`), the type
- * chosen refused since, a roll of the other kind waiting, a site roll the player cannot take as it is (`rollRefusal`,
- * whichever die is chosen, and before one is) — it says why. A press is still the domain's to refuse, in words in the
- * sheet (advance.mjs).
+ * «Take …», or what it waits for, shut while the choice is not whole or the god's D8 not in (favoured.mjs); closed — the
+ * screen's reason (`reason`), the type chosen refused since, a roll of the other kind waiting, a site roll the player
+ * cannot take as it is (`rollRefusal`, whichever die is chosen, and before one is) — it says why; busy while a take
+ * lent by the post-match is on its way. A press is still the domain's to refuse, in words in the sheet (advance.mjs).
  */
 function takeMarkup(sheet, choices, { desk = false } = {}) {
-  const chosen = chosenOf(sheet, choices);
+  const chosen = chosenOf(sheet, choices), god = chosen && choices.god?.waits ? choices.god : null;
   const reason = sheet.reason || refusedWords(sheet, choices) || siteRefusedWords(sheet, choices);
-  return footButton({ label: chosen ? takeLabel(chosen) : waitLabel(sheet, choices, desk), kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
+  const label = god ? t(god.face ? "teamPlayer.favoured.pick" : "teamPlayer.favoured.rollFirst") : chosen ? takeLabel(chosen) : waitLabel(sheet, choices, desk);
+  return footButton({ label, kind: "primary", data: { advanceTake: true }, disabled: !reason && (!chosen || Boolean(god)), busy: Boolean(sheet.taking), reason });
 }
 
 /**
@@ -236,6 +259,9 @@ function phoneHead(line, screen, sheet, choices) {
   if (sheet.step === "stat") return [t("teamAdvance.statTitle"), t("teamAdvance.statSubLine", { cost })];
   return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: spendable(line, screen.race), next: line.level + 1 })];
 }
+
+/** The god's D8 under the choice, once it is whole (`choices.god`, favoured.mjs): none before, nor without a favour. */
+const godMarkup = (sheet, choices) => (chosenOf(sheet, choices) ? favouredMarkup(choices.god) : "");
 
 /** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll two D16» (a single die's «Roll D16») or «Roll D8» on the site until the dice are in, then «Take»'s. */
 function rolledFoot(sheet, choices) {
@@ -260,12 +286,12 @@ function phoneParts(line, screen, sheet, choices) {
       return [`${categoriesMarkup(sheet, choices)}<p class="g-advance__hint">${escapeHtml(hint)}</p>`, next(Boolean(sheet.category))];
     }
     case "skill": {
-      if (listed) return [skillsMarkup(sheet, choices), takeMarkup(sheet, choices)];
-      return sheet.type === "random" ? [randomRollMarkup({ sheet, choices }), rolledFoot(sheet, choices)] : ["", ""];
+      if (listed) return [`${skillsMarkup(sheet, choices)}${godMarkup(sheet, choices)}`, takeMarkup(sheet, choices)];
+      return sheet.type === "random" ? [`${randomRollMarkup({ sheet, choices })}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)] : ["", ""];
     }
-    case "stat": return [statRollMarkup({ sheet, choices }), rolledFoot(sheet, choices)];
+    case "stat": return [`${statRollMarkup({ sheet, choices })}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)];
     case "done": {
-      const bodyHtml = `${doneMarkup(line, screen, sheet.taken)}${favouredMarkup(sheet, bonusOf(line, screen))}`;
+      const bodyHtml = `${doneMarkup(line, screen, sheet.taken)}${favouredDoneMarkup(sheet.taken.favoured)}`;
       return [bodyHtml, renderButton({ label: t("teamAdvance.back"), kind: "primary", data: { advanceDone: true } })];
     }
     default: return ["", ""];
@@ -348,7 +374,7 @@ function deskMarkup(line, screen, sheet, choices) {
     title: t("teamAdvance.titleDesk", { name: line.name }),
     sub: t("teamAdvance.subDesk", { spp: spendable(line, screen.race), next: line.level + (done ? 0 : 1), position: line.position }),
     leadHtml: renderPlayerBadge({ number: line.number, kind: line.kind }),
-    bodyHtml: `${done ? `${doneMarkup(line, screen, sheet.taken)}${favouredMarkup(sheet, bonusOf(line, screen))}` : columns}${linesMarkup(screen, sheet)}`,
+    bodyHtml: `${done ? `${doneMarkup(line, screen, sheet.taken)}${favouredDoneMarkup(sheet.taken.favoured)}` : `${columns}${godMarkup(sheet, choices)}`}${linesMarkup(screen, sheet)}`,
     footStartHtml: summary,
     footHtml: done ? renderButton({ label: t("teamAdvance.finish"), kind: "primary", data: { advanceDone: true } })
       : `${renderButton({ label: t("teamAdvance.cancel"), data: { advanceKeep: true } })}${takeMarkup(sheet, choices, { desk: true })}`,
@@ -367,6 +393,7 @@ function deskMarkup(line, screen, sheet, choices) {
  */
 export function advanceSheetMarkup({ line, screen, sheet }) {
   const shown = { ...sheet, busy: Boolean(sheet.asking) || rollAsking(screen.teamId, line.id) };
-  const choices = choicesOf(line, shown, screen);
+  const offered = choicesOf(line, shown, screen);
+  const choices = { ...offered, god: favouredOf(bonusOf(line, screen), shown, chosenOf(shown, offered)) };
   return screen.phone ? phoneMarkup(line, screen, shown, choices) : deskMarkup(line, screen, shown, choices);
 }

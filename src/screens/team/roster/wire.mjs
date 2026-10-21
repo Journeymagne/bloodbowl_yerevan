@@ -10,8 +10,7 @@
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
  * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
  * way, «Roll …», a random skill's pair and the faces marked at the table, the D8's faces, characteristics, «Take a
- * skill in place…» and «Record this roll…», a god's bonus skill
- * and «Add …» on done; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
+ * skill in place…» and «Record this roll…», the god's D8 and his bonus skill before «Take»; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
  * skills and skills to take off, «Cancel» and «Save», and its «Undo the last: …» with its sheet's «Keep» and «Undo
  * advancement»; the button of a «Career», a phone's or a desk's; a desk's search as typed, its Esc, its line to the reference
  * (stage 07d).
@@ -163,12 +162,12 @@ const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "bind", 
  * characteristics, each a radio group of its own (a closed item says why the same way), the D16's faces at the table,
  * which mark (two at once: no radio group; a closed one says why the same way, and marks nothing), the way the roll is
  * made (a closed way says why on a press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…» and a
- * desk's way back from it, «Record this roll…», «Cancel» and «Done»; on done a god's bonus skills, a radio group of
- * their own, and «Add …» (not when closed). Its types are the option cards `wireReasons` hears; its «Back», the sheet's
- * own (`wireSheets`).
+ * desk's way back from it, «Record this roll…», «Cancel» and «Done»; before «Take» the god's D8 and his bonus skills,
+ * radio groups of their own (favoured.mjs). Its types are the option cards `wireReasons` hears; its «Back», the sheet's
+ * own (`wireSheets`). The post-match's advancement hears its sheet with it too (stage 09b).
  */
-function wireAdvance(root, handlers) {
-  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvancePick, onAdvanceStat, onRefused, onFavoured, onFavouredAdd } = handlers;
+export function wireAdvance(root, handlers) {
+  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvancePick, onAdvanceStat, onRefused, onFavoured, onFavouredRoll } = handlers;
   const radios = (group, attribute, onChange) => wireRadioGroups(root, { group, item: `[${attribute}]`, attribute, onChange });
   return [
     onPlayerButton(root, "data-player-advance", onAdvance),
@@ -180,8 +179,8 @@ function wireAdvance(root, handlers) {
     }),
     radios(".g-advance__d8", "data-advance-d8", (face) => onAdvanceFace(Number(face))),
     radios(".g-advance__stats", "data-advance-stat", onAdvanceStat),
+    radios(".g-favoured__d8", "data-favoured-d8", (face) => onFavouredRoll(Number(face))),
     radios(".g-favoured__skills", "data-favoured-skill", onFavoured),
-    onPlayerButton(root, "data-favoured-add", () => onFavouredAdd()),
     wireSegmentedControls(root, (via) => onAdvanceVia(via), { group: VIA_GROUP }),
     delegate(root, "click", `[data-seg-group="${VIA_GROUP}"] [aria-disabled="true"][title]`, (event, item) => onRefused(item.getAttribute("title"))),
     // One listener for the sheet's buttons: a step patches its one button in place («Roll …», «Next», «Take», «Back to the
@@ -209,7 +208,7 @@ function pressAdvance(button, handlers) {
  * (stage 07d), an injury's. One wiring for the root: two would not work, since the first flips the group's cards and
  * the second then hears no change (wireFilterChips says the same of chip rows).
  */
-function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
+export function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
   return wireOptionLists(root, (code, list) => {
     const sheet = list.closest("dialog")?.id;
     if (sheet === MARK_SHEET) onMarkChoice({ code });
@@ -271,8 +270,8 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceInstead «Take a skill in place of the characteristic»
  * @param {() => void} handlers.onAdvanceStatBack a desk's «‹ Back to the characteristic»
  * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
- * @param {(skill: string) => void} handlers.onFavoured a god's bonus skill chosen on the advancement's done step
- * @param {() => void} handlers.onFavouredAdd «Add …» under done (not when it is closed)
+ * @param {(face: number) => void} handlers.onFavouredRoll a face of the god's D8 pressed, before «Take»
+ * @param {(choice: string) => void} handlers.onFavoured a god's bonus skill, or «No bonus», chosen on his face
  * @param {(key: string) => void} handlers.onUnadvance the fix's «Undo the last: …», by the line's key (not when it is closed)
  * @param {() => void} handlers.onUnadvanceKeep «Keep» in the undo's sheet
  * @param {() => void} handlers.onUnadvanceSend «Undo advancement» in the undo's sheet

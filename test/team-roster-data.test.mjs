@@ -1053,10 +1053,11 @@ const frenzy = (over = {}) => ({ type: "random", grant: { skill: "Frenzy" }, rol
 const frenzied = (roll = SITE) => squad({ advancements: [{ type: "random", grants: { skill: "Frenzy" }, roll }], extraSkills: [{ name: "Frenzy", access: "primary" }] });
 /** A fix of Dell that leaves him as he is but for `over`. */
 const fixOf = (over = {}) => ({ niggling: 1, lasting: {}, stats: {}, contracts: 0, favoured: { add: [], remove: [] }, dropSkills: [], ...over });
-/** t1 as a Nurgle team that chose Nurgle's favour, with Rot, a Rotter Lineman. */
+/** t1 as a Nurgle team that chose Nurgle's favour, with Rot, a Rotter Lineman with 30 SPP to spend. */
 const nurgleTeam = (revision) => teamAt(revision, undefined, {
   baseTeamSlug: "teams/nurgle",
-  roster: { teamSlug: "teams/nurgle", teamName: "Iron Rooks", treasury: 50, favouredChoice: "Nurgle", players: [{ id: "n1", rowIndex: 0, number: "1", name: "Rot" }] },
+  roster: { teamSlug: "teams/nurgle", teamName: "Iron Rooks", treasury: 50, favouredChoice: "Nurgle",
+    players: [{ id: "n1", rowIndex: 0, number: "1", name: "Rot", spp: { touchdowns: 10 } }] },
 });
 const USED = "Undo the later advancement first: its roll was taken after this one.";
 /** The screen open at the press (K15): a step of 07d is always told why it would be closed, here never. */
@@ -1213,15 +1214,21 @@ test("a fix by hand is one PATCH: the Niggling Injuries, a characteristic, the c
   assert.deepEqual([dell.nigglingInjuries, dell.niglingInjury, dell.injuryStatMods?.ma, dell.statMods?.ma, dell.extendedContracts], [0, false, undefined, undefined, 1]);
 });
 
-test("a god's bonus is one PATCH: the skill among his favoured", async () => {
+// The owner, 2026-10-21: the god's D8 goes with every advancement, its skill with the advancement's own step (favoured.mjs).
+test("an advancement with the god's skill is one PATCH: the advancement, and the skill among his favoured", async () => {
   const draft = await open(nurgleTeam(4));
+  const mouth = (favoured) => ({ type: "primary", grant: { skill: "Monstrous Mouth" }, favoured });
+  assert.deepEqual(save.advancePlayer("t1", nurgle, "n1", mouth("Monstrous Mouth"), skillGroups, OPEN),
+    { ok: false, refusal: "Monstrous Mouth cannot be taken with this advancement" }, "the skill the advancement gives");
+  assert.deepEqual(save.advancePlayer("t1", nurgle, "n1", mouth("Block"), skillGroups, OPEN),
+    { ok: false, refusal: "Block cannot be taken with this advancement" }, "not the god's");
+  assert.deepEqual(draft.players[0].advancements ?? [], [], "a refusal changes nothing");
   api.reply(PATCH_URL, 200, { team: nurgleTeam(5) });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN), { ok: true });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN), { ok: false, refusal: "The player has this skill already." });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Block", OPEN), { ok: false, refusal: "This skill is not on the bonus list." });
+  assert.equal(save.advancePlayer("t1", nurgle, "n1", mouth("Tentacles"), skillGroups, OPEN).ok, true);
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
-  assert.deepEqual(patches()[0].body.roster.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+  const rot = patches()[0].body.roster.players[0];
+  assert.deepEqual([rot.advancements, rot.favouredSkills], [[{ type: "primary", grants: { skill: "Monstrous Mouth" } }], [{ name: "Tentacles", access: "favoured" }]]);
   assert.deepEqual(draft.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
 });
 
@@ -1235,22 +1242,19 @@ test("another tab's coach, or a write the screen has closed at the press: none o
     save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, options),
     save.undoAdvancement("t1", "p3", options),
     save.bindRoll("t1", "p3", ROLL, options),
-    save.addFavoured("t1", human, "p1", "Tentacles", options),
   ];
   const AFTER = "Advancement — after the post-match";
   let asked = 0;
   for (const refused of presses({ closed: () => { asked += 1; return AFTER; } })) assert.deepEqual(refused, { ok: false, refusal: AFTER });
-  assert.equal(asked, 6, "each press asks");
+  assert.equal(asked, 5, "each press asks");
   api.items.set(TOKEN, "someone-else");
-  // Human has no god's favour to give: that press is refused by the rules before the token is asked.
-  const [amend, fix, advance, undo, bind] = presses({ closed: () => "" });
-  for (const refused of [amend, fix, advance, undo, bind]) assert.match(refused.refusal, /another tab/);
+  for (const refused of presses({ closed: () => "" })) assert.match(refused.refusal, /another tab/);
   assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
   await tick();
   assert.equal(api.calls.length, 0);
   const rot = (await open(nurgleTeam(4))).players[0];
   api.items.set(TOKEN, "someone-else");
-  assert.match(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN).refusal, /another tab/);
+  assert.match(save.advancePlayer("t1", nurgle, "n1", { type: "primary", grant: { skill: "Block" }, favoured: "Tentacles" }, skillGroups, OPEN).refusal, /another tab/);
   assert.deepEqual([rot.favouredSkills ?? [], api.calls.length], [[], 0]);
 });
 
@@ -1265,7 +1269,6 @@ test("a player's step not told why the screen is closed throws, and nothing is s
     (options) => save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, options),
     (options) => save.undoAdvancement("t1", "p3", options),
     (options) => save.bindRoll("t1", "p3", ROLL, options),
-    (options) => save.addFavoured("t1", human, "p1", "Tentacles", options),
   ];
   for (const step of steps) {
     for (const options of [undefined, {}, { closed: "" }]) assert.throws(() => step(options), TypeError, JSON.stringify(options));
@@ -1316,7 +1319,7 @@ test("every refusal an advancement or an edit can meet is worded in both diction
   const keys = [
     ...[...ADVANCE_REFUSALS, "DICE_ROLL_USED"].map((code) => `teamAdvance.refusal.${code}`),
     ...[...EDIT_REFUSALS, ...FIX_REFUSALS, "DICE_ROLL_MISMATCH"].map((code) => `teamPlayer.refusal.${code}`),
-    "teamPlayer.matchDropped", "teamPlayer.favoured.held", "teamPlayer.favoured.unknown",
+    "teamPlayer.matchDropped", "teamPlayer.favoured.held", "teamPlayer.favoured.given",
   ];
   const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
   // An advancement's 422 for its roll is the server's own words: no copy of them under the step's key (review Minor 2).
