@@ -266,11 +266,7 @@ body.matchday-modal-open { overflow: hidden; }
 .matchday-hire-dialog .table-icon-button { width: 44px; min-width: 44px; min-height: 44px; }
 .matchday-editor details > summary::-webkit-details-marker { display: none; }
 .matchday-editor details > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-.matchday-public { padding-bottom: 0; }
 .matchday-player-name { margin: 0; min-height: 44px; display: flex; align-items: center; font-size: 1.12rem; letter-spacing: -.5px; overflow-wrap: anywhere; }
-.matchday-readonly-label { margin: 4px 0 8px; font-size: .7rem; color: var(--muted); }
-.matchday-public .matchday-money-value { display: flex; align-items: center; min-height: 44px; padding: 8px; }
-.matchday-public button:disabled { cursor: default; opacity: .6; }
 .matchday-player-details { border-top: 1px solid var(--line); }
 .matchday-player-details > summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; list-style: none; font-size: .65rem; color: var(--muted); cursor: pointer; }
 .roster-transfer-actions { margin-block: 14px; }
@@ -278,9 +274,6 @@ body.matchday-modal-open { overflow: hidden; }
 .matchday-player-details > summary::after { content: "+"; font-size: 1rem; }
 .matchday-player-details[open] > summary::after { content: "−"; }
 .matchday-player-details > .mobile-player-section { margin-top: 14px; }
-.matchday-public .matchday-contract-value { justify-content: start; align-items: center; gap: 12px; }
-.matchday-public .matchday-contract-value strong { font: .9rem/1 var(--label-font); }
-.matchday-public .summary-state-block:has(.summary-actions:empty) .summary-actions { display: none; }
 @media (max-width: 600px) {
   body:has(.matchday-editor) { min-width: 0; }
 }

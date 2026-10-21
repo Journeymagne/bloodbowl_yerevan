@@ -45,7 +45,7 @@ import { renderPostMatch } from "../screens/games/post-match.mjs";
 import { renderAdministration } from "../screens/administration/users.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
 import { renderPlayerProfile } from "../screens/players/profile.mjs";
-import { renderPublicTeamProfile } from "../screens/players/team.mjs";
+import { renderCoachTeam } from "../screens/coaches/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
 
 /**
@@ -79,7 +79,7 @@ const screens = {
   teamMatches: ({ teamId }) => renderTeamMatches(teamId),
   teamChallenges: () => renderMyGames(),
   coach: ({ userId }) => renderPlayerProfile(userId),
-  coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
+  coachTeam: ({ userId, teamId }) => renderCoachTeam(userId, teamId),
   ref: () => renderRef(),
   refSection: ({ section }) => renderRefSection(section),
   game: ({ gameId }) => renderGamePage(gameId),

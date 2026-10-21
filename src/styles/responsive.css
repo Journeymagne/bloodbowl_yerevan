@@ -174,13 +174,6 @@
     grid-template-columns: none;
   }
 
-  .public-team-coach-block {
-    padding-top: 0;
-    padding-left: 18px;
-    border-top: 0;
-    border-left: 1px solid var(--line);
-  }
-
   .season-round-header {
     flex-direction: row;
     align-items: center;

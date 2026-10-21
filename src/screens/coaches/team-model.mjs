@@ -77,6 +77,17 @@ function meetingOf(games, activeTeamId, teamId) {
 }
 
 /**
+ * The way back to the table (decision 22): a phone's «Table» (`#/season`), a desk's «Season» of the active team — where a
+ * desk has its table — or the league's table with no team. The page that could not be read leads there too.
+ * @param {{phone: boolean, activeTeamId?: string|null}} props
+ * @returns {{label: string, href: string}}
+ */
+export function wayBack({ phone, activeTeamId = null }) {
+  if (phone) return { label: t("shell.tab.table"), href: seasonTabUrl() };
+  return { label: t("shell.side.season"), href: activeTeamId ? teamUrl(activeTeamId, "matches") : seasonTabUrl() };
+}
+
+/**
  * @typedef {{key: string, number: string, name: string, position: string, captain: boolean, out: boolean, line: string,
  *   touchdowns: number, casualties: number, spp: number, skills: {name: string, gained: boolean}[]}} SquadRow
  */
@@ -134,8 +145,6 @@ export function opponentModel({ user, team, rolls = [], seasonData, games = [], 
     squad: squadOf(lines),
     lines,
     rolls: Array.isArray(rolls) ? rolls : [],
-    back: phone || !activeTeamId
-      ? { label: t(phone ? "shell.tab.table" : "shell.side.season"), href: seasonTabUrl() }
-      : { label: t("shell.side.season"), href: teamUrl(activeTeamId, "matches") },
+    back: wayBack({ phone, activeTeamId }),
   };
 }
