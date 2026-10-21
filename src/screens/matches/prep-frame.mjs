@@ -130,15 +130,17 @@ function opponentCard(model) {
  *   and `asideHtml` are the step's markup (prep-steps.mjs); a desk's card is titled `cardTitle` (the step's name by
  *   default); `footHtml` stands for the footer's button where the step draws its own (a desk's budget card). The
  *   post-match's (stage 09b): `opponentHtml` stands for a desk's opponent card ("" for none), `actionLeadHtml` goes
- *   before a desk's button in its panel (a chip of the opponent's line), `noticesHtml` after what is said under the head.
+ *   before a desk's button in its panel (a chip of the opponent's line), `noticesHtml` after what is said under the head,
+ *   `screen` names the screen whose frame it is (`data-screen`: a screen keeps only its own while its next step is read).
  */
-export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", cardTitle = "", footHtml = null, opponentHtml = null, actionLeadHtml = "", noticesHtml = "" }) {
+export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", cardTitle = "", footHtml = null, opponentHtml = null, actionLeadHtml = "", noticesHtml = "", screen = "" }) {
   const cta = footHtml ?? prepCtaMarkup(model.footer);
+  const whose = screen ? ` data-screen="${escapeHtml(screen)}"` : "";
   if (phone) {
     const head = `<header class="g-prep__head"><div class="g-prep__bar">${backMarkup(model)}<span class="g-prep__titles">`
       + `<h1 class="g-prep__title" tabindex="-1">${escapeHtml(model.title)}</h1><span class="g-prep__sub">${escapeHtml(model.sub)}</span></span></div>${dotsMarkup(model)}</header>`;
     const foot = cta || model.opponent.text ? `<div class="g-prep__foot">${opponentLine(model.opponent)}${cta}</div>` : "";
-    return `<div class="g-prep g-prep--phone">${head}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__body">${contentHtml}</div>${foot}</div>`;
+    return `<div class="g-prep g-prep--phone"${whose}>${head}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__body">${contentHtml}</div>${foot}</div>`;
   }
   const band = `<header class="g-prep__band">${backMarkup(model)}<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(model.deskTitle)}</h1>`
     + `<span class="g-prep__sub">${escapeHtml(model.deskSub)}</span></span></header>`;
@@ -146,5 +148,5 @@ export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", car
   const card = `<section class="g-prep__card" aria-labelledby="prep-card-title"><h2 class="g-prep__cardtitle" id="prep-card-title">${escapeHtml(title)}</h2>${contentHtml}</section>`;
   const action = cta || actionLeadHtml ? `<div class="g-prep__panel g-prep__panel--action">${actionLeadHtml}${cta}</div>` : "";
   const column = `<div class="g-prep__column">${asideHtml}${opponentHtml ?? opponentCard(model)}${action}</div>`;
-  return `<div class="g-prep g-prep--desk">${band}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__main">${stepsMarkup(model)}${card}${column}</div></div>`;
+  return `<div class="g-prep g-prep--desk"${whose}>${band}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__main">${stepsMarkup(model)}${card}${column}</div></div>`;
 }

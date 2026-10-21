@@ -519,6 +519,11 @@ it("the fans, the treasury and the captain are kept on the page and sent by the 
   // The captain.
   const next = reach(base, { home: 5, away: 3 });
   await visit(next);
+  // The reference reaches the steps (postModel's `data`, batch B's hand-off): TV and CTV are counted, not «—».
+  const valueOf = (label) => view.querySelectorAll(".g-after__row").find((item) => item.querySelector(".g-after__rowk").textContent.startsWith(label))
+    ?.querySelector(".g-after__rowv").textContent;
+  assert.match(valueOf(t("after.tv")), /\d.* → .*\d/);
+  assert.match(valueOf(t("after.ctv")), /\d.* → .*\d/);
   await press(view.querySelector('[data-after-captain] [data-captain="h3"]'));
   assert.equal(writes().length, 0);
   api.reply(WRITE, 200, payload(act(next, "home", { type: "next", captain: "h3" })));
@@ -746,9 +751,18 @@ it("the poll waits while a write is on its way, a draft is kept, a sheet is open
   await tick();
   assert.equal(reads().length, 1, "the tab is hidden");
   document.hidden = false;
+  // A draft kept holds no read: the opponent's move is drawn under it, and the draft stays.
   await press(face("[data-after-fans]", 4));
   await tick();
-  assert.equal(reads().length, 1, "a draft is kept");
+  assert.equal(reads().length, 2, "a draft is kept: the poll reads all the same");
+  assert.ok(view.querySelector(".g-prep__opp").textContent.includes(t("after.step.players")), "the opponent's line, read again");
+  assert.equal(face("[data-after-fans]", 4).getAttribute("aria-checked"), "true", "the draft stays");
+  // A read that moved this side is not drawn over a draft: what the coach began stands on what it was drawn from.
+  api.reply(READ, 200, payload(act(moved, "home", { type: "fans", roll: 2, technicalRoll: "", painted: false, stalling: false })));
+  await tick();
+  assert.equal(reads().length, 3);
+  assert.equal(face("[data-after-fans]", 4).getAttribute("aria-checked"), "true", "not taken");
+  assert.equal(cta().getAttribute("data-prep-action"), "fans");
   // The poll reads and draws another revision once nothing is kept.
   await visit(base, { step: "fans" });
   api.reply(READ, 200, payload(moved));
@@ -825,4 +839,238 @@ it("one form for each width: crossing 900px draws the other, the focus kept or o
   assert.equal(view.querySelector("table"), null);
   assert.ok(document.activeElement === view.querySelector("h1") || view.contains(document.activeElement), "never the body");
   assert.notEqual(document.activeElement, document.body);
+});
+
+// ———————————————————————————— Task 9 review fixes ————————————————————————————
+
+it("a Players press made while its write is out is said lost when that write's answer is lost or refused", async () => {
+  const post = at({ home: 2, away: 2 });
+  await visit(post);
+  let count = toasts().length;
+  const held = api.hold(WRITE);
+  await press(mvp("h3"));
+  await press(mvp("h4"));
+  assert.equal(mvp("h4").getAttribute("aria-checked"), "true", "the page shows the press waiting");
+  // The answer never comes, but the write landed: the read holds h3, and h4 was never sent.
+  api.reply(READ, 200, payload(saved(post, { mvps: ["h3"] })));
+  held.release({ error: new TypeError("Failed to fetch") });
+  await flush();
+  assert.deepEqual(writes().map((call) => call.body.action.mvps), [["h3"]], "nothing sent again by itself");
+  assert.equal(mvp("h3").getAttribute("aria-checked"), "true", "drawn as read");
+  assert.equal(alertText(), t("request.offline"));
+  assert.deepEqual(toasts().slice(count), [t("after.draftLost")]);
+  // A refusal whose read finds this side moved by a tap: the press is said lost too.
+  await visit(post);
+  count = toasts().length;
+  const tapped = followEvents(post, { home: [...RECORDS.home, ...tap("h6", "knockouts")], away: RECORDS.away });
+  api.reply(WRITE, 409, { error: { code: "POST_REVISION", message: "x" } });
+  api.reply(READ, 200, payload(tapped));
+  await press(mvp("h3"));
+  assert.equal(writes().length, 1);
+  assert.equal(alertText(), t("error.POST_REVISION"));
+  assert.equal(mvp("h3").getAttribute("aria-checked"), "false", "drawn as read");
+  assert.ok(row("h6"), "the tap drawn");
+  assert.deepEqual(toasts().slice(count), [t("after.draftLost")]);
+  api.assertAnswered();
+});
+
+it("a draft kept does not hold the poll: the treasury waiting on the opponent's Players opens, the dice kept", async () => {
+  const waiting = reach(agreed(begin()), { home: 4, away: 2 });
+  await visit(waiting);
+  assert.ok(cta().hasAttribute("disabled"));
+  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.waitStats"));
+  await press(face("[data-after-mistake]", 6));
+  const saved = reach(waiting, { home: 4, away: 3 });
+  api.reply(READ, 200, payload(saved));
+  await tick();
+  assert.equal(reads().length, 2);
+  assert.equal(view.querySelector(".g-prep__hint"), null, "the opponent saved «Players»: the button opens");
+  assert.ok(!cta().hasAttribute("disabled"));
+  assert.equal(face("[data-after-mistake]", 6).getAttribute("aria-checked"), "true", "the die kept");
+  const money = { type: "finance", deposit: 0, mistake: { roll: 6, first: null, second: null } };
+  api.reply(WRITE, 200, payload(act(saved, "home", money)));
+  await pressCta();
+  assert.deepEqual(writes().map((call) => [call.body.revision, call.body.action]), [[saved.revision, money]]);
+  api.assertAnswered();
+});
+
+it("a veteran who missed the match gets his die after a full concession, and «Next: roster» opens", async () => {
+  const none = { home: [], away: [] };
+  const three = ["Block", "Dodge", "Catch"].map((skill) => ({ type: "primary", grants: { skill } }));
+  const roster = HOME.map((player) => (player.id === "h9" ? { ...player, advancements: three } : player));
+  const begun = begin({ events: none, home: { roster } });
+  const conceded = reach(agreed(begun, { home: [0, 0], away: [2, 0], mode: "conceded", winner: "away", by: "away", events: none }), { home: 2, away: 2 }, { events: none });
+  assert.equal(conceded.home.snapshot.players.some((player) => player.id === "h9"), false, "J. Corr missed the match");
+  await visit(conceded);
+  assert.ok(view.querySelector('[data-after-departure="h9"]'), "his die all the same");
+  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.departureShut"));
+  const died = saved(conceded, { departures: { h9: 4 } }, none);
+  api.reply(WRITE, 200, payload(died));
+  await press(view.querySelector('[data-after-departure="h9"] [data-die="4"]'));
+  assert.deepEqual(writes().map((call) => call.body.action.departures), [{ h9: 4 }]);
+  assert.equal(view.querySelector('[data-after-departure="h9"] [data-die="4"]').getAttribute("aria-checked"), "true");
+  assert.equal(cta().getAttribute("data-prep-action"), "lock-players");
+  assert.ok(!cta().hasAttribute("disabled"), "nothing left to mark");
+  assert.equal(act(died, "home", { type: "lock-players" }, none).home.stage, 3, "and the domain takes the lock");
+  api.assertAnswered();
+});
+
+it("an MVP marked Dead afterwards leaves the MVPs: the write drops him, «Next: roster» asks for another", async () => {
+  const { changePlayers, playersDraft, playersFooter } = await import("../src/screens/matches/post-players.mjs");
+  const { postModel } = await import("../src/screens/matches/post-model.mjs");
+  const post = at({ home: 2, away: 2 });
+  await visit(post);
+  const first = saved(post, { mvps: ["h3"] });
+  api.reply(WRITE, 200, payload(first));
+  await press(mvp("h3"));
+  await press(row("h3"));
+  const dead = { ...first.home.injuries, h3: { code: "dead", retire: false } };
+  api.reply(WRITE, 200, payload(saved(first, { injuries: dead, mvps: [] })));
+  await press(sheet().querySelector('[data-after-injury="h3"] [data-code="dead"]'));
+  assert.deepEqual(writes().map((call) => call.body.action.mvps), [["h3"], []]);
+  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.mvpShut"));
+  // Two MVPs (a technical win): the dead one goes, and another can take his place.
+  const technical = reach(agreed(begin(), { mode: "technical", winner: "home", home: [2, 0], away: [0, 0] }), { home: 2, away: 2 });
+  const model = postModel(payloadOf(technical), "home", "players", { data });
+  const two = changePlayers(model, changePlayers(model, playersDraft(technical.home), { kind: "mvp", playerId: "h3", on: true }), { kind: "mvp", playerId: "h4", on: true });
+  assert.deepEqual(two.mvps, ["h3", "h4"]);
+  const one = changePlayers(model, two, { kind: "injury", playerId: "h3", code: "dead" });
+  assert.deepEqual(one.mvps, ["h4"]);
+  assert.deepEqual(changePlayers(model, one, { kind: "mvp", playerId: "h5", on: true }).mvps, ["h4", "h5"]);
+  const held = { ...playersDraft(technical.home), injuries: { ...technical.home.injuries, h3: { code: "dead", retire: false } }, mvps: ["h3", "h4"] };
+  assert.deepEqual(changePlayers(model, held, { kind: "mvp", playerId: "h5", on: true }).mvps, ["h4", "h5"], "one held dead before: the same");
+  // An MVP the post-match already holds dead (saved so before) counts for none: the button says to choose.
+  const played = postModel(payloadOf(post), "home", "players", { data });
+  const kept = { ...playersDraft(post.home), injuries: { ...post.home.injuries, h3: { code: "dead", retire: false } }, mvps: ["h3"] };
+  assert.equal(playersFooter(played, kept).hint, t("after.mvpShut"));
+  assert.equal(playersFooter(played, { ...kept, mvps: ["h4"] }).hint, "", "a live MVP opens it");
+  api.assertAnswered();
+});
+
+it("an answer that comes after the coach left still reads the games, and the teams once finished", async () => {
+  const ready = at({ home: 7, away: 7 });
+  await visit(ready);
+  api.reply(FINISH, 200, payload(finished(ready)));
+  const gate = api.hold(FINISH);
+  await pressCta();
+  releaseCurrentScreen();
+  gate.release();
+  await flush();
+  assert.deepEqual([calls("GET /api/teams").length, calls("GET /api/games").length], [1, 1], "the fallen, the new players, the match card");
+  // A finish whose answer was lost after the coach left may have landed: read the same.
+  await visit(ready);
+  const lost = api.hold(FINISH);
+  await pressCta();
+  releaseCurrentScreen();
+  lost.release({ error: new TypeError("Failed to fetch") });
+  await flush();
+  assert.deepEqual([calls("GET /api/teams").length, calls("GET /api/games").length], [1, 1]);
+  assert.equal(reads().length, 1, "nothing read again for a page that is gone");
+  // Any other write answered after leaving: the games.
+  const roster = at({ home: 3, away: 3 });
+  await visit(roster);
+  api.reply(WRITE, 200, payload(act(roster, "home", { type: "lock-roster" })));
+  const write = api.hold(WRITE);
+  await pressCta();
+  releaseCurrentScreen();
+  write.release();
+  await flush();
+  assert.deepEqual([calls("GET /api/teams").length, calls("GET /api/games").length], [0, 1]);
+});
+
+it("a Players press made while «Next: roster» is on its way is not sent once the step closed, and is said lost", async () => {
+  const first = saved(at({ home: 2, away: 2 }), { mvps: ["h3"] });
+  for (const step of ["", "players"]) {
+    await visit(first, { step });
+    const count = toasts().length;
+    const held = api.hold(WRITE);
+    await pressCta();
+    await press(mvp("h4"));
+    held.release({ status: 200, body: payload(act(first, "home", { type: "lock-players" })) });
+    await flush();
+    assert.deepEqual(writes().map((call) => call.body.action.type), ["lock-players"], step);
+    assert.equal(alertText(), "", "no refusal to say");
+    assert.deepEqual(toasts().slice(count), [t("after.draftLost")]);
+    api.assertAnswered();
+  }
+});
+
+it("the score's draft is what it writes: a winner picked, then «Played» again, is the opponent's score to confirm", async () => {
+  await visit(scored(begin(), { by: "away" }), { step: "result" });
+  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
+  await press(view.querySelector('[data-after-mode] [data-mode="technical"]'));
+  await press(view.querySelector('.g-seg[data-seg-group="after-winner"] [data-seg-value="away"]'));
+  assert.equal(cta().getAttribute("data-prep-action"), "result");
+  await press(view.querySelector('[data-after-mode] [data-mode="played"]'));
+  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
+  assert.equal(writes().length, 0);
+});
+
+it("a sheet's «−» pressed down to its floor keeps the focus in the sheet, on its «+»", async () => {
+  const post = at({ home: 2, away: 2 });
+  const counts = (side, knockouts) => ({ statistics: { ...side.statistics, h3: { ...side.statistics.h3, knockouts } } });
+  const counted = saved(post, counts(post.home, 1));
+  await visit(counted);
+  await press(row("h3"));
+  const minus = sheet().querySelector('[data-action-key="knockouts"] [data-action-step="-1"]');
+  minus.focus();
+  api.reply(WRITE, 200, payload(saved(counted, counts(counted.home, 0))));
+  await press(minus);
+  assert.equal(writes()[0].body.action.statistics.h3.knockouts, 0);
+  assert.ok(sheet()?.open, "the sheet stays");
+  assert.ok(minus.hasAttribute("disabled"), "nothing below zero");
+  assert.ok(document.activeElement === sheet().querySelector('[data-action-key="knockouts"] [data-action-step="1"]'), "the focus on the same stepper's «+»");
+  api.assertAnswered();
+});
+
+it("a draw that gives the focus to the footer's button arms it again (09a F-2): a quick press after a «−» to zero sends nothing", async () => {
+  const base = reach(agreed(begin({ home: { treasury: 300 } })), { home: 3, away: 3 });
+  const staffed = act(base, "home", { type: "roster", operation: "staff", key: "assistantCoaches", delta: 1 });
+  await visit(staffed);
+  const minus = view.querySelector('[data-resource-key="assistantCoaches"] [data-resource-step="-1"]');
+  minus.focus();
+  const unstaffed = act(staffed, "home", { type: "roster", operation: "staff", key: "assistantCoaches", delta: -1 });
+  api.reply(WRITE, 200, payload(unstaffed));
+  await press(minus);
+  assert.ok(document.activeElement === cta(), "the «−» closed: the focus on the footer's button");
+  assert.equal(cta().getAttribute("data-prep-action"), "lock-roster", "the same action as before");
+  await press(cta());
+  assert.deepEqual(writes().map((call) => call.body.action.type), ["roster"], "the rest of the keyboard's presses");
+  later(700);
+  api.reply(WRITE, 200, payload(act(unstaffed, "home", { type: "lock-roster" })));
+  await press(cta());
+  assert.deepEqual(writes().map((call) => call.body.action.type), ["roster", "lock-roster"]);
+  api.assertAnswered();
+});
+
+it("arriving from the preparation, whose frame is on screen, says the post-match is being read; a step link keeps its own frame", async () => {
+  releaseCurrentScreen();
+  api.reset();
+  view.innerHTML = `<div class="g-prep g-prep--phone"><header class="g-prep__head"><h1 class="g-prep__title" tabindex="-1">${t("prep.title")}</h1></header></div>`;
+  state.auth.currentUser = COACH;
+  state.data = data;
+  crossingWindow(true);
+  api.reply(READ, 200, payload(agreed(begin())));
+  let gate = api.hold(READ);
+  let open = renderPostMatch("g1", "");
+  await flush();
+  assert.equal(view.querySelector('.g-prep__note[role="status"]')?.textContent, t("after.loading"));
+  assert.equal(view.querySelector("h1").textContent, t("after.title"));
+  gate.release();
+  await open;
+  await flush();
+  assert.ok(view.querySelector("[data-after-fans]"), "the post-match drawn");
+  // Another step of the same post-match: its frame stays while the step is read (no flash between steps).
+  releaseCurrentScreen();
+  gate = api.hold(READ);
+  open = renderPostMatch("g1", "result");
+  await flush();
+  assert.equal(view.querySelector('.g-prep__note[role="status"]'), null);
+  assert.ok(view.querySelector("[data-after-fans]"), "the frame drawn last stays");
+  gate.release();
+  await open;
+  await flush();
+  assert.ok(view.querySelector('[data-score-key="own:touchdowns"]'));
+  releaseCurrentScreen();
+  api.assertAnswered();
 });

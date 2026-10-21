@@ -55,6 +55,15 @@ function withDraft(model, draft, mvps = draft.mvps) {
   return { ...model.post, [model.sideName]: { ...side, statistics: draft.statistics, injuries: draft.injuries, mvps, departures: draft.departures } };
 }
 
+/**
+ * Who the step offers as MVP over `draft` (`mvpChoices`: no star, nobody dead) and how many it names. An MVP of the
+ * draft who is not offered (marked Dead since) counts for none: the domain refuses him at the lock.
+ */
+function offered(model, draft) {
+  const choices = mvpChoices(withDraft(model, draft), model.sideName);
+  return { count: choices.count, ids: new Set([...choices.top, ...choices.rest].map((choice) => choice.id)) };
+}
+
 /** «#3 L. Ashby». */
 const who = (player) => t("after.who", { number: player.number, name: player.name });
 
@@ -229,9 +238,9 @@ function tableRow(read, counted, { mvps, eligible, count, closed, full }) {
 
 /** A desk's table (DeskPostPlayers.html): every player of the match, a real table with its caption and column heads. */
 function tableMarkup(model, draft, players) {
-  const choices = mvpChoices(withDraft(model, draft), model.sideName);
-  const eligible = new Set([...choices.top, ...choices.rest].map((choice) => choice.id));
-  const options = { mvps: draft.mvps, eligible, count: choices.count, closed: model.readonly, full: choices.count > 1 && draft.mvps.length >= choices.count };
+  const { count, ids: eligible } = offered(model, draft);
+  const chosen = draft.mvps.filter((id) => eligible.has(id));
+  const options = { mvps: chosen, eligible, count, closed: model.readonly, full: count > 1 && chosen.length >= count };
   const heads = [t("after.col.number"), t("after.col.player"), t("after.stat.touchdowns"), t("after.stat.casualties"), t("after.stat.completions"),
     t("after.stat.knockouts"), t("after.col.mvp"), t("after.col.spp"), t("after.col.injury")];
   const head = `<thead><tr>${heads.map((label) => `<th class="g-after__th" scope="col">${escapeHtml(label)}</th>`).join("")}</tr></thead>`;
@@ -262,11 +271,11 @@ export function playersStep(model, draft, { phone, open = false }) {
 /** «Next: roster» locks the step (`lock-players`): closed while the score and the records part, the MVP is missing, or a veteran's die is unmarked. */
 export function playersFooter(model, draft) {
   if (model.readonly) return nextLink(model, "roster");
-  const post = withDraft(model, draft);
-  const count = mvpChoices(post, model.sideName).count;
-  const mismatched = mismatchMarkup(model, post, { ownOnly: true }) !== "";
+  const { count, ids } = offered(model, draft);
+  const mismatched = mismatchMarkup(model, withDraft(model, draft), { ownOnly: true }) !== "";
   const veterans = lostConceding(model) ? model.post[model.sideName].baseRoster.players.filter((player) => (player.advancements ?? []).length >= 3) : [];
-  const hint = mismatched ? t("after.mismatchShut") : draft.mvps.length < count ? t("after.mvpShut")
+  const named = draft.mvps.filter((id) => ids.has(id)).length;
+  const hint = mismatched ? t("after.mismatchShut") : named < count ? t("after.mvpShut")
     : veterans.some((player) => !draft.departures[player.id]) ? t("after.departureShut") : "";
   return actionFooter("lock-players", t("after.next.roster"), hint);
 }
@@ -281,12 +290,12 @@ function nextCounts(stats, counter, delta) {
 
 /** The MVPs after a chip, a radio or a star: one MVP replaced, two at most of different players, only those the step offers. */
 function nextMvps(model, draft, { playerId, on }) {
-  const choices = mvpChoices(withDraft(model, draft), model.sideName);
-  if (![...choices.top, ...choices.rest].some((choice) => choice.id === playerId)) return draft.mvps;
-  const others = draft.mvps.filter((id) => id !== playerId);
+  const { count, ids } = offered(model, draft);
+  if (!ids.has(playerId)) return draft.mvps;
+  const others = draft.mvps.filter((id) => id !== playerId && ids.has(id));
   if (!on) return others;
-  if (choices.count === 1) return [playerId];
-  return others.length < choices.count ? [...others, playerId] : draft.mvps;
+  if (count === 1) return [playerId];
+  return others.length < count ? [...others, playerId] : draft.mvps;
 }
 
 /** An injury after a choice: a Lasting one keeps its characteristic and «rest of the season», any other is `{code, retire: false}`. */
@@ -305,9 +314,10 @@ function nextInjury(before, { kind, code, stat, on }) {
 /**
  * The step's draft after one press (pre-flight L2): a new draft in the very shape `playersDraft` gives and the domain's
  * `saveStatistics` keeps — every counter of every player, an injury as `{code, stat?, retire}` («No injury» is
- * `{code: "none", retire: false}`), the MVPs the step offers, a veteran's die only for the side that conceded in full —
- * so the answer to the write it makes is equal to it. A press the domain would refuse or drop (crowd and foul past CAS,
- * a third MVP, a departure of a player who is not a veteran) leaves the draft as it was. Pure.
+ * `{code: "none", retire: false}`), the MVPs the step offers — one marked Dead since is one no more —, a veteran's die
+ * only for the side that conceded in full, a veteran of the roster who missed the match too — so the answer to the
+ * write it makes is equal to it. A press the domain would refuse or drop (crowd and foul past CAS, a third MVP, a
+ * departure of a player who is not a veteran) leaves the draft as it was. Pure.
  * @param {ReturnType<typeof import("./post-model.mjs").postModel>} model @param {ReturnType<typeof playersDraft>} draft
  * @param {{kind: "counter"|"mvp"|"injury"|"stat"|"retire"|"departure", playerId: string, counter?: string, delta?: number,
  *   on?: boolean, code?: string, stat?: string, die?: number}} change
@@ -315,7 +325,8 @@ function nextInjury(before, { kind, code, stat, on }) {
  */
 export function changePlayers(model, draft, change) {
   const id = change.playerId;
-  if (!Object.hasOwn(draft.statistics, id)) return draft;
+  // A veteran's die is the roster's (`saveStatistics`); every other press is of a player of the match.
+  if (change.kind !== "departure" && !Object.hasOwn(draft.statistics, id)) return draft;
   const next = { statistics: { ...draft.statistics }, injuries: { ...draft.injuries }, mvps: [...draft.mvps], departures: { ...draft.departures } };
   if (change.kind === "counter") {
     const counts = nextCounts(draft.statistics[id], change.counter, Number(change.delta) || 0);
@@ -332,6 +343,8 @@ export function changePlayers(model, draft, change) {
     if (!lostConceding(model) || !veteran || !Number.isInteger(die) || die < 1 || die > 6) return draft;
     next.departures[id] = die;
   } else return draft;
+  const { ids } = offered(model, next);
+  next.mvps = next.mvps.filter((mvp) => ids.has(mvp));
   return next;
 }
 

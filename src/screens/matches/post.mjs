@@ -16,11 +16,14 @@
  * writes press by press. The Players step writes press by press too, from its draft (pre-flight L2: built and changed
  * only by `changePlayers`, in the shape the domain saves): a press while its write is on its way changes the draft,
  * and once that write has landed the latest draft goes out once more, unless the answer already holds it — never
- * again «until it matches». A refusal is said in the server's words (one alert, the frame's); after a 409 (another
- * device was quicker, the post-match closed, the team changed), a 422 at the finish (pre-flight L9) or an answer that
- * never came, the post-match is read again and nothing is sent again by itself: the Players draft goes with the read,
- * and the coach is told when it held what was not sent. A draft goes when an answer brings this side or the score
- * changed. A finished post-match reads the coach's teams again: the roster has its fallen and its new players.
+ * again «until it matches»; a press made while another write closes the step (`lock-players`, `reopen`) goes with it.
+ * A refusal is said in the server's words (one alert, the frame's); after a 409 (another device was quicker, the
+ * post-match closed, the team changed), a 422 at the finish (pre-flight L9) or an answer that never came, the
+ * post-match is read again and nothing is sent again by itself: the Players draft goes with the read. Whenever a
+ * Players draft goes holding what was not sent, the coach is told (`after.draftLost`). A draft goes when an answer
+ * brings this side or the score changed. A finished post-match reads the coach's teams again: the roster has its
+ * fallen and its new players. An answer that comes after the coach left draws nothing, but the games (and the teams,
+ * once finished) are read all the same; so are they after a lost answer then, which may hide a write that landed.
  *
  * The footer's button keeps its place (`data-key="prep-cta"`): «Confirm the summary» turns into «Finish the match» on
  * the same node once the opponent has confirmed. So the footer's action is armed only `FOOTER_ARM_MS` after it appears
@@ -28,12 +31,14 @@
  * nothing, an Enter held down presses it once (post-wire.mjs). A draw that takes the focused control away gives the
  * focus to the footer's button, else to the title, never to the page's body.
  *
- * What it polls: the post-match every six seconds while the tab is seen, no write or read is on its way, no draft is
- * kept and no sheet or dialog is open; another revision is drawn. A followed side whose records a tap changed is said
- * (`after.tapsChanged`: the domain took the advancements chosen off). A read that fails waits longer each time (up to
- * a minute); a refusal for good (403, 404) and a finished post-match stop the poll. Leaving stops the poll, takes the
- * listeners off and closes the sheets; an answer that comes after draws nothing. A post-match that cannot be read is
- * said with a way to read it again.
+ * What it polls: the post-match every six seconds while the tab is seen, no write or read is on its way and no sheet
+ * or dialog is open; another revision is drawn — over a draft kept only when it leaves this side and the score as
+ * they were, so the draft still stands on it (a treasury waiting on the opponent's Players opens with its dice kept).
+ * A followed side whose records a tap changed is said (`after.tapsChanged`: the domain took the advancements chosen
+ * off). A read that fails waits longer each time (up to a minute); a refusal for good (403, 404) and a finished
+ * post-match stop the poll. Leaving stops the poll, takes the listeners off and closes the sheets. A post-match that
+ * cannot be read is said with a way to read it again; arriving from another screen's frame (the preparation's), the
+ * reading is said.
  */
 import { toast } from "../../components/toast.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
@@ -60,7 +65,7 @@ import { postModel } from "./post-model.mjs";
 import { PLAYERS_SHEET, changePlayers, playerSheetMarkup, playersDraft, playersSendable, playersStep } from "./post-players.mjs";
 import { completedMarkup, reviewStep } from "./post-review.mjs";
 import { HIRE_SHEET, SELL_SHEET, hireSheetMarkup, rosterStep, sellSheetMarkup } from "./post-roster.mjs";
-import { fansDraft, fansStep, opponentLeadMarkup, resultDraft, resultStep } from "./post-steps.mjs";
+import { fansDraft, fansStep, opponentLeadMarkup, resultAction, resultDraft, resultStep } from "./post-steps.mjs";
 import { wirePost } from "./post-wire.mjs";
 
 /** How often the open post-match is read again, as 2.x did. */
@@ -78,18 +83,29 @@ const FOOTER_ARM_MS = 600;
 /** The drafts a step keeps on the page, by the step that sends them. */
 const DRAFTS = Object.freeze({ result: resultDraft, fans: fansDraft, finance: financeDraft, next: nextDraft });
 
+/** Whose frame it is (`data-screen`): the post-match keeps only its own while a step is read. */
+const SCREEN = "post-match";
+
 /** A sheet's dialog id by its kind. */
 const SHEETS = Object.freeze({ player: PLAYERS_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET });
 
 /** What the Players step saves of a side: the draft compares with these. */
 const playersValues = (side) => [side.statistics, side.injuries, side.mvps, side.departures];
 
+/** The side's stage of the Players step (`statistics` is taken there only). */
+const PLAYERS_STAGE = 2;
+
+/** An answer that never came: the write may have landed all the same. */
+const lostAnswer = (error) => error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT;
+
 /**
  * A refusal after which the post-match is read again: any 409 (as 2.x), a 422 at the finish (a roll the finish refuses,
  * pre-flight L9), or an answer that never came.
  */
-const readsAgain = (error, finish) => error?.status === 409 || (finish && error?.status === 422)
-  || error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT;
+const readsAgain = (error, finish) => error?.status === 409 || (finish && error?.status === 422) || lostAnswer(error);
+
+/** Whether the post-match `next` finished what `payload` had not. */
+const finishes = (payload, next) => payload?.postMatch.status !== "completed" && next.postMatch.status === "completed";
 
 /**
  * One visit of the page: the game, the step the address names, the post-match last read and the side shown; what the
@@ -115,13 +131,14 @@ const playersOf = (visit, model = modelOf(visit)) => visit.ui.drafts.players ?? 
 const draftOf = (visit, key, model = modelOf(visit)) => visit.ui.drafts[key] ?? DRAFTS[key](model);
 
 /**
- * A step's draft after a press, drawn: kept, or dropped when it is the post-match's own again (then nothing holds the
- * poll). The score's draft says whether it changed the score sent (`changed`: «Send your score» rather than «Confirm»).
+ * A step's draft after a press, drawn: kept, or dropped when it is the post-match's own again. The score's draft is
+ * what it writes (`resultAction`: a winner left from «Technical» is none once the match is «Played» again), and says
+ * whether it changed the score sent (`changed`: «Send your score» rather than «Confirm»).
  */
 function keepDraft(visit, key, next) {
-  const fresh = DRAFTS[key](modelOf(visit));
-  const plain = key === "result" ? { ...next, changed: false } : next;
-  visit.ui.drafts[key] = sameValues(plain, fresh) ? null : key === "result" ? { ...next, changed: true } : next;
+  const model = modelOf(visit), fresh = DRAFTS[key](model);
+  const same = key === "result" ? sameValues(resultAction(model, next), resultAction(model, fresh)) : sameValues(next, fresh);
+  visit.ui.drafts[key] = same ? null : key === "result" ? { ...next, changed: true } : next;
   draw(visit);
 }
 
@@ -170,7 +187,7 @@ function screenOf(visit, model = modelOf(visit)) {
   const step = stepOf(visit, model, phone);
   const framed = { ...model, footer: step.footer };
   const sheet = sheetOf(visit, model, phone);
-  const html = prepFrameMarkup(framed, { phone, contentHtml: step.contentHtml, asideHtml: step.asideHtml, cardTitle: step.cardTitle ?? "",
+  const html = prepFrameMarkup(framed, { phone, screen: SCREEN, contentHtml: step.contentHtml, asideHtml: step.asideHtml, cardTitle: step.cardTitle ?? "",
     opponentHtml: "", actionLeadHtml: phone ? "" : opponentLeadMarkup(model), noticesHtml: noticesOf(model) });
   return { markup: `${html}${sheet?.html ?? ""}`, modal: sheet ? `#${sheet.id}` : "", footer: step.footer, sheet };
 }
@@ -203,55 +220,35 @@ function stopPoll(visit) {
  * Draw the page again over what is there: the focus stays where the coach put it, a sheet open stays open. A footer's
  * action that appears is armed `FOOTER_ARM_MS` later. A focus the page held that the draw left on nothing goes to the
  * footer's button, armed again then, else to the title — but for another form of the width, whose title takes it
- * (`drawKeepingFocus`, `refocus: false`). A finished post-match stops the poll.
+ * (`drawKeepingFocus`, `refocus: false`). With a sheet open it stays in the sheet: a stepper's «−» closed at its floor
+ * gives it to the same stepper's «+», else to the sheet's close. A finished post-match stops the poll.
  */
 function draw(visit, { refocus = true } = {}) {
   if (!visit.here || !visit.payload) return;
   const page = view.ownerDocument ?? globalThis.document;
   const held = view.contains(page.activeElement);
+  const cell = page.activeElement?.closest?.("[data-action-key]")?.getAttribute("data-action-key") ?? "";
   const screen = screenOf(visit);
   if (!screen.sheet) Object.assign(visit.ui, { sheet: null, opener: null });
   takeFooter(visit, screen.footer);
   patchWithModal(view, screen.markup, screen.modal);
   if (visit.payload.postMatch.status === "completed") stopPoll(visit);
-  if (screen.sheet) return;
+  if (!refocus || !held || !focusGone(page.activeElement)) return;
+  if (screen.sheet) {
+    const sheet = view.querySelector(screen.modal);
+    const plus = cell ? sheet?.querySelector(`[data-action-key="${cell}"] [data-action-step="1"]`) : null;
+    (plus ?? sheet?.querySelector("[data-sheet-close]"))?.focus();
+    return;
+  }
   for (const target of [".g-prep__cta", "h1"]) {
-    if (!refocus || !held || !focusGone(page.activeElement)) return;
+    if (!focusGone(page.activeElement)) return;
     const next = view.querySelector(target);
     next?.focus();
     if (next && page.activeElement === next && target === ".g-prep__cta") armFooter(visit);
   }
 }
 
-/**
- * The post-match `next` replaces the one drawn. The step's drafts go when this side or the score changed (a draft
- * stands on what it was drawn from); the Players draft when what that step saves changed under it — not while its own
- * write is out (`keepPlayers`: `sendPlayers` weighs it). Says whether the post-match has just finished, and whether a
- * tap changed a side that follows the records.
- */
-function take(visit, next, { keepPlayers = false } = {}) {
-  const was = visit.payload?.postMatch, now = next.postMatch, name = visit.sideName, { ui } = visit;
-  visit.payload = next;
-  if (!was) return { finished: false, tapped: false };
-  if (!sameValues(was[name], now[name]) || !sameValues(was.result, now.result)) {
-    Object.assign(ui.drafts, { result: null, fans: null, finance: null, next: null });
-    ui.unlocked = false;
-  }
-  if (!keepPlayers && !sameValues(playersValues(was[name]), playersValues(now[name]))) {
-    ui.drafts.players = null;
-    ui.playersWaiting = false;
-  }
-  return { finished: was.status !== "completed" && now.status === "completed",
-    tapped: sideFollowsEvents(was[name]) && !sameValues([was[name].statistics, was[name].injuries], [now[name].statistics, now[name].injuries]) };
-}
-
-/** After an answer or a read: the games once a write landed or the match finished, the coach's teams once it finished. */
-function settle(visit, { finished }, { answered = false } = {}) {
-  if (answered || finished) void invalidateGames();
-  if (finished) void loadMyTeams(true);
-}
-
-/** The Players draft dropped after a refusal: the coach is told when it held what is not what the page now shows. */
+/** The Players draft dropped (a refusal, a step closed under it): the coach is told when it held what the page now does not show. */
 function dropPlayers(visit) {
   const { ui } = visit, draft = ui.drafts.players;
   ui.drafts.players = null;
@@ -259,11 +256,41 @@ function dropPlayers(visit) {
   if (draft && visit.payload && !sameValues(draft, playersDraft(visit.payload.postMatch[visit.sideName]))) toast(t("after.draftLost"));
 }
 
+/**
+ * The post-match `next` replaces the one drawn. The step's drafts go when this side or the score changed (a draft
+ * stands on what it was drawn from); the Players draft when what that step saves changed under it, or the side left
+ * that step (`lock-players`, `reopen`, `reset-side`: nothing the domain would take any more) — said when it held what
+ * was not sent; not while its own write is out (`keepPlayers`: `sendPlayers` or the refusal weighs it). Says whether
+ * the post-match has just finished, and whether a tap changed a side that follows the records.
+ */
+function take(visit, next, { keepPlayers = false } = {}) {
+  const was = visit.payload?.postMatch, now = next.postMatch, name = visit.sideName, { ui } = visit;
+  const finished = finishes(visit.payload, next);
+  visit.payload = next;
+  if (!was) return { finished: false, tapped: false };
+  if (!sameValues(was[name], now[name]) || !sameValues(was.result, now.result)) {
+    Object.assign(ui.drafts, { result: null, fans: null, finance: null, next: null });
+    ui.unlocked = false;
+  }
+  if (!keepPlayers && (now[name].stage !== PLAYERS_STAGE || !sameValues(playersValues(was[name]), playersValues(now[name])))) dropPlayers(visit);
+  return { finished,
+    tapped: sideFollowsEvents(was[name]) && !sameValues([was[name].statistics, was[name].injuries], [now[name].statistics, now[name].injuries]) };
+}
+
+/**
+ * After an answer or a read: the games once a write landed or the match finished, the coach's teams once it finished —
+ * also for a coach gone by then (as 09a), whose page draws nothing.
+ */
+function settle(visit, { finished }, { answered = false } = {}) {
+  if (answered || finished) void invalidateGames();
+  if (finished) void loadMyTeams(true);
+}
+
 /** Read the post-match again after a refusal or a lost answer; a read that fails too keeps what was there. */
-async function readAgain(visit) {
+async function readAgain(visit, { keepPlayers = false } = {}) {
   try {
     const next = await apiRequest(`${visit.path}/post-match`);
-    if (visit.here) settle(visit, take(visit, next));
+    settle(visit, visit.here ? take(visit, next, { keepPlayers }) : { finished: finishes(visit.payload, next) });
   } catch {
     // What is drawn stays; the poll reads again.
   }
@@ -283,12 +310,16 @@ async function request(visit, action, { finish = false, keepPlayers = false } = 
   ui.error = "";
   try {
     const next = await savePostMatch(apiRequest, visit.payload, visit.sideName, action, finish);
-    if (visit.here) settle(visit, take(visit, next, { keepPlayers }), { answered: true });
+    settle(visit, visit.here ? take(visit, next, { keepPlayers }) : { finished: finishes(visit.payload, next) }, { answered: true });
     return "answered";
   } catch (error) {
-    if (!visit.here) return "refused";
+    if (!visit.here) {
+      // Gone: nothing is said, but a lost answer may hide a write that landed (a finish too).
+      if (lostAnswer(error)) settle(visit, { finished: finish }, { answered: true });
+      return "refused";
+    }
     ui.error = errorText(error);
-    if (readsAgain(error, finish)) await readAgain(visit);
+    if (readsAgain(error, finish)) await readAgain(visit, { keepPlayers });
     if (keepPlayers) dropPlayers(visit);
     return "refused";
   } finally {
@@ -341,19 +372,26 @@ async function send(visit, action, { finish = false } = {}) {
   return ended === "answered";
 }
 
-/** Whether a draft is kept, a sheet or a dialog is open: what the coach is doing is not to be drawn over. */
-function quiet(visit) {
-  const page = globalThis.document;
-  return Object.values(visit.ui.drafts).every((draft) => draft === null) && !page?.querySelector?.("dialog[open]");
-}
+/** Whether a sheet or a dialog is open: what the coach is doing there is not to be drawn over. */
+const dialogOpen = () => Boolean(globalThis.document?.querySelector?.("dialog[open]"));
 
-/** Whether the poll may read now: the page is seen, nothing is on its way, nothing kept or open. */
-const mayPoll = (visit) => visit.here && !visit.ui.busy && !visit.poll.polling && !globalThis.document?.hidden && quiet(visit);
+/** Whether the poll may read now: the page is seen, nothing is on its way, no sheet or dialog is open. */
+const mayPoll = (visit) => visit.here && !visit.ui.busy && !visit.poll.polling && !globalThis.document?.hidden && !dialogOpen();
 
 /**
- * The post-match read again by the timer: another revision is drawn, unless a write went out or the coach began
- * something since it was asked for. A tap that changed a side following the records is said. A read that fails waits
- * out more ticks each time (1, 3, 7, then 9), a read that answers none; a refusal for good (403, 404) stops the poll.
+ * Whether a read may be drawn over the drafts kept: none is kept, or they still stand on it — this side and the score
+ * as they were (`take` keeps them then). So a step waiting on the opponent opens while the coach's dice are kept.
+ */
+function standsOn(visit, next) {
+  const was = visit.payload.postMatch, now = next.postMatch, name = visit.sideName;
+  return Object.values(visit.ui.drafts).every((draft) => draft === null) || (sameValues(was[name], now[name]) && sameValues(was.result, now.result));
+}
+
+/**
+ * The post-match read again by the timer: another revision is drawn, unless a write went out, a sheet or a dialog
+ * opened since it was asked for, or it would take a draft kept away. A tap that changed a side following the records is
+ * said. A read that fails waits out more ticks each time (1, 3, 7, then 9), a read that answers none; a refusal for good
+ * (403, 404) stops the poll.
  */
 async function poll(visit) {
   const { poll: timer } = visit;
@@ -367,7 +405,7 @@ async function poll(visit) {
   try {
     const next = await apiRequest(`${visit.path}/post-match`);
     timer.failures = 0;
-    if (visit.here && !visit.ui.busy && visit.writes === writes && quiet(visit) && next.postMatch.revision !== visit.payload.postMatch.revision) {
+    if (visit.here && !visit.ui.busy && visit.writes === writes && !dialogOpen() && next.postMatch.revision !== visit.payload.postMatch.revision && standsOn(visit, next)) {
       const taken = take(visit, next);
       if (taken.tapped) toast(t("after.tapsChanged"));
       settle(visit, taken);
@@ -388,7 +426,7 @@ function placeholderMarkup(gameId, noticeHtml) {
   const back = `<a class="g-prep__back" href="${escapeHtml(gameUrl(gameId))}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("after.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
-  return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;
+  return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}" data-screen="${SCREEN}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;
 }
 
 /** What is said while the post-match is read. */
@@ -418,7 +456,9 @@ function unread(visit, error) {
  * a finished one: it changes no more). One that cannot be read says why. A coach gone by then is drawn nothing.
  */
 async function openVisit(visit) {
-  if (!view.querySelector(".g-prep")) view.innerHTML = placeholderMarkup(visit.gameId, loadingMarkup());
+  // A step link keeps the frame drawn while its step is read (no flash between steps); another screen's (the
+  // preparation's, the same class) gives way to the loading status.
+  if (!view.querySelector(`.g-prep[data-screen="${SCREEN}"]`)) view.innerHTML = placeholderMarkup(visit.gameId, loadingMarkup());
   let payload;
   try {
     payload = await apiRequest(`${visit.path}/post-match`);

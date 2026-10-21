@@ -397,7 +397,10 @@ function unreadMarkup(error) {
  * drawn nothing.
  */
 async function openVisit(visit) {
-  if (!view.querySelector(".g-prep")) view.innerHTML = placeholderMarkup(visit.gameId, loadingMarkup());
+  // The frame of a step link stays while the step is read; another screen's in the same frame (the post-match's,
+  // `data-screen`) gives way to the loading status.
+  const frame = view.querySelector(".g-prep");
+  if (!frame || frame.hasAttribute("data-screen")) view.innerHTML = placeholderMarkup(visit.gameId, loadingMarkup());
   let payload;
   try {
     payload = await apiRequest(`${visit.path}/preparation`);
