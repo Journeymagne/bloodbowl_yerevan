@@ -104,6 +104,7 @@ function listen(target, type, listener) {
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
  * @property {string} status the save queue's status as last heard, "" before
  * @property {boolean} retake the server's roster was to be taken while a request was in the air: asked again when it answers
+ * @property {string} inMatch the server's words for a save refused TEAM_IN_MATCH, kept for `reloadRoster` to say once (stage 09a)
  * @property {(() => void)|null} saveOff stops hearing the queue
  * @property {() => void} [fit] measures whether the desk panel fits the window, after each draw (aside-fit.mjs)
  * @property {string} player the player mode's stored id (the address's), "" for the roster; `chosen` once his line was chosen
@@ -179,12 +180,21 @@ async function readWithGames(saving) {
  * missed-match marks (stage 07b, decision 8) and the hires and sales (stage 07c, decision 8), each never more than
  * waited besides those before it: another device's change is not his. After another device's save his SPP are counted
  * afresh; after a refusal or a match the server holds his saved steps as they were, and they still count.
+ *
+ * A save the server refused because the match has begun (TEAM_IN_MATCH, stage 09a) is said once (the Task 1 review,
+ * M-3): by what was not saved, which also says what to do; by the server's words when nothing is said of it (a read
+ * that failed, a match the games do not show yet).
  * @param {Saving} saving
  */
 async function reloadRoster(saving) {
   const { teamId, visit, memory, draw } = saving;
   const read = await readWithGames(saving);
-  if (!read) return;
+  const inMatch = visit.inMatch;
+  if (!read) {
+    visit.inMatch = "";
+    if (inMatch && visit.here) toast(inMatch, { tone: "error" });
+    return;
+  }
   const { answer, since } = read;
   const { status, waiting } = saveState(teamId);
   const dropped = droppedWords(answer.team.roster, visit.draft, waiting);
@@ -196,8 +206,10 @@ async function reloadRoster(saving) {
     holdTeam(saving, answer, draft, since);
   }
   draw();
-  if (!draft || modeOf(teamId).kind !== "match") return;
-  for (const words of dropped) toast(words, { tone: "error" });
+  if (!draft) return;
+  visit.inMatch = "";
+  const told = modeOf(teamId).kind === "match" ? dropped : [];
+  for (const words of told.length ? told : [inMatch].filter(Boolean)) toast(words, { tone: "error" });
 }
 
 /**
@@ -360,7 +372,9 @@ function heardSave(saving, now) {
   try {
     saving.draw();
     const refused = before && before !== SAVE_STATUS.ERROR && now.status === SAVE_STATUS.ERROR;
-    if (refused) toast(now.refusal, { tone: "error" });
+    // A match begun is said by the read it brings about (`reloadRoster`): one toast, not two.
+    if (refused && now.code === "TEAM_IN_MATCH") visit.inMatch = now.refusal;
+    else if (refused) toast(now.refusal, { tone: "error" });
     let take = refused && now.kind === API_ERROR.INVALID;
     if (visit.retake && !busy(now.status)) {
       visit.retake = false;
@@ -490,7 +504,7 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], fallen: [], sheet: null, opener: null,
-    reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
+    reads: 0, answered: 0, status: "", retake: false, inMatch: "", saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
     match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null, player: playerId, chosen: false, titled: false, rolls: null,
     careers: new Map(), careerOpen: false,
   };

@@ -9,7 +9,8 @@
  * own transaction through `writeLedgerEntries`.
  *
  * A team is the owner's. The history may be read by an administrator too; an entry is the owner's
- * alone, and to anybody else the team is not there (`teamForUser`).
+ * alone, and to anybody else the team is not there (`teamForUser`). While the team plays a match (stage
+ * 09a) an entry is refused, TEAM_IN_MATCH: the treasury changes again after the post-match.
  */
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
 import { VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
@@ -17,12 +18,12 @@ import { countToNumber } from "../../src/domain/roster/values.mjs";
 import { UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
 import { LEDGER_PAGE_SIZE, checkManualEntry, countLedgerLines, decodeLedgerCursor, ledgerSince, readLedgerPage, writeLedgerEntries } from "../api/team-ledger.mjs";
 import { readPublicTeam } from "../api/team-queries.mjs";
-import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { rosterRefusal } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 
 const LEDGER = new RegExp(`^/api/teams/(${UUID_SOURCE})/ledger$`, "i");
 const TREASURY = new RegExp(`^/api/teams/(${UUID_SOURCE})/treasury$`, "i");

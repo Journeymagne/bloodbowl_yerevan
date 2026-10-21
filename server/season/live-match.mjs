@@ -112,7 +112,12 @@ export async function teamHasLiveMatch(db, teamId) {
 /**
  * Refuses a coach's write of a team while the team plays a match (stage 09a): 422 TEAM_IN_MATCH. The team — its
  * roster, name and logo, treasury, deaths, site rolls — changes again once the post-match is completed; until then the
- * match's own record (taps, edits outside it) is the way in, and the admin's repair is not refused (the caller leaves it out).
+ * match's own record (taps, edits outside it) is the way in. An administrator's repair is the administration's route
+ * (`PATCH /api/admin/teams/:id`, whose caller leaves this out); the coach's routes refuse an administrator alike.
+ *
+ * The round is not asked (the Task 1 review, M-1): a match left in its post-match after its round was closed keeps the
+ * team in it, as the client's `isMatchLive` and the taps read it. The post-match is not closed by the round, the card
+ * leads to it, and finishing it is what frees the team.
  *
  * Call it inside the write's transaction, which already holds the team's row `FOR UPDATE`, after the revision is
  * compared (a stale tab still hears TEAM_SAVED_ELSEWHERE with the team). So a start (the pairing, then both teams) and

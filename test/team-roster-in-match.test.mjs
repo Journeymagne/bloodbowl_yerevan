@@ -28,8 +28,22 @@ test("a step the server refuses because the match has begun is given up in the s
     const keys = callKeys();
     assert.equal(keys.filter((key) => key === PATCH).length, 1, "one save, never sent again");
     assert.ok(keys.lastIndexOf(GAMES) > keys.indexOf(PATCH), `the games are read after the refusal: ${keys.join(", ")}`);
-    assert.ok(toasts().includes(EN["error.TEAM_IN_MATCH"]), `the server's words are said: ${toasts().join(" | ")}`);
+    // One toast (the Task 1 review, M-3): what was not saved, which says what to do — not the server's words besides.
+    assert.deepEqual(toasts(), [EN["teamRoster.matchDropped"].replace("{count}", "1")]);
     assert.equal(save.saveState("t1").waiting, 0, "no step waits");
+    api.assertAnswered();
+  }));
+});
+
+test("a refusal for a match the games do not show yet is said in the server's words, once", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    coach({ open: "p1#0" });
+    await renderTeamRoster("t1");
+    const before = toasts().length;
+    api.reply(PATCH, 422, { error: { code: "TEAM_IN_MATCH", params: {}, message: "x" } });
+    fireEvent(openRow().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    await settle();
+    assert.deepEqual(toasts().slice(before), [EN["error.TEAM_IN_MATCH"]]);
     api.assertAnswered();
   }));
 });

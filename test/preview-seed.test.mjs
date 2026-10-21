@@ -21,5 +21,17 @@ test("the preview seed runs twice on a migrated database and keeps one entry per
     const { rows: pairings } = await client.query(`SELECT p.preparation_status FROM season_pairings p
       JOIN match_preparations m ON m.pairing_id = p.id`);
     assert.deepEqual(pairings, [{ preparation_status: "preparing" }]);
+    // A preparation that has moved on is kept by a later run, and the pairing reads it (the Task 1 review, M-4): the
+    // seed's insert does nothing, and its status is taken from the state it holds, not set back.
+    for (const status of ["ready", "in_progress"]) {
+      await client.query("UPDATE match_preparations SET state = jsonb_set(state, '{status}', to_jsonb($1::text))", [status]);
+      await client.query("UPDATE season_pairings SET preparation_status = 'preparing'");
+      const result = spawnSync(process.execPath, ["scripts/seed-pre-match-preview.mjs"],
+        { cwd: rootDir, encoding: "utf8", env: { ...process.env, DATABASE_URL: url } });
+      assert.equal(result.status, 0, result.stderr);
+      const { rows: kept } = await client.query(`SELECT p.preparation_status, m.state->>'status' AS state FROM season_pairings p
+        JOIN match_preparations m ON m.pairing_id = p.id`);
+      assert.deepEqual(kept, [{ preparation_status: status, state: status }], status);
+    }
   });
 });

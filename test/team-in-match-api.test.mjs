@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import pg from "pg";
 
 import { callApi, seedCoach, seedTeam, sessionFor, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
-import { G, act, coaches, homeScores, startedFriendly, teams, toPlayersStep, toReady } from "./helpers/match-db.mjs";
+import { G, act, coaches, homeScores, id, startedFriendly, teams, toPlayersStep, toReady } from "./helpers/match-db.mjs";
 import { lockRow, scratchSkip } from "./helpers/scratch-db.mjs";
 
 // Stage 09a, Task 1: while a team plays a match (`LIVE_MATCH`: started, its post-match not completed), a coach's write of
 // that team is refused with TEAM_IN_MATCH — the roster save, a death, its undo, a treasury entry and a site roll — under
-// the team's lock and after the revision. The admin's save and undo, a tap and an edit outside the match are not.
+// the team's lock and after the revision, for that team alone (and its opponent's, in the same match). The admin's save
+// (/api/admin, the repair path), a tap and an edit outside the match are not; the undo on the coach's route is refused to
+// an admin too (the Task 1 review, M-2).
 
 const db = { skip: scratchSkip };
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -39,7 +41,7 @@ test("while its match is on, a coach's save, a death, an undo, a treasury entry 
   }
 }));
 
-test("an undo of a hand-marked death is refused to the coach while the match is on, and lands for the admin", db, () => withApiDatabase(async ({ client }) => {
+test("an undo of a hand-marked death is refused while the match is on, to the coach and to an admin alike: the repair path is /api/admin", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id), boss = await seedCoach(client, "boss", { admin: true });
   // Player 7 died outside the match before it began, marked by hand: kept as he was, gone from the blob.
@@ -54,10 +56,52 @@ test("an undo of a hand-marked death is refused to the coach while the match is 
   const fallen = async () => (await client.query("SELECT id FROM team_fallen_players WHERE saved_team_id = $1", [teams.home])).rows.map((row) => row.id);
   assert.deepEqual(await fallen(), [dead.id], "the death is kept");
   assert.deepEqual((await teamRow(client, teams.home)).revision, before.revision);
+  // The coach's route is no repair path, for an admin either (the Task 1 review, M-2): only /api/admin/* is.
+  refusedInMatch(await undo(boss.token), "an admin's undo on the coach's route");
+  assert.deepEqual(await fallen(), [dead.id]);
+  // Once the match is over the same undo lands.
+  await client.query("UPDATE season_pairings SET result_status = 'confirmed' WHERE id = $1", [G]);
   const admin = await undo(boss.token);
-  assert.equal(admin.status, 200, "the admin's undo: the repair path (owner, M2 question 2)");
+  assert.equal(admin.status, 200, "after the match");
   assert.ok(admin.body.team.roster.players.some((player) => player.id === "home-6"));
   assert.deepEqual(await fallen(), []);
+}));
+
+test("the refusal is the team's: the coach's other team and another coach's team still save, the opponent's team is refused too", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id), awayToken = await sessionFor(client, coaches.away.id);
+  // Seeded after the start, while the home team's match is on.
+  const second = await seedTeam(client, coaches.home.id, { name: "Second" });
+  const lion = await seedCoach(client, "lion"), stranger = await seedTeam(client, lion.id);
+  for (const [team, as, label] of [[second, token, "the coach's other team"], [stranger, lion.token, "another coach's team"]]) {
+    const row = await teamRow(client, team);
+    const answer = await callApi("PATCH", `/api/teams/${team}`, { token: as, body: saveBody(row) });
+    assert.equal(answer.status, 200, label);
+    assert.equal((await callApi("POST", `/api/teams/${team}/treasury`, { token: as, body: { delta: 5, reason: "sponsor", revision: row.revision + 1 } })).status, 201, `${label}: an entry`);
+  }
+  const away = await teamRow(client, teams.away);
+  refusedInMatch(await callApi("PATCH", `/api/teams/${teams.away}`, { token: awayToken, body: saveBody(away) }), "the opponent's team, in the same match");
+  refusedInMatch(await callApi("POST", `/api/teams/${teams.away}/treasury`, { token: awayToken, body: { delta: 5, reason: "sponsor", revision: away.revision } }), "the opponent's entry");
+}));
+
+test("a league match on refuses as a friendly does: the predicate holds the season's pairings too", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const L = id(44), token = await sessionFor(client, coaches.home.id);
+  // Only the league match is on: the friendly is set back.
+  await client.query("UPDATE season_pairings SET preparation_status = 'not_started' WHERE id = $1", [G]);
+  await client.query("INSERT INTO seasons (id, current_round, status) VALUES ($1, 1, 'active')", [id(61)]);
+  await client.query("INSERT INTO season_rounds (id, season_id, round_number, status) VALUES ($1, $2, 1, 'started')", [id(62), id(61)]);
+  for (const [entry, name] of [[id(63), "home"], [id(64), "away"]]) {
+    await client.query("INSERT INTO season_entries (id, season_id, user_id, saved_team_id) VALUES ($1, $2, $3, $4)", [entry, id(61), coaches[name].id, teams[name]]);
+  }
+  await client.query(`INSERT INTO season_pairings (id, round_id, table_number, home_entry_id, away_entry_id, preparation_status)
+    VALUES ($1, $2, 1, $3, $4, 'in_progress')`, [L, id(62), id(63), id(64)]);
+  const save = async () => callApi("PATCH", `/api/teams/${teams.home}`, { token, body: saveBody(await teamRow(client, teams.home)) });
+  assert.equal((await save()).status, 200, "started, but with no match roster of the team: not its match");
+  await client.query("INSERT INTO match_roster_snapshots (pairing_id, side, saved_team_id, snapshot) SELECT $2, side, saved_team_id, snapshot FROM match_roster_snapshots WHERE pairing_id = $1", [G, L]);
+  refusedInMatch(await save(), "the league match on");
+  await client.query("UPDATE season_pairings SET result_status = 'confirmed' WHERE id = $1", [L]);
+  assert.equal((await save()).status, 200, "its score confirmed, no post-match: over");
 }));
 
 test("the revision is asked first: a stale save still hears TEAM_SAVED_ELSEWHERE with the team", db, () => withApiDatabase(async ({ client }) => {

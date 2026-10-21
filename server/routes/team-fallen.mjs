@@ -13,6 +13,10 @@
  * (FALLEN_FROM_MATCH for a coach): the match is settled, and the coach's word does not unsettle it. To
  * anybody else the team is not there (`teamForUser`), and neither is a death that belongs to another team.
  *
+ * While the team plays a match (stage 09a) both writes are refused, TEAM_IN_MATCH, to an administrator on
+ * this route too: the team changes again after the post-match, and an administrator's repair is the
+ * administration's own route (`PATCH /api/admin/teams/:id`), not a coach's.
+ *
  * Undoing needs no revision, as it only gives a player back under the team's lock: an editor that was
  * open on the roster is refused on its next save (TEAM_SAVED_ELSEWHERE), as it is after any other write.
  */
@@ -20,12 +24,12 @@ import { removeFallenPlayer, returnFallenPlayer } from "../../src/domain/roster/
 import { publicFallen } from "../api/serializers.mjs";
 import { PLAYER_ID_SOURCE, UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
 import { readPublicTeam } from "../api/team-queries.mjs";
-import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { blockingViolations, checkRoster, refuseSharedPlayerId, rosterRefusal } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 
 const FALLEN = new RegExp(`^/api/teams/(${UUID_SOURCE})/fallen$`, "i");
 const ONE_FALLEN = new RegExp(`^/api/teams/(${UUID_SOURCE})/fallen/(${UUID_SOURCE})$`, "i");
@@ -110,8 +114,8 @@ async function markDeath(request, response, teamId, playerId) {
 }
 
 /**
- * The transaction of an undo. The team is locked first; then, in this order, for a coach the team's match (TEAM_IN_MATCH
- * while it plays one, stage 09a; an administrator's undo is the repair path and is not refused), the death (of this team
+ * The transaction of an undo. The team is locked first; then, in this order, the team's match (TEAM_IN_MATCH while it
+ * plays one, stage 09a — to an administrator too: the repair path is /api/admin, the Task 1 review's M-2), the death (of this team
  * and no other), who may undo it, the rules the roster has to keep with him back, that the roster can
  * read him as he was kept, the roster with him, and the death forgotten. Refused at any point, nothing
  * is written.
@@ -122,7 +126,7 @@ async function markDeath(request, response, teamId, playerId) {
  */
 async function returnPlayer(client, teamId, fallenId, user) {
   const team = await teamForUser(client, teamId, user, { lock: true, admin: true });
-  if (!user.is_admin) await refuseWhilePlaying(client, team.id);
+  await refuseWhilePlaying(client, team.id);
   const { rows } = await client.query("SELECT * FROM team_fallen_players WHERE id = $1 AND saved_team_id = $2", [fallenId, team.id]);
   const dead = rows[0];
   if (!dead) throw httpError(404, "FALLEN_NOT_FOUND");

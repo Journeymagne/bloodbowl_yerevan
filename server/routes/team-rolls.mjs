@@ -11,7 +11,8 @@
  *
  * Rolling is the owner's, and an administrator is not the owner: to anybody else the team is not
  * there (`teamForUser`). The request is a transaction that takes the team's row first, so the roll
- * that is waiting is looked for, and a new one written, with nobody else doing the same.
+ * that is waiting is looked for, and a new one written, with nobody else doing the same. While the team
+ * plays a match (stage 09a) a roll is refused, TEAM_IN_MATCH: advancements wait for the post-match.
  *
  * Reading is the owner's and an administrator's (`teamForUser` with `admin`, as for the team's fallen):
  * every roll of the team as it is kept, the waiting and the used, in the order they were rolled, so a
@@ -25,8 +26,8 @@ import { PLAYER_ID_SOURCE, UUID_SOURCE, teamForUser } from "../api/team-access.m
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
-import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 
 const ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/players/(${PLAYER_ID_SOURCE})/rolls$`, "i");
 const TEAM_ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/rolls$`, "i");
