@@ -332,7 +332,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__alert", "padding"), ["var(--space-12) var(--space-14)"]);
   assert.deepEqual(own('.g-after__mode[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
   assert.deepEqual(own('.g-after__mode[aria-checked="true"]', "background"), ["var(--accent-tint-soft)"]);
-  assert.deepEqual(own(".g-after__modes", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
+  assert.deepEqual(own(".g-after__modes", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))", "minmax(0, 1fr)"], "2×2; one column under 370px, the narrow rule after the base one it overrides (J13)");
   assert.deepEqual(own(".g-after__fans", "font"), ["700 16px/1.3 var(--font-body)"]);
   assert.deepEqual(own(".g-after__card--switches .g-toggle", "min-height"), ["56px"]);
   assert.deepEqual(own(".g-prep__dotlist:has(> :nth-child(7))", "grid-template-columns"), ["repeat(7, minmax(0, 1fr))"], "seven dots");
@@ -364,6 +364,10 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__score > .g-after__counterk", "grid-row"), ["1"]);
   assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__value", "min-width"), ["24px"]);
   assert.equal(inMedia(CSS, "max-width: 369px", ".g-after__step", "width").length, 0, "the 44px buttons stay");
+  // Under 370px the modes go one under another, each a line of its own at the prototype's 14px: in a half of 320
+  // «Safe concession» and «Сдача без штрафа» took two lines, the Russian one at 13px too (J13).
+  assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__modes", "grid-template-columns"), ["minmax(0, 1fr)"]);
+  for (const property of ["font", "font-size", "min-height", "padding"]) assert.equal(inMedia(CSS, "max-width: 369px", ".g-after__mode", property).length, 0, `a mode's ${property} stays`);
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/post.css");') > styles.indexOf('@import url("screens/matches/prep.css");'), "after the preparation's sheet it draws over");
 });

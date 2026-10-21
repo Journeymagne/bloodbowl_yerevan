@@ -127,14 +127,6 @@
 
 .g-after__counterk { color: var(--muted); font: 700 13px/1.2 var(--font-body); }
 
-/* Under 370px the two steppers and their word do not fit in a row (2 × 128 + «CAS» + gaps): the word goes over them, the
-   figure narrower; the buttons keep 44px. */
-@media (max-width: 369px) {
-  .g-after__score { grid-template-columns: repeat(2, auto); justify-content: space-between; row-gap: var(--space-4); }
-  .g-after__score > .g-after__counterk { grid-row: 1; grid-column: 1 / -1; justify-self: center; }
-  .g-after__value { min-width: 24px; }
-}
-
 .g-after__forrow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); padding-top: var(--space-4); }
 
 .g-after__for { color: var(--muted); font: 400 14px/1.35 var(--font-body); }
@@ -182,6 +174,16 @@
 }
 .g-after__mode[aria-checked="true"] { background: var(--accent-tint-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 700; }
 .g-after__mode[aria-disabled="true"] { cursor: default; }
+
+/* Under 370px the two steppers and their word do not fit in a row (2 × 128 + «CAS» + gaps): the word goes over them, the
+   figure narrower; the buttons keep 44px. A half of the modes' row is 109px inside at 320, short of «Safe concession»
+   (111) and «Сдача без штрафа» (128; 118 at 13px): the modes go one under another, each on a line of its own at 14px. */
+@media (max-width: 369px) {
+  .g-after__score { grid-template-columns: repeat(2, auto); justify-content: space-between; row-gap: var(--space-4); }
+  .g-after__score > .g-after__counterk { grid-row: 1; grid-column: 1 / -1; justify-self: center; }
+  .g-after__value { min-width: 24px; }
+  .g-after__modes { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* The income: what the fans will be (the accent's ink when they grow), the switches as the prototype's 56px rows. */
 .g-after__fans { color: var(--muted); font: 700 16px/1.3 var(--font-body); }

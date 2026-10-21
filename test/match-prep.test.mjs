@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, blocks, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, t } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
@@ -430,9 +430,17 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   // Nothing cut: a step's name, the subtitle and a reason wrap.
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp/);
-  for (const selector of [".g-prep__dotlabel", ".g-prep__sub", ".g-prep__stepname", ".g-prep__why", ".g-prep__pname", ".g-prep__title"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  for (const selector of [".g-prep__sub", ".g-prep__stepname", ".g-prep__why", ".g-prep__pname", ".g-prep__title"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  // A dot's label is one word, never broken inside — not by the line, not by a hyphen —; one wider than its fifth or
+  // seventh stands centred under its dot, over the gap (J13: «Treasur|y», «Summar|y» at 320, «Индьюсмент|ы» to 386).
+  assert.deepEqual(own(".g-prep__dotlabel", "overflow-wrap"), ["normal"]);
+  assert.deepEqual(own(".g-prep__dotlabel", "max-width"), [], "as wide as its word, centred by the dot");
+  assert.doesNotMatch(bare, /hyphens:\s*auto/);
   assert.doesNotMatch(bare, /--focus-ring/);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  // Under 370px the labels are 9px, so the seven fit their cells of 40 at 320; the dots stay a thumb's high.
+  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
+  assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-prep__dotlabel", "font-size"), ["9px"]);
+  assert.deepEqual(blocks(mediaText(CSS, "max-width: 369px")).map((block) => block.selectors), [[".g-prep__dotlabel"]], "the label only");
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') > styles.indexOf('@import url("screens/matches/matches.css");'), "after the matches' sheet");
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') < styles.indexOf('@import url("screens/matches/prep-inducements.css");'), "before the inducements' sheet");
