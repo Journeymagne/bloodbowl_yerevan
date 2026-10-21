@@ -43,7 +43,6 @@ test("the numbers, badges and prices of match preparation and the season table a
   assertReadable(pre, ".pre-result strong", "color", onPage, 4.5);
   assertReadable(pre, ".pre-player-number", "color", onPage, 4.5);
   assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
-  assertReadable(pre, ".pre-inducement-card header strong", "color", onPage, 4.5);
   assertReadable("src/styles/season-results.css", ".season-results-table .season-match-number strong", "color", onPage, 4.5);
   // The badge's outline is a border and keeps the border colour.
   assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);

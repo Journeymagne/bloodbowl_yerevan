@@ -1,6 +1,6 @@
 /**
- * The prayers and effects of the inducements bought (stage 09a decision 20): 2.x's form (components/pre-match/
- * effects.mjs) in 3.0's look — the prototypes have none. Nuffle's Prayers: the result rolled on the table, its target
+ * The prayers and effects of the inducements bought (stage 09a decision 20): 2.x's form, gone with the 2.x
+ * preparation, in 3.0's look — the prototypes have none. Nuffle's Prayers: the result rolled on the table, its target
  * (the opponent's players for 6 and 7, random ones — up to D3 — for 6), the primary skill for 16; Mark of Chaos: the
  * player marked; Rowdy Rookies: the two D3 and the position. The fields are native `<select>`s in a card.
  *
