@@ -4,10 +4,11 @@ import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/pla
 import { playerCurrentCost } from '../roster/costs.mjs';
 import { statIncreaseRefusal, takeAdvancement } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
-import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery, favouredSkillsForChoice } from '../roster/team-rules.mjs';
+import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery } from '../roster/team-rules.mjs';
+import { favouredBonus, favouredRollAsked } from '../roster/edits.mjs';
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
 import { isLineman } from '../match/roster.mjs';
-import { effectiveInjury, postError, FAVOURED_ROLLS, postDie, postCount } from './rules.mjs';
+import { effectiveInjury, postError, postDie, postCount } from './rules.mjs';
 import { earnedCounters } from './statistics.mjs';
 import { postIncome, nextDedicatedFans, postFinance } from './finance.mjs';
 import { isMoneyAmount, sumMoney } from '../money.mjs';
@@ -25,17 +26,16 @@ function applyInjury(player, injury, pairingId) {
   if (injury.code === 'lasting' && injury.retire) player.temporarilyRetired = true;
 }
 
-// The god's bonus is a step of its own (`favoured`, stage 09b), or the D8 a step of 2.x carried in the
-// advancement: with none named there is no bonus, as on the roster (07d decision 17).
-function applyFavoured(side, player, choice) {
-  if (!side.baseRoster.favouredChoice || [undefined, null, ''].includes(choice.favouredRoll)) return;
-  const roll = postDie(choice.favouredRoll, 8), alignment = side.baseRoster.favouredChoice;
-  if (roll !== FAVOURED_ROLLS[alignment]) return;
-  const skill = choice.favouredSkill, row = rowsForTeam(side.reference)[player.rowIndex];
-  if (!skill) return;
-  const held = [...row.skills, ...player.extraSkills.map(item => item.name), ...player.favouredSkills.map(item => item.name)];
-  if (!favouredSkillsForChoice(alignment).includes(skill) || held.includes(skill)) throw postError('POST_FAVOURED');
-  player.favouredSkills.push({ name: skill, access: 'favoured' });
+// The god's D8 a Favoured roster's every advancement carries (the owner, 2026-10-21, as 2.x did; content «Team
+// Management»): none is POST_DICE, unless the player holds every skill the god offers once the advancement is his
+// (`favouredRollAsked`, as the roster's sheet asks it) — then none is asked. On the god's face the skill named, one
+// of the god's he lacks, or none (declined); a skill he holds, or another god's, is POST_FAVOURED.
+function applyFavoured(side, player, choice, row) {
+  const bonus = favouredBonus(side.reference, side.baseRoster, row, player);
+  if (!bonus || (!favouredRollAsked(bonus) && [undefined, null, ''].includes(choice.favouredRoll))) return;
+  if (postDie(choice.favouredRoll, 8) !== bonus.trigger || !choice.favouredSkill) return;
+  if (!bonus.skills.some(({ name, held }) => name === choice.favouredSkill && !held)) throw postError('POST_FAVOURED');
+  player.favouredSkills.push({ name: choice.favouredSkill, access: 'favoured' });
 }
 
 /**
@@ -68,7 +68,7 @@ export function postPlayers(state, name, data) {
       // choice names goes onto the advancement, as the server stores it.
       const result = takeAdvancement(side.reference, row, player, { type: choice.type, grant: choice.grant, roll: choice.roll }, data.skillGroups);
       if (!result.applied) throw postError('POST_ADVANCEMENT', result.params);
-      applyFavoured(side, player, choice);
+      applyFavoured(side, player, choice, row);
     }
   }
   return players;

@@ -6,6 +6,7 @@ import { expandCollections } from "../src/data/reference.mjs";
 import { createMatchSide } from "../src/domain/match/roster.mjs";
 import { applyPostAction, createPostMatch } from "../src/domain/post-match/state.mjs";
 import { postAdvancer, projectPostRoster } from "../src/domain/post-match/roster.mjs";
+import { favouredBonus, favouredRollAsked } from "../src/domain/roster/edits.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
 
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
@@ -74,24 +75,63 @@ test("a characteristic advancement taking a skill in its place keeps its roll an
   assert.deepEqual(player.extraSkills, [{ name: "Block", access: "primary" }]);
 });
 
-test("a Favoured roster's advancement needs no D8: the bonus is added after it, or not at all", () => {
+// The owner, 2026-10-21 (content «Team Management», «Favoured of…»: «Every time a player receives an advancement, roll a
+// d8»): a Favoured roster's every advancement carries the god's D8, as 2.x did; the bonus is no step of its own any more.
+test("a Favoured roster's every advancement carries the god's D8: none is a refusal; on the god's face the skill, or none", () => {
   const state = toPlayers({ home: "teams/khorne", roster: { favouredChoice: "Khorne" } });
-  const taken = applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }), data);
-  assert.deepEqual(taken.home.advancements.h1, [{ type: "primary", grant: { skill: "Block" } }]);
-  assert.deepEqual(rosterPlayer(taken, "h1").favouredSkills, [], "no bonus, and nothing refused");
-  const favoured = applyPostAction(taken, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data);
-  assert.deepEqual(favoured.home.advancements.h1, [{ type: "primary", grant: { skill: "Block" }, favouredRoll: 8, favouredSkill: "Horns" }]);
-  assert.deepEqual(rosterPlayer(favoured, "h1").favouredSkills, [{ name: "Horns", access: "favoured" }]);
-  assert.throws(() => applyPostAction(taken, "home", { type: "favoured", playerId: "h1", skill: "Tentacles" }, data), { code: "POST_FAVOURED" });
-  assert.throws(() => applyPostAction(taken, "home", { type: "favoured", playerId: "h1", skill: "" }, data), { code: "POST_FAVOURED" });
-  assert.throws(() => applyPostAction(taken, "home", { type: "favoured", playerId: "h2", skill: "Horns" }, data), { code: "POST_ACTION" });
-  const horns = applyPostAction(state, "home", advance("h1", "primary", { skill: "Horns" }), data);
-  assert.throws(() => applyPostAction(horns, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data), { code: "POST_FAVOURED" }, "a skill he holds by now");
-  const undone = applyPostAction(favoured, "home", { type: "undo-advance", playerId: "h1" }, data);
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }), data), { code: "POST_DICE" });
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: "" }), data), { code: "POST_DICE" });
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 0 }), data), { code: "POST_DICE" });
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 9 }), data), { code: "POST_VALUE" });
+  const missed = applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 3, favouredSkill: "" }), data);
+  assert.deepEqual(missed.home.advancements.h1, [{ type: "primary", grant: { skill: "Block" }, favouredRoll: 3, favouredSkill: "" }]);
+  assert.deepEqual(rosterPlayer(missed, "h1").favouredSkills, [], "the D8 missed");
+  const hit = applyPostAction(state, "home", advance("h1", "random", { skill: "Block" }, { roll: siteRoll(1), favouredRoll: 8, favouredSkill: "Horns" }), data);
+  assert.deepEqual(hit.home.advancements.h1, [{ type: "random", grant: { skill: "Block" }, roll: siteRoll(1), favouredRoll: 8, favouredSkill: "Horns" }]);
+  assert.deepEqual(rosterPlayer(hit, "h1").favouredSkills, [{ name: "Horns", access: "favoured" }]);
+  assert.deepEqual(rosterPlayer(applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 8, favouredSkill: "" }), data), "h1").favouredSkills,
+    [], "the god's face, the bonus declined");
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 8, favouredSkill: "Tentacles" }), data), { code: "POST_FAVOURED" });
+  assert.throws(() => applyPostAction(state, "home", advance("h1", "primary", { skill: "Horns" }, { favouredRoll: 8, favouredSkill: "Horns" }), data), { code: "POST_FAVOURED" },
+    "the skill the advancement gives him");
+  const undone = applyPostAction(hit, "home", { type: "undo-advance", playerId: "h1" }, data);
   assert.deepEqual(rosterPlayer(undone, "h1").favouredSkills, [], "the bonus goes with its advancement");
-  assert.throws(() => applyPostAction(undone, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data), { code: "POST_ACTION" });
+  // The bonus as a step of its own (stage 09b, Task 1) is no more.
+  assert.throws(() => applyPostAction(missed, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data), { code: "POST_ACTION" });
+  // No favour, no D8: one sent is not read.
   const human = applyPostAction(toPlayers(), "home", advance("h1", "primary", { skill: "Block" }), data);
-  assert.throws(() => applyPostAction(human, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data), { code: "POST_ACTION" });
+  assert.deepEqual(rosterPlayer(human, "h1").favouredSkills, []);
+  assert.deepEqual(rosterPlayer(applyPostAction(toPlayers(), "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 8, favouredSkill: "Horns" }), data), "h1").favouredSkills, []);
+});
+
+test("no D8 is asked of a player who holds every skill of the god's list, this advancement's too; one sent is read as ever", () => {
+  const khorne = ["Horns", "Iron Hard Skin", "Prehensile Tail"].map((name) => ({ name, access: "favoured" }));
+  const all = toPlayers({ home: "teams/khorne", roster: { favouredChoice: "Khorne" } });
+  all.home.baseRoster.players[0].favouredSkills = khorne;
+  const skipped = applyPostAction(all, "home", advance("h1", "primary", { skill: "Block" }), data);
+  assert.deepEqual(skipped.home.advancements.h1, [{ type: "primary", grant: { skill: "Block" } }]);
+  assert.deepEqual(rosterPlayer(skipped, "h1").favouredSkills, khorne);
+  assert.throws(() => applyPostAction(all, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 8, favouredSkill: "Horns" }), data), { code: "POST_FAVOURED" });
+  assert.deepEqual(rosterPlayer(applyPostAction(all, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 2 }), data), "h1").favouredSkills, khorne);
+  // Two of the three held: the advancement that gives the third leaves nothing for the god to give.
+  const two = toPlayers({ home: "teams/khorne", roster: { favouredChoice: "Khorne" } });
+  two.home.baseRoster.players[0].favouredSkills = khorne.slice(0, 2);
+  assert.doesNotThrow(() => applyPostAction(two, "home", advance("h1", "primary", { skill: "Prehensile Tail" }), data));
+  assert.throws(() => applyPostAction(two, "home", advance("h1", "primary", { skill: "Block" }), data), { code: "POST_DICE" }, "Prehensile Tail is still the god's to give");
+  // A bonus of an earlier advancement counts as held for the next one.
+  let next = applyPostAction(two, "home", advance("h1", "primary", { skill: "Block" }, { favouredRoll: 8, favouredSkill: "Prehensile Tail" }), data);
+  next = applyPostAction(next, "home", advance("h1", "primary", { skill: "Wrestle" }), data);
+  assert.deepEqual(rosterPlayer(next, "h1").favouredSkills.map(({ name }) => name), ["Horns", "Iron Hard Skin", "Prehensile Tail"]);
+});
+
+test("the roster asks the god's D8 by the same rule: a Favoured roster's player who lacks a skill of the god's list", () => {
+  const khorne = data.teams.find(({ slug }) => slug === "teams/khorne"), row = rowsForTeam(khorne)[0];
+  const draft = { favouredChoice: "Khorne" }, player = (favouredSkills) => ({ id: "k1", rowIndex: 0, extraSkills: [], favouredSkills });
+  assert.equal(favouredRollAsked(favouredBonus(khorne, draft, row, player([]))), true);
+  assert.equal(favouredRollAsked(favouredBonus(khorne, draft, row, player([{ name: "Horns", access: "favoured" }, { name: "Iron Hard Skin", access: "favoured" }]))), true);
+  assert.equal(favouredRollAsked(favouredBonus(khorne, draft, row, player(["Horns", "Iron Hard Skin", "Prehensile Tail"].map((name) => ({ name, access: "favoured" }))))), false);
+  assert.equal(favouredRollAsked(favouredBonus(khorne, { favouredChoice: "" }, row, player([]))), false, "no favour chosen");
+  assert.equal(favouredRollAsked(null), false);
 });
 
 test("a 2.x step with the D8 in the advancement is read as before", () => {
@@ -127,19 +167,17 @@ test("a roll is kept as the roster keeps it — the id trimmed, nothing else —
   assert.deepEqual(table.home.advancements.h1[0].roll, { via: "table" });
 });
 
-test("two advancements of one player: the bonus goes on the last, and the undo takes the last first", () => {
+test("two advancements of one player: each its own D8 and bonus, and the undo takes the last first", () => {
   const state = toPlayers({ home: "teams/khorne", roster: { favouredChoice: "Khorne" } });
-  let next = applyPostAction(state, "home", advance("h1", "random", { skill: "Block" }, { roll: siteRoll(1) }), data);
-  next = applyPostAction(next, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data);
-  next = applyPostAction(next, "home", advance("h1", "random", { skill: "Wrestle" }, { roll: siteRoll(2) }), data);
-  next = applyPostAction(next, "home", { type: "favoured", playerId: "h1", skill: "Iron Hard Skin" }, data);
+  let next = applyPostAction(state, "home", advance("h1", "random", { skill: "Block" }, { roll: siteRoll(1), favouredRoll: 8, favouredSkill: "Horns" }), data);
+  next = applyPostAction(next, "home", advance("h1", "random", { skill: "Wrestle" }, { roll: siteRoll(2), favouredRoll: 8, favouredSkill: "Iron Hard Skin" }), data);
   assert.deepEqual(next.home.advancements.h1.map((choice) => [choice.roll.id, choice.favouredSkill]),
     [[siteRoll(1).id, "Horns"], [siteRoll(2).id, "Iron Hard Skin"]]);
   const undone = applyPostAction(next, "home", { type: "undo-advance", playerId: "h1" }, data);
   assert.deepEqual(undone.home.advancements.h1, [{ type: "random", grant: { skill: "Block" }, roll: siteRoll(1), favouredRoll: 8, favouredSkill: "Horns" }]);
   assert.deepEqual(rosterPlayer(undone, "h1").favouredSkills, [{ name: "Horns", access: "favoured" }]);
   assert.throws(() => applyPostAction(undone, "home", advance("h1", "random", { skill: "Tackle" }, { roll: siteRoll(1) }), data), { code: "DICE_ROLL_USED" });
-  const again = applyPostAction(undone, "home", advance("h1", "random", { skill: "Tackle" }, { roll: siteRoll(2) }), data);
+  const again = applyPostAction(undone, "home", advance("h1", "random", { skill: "Tackle" }, { roll: siteRoll(2), favouredRoll: 2 }), data);
   assert.deepEqual(rosterPlayer(again, "h1").advancements.map(({ roll }) => roll), [siteRoll(1), siteRoll(2)], "the last roll is free again");
 });
 

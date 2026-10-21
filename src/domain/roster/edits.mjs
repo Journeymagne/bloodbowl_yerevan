@@ -332,6 +332,15 @@ export function favouredBonus(team, draft, row, player) {
 }
 
 /**
+ * Whether the god's D8 is rolled with an advancement (the owner, 2026-10-21; content «Team Management», «Favoured
+ * of…»: «Every time a player receives an advancement, roll a d8»): with every one of a roster «Favoured of…»
+ * (`favouredBonus`), unless the player holds every skill the god offers — the D8 could bring him nothing. The roster's
+ * sheet and the post-match ask it the same.
+ * @param {ReturnType<typeof favouredBonus>} bonus @returns {boolean}
+ */
+export const favouredRollAsked = (bonus) => Boolean(bonus?.skills.some(({ held }) => !held));
+
+/**
  * Give a player a favoured skill, in place, as the server stores it (`{name, access: "favoured"}`): one of the
  * roster's alignment that he does not hold. Mutates `player` only when it is applied.
  *
