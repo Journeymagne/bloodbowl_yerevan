@@ -122,6 +122,9 @@ function sectionItem(data, section, extra) {
   };
 }
 
+/** Every entry of the groups, in their order: a page (by id) or a section. */
+const REF_ITEMS = REF_GROUPS.flatMap((group) => group.items);
+
 function pagesById(data) {
   return new Map((data.pages ?? []).map((page) => [page.id, page]));
 }
@@ -129,7 +132,7 @@ function pagesById(data) {
 /** The articles the groups name, in the groups' order; one the vault does not have is left out. */
 function articlePages(data) {
   const byId = pagesById(data);
-  return REF_GROUPS.flatMap((group) => group.items).flatMap((entry) => byId.get(entry.page) ?? []);
+  return REF_ITEMS.flatMap((entry) => byId.get(entry.page) ?? []);
 }
 
 /**
@@ -147,8 +150,8 @@ export function refGroups(data, { overviewCount = 0 } = {}) {
   return REF_GROUPS.map((group) => ({ key: group.key, title: groupTitle(group.key), items: group.items.flatMap(itemsOf) }));
 }
 
-const ARTICLE_IDS = new Set(REF_GROUPS.flatMap((group) => group.items).flatMap((entry) => entry.page ?? []));
-const LIST_SECTIONS = new Set(REF_GROUPS.flatMap((group) => group.items).flatMap((entry) => entry.section ?? []));
+const ARTICLE_IDS = new Set(REF_ITEMS.flatMap((entry) => entry.page ?? []));
+const LIST_SECTIONS = new Set(REF_ITEMS.flatMap((entry) => entry.section ?? []));
 
 /**
  * The table-of-contents item a page lights: its own, when the groups name it; its list's, for a

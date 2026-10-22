@@ -24,6 +24,7 @@ import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectio
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
+import { proseMarkup } from "./prose.mjs";
 import { teamContext, teamRulesMarkup, watchTeamData } from "./team.mjs";
 
 /** The two pages whose body is drawn by bodies.mjs, not taken from the vault. */
@@ -78,7 +79,7 @@ export function articleBody(page, context = {}) {
   if (page.id === LEAGUES_ID) return leaguesBody(context.data);
   if (page.id === SKILL_TABLE_ID) return skillTableBody(context.data, page, context.roller ?? rollerState());
   if (page.kind === "team") return teamRulesMarkup({ data: context.data, page, standings: context.standings, viewer: context.viewer });
-  return `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text)}</p>`}</div>`;
+  return proseMarkup(page.html || `<p>${escapeHtml(page.text)}</p>`);
 }
 
 function pagerLink(item, side) {
@@ -217,7 +218,7 @@ export function renderOverviewArticle(slug) {
     back: { href: refUrl("rules"), label: sectionTitle("rules") },
     kicker: sectionTitle("rules"),
     title: card.title,
-    bodyHtml: `<div class="g-prose">${(card.sections ?? []).map(overviewSection).join("")}</div>`,
+    bodyHtml: proseMarkup((card.sections ?? []).map(overviewSection).join("")),
   }));
 }
 
@@ -230,6 +231,6 @@ export function renderLegal() {
     back: referenceBack(),
     title: t("legal.title"),
     sub: t("legal.subtitle"),
-    bodyHtml: `<div class="g-prose">${paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")}</div>`,
+    bodyHtml: proseMarkup(paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")),
   }));
 }

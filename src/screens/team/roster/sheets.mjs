@@ -24,6 +24,7 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { pageForName } from "../../ref/catalog.mjs";
+import { proseMarkup } from "../../ref/prose.mjs";
 import { categoryOf, tagsOf } from "../../ref/skill.mjs";
 import { matchWords, skillSourceOf } from "./panel.mjs";
 
@@ -92,7 +93,7 @@ export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
   const page = pageForName(data, name);
   const skill = line.skills.find((item) => item.name === name);
   // The build escapes a page's html (scripts/build-data.mjs); a page without it has its text.
-  const rule = page ? `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text ?? "")}</p>`}</div>` : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
+  const rule = page ? proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
   // A gained skill's box is green and names the advancement that gave it as the panel does (StatsSkill.html, fidelity F8); any other keeps 07a's words on the grey.
   const from = skill
     ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
