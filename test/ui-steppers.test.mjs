@@ -4,10 +4,11 @@ import test from "node:test";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
+import { patch } from "../src/core/dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderActionStepper, wireActionSteppers } from "../src/ui/action-stepper.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../src/ui/resource-counter.mjs";
-import { renderStepButton, wireStepButtons } from "../src/ui/stepper.mjs";
+import { refocusStep, renderStepButton, wireStepButtons } from "../src/ui/stepper.mjs";
 
 const TD = { key: "touchdowns", label: "TD", name: "touchdown", spp: 3, player: "L. Ashby", data: { playerId: "p1" } };
 
@@ -414,4 +415,80 @@ test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, giving way down 
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "flex-direction"), ["column"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper__line", "display"), ["flex"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__label", "font-size"), ["11px"]);
+});
+
+// ---------------------------------------------------------------------------
+// A − that empties its cell (stage 13, decision 21; hand-offs 06 and 07c): the builder disables it in place, the cart
+// takes it away with its stepper. Either way the focus stays in the cell, on the step that is left, the + first.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cells of «− count +» under `#cells`, by key. At zero the − is plainly disabled (the builder's), or, with `gone`,
+ * there is only the + (the cart's «+ To the cart»). `full` disables a cell's + plainly.
+ */
+function cells(counts, { gone = false, full = [] } = {}) {
+  const cell = ([key, count]) => `<div data-hire-key="${key}">`
+    + (gone && count <= 0 ? "" : renderStepButton({ hook: "hire", delta: -1, label: `Drop ${key}`, disabled: count <= 0, className: "g-hire__btn" }))
+    + `<span>${count}</span>${renderStepButton({ hook: "hire", delta: 1, label: `Hire ${key}`, disabled: full.includes(key), className: "g-hire__btn" })}</div>`;
+  return Object.entries(counts).map(cell).join("");
+}
+const stepOf = (root, key, delta) => root.querySelector(`[data-hire-key="${key}"] [data-hire-step="${delta}"]`);
+
+test("a − that empties the cell keeps the focus on the cell: its + takes it, whether the − is disabled in place or gone", () => {
+  mount(`<div id="cells">${cells({ a: 1, b: 2 })}</div>`);
+  const root = document.querySelector("#cells");
+  const minus = stepOf(root, "a", -1);
+  minus.focus();
+  patch(root, cells({ a: 0, b: 2 }));
+  assert.ok(stepOf(root, "a", -1) === minus && minus.hasAttribute("disabled"), "the builder's − is the same node, disabled");
+  assert.equal(refocusStep(root, { hook: "hire", key: "a" }), true);
+  assert.ok(document.activeElement === stepOf(root, "a", 1), "on the cell's +, not lost on a button that takes no press");
+
+  stepOf(root, "b", -1).focus();
+  patch(root, cells({ a: 0, b: 0 }, { gone: true }));
+  assert.equal(stepOf(root, "b", -1), null, "the cart's − goes with its stepper");
+  assert.ok(document.activeElement === document.body, "the focus fell with it");
+  assert.equal(refocusStep(root, { hook: "hire", key: "b" }), true);
+  assert.ok(document.activeElement === stepOf(root, "b", 1), "on the + that took the stepper's place");
+});
+
+test("a focus the redraw left on a live step stays where the coach has it; a refused + keeps it too", () => {
+  mount(`<div id="cells">${cells({ a: 2, b: 1 })}</div>`);
+  const root = document.querySelector("#cells");
+  stepOf(root, "a", -1).focus();
+  patch(root, cells({ a: 1, b: 1 }));
+  assert.equal(refocusStep(root, { hook: "hire", key: "a" }), false);
+  assert.ok(document.activeElement === stepOf(root, "a", -1), "a − that still steps keeps it");
+  stepOf(root, "b", 1).focus();
+  assert.equal(refocusStep(root, { hook: "hire", key: "a" }), false, "a focus in another cell is the coach's");
+  assert.ok(document.activeElement === stepOf(root, "b", 1));
+  // A + the rules refuse is aria-disabled and in reach: it says why, so it keeps the focus.
+  mount(`<div id="cells"><div data-hire-key="ogre">${renderStepButton({ hook: "hire", delta: -1, label: "Drop", className: "g-hire__btn" })}`
+    + `${renderStepButton({ hook: "hire", delta: 1, label: "Hire", blockedReason: "Ogre: maximum is 1.", className: "g-hire__btn" })}</div></div>`);
+  const refused = stepOf(document.querySelector("#cells"), "ogre", 1);
+  refused.focus();
+  assert.equal(refocusStep(document.querySelector("#cells"), { hook: "hire", key: "ogre" }), false);
+  assert.ok(document.activeElement === refused);
+});
+
+test("a cell whose + is shut gives the focus to its −; one with no step left, or not drawn, gives it to nothing", () => {
+  mount(`<div id="cells">${cells({ a: 1, b: 0 }, { full: ["a", "b"] })}</div>`);
+  const root = document.querySelector("#cells");
+  document.body.focus();
+  assert.equal(refocusStep(root, { hook: "hire", key: "a" }), true);
+  assert.ok(document.activeElement === stepOf(root, "a", -1), "the − is the step that is left");
+  document.body.focus();
+  assert.equal(refocusStep(root, { hook: "hire", key: "b" }), false, "both shut: nothing takes it");
+  assert.equal(refocusStep(root, { hook: "hire", key: "c" }), false, "no such cell");
+  assert.ok(document.activeElement === document.body);
+  assert.throws(() => refocusStep(root, { hook: "Hire", key: "a" }), /one lower-case word/);
+});
+
+test("with the cell for its root, a focus anywhere else is not the cell's: the cart's, where the screen gave a fallen focus to the sheet's cross", () => {
+  mount(`<div id="sheet"><button type="button" data-sheet-close>×</button><div id="cells">${cells({ a: 0 }, { gone: true })}</div></div>`);
+  const cell = document.querySelector('[data-hire-key="a"]');
+  document.querySelector("[data-sheet-close]").focus();
+  assert.equal(refocusStep(cell, { hook: "hire", key: "a" }), true);
+  assert.ok(document.activeElement === stepOf(cell.parentNode, "a", 1), "on the card's «+ To the cart»");
+  assert.equal(refocusStep(cell, { hook: "hire", key: "a" }), false, "once there, it stays");
 });

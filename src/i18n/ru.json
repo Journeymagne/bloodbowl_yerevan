@@ -231,7 +231,7 @@
   "season.roundLabel": "Раунд",
   "season.touchdownsLabel": "Тачдауны",
   "validation.ROSTER_MIN_PLAYERS": "В ростере Sevens обычно нужно не менее {min} игроков (сейчас {count}).",
-  "validation.ROSTER_MAX_PLAYERS": "В ростере Sevens не должно быть больше {max} игроков (сейчас {count}).",
+  "validation.ROSTER_MAX_PLAYERS": "Игроков в команде — не больше {max} (сейчас {count}).",
   "validation.POSITION_MIN": "{position}: минимум {min}.",
   "validation.POSITION_MAX": "{position}: максимум {max}.",
   "validation.TREASURY_INVALID": "Казна должна быть неотрицательной суммой в целых золотых.",

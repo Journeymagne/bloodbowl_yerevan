@@ -282,10 +282,11 @@ test("a refusal whose words cannot be made is a lost answer, and the queue drain
   const first = sendTap("t2", plus);
   const second = sendTap("t2", minus);
   await waitHeld(gate);
-  // A 422 of the rules whose violations are not the list the server sends: wording it throws.
+  // A 422 of the rules with a rule whose params are not the object the server sends: wording it throws. (Rules that are
+  // not a list, and a rule without a code, are left out of the words since stage 13: the test below.)
   gate.release({
     status: 422,
-    body: { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "english" }, violations: [null] },
+    body: { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "english" }, violations: [{ code: "DUPLICATE_PLAYER_ID", params: "Ann" }] },
   });
   assert.deepEqual(await first, LOST_ANSWER);
   assert.deepEqual(await second, DROPPED_ANSWER);
@@ -295,6 +296,24 @@ test("a refusal whose words cannot be made is a lost answer, and the queue drain
   assert.deepEqual(await sendTap("t2", plus), { event: eventOf(1) });
   assert.equal(sent().length, 2);
   assert.equal(tapsWaiting("t2"), 0);
+});
+
+// Stage 13 (decision 20, hand-off 07b): a rule the 422 names without a code is left out of the words, and the refusal is
+// the server's own — not a lost answer, which would read the records again for nothing.
+test("a refusal with a rule it cannot name says the refusal alone, and the queue drains", async () => {
+  open();
+  const gate = api.hold(URL_T2);
+  const first = sendTap("t2", plus);
+  const second = sendTap("t2", minus);
+  await waitHeld(gate);
+  gate.release({
+    status: 422,
+    body: { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "english" }, violations: [null] },
+  });
+  assert.deepEqual(await first, { refusal: "This roster breaks the league's rules.", code: "ROSTER_BREAKS_THE_RULES" });
+  assert.deepEqual(await second, DROPPED_ANSWER);
+  assert.equal(tapsWaiting("t2"), 0);
+  assert.equal(sent().length, 1);
 });
 
 test("a tap that cannot be built is lost without a request, the queue drains, and the next tap goes out", async () => {

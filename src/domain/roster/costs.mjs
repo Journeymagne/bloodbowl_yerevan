@@ -25,7 +25,7 @@ import {
 } from "../league-rules.mjs";
 import { clamp, costToNumber, countToNumber, rowCost } from "./values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "./team-rules.mjs";
-import { normalizePlayerExtraSkills, selectedRosterPlayers } from "./players.mjs";
+import { canonicalSkillName, normalizePlayerExtraSkills, selectedRosterPlayers } from "./players.mjs";
 import { sumMoney } from "../money.mjs";
 
 export function statModCost(stat, mod = 0) {
@@ -50,10 +50,14 @@ export function skillModCost(skill) {
  * Hence `some`, not `every`: one advanced half is enough to say the pair was
  * assembled, and none means it was always there. Locked in by
  * test/roster-elite-combos.test.mjs.
+ *
+ * A skill is its pair's by its canonical name (stage 13, ruling E-1): a Skaven Rat
+ * Ogre starts with «Mighty Blow (+1)», the content's pair is «Claws + Mighty Blow»,
+ * so Claws advanced brings it together, as the reference's skill panel says.
  */
 export function eliteComboCost(row, player) {
-  const baseSkills = new Set(row.skills ?? []);
-  const advancedSkills = new Set(normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => skill.name));
+  const baseSkills = new Set((row.skills ?? []).map(canonicalSkillName));
+  const advancedSkills = new Set(normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => canonicalSkillName(skill.name)));
   const allSkills = new Set([...baseSkills, ...advancedSkills]);
 
   return eliteSkillCombos.reduce((sum, combo) => {

@@ -457,3 +457,55 @@ test("a position's kind is read from its tags: a big guy, a thrower, a catcher, 
   assert.equal(positionKind({}), "lineman");
   assert.equal(positionKind({ tags: ["Thrower", "Big Guy"] }), "big", "a big guy comes first, as the order of the tags in the list says");
 });
+
+// ---------------------------------------------------------------------------
+// Stage 13 (decision 20): one rule, one place — what an advancement costs at a rank, and who sits the next match out.
+// ---------------------------------------------------------------------------
+
+const source = (file) => fs.readFile(path.join(rootDir, file), "utf8");
+
+test("a price at a rank is one function: the league's table, rank by rank, and nothing off it", async () => {
+  const { advancementCostAt } = await import("../src/domain/roster/progression.mjs");
+  const { advancementRanks } = await import("../src/domain/league-rules.mjs");
+  assert.equal(advancementCostAt(0, "random"), 3, "Experienced, a random skill");
+  assert.equal(advancementCostAt(5, "stat"), 38, "Legend, a characteristic");
+  advancementRanks.forEach(({ costs }, index) => {
+    for (const [type, cost] of Object.entries(costs)) assert.equal(advancementCostAt(index, type), cost, `${index} ${type}`);
+  });
+  for (const [index, type] of [[advancementRanks.length, "random"], [-1, "primary"], [0, "favoured"], [0, undefined]]) {
+    assert.equal(advancementCostAt(index, type), 0, `${index} ${type}: off the table`);
+  }
+  // The content's table (Team Management, «Advancement Costs»): rank by rank, Primary, Secondary and Stat in SPP.
+  const content = await source("content/Gata/Rules/3. Team Management.md");
+  const start = content.indexOf("No\n\nRank\n\nPrimary\n\nSecondary\n\nStat\n\n");
+  assert.ok(start >= 0, "the content's table was found");
+  const cells = content.slice(start, content.indexOf("\nd8\n", start)).split("\n").filter(Boolean).slice(5);
+  assert.equal(cells.length, advancementRanks.length * 5);
+  for (let row = 0; row < advancementRanks.length; row += 1) {
+    const [number, rank, ...spp] = cells.slice(row * 5, row * 5 + 5);
+    assert.deepEqual([Number(number), rank], [row + 1, advancementRanks[row].rank]);
+    assert.deepEqual(["primary", "secondary", "stat"].map((type) => `${advancementCostAt(row, type)} SPP`), spp, rank);
+  }
+  // No copy of the lookup is left: the roster's model asks the domain, and the domain asks it once.
+  assert.doesNotMatch(await source("src/screens/team/roster/model.mjs"), /advancementRanks\[/);
+  assert.equal((await source("src/domain/roster/progression.mjs")).match(/\.costs\b/g)?.length, 1, "progression.mjs reads a rank's costs in advancementCostAt alone");
+});
+
+test("one sitsOut: the roster's players read the schema's, and the absence module hands the same one on", async () => {
+  const schema = await import("../src/domain/roster/schema.mjs");
+  const absence = await import("../src/domain/roster/absence.mjs");
+  const players = await import("../src/domain/roster/players.mjs");
+  assert.equal(absence.sitsOut, schema.sitsOut, "absence.mjs re-exports it: its readers are unchanged");
+  assert.doesNotMatch(await source("src/domain/roster/players.mjs"), /skipNextGame \|\| player\.temporarilyRetired/, "no copy of the rule");
+  const team = teamBySlug.get("teams/human");
+  const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
+  const rows = rowsForTeam(team);
+  const marked = { code: "miss" };
+  const retired = players.normalizeRosterPlayer({ id: "p1", rowIndex: 0, temporarilyRetired: true, absence: marked }, rows);
+  assert.deepEqual([retired.skipNextGame, retired.absence], [true, marked], "retired for the season: he sits out, and why stays");
+  const playing = players.normalizeRosterPlayer({ id: "p2", rowIndex: 0, absence: marked }, rows);
+  assert.deepEqual([playing.skipNextGame, playing.absence], [false, null], "a player who plays has no absence, whatever the blob holds");
+  const viewed = players.rosterPlayerView(team, { id: "p3", rowIndex: 0, temporarilyRetired: true, absence: marked });
+  assert.deepEqual([viewed.skipNextGame, viewed.absence], [true, marked]);
+  assert.equal(players.rosterPlayerView(team, { id: "p4", rowIndex: 0, skipNextGame: 0 }).skipNextGame, false);
+});

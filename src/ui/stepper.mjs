@@ -10,7 +10,7 @@
  * the buttons carry `data-<hook>-step="-1|1"` and the cell around them
  * `data-<hook>-key`, so a wiring only ever hears its own.
  */
-import { delegate, escapeHtml } from "../core/dom.mjs";
+import { delegate, escapeHtml, focusLost } from "../core/dom.mjs";
 import { icon } from "./icons.mjs";
 
 const HOOK = /^[a-z]+$/;
@@ -67,4 +67,33 @@ export function wireStepButtons(root, hook, onStep, { onRefused } = {}) {
     }
     onStep(taken, button);
   });
+}
+
+/**
+ * After a step's redraw, keep the focus in the cell `key` (stage 13, decision 21): a − that emptied it is disabled in
+ * place (the builder) or gone with its stepper (the cart). A focus left on nothing, outside `root`, or on a step that
+ * takes none (`disabled`, or refused: `aria-disabled`) goes to a step of the cell that is not plainly disabled — the +
+ * first, else the −; a refused + is one (in reach, it says why), so a + the press refused keeps the focus it has. A
+ * focus the redraw left on any other live control is the coach's and stays.
+ *
+ * `root` may be the cell itself: then a focus anywhere else is not the cell's, and goes to it (the cart, whose screen
+ * gives a focus that fell in a sheet to the sheet's cross).
+ *
+ * @param {Element} root what holds the cells, or the cell; where the focus a step leaves may stay
+ * @param {{hook: string, key: string|number}} cell the hook the buttons were rendered with, and the cell's key
+ * @returns {boolean} whether the focus was moved
+ */
+export function refocusStep(root, { hook, key }) {
+  const step = `data-${checkedHook(hook)}-step`;
+  const owner = `data-${hook}-key`;
+  const active = (root.ownerDocument ?? globalThis.document)?.activeElement ?? null;
+  const kept = !focusLost(active) && root.contains(active) && !active.hasAttribute?.("disabled") && active.getAttribute?.("aria-disabled") !== "true";
+  if (kept) return false;
+  const cell = root.getAttribute?.(owner) === String(key) ? root
+    : Array.from(root.querySelectorAll(`[${owner}]`)).find((element) => element.getAttribute(owner) === String(key));
+  const live = cell ? Array.from(cell.querySelectorAll(`[${step}]`)).filter((button) => !button.hasAttribute("disabled")) : [];
+  const target = live.find((button) => button.getAttribute(step) === "1") ?? live[0];
+  if (!target || target === active) return false;
+  target.focus();
+  return true;
 }

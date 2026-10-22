@@ -18,11 +18,12 @@ import { toast } from "../../../components/toast.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
+import { refusalWords } from "../../../data/teams.mjs";
 import { sppEdits } from "../../../domain/post-match/events.mjs";
 import { markEdits } from "../../../domain/roster/absence.mjs";
 import { playerEdits } from "../../../domain/roster/edits.mjs";
 import { hireQuote, transferEdits } from "../../../domain/roster/transfers.mjs";
-import { refusalWords } from "./hire-sheet.mjs";
+import { refocusStep } from "../../../ui/stepper.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { hireClosed, sellClosed } from "./panel.mjs";
 import { rosterLineOf } from "./player-save.mjs";
@@ -95,8 +96,9 @@ function openCart({ visit, draw }, { now }, button) {
 /**
  * A + or a − of one line of the cart, in the cart that is open. A + the rules refuse (the position's maximum, fourteen
  * on the roster, as the draft stands now) says why and changes nothing; money refuses none. A refusal of «Buy» goes
- * with the cart it was said of. The press keeps the focus on the card (K14): «+ To the cart» and the stepper take each
- * other's place, and the focus that fell with the one goes to the other's +, never to the sheet's cross.
+ * with the cart it was said of. The press keeps the focus on the card (K14, `refocusStep` with the card for its root):
+ * «+ To the cart» and the stepper take each other's place, and the focus that fell with the one — which the screen's
+ * redraw gives to the sheet's cross (focus.mjs) — goes to the other's +.
  */
 function stepCart({ visit, draw }, { now }, rowIndex, delta) {
   const { sheet } = visit;
@@ -115,7 +117,7 @@ function stepCart({ visit, draw }, { now }, rowIndex, delta) {
   Object.assign(sheet, { cart, refusal: "" });
   draw();
   const card = keyed("data-hire-key", String(rowIndex));
-  if (!card?.contains(document.activeElement)) card?.querySelector('[data-hire-step="1"]')?.focus();
+  if (card) refocusStep(card, { hook: "hire", key: rowIndex });
 }
 
 /**

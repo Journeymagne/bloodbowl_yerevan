@@ -170,8 +170,8 @@ test("fourteen players refuse every «+», each with the squad's rule unless the
   assert.equal(draft.players.length, 14);
   const fragment = mount(builderMarkup({ race: human, draft }));
   const titleOf = (position) => fragment.querySelector(`[data-hire-key="${rowOf(human, position)}"] [data-hire-step="1"]`).getAttribute("title");
-  assert.equal(titleOf("Catcher"), "A Sevens roster should not exceed 14 players (currently 14).");
-  assert.equal(titleOf("Human Lineman"), "A Sevens roster should not exceed 14 players (currently 14).");
+  assert.equal(titleOf("Catcher"), "A team has at most 14 players (now 14).");
+  assert.equal(titleOf("Human Lineman"), "A team has at most 14 players (now 14).");
   assert.equal(titleOf("Ogre"), "Ogre: maximum is 1.", "the position's own limit is the first thing in the way");
   assert.equal(mount(builderMarkup({ race: human, draft })).querySelector(".g-build__players").textContent.includes("14 of 14"), true);
   assert.equal(fragment.querySelector(`[data-hire-key="${ogre}"] .g-hire__limit`).getAttribute("class").includes("g-hire__limit--max"), true);
@@ -567,8 +567,8 @@ test("the rule's words for the four refusals the build gives are in both diction
   ];
   assert.deepEqual(refusals.map((refusal) => refusal.code), ["POSITION_MAX", "ROSTER_MAX_PLAYERS", "STAFF_MAX", "STAFF_UNAVAILABLE", "STAFF_UNAVAILABLE"]);
   const said = {
-    en: ["Ogre: maximum is 1.", "A Sevens roster should not exceed 14 players (currently 14).", "Assistant Coaches: maximum is 6.", "Bribes: not for this race.", "Apothecary: not for this race."],
-    ru: ["Ogre: максимум 1.", "В ростере Sevens не должно быть больше 14 игроков (сейчас 14).", "Assistant Coaches: максимум 6.", "Взятки: этой расе недоступно.", "Apothecary: этой расе недоступно."],
+    en: ["Ogre: maximum is 1.", "A team has at most 14 players (now 14).", "Assistant Coaches: maximum is 6.", "Bribes: not for this race.", "Apothecary: not for this race."],
+    ru: ["Ogre: максимум 1.", "Игроков в команде — не больше 14 (сейчас 14).", "Assistant Coaches: максимум 6.", "Взятки: этой расе недоступно.", "Apothecary: этой расе недоступно."],
   };
   for (const locale of ["en", "ru"]) {
     initLocale(locale);
