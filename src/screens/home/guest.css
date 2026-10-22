@@ -23,9 +23,18 @@
   letter-spacing: 0;
 }
 
-/* The band is the desktop's. */
+/*
+ * The band is the desktop's. Guest.html's page is grey to its edges up to 900px: the page reaches over the frame's
+ * padding (16 16 28, Guest.html's main; shell/frame.css) and takes the same figures back inside its grey, the cards
+ * white in their ring on it.
+ */
 @media (max-width: 900px) {
   .g-guest > .g-pagehead { display: none; }
+  .g-guest {
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom));
+    padding: var(--view-top) var(--view-side) var(--view-bottom);
+    background: var(--surface-2);
+  }
 }
 
 .g-guest__hero {

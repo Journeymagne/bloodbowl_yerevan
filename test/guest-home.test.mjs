@@ -276,13 +276,19 @@ test("the sheet sets its own font, border and case; a phone has a column, a desk
     assert.ok(heights.length && heights.every((value) => Number.parseInt(value, 10) >= 44), `${selector} is a target of 44px or more`);
   }
   assert.deepEqual(valuesOf(SHEET, ".g-guest__actions .g-btn", "min-height"), ["48px"]);
+  // A phone's page is Guest.html's grey to the edges, the frame's 16 16 28 inside it, the cards white on it (fidelity N7).
+  const phone = (selector, property) => inMedia(SHEET, "max-width: 900px", selector, property);
+  assert.deepEqual(phone(".g-guest", "margin"), ["calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom))"]);
+  assert.deepEqual([phone(".g-guest", "padding"), phone(".g-guest", "background")], [["var(--view-top) var(--view-side) var(--view-bottom)"], ["var(--surface-2)"]]);
+  assert.match(read("src/shell/frame.css"), /--view-top: 16px;\s*--view-side: 16px;\s*--view-bottom: 28px;/);
+  assert.deepEqual(valuesOf(SHEET, ".g-guest__card", "background"), ["var(--surface)"]);
 });
 
 test("every colour of the page holds on what it sits on, in every palette", () => {
   const [leadOnPage, leadOnRibbon] = valuesOf(SHEET, ".g-guest__lead", "color");
-  assertContrast(leadOnPage, ["--page"], 4.5, { what: "the lead on the page" });
+  assertContrast(leadOnPage, ["--page", "--surface-2"], 4.5, { what: "the lead on the page (a phone's is grey)" });
   assertContrast(leadOnRibbon, ["--header"], 4.5, { what: "the lead on the ribbon" });
-  assertReadable(SHEET, ".g-guest__text", "color", ["--page"], 4.5);
+  assertReadable(SHEET, ".g-guest__text", "color", ["--page", "--surface-2"], 4.5);
   assertReadable(SHEET, ".g-guest__title", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__rank", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__note", "color", ["--surface"], 4.5);
