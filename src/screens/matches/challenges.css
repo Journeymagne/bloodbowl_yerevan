@@ -46,6 +46,14 @@
 }
 .g-friendly .g-pagehead--phone .g-pagehead__title { font: 700 24px/normal var(--font-display); }
 .g-friendly .g-pagehead--phone .g-pagehead__meta { margin-top: 0; }
+/*
+ * A desk's line under the title keeps the head's 4 over it (page-head.css), which the page's margin reset above would
+ * take, at Golos' own line height as DeskChallenges.html's band: the band 94 high, as the prototype's.
+ */
+.g-friendly .g-pagehead__sub {
+  margin: var(--space-4) 0 0;
+  line-height: normal;
+}
 .g-friendly__played {
   color: var(--muted);
   font: 400 13px/1.3 var(--font-body);
@@ -301,12 +309,18 @@
 
 /* ---- A desk (DeskChallenges.html): the band, the two cards side by side, accepted the whole width ---- */
 @media (min-width: 901px) {
-  /* 32 from the edges, as the prototype's (the view pads 28); the band still reaches them, 24 over the first card. */
+  /*
+   * 32 from the edges, as the prototype's (the view pads 28); the band still reaches them, 24 over the first card, and
+   * its title stands on the cards' edge, 32 in (page-head.css's band pads 28).
+   */
   .g-friendly--desk {
     gap: var(--space-20);
     padding: 0 var(--space-4);
   }
-  .g-friendly--desk > .g-pagehead { margin: -28px -32px var(--space-4); }
+  .g-friendly--desk > .g-pagehead {
+    margin: -28px -32px var(--space-4);
+    padding-inline: 32px;
+  }
   .g-friendly__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

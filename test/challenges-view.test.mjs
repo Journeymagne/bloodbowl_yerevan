@@ -310,6 +310,13 @@ test("the prototypes' Oswald titles at Oswald's own line height: the phone's tit
   assert.deepEqual(valuesOf(CSS, ".g-friendly__pair", "font"), ["700 22px/normal var(--font-display)"]);
 });
 
+test("a desk's band: its title on the cards' edge, 32 in, and the line under it 4 below, the band 94 high as the prototype's", () => {
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin"), ["-28px -32px var(--space-4)"], "the band to the edges");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "padding-inline"), ["32px"], "page-head.css pads 28");
+  assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "margin"), ["var(--space-4) 0 0"], "not the page's reset");
+  assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "line-height"), ["normal"]);
+});
+
 test("readable: the muted words, the chips, the letter on its circle, in every palette", () => {
   for (const selector of [".g-friendly__line", ".g-friendly__played", ".g-friendly__note", ".g-friendly__caption", ".g-friendly__when", ".g-friendly__none"]) {
     assert.deepEqual(valuesOf(CSS, selector, "color"), ["var(--muted)"], selector);
