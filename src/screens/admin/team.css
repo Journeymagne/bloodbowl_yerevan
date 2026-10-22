@@ -17,15 +17,23 @@
   flex-direction: column;
   gap: var(--space-20);
   min-width: 0;
-  /* The roster under the block, as under the prototype's band: its gap of 20. */
-  margin: 0 0 var(--space-20);
+  /*
+   * The roster under the block, as under the prototype's band: its gap of 20 — of which the roster's own column gap
+   * (frame.css, 16 between its parts) already gives 16.
+   */
+  margin: 0 0 calc(var(--space-20) - var(--space-16));
   padding: 0;
   border: 0;
   background: none;
 }
 
-/* The prototype's grid of cards; a card never stands wider than the page (one under the other then). */
-.g-adminteam .g-admin__grid { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+/*
+ * The prototype's grid of cards from 901px; a card never stands wider than the page (one under the other then). Up to
+ * 900px admin.css's one column holds, a tablet's too.
+ */
+@media (min-width: 901px) {
+  .g-adminteam .g-admin__grid { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+}
 
 /* ---- The banner: whose team, what a change does, the way back; a match on under it ---- */
 .g-adminteam__banner {
@@ -194,7 +202,8 @@
 @media (max-width: 900px) {
   .g-adminteam {
     gap: 18px;
-    margin-bottom: 18px;
+    /* 18 to the roster, the roster's own 16 of it. */
+    margin-bottom: calc(18px - var(--space-16));
   }
   .g-adminteam__btn { min-height: 44px; }
 }

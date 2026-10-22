@@ -393,6 +393,25 @@ test("a fallen player added afterwards: the race's positions, the team's matches
       assert.equal(field("admin-fallen-name").value, "Grot");
     });
   });
+  // Closed while «Add» was on its way: the refusal is said in a toast, not lost in a sheet that has gone.
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      admin({ matches: [] });
+      await visit();
+      fireEvent(card("fallen").querySelector("[data-admin-fallen]"), "click");
+      type("admin-fallen-name", "Grot");
+      type("admin-fallen-cause", "Old wounds");
+      api.reply(FALLEN_ADD, 404, { error: { code: "TEAM_NOT_FOUND" } });
+      const gate = api.hold(FALLEN_ADD);
+      fireEvent(sheet().querySelector("[data-admin-fallen-send]"), "click");
+      await settle();
+      fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
+      gate.release();
+      await settle();
+      assert.equal(sheet(), null);
+      assert.equal(toasts().at(-1), JSON.parse(text("src/i18n/en.json"))["error.TEAM_NOT_FOUND"]);
+    });
+  });
 });
 
 test("a team in a match says the post-match will start over", async () => {
@@ -445,6 +464,13 @@ test("the block keeps the prototype's measures: 48px fields and button, 40px on 
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminteam__btn", "min-height"), ["40px"]);
   assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-adminteam__btn", "min-height")[0]) >= 44);
   assert.deepEqual(valuesOf(CSS, ".g-adminteam__banner", "padding"), ["14px 16px"]);
+  // 20 to the roster on a desk and 18 on a phone, the roster's own gap of 16 taken off; the cards side by side from 901px
+  // only, admin.css's one column up to 900px (a tablet's too).
+  assert.deepEqual(valuesOf(CSS, ".g-adminteam", "margin").slice(0, 1), ["0 0 calc(var(--space-20) - var(--space-16))"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-adminteam", "margin-bottom"), ["calc(18px - var(--space-16))"]);
+  assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster", "gap").slice(0, 1), ["var(--space-16)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminteam .g-admin__grid", "grid-template-columns"), ["repeat(auto-fit, minmax(min(340px, 100%), 1fr))"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-adminteam .g-admin__grid", "grid-template-columns"), []);
   assert.deepEqual(valuesOf(CSS, ".g-adminteam__banner", "border-radius"), ["var(--radius-xl)"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminteam__banner", "background"), ["var(--warn-tint)"]);
   assertReadable(CSS, ".g-adminteam__banner", "color", ["--warn-tint"], 4.5);

@@ -256,9 +256,12 @@ async function addFallen(saving) {
   const record = outcome.answer?.fallen;
   const landed = record && typeof record.id === "string";
   if (outcome.ignored || !(landed || outcome.answer || outcome.unknown)) {
-    sheet.refusal = outcome.ignored ? t("treasury.writing") : outcome.refusal;
+    const refusal = outcome.ignored ? t("treasury.writing") : outcome.refusal;
+    // A sheet closed while «Add» was on its way: its words would be lost in it, so they are said in a toast.
+    if (visit.sheet !== sheet) return toast(refusal, { tone: "error" });
+    sheet.refusal = refusal;
     draw();
-    return;
+    return undefined;
   }
   if (landed) visit.fallen = [record, ...visit.fallen.filter((each) => each.id !== record.id)];
   if (visit.sheet === sheet) closeSheet(saving);
