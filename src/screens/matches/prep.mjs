@@ -39,7 +39,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { API_ERROR, errorText } from "../../core/api.mjs";
 import { delegate, drawKeepingFocus, escapeHtml, focusLost, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl, preMatchUrl } from "../../core/routes.mjs";
+import { preMatchUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -51,6 +51,7 @@ import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
+import { placeholderBack } from "./game-model.mjs";
 import { effectsFromForm } from "./prep-effects.mjs";
 import { prepFrameMarkup } from "./prep-frame.mjs";
 import { prepModel } from "./prep-model.mjs";
@@ -81,12 +82,14 @@ const readsAgain = (error) => error?.status === 409 || error?.kind === API_ERROR
 const closed = (element) => element.getAttribute("aria-disabled") === "true";
 
 /**
- * The page while there is no preparation to draw: «‹» back to the game, the title, and what is said under it — that it
- * is being read, or why it could not be.
+ * The page while there is no preparation to draw: «‹» back to the matches (`placeholderBack`: never the game, which
+ * sends a side's coach straight back here), the title, and what is said under it — that it is being read, or why it
+ * could not be.
  */
 function placeholderMarkup(gameId, noticeHtml) {
   const phone = isPhone();
-  const back = `<a class="g-prep__back" href="${escapeHtml(gameUrl(gameId))}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  const href = placeholderBack(gameId, { viewer: state.auth.currentUser, activeTeamId: state.activeTeamId ?? null, games: state.games.items });
+  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("prep.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
   return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;

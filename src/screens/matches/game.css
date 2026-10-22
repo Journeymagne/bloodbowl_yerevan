@@ -1,0 +1,114 @@
+/*
+ * The match page (`#/games/:id`, screens/matches/game.mjs; stage 13, decision 10). It has no prototype of its own:
+ * the card is Matches.html's (ui/match-card.css), the head is the page's (ui/page-head.css), the buttons are the
+ * kit's (ui/button.css). A column 16 apart; from 901px the card and what goes with it are at most 640px wide.
+ *
+ * Font, border, background, text-transform, letter-spacing and weight are set here on purpose: the 2.x global rules
+ * outlive this sheet until the second wave of stage 13.
+ */
+.g-game {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The head's wrapper names the card (`aria-labelledby`); the head keeps its own margins. */
+.g-game__head { min-width: 0; }
+
+.g-game__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
+/* Both names centred over the score or «vs», as Matches.html's card draws them; «vs» in the page's grey. */
+.g-game .g-match__side,
+.g-game .g-match__side--away {
+  align-items: center;
+  text-align: center;
+}
+.g-game .g-match__mid { color: var(--muted); }
+.g-game .g-match__mid--score { color: var(--ink); }
+
+/* A name leads to its team: a thumb's height over the same line (D2), the room taken from the gap around it, as on the matches page. */
+.g-game a.g-match__name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  margin: -11px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* What the card says of a score sent: that the round is closed, quiet as Matches.html's friendly note… */
+.g-game__note {
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* …or who confirms it, in the warning tint of Matches.html's score sent (15px, 700). */
+.g-game__note--wait {
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* The ways on, under the answer: each the card's width. */
+.g-game__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.g-game__alert { min-width: 0; }
+
+.g-game__loading {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* «‹ Matches» under a match that cannot be read: a link in the accent, a thumb's height (D2). */
+.g-game__back {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 901px) {
+  .g-game__main { max-width: 640px; }
+
+  /* The main button 48 on a desk, 52 (the kit's, Matches.html) on a phone. */
+  .g-game .g-btn--primary { height: 48px; }
+}

@@ -46,7 +46,6 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { API_ERROR, errorText } from "../../core/api.mjs";
 import { delegate, escapeHtml, focusLost } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -61,6 +60,7 @@ import { icon } from "../../ui/icons.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
+import { placeholderBack } from "./game-model.mjs";
 import { prepFrameMarkup } from "./prep-frame.mjs";
 import { financeDraft, financeStep, nextDraft, nextStep } from "./post-money.mjs";
 import { postModel } from "./post-model.mjs";
@@ -428,10 +428,11 @@ async function poll(visit) {
   }
 }
 
-/** The page while there is no post-match to draw: «‹» back to the game, the title, and what is said under it. */
+/** The page while there is no post-match to draw: «‹» back to the matches (`placeholderBack`), the title, and what is said under it. */
 function placeholderMarkup(gameId, noticeHtml) {
   const phone = isPhone();
-  const back = `<a class="g-prep__back" href="${escapeHtml(gameUrl(gameId))}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  const href = placeholderBack(gameId, { viewer: state.auth.currentUser, activeTeamId: state.activeTeamId ?? null, games: state.games.items });
+  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("after.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
   return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}" data-screen="${SCREEN}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;

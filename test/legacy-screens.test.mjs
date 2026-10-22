@@ -28,7 +28,7 @@ test("the destructive confirm button keeps its label readable in every palette, 
   assertReadable(sheet, button, "color", [fill, hovered], 4.5);
 });
 
-test("the 2.x post-match is gone — its screen, its steps, the checklist layout and its stylesheet; the game page keeps its panels", () => {
+test("the 2.x post-match is gone — its screen, its steps, the checklist layout and its stylesheet; the game page's panels went with it", () => {
   const gone = [
     "src/screens/games/post-match.mjs",
     ...["steps", "players", "review", "shared", "finance"].map((name) => `src/components/post-match/${name}.mjs`),
@@ -37,21 +37,20 @@ test("the 2.x post-match is gone — its screen, its steps, the checklist layout
     // The admin's manual result of the game page went with the 2.x season screen (stage 12): the administration's season has it.
     "src/components/games/result-fields.mjs",
     "src/styles/result-form.css",
-  ];
-  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
-  // The 2.x game page (#/games/:id, stage 13) draws these; the 3.0 post-match saves through the client.
-  const kept = [
+    // #/games/:id is the 3.0 match (screens/matches/game.mjs, stage 13): the 2.x game page and its panels are gone.
     "src/components/post-match/game-panel.mjs",
     "src/components/pre-match/game-panel.mjs",
     "src/components/pre-match/shared.mjs",
+  ];
+  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
+  // The 3.0 post-match saves through the client.
+  const kept = [
     "src/components/matchday.mjs",
     "src/data/post-match-client.mjs",
   ];
   for (const file of kept) assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), file);
   assert.doesNotMatch(read("src/styles.css"), /styles\/post-match\.css/);
   assert.doesNotMatch(read("src/styles.css"), /styles\/(result-form|season-results|season-entries)\.css/);
-  // The 2.x post-match's player card had no other reader.
-  assert.doesNotMatch(read("src/components/pre-match/shared.mjs"), /playerCard/);
   // The checklist layout was the last to draw .pre-match: its rules went with it.
   assert.doesNotMatch(read("src/styles/pre-match.css"), /\.pre-match\b/);
 });

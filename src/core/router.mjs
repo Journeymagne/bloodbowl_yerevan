@@ -39,7 +39,7 @@ import { renderSeasonRoute } from "../screens/season/league.mjs";
 import { renderTeamChallenges } from "../screens/matches/challenges.mjs";
 import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
-import { renderGamePage } from "../screens/games/game.mjs";
+import { renderGame } from "../screens/matches/game.mjs";
 import { renderPostMatch } from "../screens/matches/post.mjs";
 import { renderAdminCoaches } from "../screens/admin/coaches.mjs";
 import { renderAdminCoach } from "../screens/admin/coach.mjs";
@@ -83,7 +83,7 @@ const screens = {
   coachTeam: ({ userId, teamId }) => renderCoachTeam(userId, teamId),
   ref: () => renderRef(),
   refSection: ({ section }) => renderRefSection(section),
-  game: ({ gameId }) => renderGamePage(gameId),
+  game: ({ gameId }) => renderGame(gameId),
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
   postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
   season: ({ tab }) => renderSeasonRoute(tab),
