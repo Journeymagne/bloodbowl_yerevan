@@ -469,7 +469,7 @@
 @media (min-width: 901px) {
   .g-ref--article .g-ref__body {
     display: grid;
-    grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr);
+    grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr);
     align-items: start;
   }
 

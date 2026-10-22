@@ -409,9 +409,9 @@ test("from 901px the content stands at most 820px wide inside the card", () => {
 });
 
 test("from 901px an article is columns that never wrap: the contents as wide as a list's, the card the rest", () => {
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "align-items"), ["start"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "flex-flow"), [], "not a wrapping row");
   assert.ok(split(SHEET).wide.includes(".g-ref--article .g-ref__body"), "the columns are the desktop's");

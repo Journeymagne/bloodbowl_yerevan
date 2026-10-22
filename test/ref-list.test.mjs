@@ -409,9 +409,23 @@ test("on a phone a split page is two screens: the list, or — with something ch
 
 test("from 901px a list is columns that never wrap: the contents, the list and, with a panel, the panel up to 440px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px)"]);
+  // The columns at a window's width (the side nav 232, the page's 32 each side, two gaps of 20): DeskRef's at 1440 —
+  // contents ≈ 254–260, panel 402, the list one column of rows —, and a list of 300 and more at 1024 (fidelity N6).
+  const clamp = (text, width) => {
+    const [, low, vw, minus, high] = text.match(/^clamp\((\d+)px, (\d+)vw - (\d+)px, (\d+)px\)$/);
+    return Math.min(Number(high), Math.max(Number(low), (Number(vw) * width) / 100 - Number(minus)));
+  };
+  const [contents, , panel] = valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns")[0].split(/ (?=clamp|minmax)/);
+  const columns = (width) => {
+    const [left, right] = [clamp(contents, width), clamp(panel, width)];
+    return [left, width - 232 - 64 - 40 - left - right, right].map(Math.round);
+  };
+  assert.deepEqual(columns(1440), [260, 442, 402]);
+  assert.ok(columns(1024)[1] >= 300, `the list at 1024: ${columns(1024)}`);
+  assert.ok(columns(901)[1] >= 220, `the list at 901: ${columns(901)}`);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
   for (const selector of [".g-ref--list .g-ref__body", ".g-ref--split .g-ref__body"]) {

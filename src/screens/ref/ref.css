@@ -361,15 +361,17 @@
   /*
    * The lists and the split pages are a grid, not a row that wraps: the contents and the panel take
    * what the window gives them between a floor and a ceiling, and the list takes the rest. A row that
-   * wrapped would drop the panel under the list from a window as wide as 1256px.
+   * wrapped would drop the panel under the list from a window as wide as 1256px. At 1440 the columns
+   * are DeskRef's (contents 254–260, panel 402: the list one column of rows, as there); they narrow
+   * faster than the window, so at 1024 the list keeps 300px and more (stage 11: no panel under it).
    */
   .g-ref--list .g-ref__body,
   .g-ref--split .g-ref__body {
     display: grid;
     align-items: start;
   }
-  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr); }
-  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px); }
+  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr); }
+  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px); }
   /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
   .g-ref--split .g-ref__panel {
     position: sticky;
