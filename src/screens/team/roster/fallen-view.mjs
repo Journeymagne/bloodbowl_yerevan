@@ -194,6 +194,7 @@ export function undoSheetMarkup({ line, mode, busy = false, refusal = "", reason
   if (fromMatchUndone(line, admin)) quiet = t("adminTeam.fallen.fromMatch");
   return renderSheet({
     id: UNDO_SHEET,
+    at: 120,
     title: t("teamRoster.fallen.undoTitle"),
     bodyHtml: `<p class="g-fallen__undotext">${escapeHtml(t("teamRoster.fallen.undoBody", { name: line.name }))}</p>`
       + `${quiet ? `<p class="g-fallen__undoprep">${escapeHtml(quiet)}</p>` : ""}${prep}${refused}`,

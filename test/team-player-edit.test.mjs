@@ -98,7 +98,7 @@ test("the pencil opens the edit: on a phone a sheet from his profile, on a desk 
         fireEvent(button, "click");
         const sheet = editSheet();
         assert.ok(sheet?.isModal, "dialog#player-edit, open");
-        assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet.getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet.querySelector("h2").textContent, "Edit the player");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, "Catcher · Human");
         assert.equal(sheet.querySelector('label[for="player-edit-number"]').textContent, "Number");

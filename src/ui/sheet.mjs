@@ -7,7 +7,8 @@
  * renderSheet(…) in its own markup and shows it with
  * patchWithModal(root, markup, "#" + id), which opens it modally and keeps it
  * open, and focus where it was, through the screen's redraws. Up to 900px it
- * is a sheet from the bottom of the screen, from 901px a modal in the middle.
+ * is a sheet from the bottom of the screen, from 901px a modal in the middle,
+ * as high as its prototype puts its window (`at`).
  *
  * What goes inside is the caller's: bodyHtml and footHtml are markup from
  * other render…() functions, and the screen's state (which step, whether it
@@ -16,12 +17,21 @@
 import { delegate, escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { renderIconButton } from "./button.mjs";
-import { classNames, dataAttributes } from "./markup.mjs";
+import { classNames } from "./markup.mjs";
 import { renderStepDots } from "./progress-dots.mjs";
 
 const SHEET = "dialog.g-sheet";
 // The id lands in `#id` selectors and in aria-labelledby, neither of which is escaped.
 const ID = /^[A-Za-z][\w-]*$/;
+
+/**
+ * How far from the top a modal stands from 901px, as the prototypes' windows do: 110 for most (DeskOverview,
+ * DeskSeason, DeskOppTeam, the administration's, the challenges'), the default, which needs no class; 64 for the
+ * advancement and a new team (DeskRosterAdv, DeskTeamNew), 80 for the hiring (DeskRosterHire), 120 for the sale, a
+ * player's edit and the password (DeskRosterSell, DeskRosterEdit, DeskCoachPassword). sheet.css has a class for each.
+ */
+export const SHEET_TOPS = Object.freeze([64, 80, 110, 120]);
+const DEFAULT_TOP = 110;
 
 /**
  * @param {object} props
@@ -37,11 +47,13 @@ const ID = /^[A-Za-z][\w-]*$/;
  * @param {boolean} [props.anchored] a panel of 300px by the SideNav from 901px (the team switcher), instead of a modal in the middle; up to 900px the same sheet from the bottom
  * @param {string} [props.className] one plain class of the caller's on the dialog: a frame several of its sheets share (a player's, stage 07d)
  * @param {string} [props.leadHtml] markup of a render…() function before the titles in the head (a desk's row; the player's number, stage 07d)
+ * @param {number} [props.at] how far from the top the modal stands from 901px, one of SHEET_TOPS: its prototype's (110 when left out)
  */
-export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false, className = "", leadHtml = "" }) {
+export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false, className = "", leadHtml = "", at = DEFAULT_TOP }) {
   if (typeof id !== "string" || !ID.test(id)) throw new Error(`a sheet id is a plain name, not ${JSON.stringify(id)}`);
   if (className && !ID.test(className)) throw new Error(`a sheet's class is one plain name, not ${JSON.stringify(className)}`);
   if (!title) throw new Error("a sheet needs a title: it is what names the dialog");
+  if (!SHEET_TOPS.includes(at)) throw new Error(`a sheet stands 64, 80, 110 or 120 from the top, not ${JSON.stringify(at)}`);
   const back = canGoBack
     ? renderIconButton({ icon: "back", label: t("ui.sheet.back"), data: { sheetBack: "" } })
     : '<span class="g-sheet__spacer"></span>';
@@ -50,7 +62,8 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
   const titles = `<div class="g-sheet__titles"><h2 class="g-sheet__title" id="${escapeHtml(id)}-title">${escapeHtml(title)}</h2>${context}</div>`;
   const start = footStartHtml ? `<div class="g-sheet__foot-start">${footStartHtml}</div>` : "";
   const foot = footHtml ? `<footer class="g-sheet__foot">${start}${footHtml}</footer>` : "";
-  return `<dialog class="${classNames("g-sheet", wide && "g-sheet--wide", anchored && "g-sheet--anchored", className)}" id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title">`
+  const top = at !== DEFAULT_TOP && `g-sheet--at-${at}`;
+  return `<dialog class="${classNames("g-sheet", wide && "g-sheet--wide", anchored && "g-sheet--anchored", top, className)}" id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title">`
     + '<div class="g-sheet__panel"><div class="g-sheet__handle" aria-hidden="true"></div>'
     + `<header class="g-sheet__head">${back}${leadHtml}${titles}${close}</header>`
     + `${step ? renderStepDots(step) : ""}<div class="g-sheet__body">${bodyHtml}</div>${foot}`

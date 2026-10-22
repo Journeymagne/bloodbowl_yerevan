@@ -131,7 +131,7 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         assert.ok(!editSheet(), "the same draw closes the edit");
         const sheet = fixSheet();
         assert.ok(sheet?.isModal, "dialog#player-fix, open");
-        assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet.getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet.querySelector("h2").textContent, "Fix by hand");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, SUB);
         // Cade's Frenzy: the last block, «Advancements», holds the undo of it (Task 23; test/team-advance-undo.test.mjs).

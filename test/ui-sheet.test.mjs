@@ -3,13 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
-import { valuesOf } from "./helpers/contrast.mjs";
+import { inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderOptionCard, renderOptionList, wireOptionLists } from "../src/ui/option-card.mjs";
 import { renderProgressDots, renderStepDots } from "../src/ui/progress-dots.mjs";
-import { renderSheet, wireSheets } from "../src/ui/sheet.mjs";
+import { SHEET_TOPS, renderSheet, wireSheets } from "../src/ui/sheet.mjs";
 
 const OPTIONS = [
   { value: "primary", title: "Primary skill", sub: "Choose from the list", pill: "6 SPP" },
@@ -105,6 +105,32 @@ test("an anchored sheet carries its modifier and sits by the SideNav from 901px"
   assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__title", "text-transform"), ["uppercase"], "on a desk the title is a small caption over the list");
   assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__head", "border-bottom"), ["0"], "with no rule under it");
   assertStyled(fragment, "sheet.css", "button.css");
+});
+
+// Stage 13, Task 7 (decision 12): from 901px a window stands as high as its prototype puts it — 110 for most (DeskOverview,
+// DeskSeason, DeskOppTeam, DeskAdminReset, DeskChallenges), 64 for the advancement and a new team (DeskRosterAdv,
+// DeskTeamNew), 80 for the hiring (DeskRosterHire), 120 for the sale, a player's edit and the password (DeskRosterSell,
+// DeskRosterEdit, DeskCoachPassword); no prototype has the 112 there was. Its bottom keeps 32px on a short window.
+test("a modal stands where its prototype puts it: 110 by default, 64, 80 or 120 when asked", () => {
+  assert.deepEqual(SHEET_TOPS, [64, 80, 110, 120]);
+  const classOf = (props) => mount(renderSheet({ id: "top", title: "T", bodyHtml: "<p>x</p>", ...props })).querySelector("dialog").getAttribute("class");
+  assert.equal(classOf({}), "g-sheet", "without one: 110, and no class");
+  assert.equal(classOf({ at: 110 }), "g-sheet", "110 is the default's own: no class");
+  assert.equal(classOf({ at: 64 }), "g-sheet g-sheet--at-64");
+  assert.equal(classOf({ at: 80, wide: true }), "g-sheet g-sheet--wide g-sheet--at-80");
+  assert.equal(classOf({ at: 120, className: "g-player-sheet" }), "g-sheet g-sheet--at-120 g-player-sheet", "the caller's frame stays last");
+  for (const at of [112, 0, 72, "80", null, Number.NaN]) assert.throws(() => renderSheet({ id: "top", title: "T", bodyHtml: "", at }), /64, 80, 110 or 120/, String(at));
+  const SHEET = "src/ui/sheet.css";
+  const desk = (selector, property) => inMedia(SHEET, "min-width: 901px", selector, property);
+  assert.deepEqual(desk("dialog.g-sheet", "margin"), ["110px auto auto"]);
+  assert.deepEqual(desk("dialog.g-sheet", "max-height"), ["min(86dvh, calc(100dvh - 142px))"], "110 over it, 32 under it");
+  for (const top of SHEET_TOPS.filter((each) => each !== 110)) {
+    assert.deepEqual(desk(`dialog.g-sheet.g-sheet--at-${top}`, "margin"), [`${top}px auto auto`], String(top));
+    assert.deepEqual(desk(`dialog.g-sheet.g-sheet--at-${top}`, "max-height"), [`min(86dvh, calc(100dvh - ${top + 32}px))`], String(top));
+  }
+  assert.deepEqual(desk("dialog.g-sheet.g-sheet--at-110", "margin"), [], "no class of its own for the default");
+  assert.ok(!mediaText(SHEET, "max-width: 900px").includes("--at-"), "up to 900px every sheet comes from the bottom, wherever its window stands on a desk");
+  assert.ok(!/margin:\s*112px/.test(mediaText(SHEET, "min-width: 901px")), "no prototype's window stands at 112");
 });
 
 // Stage 07d, Task 8: a player's sheets share a frame of their own (player-sheets.css), drawn by the class their caller gives.
@@ -291,7 +317,7 @@ test("a close request that is no keydown (the Android back gesture, Escape with 
 });
 
 test("a cancel on a dialog that is not a sheet is left to its own screen", () => {
-  const fragment = mount(`${renderSheet({ id: "s7", title: "T", bodyHtml: "<p>x</p>" })}<dialog id="other" class="app-dialog"><p>y</p></dialog>`);
+  const fragment = mount(`${renderSheet({ id: "s7", title: "T", bodyHtml: "<p>x</p>" })}<dialog id="other"><p>y</p></dialog>`);
   const other = fragment.querySelector("#other");
   const closed = [];
   wireSheets(fragment, { onClose: (id) => closed.push(id) });

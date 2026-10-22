@@ -390,11 +390,9 @@
 
   .g-coaches__open { min-height: 36px; }
 
-  /* A window of 720, 110 from the top, 20 round (DeskAdminCoachNew), over sheet.css's 640 of a wide one. */
+  /* A window of 720, 20 round (DeskAdminCoachNew), over sheet.css's 640 of a wide one; 110 from the top is sheet.css's own. */
   dialog.g-sheet.g-coachnew {
     width: min(720px, calc(100% - 32px));
-    max-height: min(86dvh, calc(100dvh - 142px));
-    margin: 110px auto auto;
     border-radius: 20px;
   }
   .g-coachnew .g-sheet__head {

@@ -12,6 +12,9 @@ import { assertLinkHref } from "./markup.mjs";
 /** A number can be a count or a score, and zero is one: only the empty string (or no value at all) is nothing to draw. */
 const isEmpty = (value) => value === "" || value === null || value === undefined;
 
+/** The glyphs a row may end with: the kit's long chevron, or the short one of the rows whose prototype draws it. */
+const ROW_CHEVRONS = ["chevron", "chevronShort"];
+
 /**
  * A row that is a link, with a count of what is behind it and a chevron.
  *
@@ -20,15 +23,18 @@ const isEmpty = (value) => value === "" || value === null || value === undefined
  * @param {string} props.title
  * @param {string} [props.desc] the quiet line under the title
  * @param {string|number} [props.count] how many records are behind the link, in the accent colour
+ * @param {"chevron"|"chevronShort"} [props.chevron] the long one of the kit's ListRow (Ref, DeskRef), or the short one
+ *   where the row's prototype draws it (Settings' «Администрирование»)
  */
-export function renderNavRow({ href, title, desc = "", count = "" }) {
+export function renderNavRow({ href, title, desc = "", count = "", chevron = "chevron" }) {
   if (!href) throw new Error("a navigation row needs an href: it is a link");
   assertLinkHref(href);
   if (!title) throw new Error("a navigation row needs a title");
+  if (!ROW_CHEVRONS.includes(chevron)) throw new Error(`a navigation row ends with a chevron, not ${JSON.stringify(chevron)}`);
   const line = desc ? `<span class="g-list-row__desc">${escapeHtml(desc)}</span>` : "";
   const text = `<span class="g-list-row__text"><span class="g-list-row__title">${escapeHtml(title)}</span>${line}</span>`;
   const records = isEmpty(count) ? "" : `<span class="g-list-row__count">${escapeHtml(count)}</span>`;
-  return `<a class="g-list-row" href="${escapeHtml(href)}">${text}${records}${renderIcon("chevron", 16)}</a>`;
+  return `<a class="g-list-row" href="${escapeHtml(href)}">${text}${records}${renderIcon(chevron, 16)}</a>`;
 }
 
 /** A label on the left and its value, heavier, on the right: the staff a team has, a price. A missing value (`null`, `undefined`) is drawn empty. */

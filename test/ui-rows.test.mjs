@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { CALLOUT_TONES, renderCallout } from "../src/ui/callout.mjs";
@@ -303,4 +303,95 @@ test("a value of zero is a value, and an undefined one is as empty as null; a ty
   assert.equal(mount(renderKeyValueRow({ label: "Rerolls", value: undefined })).querySelector(".g-kv__value").textContent, "");
   assert.throws(() => renderTextField({ id: "f", name: "x", label: "X", type: null }), /type/);
   assert.throws(() => renderTextField({ id: "f", name: "x", label: "X", type: "TEXT" }), /type/);
+});
+
+// Stage 13, Task 9 (decision 16; hand-off 07b): a field of several lines, as StatsMngDead.html (a phone) and
+// DeskRosterDeath.html (a desk) draw the cause of a death. Pre-flight L22: renderTextField's tests live here.
+test("a field may take several lines: a textarea with the same label, help and error", () => {
+  const fragment = mount(renderTextField({
+    id: "cause", name: "cause", label: "Cause of death", value: HOSTILE, help: "Seen on the roster", error: "Too long", multiline: true,
+    required: true, readonly: true, placeholder: HOSTILE,
+  }));
+  const area = fragment.querySelector("textarea");
+  assert.ok(area, "a textarea");
+  assert.equal(fragment.querySelector("input"), null, "and no one-line input beside it");
+  assert.equal(area.getAttribute("class"), "g-field__input g-field__input--area");
+  assert.equal(area.id, "cause");
+  assert.equal(area.getAttribute("name"), "cause");
+  assert.equal(area.getAttribute("rows"), "2", "two lines, as both prototypes");
+  assert.equal(area.value, HOSTILE, "the value is the field's text, escaped");
+  assert.equal(area.getAttribute("placeholder"), HOSTILE);
+  assert.equal(fragment.querySelector("label").getAttribute("for"), "cause");
+  assert.equal(fragment.querySelector("label").textContent, "Cause of death");
+  assert.equal(area.getAttribute("aria-describedby"), "cause-help cause-error");
+  assert.equal(area.getAttribute("aria-invalid"), "true");
+  assert.equal(fragment.querySelector("#cause-help").textContent, "Seen on the roster");
+  assert.equal(fragment.querySelector("#cause-error").textContent, "Too long");
+  assert.ok(area.hasAttribute("required"));
+  assert.ok(area.hasAttribute("readonly"));
+  assert.ok(fragment.querySelector(".g-field--invalid"));
+  assert.equal(fragment.querySelector("img"), null);
+  assertCspSafe(fragment);
+  assertStyled(fragment, "text-field.css");
+  // Without help or error it points at nothing and is not invalid.
+  const bare = mount(renderTextField({ id: "cause", name: "cause", label: "Cause", multiline: true })).querySelector("textarea");
+  assert.equal(bare.hasAttribute("aria-describedby"), false);
+  assert.equal(bare.hasAttribute("aria-invalid"), false);
+  assert.equal(bare.value, "");
+});
+
+test("a field of several lines has no type, input mode or autocomplete, and takes 1 to 8 rows", () => {
+  const area = mount(renderTextField({ id: "f", name: "f", label: "F", multiline: true, type: "tel", inputmode: "numeric", autocomplete: "off", verbatim: true, rows: 3 })).querySelector("textarea");
+  for (const name of ["type", "inputmode", "autocomplete", "value"]) assert.equal(area.hasAttribute(name), false, name);
+  assert.equal(area.getAttribute("rows"), "3");
+  assert.equal(area.getAttribute("spellcheck"), "false", "taken verbatim, whatever its lines");
+  for (const rows of [1, 8]) assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", multiline: true, rows })).querySelector("textarea").getAttribute("rows"), String(rows));
+  for (const rows of [0, 9, 2.5, "2", null, Number.NaN, -1]) {
+    assert.throws(() => renderTextField({ id: "f", name: "f", label: "F", multiline: true, rows }), /rows/, JSON.stringify(rows));
+  }
+  // Its type is still checked: a field's props mean the same, whatever its lines.
+  assert.throws(() => renderTextField({ id: "f", name: "f", label: "F", multiline: true, type: "hidden" }), /type/);
+  // One line unless told otherwise.
+  const line = mount(renderTextField({ id: "f", name: "f", label: "F" }));
+  assert.equal(line.querySelector("textarea"), null);
+  assert.equal(line.querySelector("input").getAttribute("class"), "g-field__input");
+});
+
+test("a field of several lines keeps a value that starts on a new line; a zero is a zero and nothing is empty", () => {
+  // A browser drops one newline right after <textarea>: the coach's own first one must survive a redraw.
+  const area = (value) => mount(renderTextField({ id: "f", name: "f", label: "F", multiline: true, value })).querySelector("textarea");
+  assert.equal(area("\nFoul\nby the Raiders").value, "\nFoul\nby the Raiders");
+  assert.equal(area("Foul").value, "Foul");
+  assert.equal(area(0).value, "0");
+  assert.equal(area(null).value, "");
+  assert.equal(area(undefined).value, "");
+  // Beside a control too.
+  const control = mount(renderTextField({ id: "f", name: "f", label: "F", multiline: true, actionHtml: "<span>go</span>" })).querySelector(".g-field__control");
+  assert.deepEqual(control.childNodes.map((node) => node.tagName), ["TEXTAREA", "SPAN"]);
+});
+
+test("the area's sizes are the prototypes': 64px on a phone, 60 on a desk", () => {
+  const FILE = "src/ui/text-field.css";
+  const AREA = ".g-field__input--area";
+  const tokens = tokensOf("grass");
+  const resolved = (value) => value.replace(/var\((--[\w-]+)\)/g, (whole, name) => tokens[name] ?? whole);
+  const desk = (property) => inMedia(FILE, "min-width: 901px", AREA, property);
+  // Every value the sheet gives the area, in file order: StatsMngDead.html's first, for every width, then DeskRosterDeath.html's from 901px.
+  const all = (property) => valuesOf(FILE, AREA, property).map(resolved);
+  assert.deepEqual(all("min-height"), ["64px", "60px"]);
+  assert.deepEqual(desk("min-height"), ["60px"]);
+  assert.deepEqual(all("border-radius"), ["12px", "10px"]);
+  assert.deepEqual(valuesOf(FILE, AREA, "font"), ["400 15px/1.4 var(--font-body)", "400 14px/1.4 var(--font-body)"], "the page's font, as the prototypes inherit it");
+  assert.deepEqual(all("resize"), ["none", "vertical"]);
+  assert.deepEqual(desk("resize"), ["vertical"]);
+  assert.deepEqual(all("padding"), ["10px 12px"], "10 12 on both");
+  assert.deepEqual(all("height"), ["auto"], "the one line's 48px is not the area's");
+  // A phone's values stand to 900px: nothing narrower changes them.
+  assert.deepEqual(inMedia(FILE, "max-width: 900px", AREA, "min-height"), []);
+  // The ring is the field's: 1px of --line-strong, #DCE3DF in grass, as both prototypes draw it.
+  assert.deepEqual(valuesOf(FILE, ".g-field__input", "box-shadow"), ["var(--ring)"]);
+  assert.equal(resolved(tokens["--ring"]), "inset 0 0 0 1px #DCE3DF");
+  // The help under it: 12px, --muted (StatsMngDead.html).
+  assert.deepEqual(valuesOf(FILE, ".g-field__help", "color"), ["var(--muted)"]);
+  assert.deepEqual(valuesOf(FILE, ".g-field__help", "font"), ["400 12px/1.4 var(--font-body)"]);
 });

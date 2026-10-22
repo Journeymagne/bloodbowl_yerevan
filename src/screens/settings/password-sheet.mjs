@@ -118,6 +118,7 @@ export function passwordSheetMarkup(sheet, { login = "" } = {}) {
     disabled: !passwordReady(sheet) });
   return renderSheet({
     id: SHEET_ID,
+    at: 120,
     title: t("password.title"),
     bodyHtml: sheet.done ? doneHtml() : formHtml(sheet, login),
     footHtml: sheet.done ? "" : submit,

@@ -147,6 +147,7 @@ export function hireSheetMarkup({ race, quote, mode, refusal = "", reason = "" }
   const waits = !quote.count || quote.left < 0 || Boolean(quote.refusal);
   return renderSheet({
     id: HIRE_SHEET,
+    at: 80,
     title: t("teamRoster.hire.title"),
     sub: t("teamRoster.hire.sub", { race: race.title, players: quote.players, max: quote.max, free: quote.free }),
     wide: true,

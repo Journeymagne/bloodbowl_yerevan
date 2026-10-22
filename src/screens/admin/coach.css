@@ -320,11 +320,9 @@
   .g-acoach__btn { min-height: 40px; }
   .g-acoach__teamscard .g-admin__cardhead .g-btn { min-height: 40px; }
 
-  /* A window of 520, 110 from the top, 20 round (DeskAdminReset), over sheet.css's 480. */
+  /* A window of 520, 20 round (DeskAdminReset), over sheet.css's 480; 110 from the top is sheet.css's own. */
   dialog.g-sheet.g-coachreset {
     width: min(520px, calc(100% - 32px));
-    max-height: min(86dvh, calc(100dvh - 142px));
-    margin: 110px auto auto;
     border-radius: 20px;
   }
   .g-coachreset .g-sheet__head {

@@ -117,11 +117,9 @@
 
 /* ---- A desk (DeskTeamNew) ---- */
 @media (min-width: 901px) {
+  /* 64px from the top, its bottom 32px from the window's on a short one: sheet.css's (`at: 64`). */
   dialog.g-sheet.g-new-sheet {
     width: min(760px, calc(100% - 32px));
-    /* The top margin is 64px; leave the bottom its 32px as well on a short window. */
-    max-height: min(86dvh, calc(100dvh - 96px));
-    margin: 64px auto auto;
     border-radius: 20px;
     box-shadow: var(--shadow-window);
   }

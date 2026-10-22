@@ -87,7 +87,8 @@ function sppMarkup(line, screen) {
 }
 
 /**
- * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and a chevron.
+ * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and the kit's
+ * long chevron, as its ListRow ends.
  * Closed (`reason`: why the edit is, or that its fields are changed and are saved or cancelled first) it stays in
  * reach, saying why as its title and, pressed, in a message (`data-roster-closed`, K7).
  * @param {import("./model.mjs").PlayerLine} line @param {string} reason
@@ -131,6 +132,7 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
   return renderSheet({
     id: EDIT_SHEET,
     className: PLAYER_FRAME,
+    at: 120,
     title: t("teamPlayer.edit.title"),
     sub: t("teamPlayer.edit.sub", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) }),
     bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}${fix}`,
@@ -203,6 +205,7 @@ export function unadvanceSheetMarkup({ line, screen, sheet }) {
   return renderSheet({
     id: UNADVANCE_SHEET,
     className: PLAYER_FRAME,
+    at: 120,
     title: t("teamPlayer.undo.title"),
     sub: t("teamPlayer.undo.sub", { name: line.name, level: index + 1 }),
     bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${stay}${prep}${alert}`,

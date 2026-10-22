@@ -110,7 +110,7 @@ test("«Advancement» opens the types, each with its price by the rank and what 
       assert.equal(button.tagName, "BUTTON");
       assert.equal(button.getAttribute("aria-haspopup"), "dialog");
       assert.ok(sheet()?.isModal, "dialog#player-advance, open");
-      assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+      assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-64 g-player-sheet", "in the frame a player's sheets share, 64 from the top on a desk (stage 13)");
       assert.equal(title(), "Advancement");
       assert.equal(sub(), "30 SPP available · advancement 1 of 6");
       assert.equal(dots(), "Step 1 of 3");
@@ -484,7 +484,7 @@ test("on a desk the same advancement in three columns: the type, the category, t
     const button = aside().querySelector("[data-player-advance]");
     assert.equal(button.textContent, "Advance");
     assert.ok(sheet()?.isModal);
-    assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet");
+    assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-64 g-player-sheet", "64 from the top, as DeskRosterAdv puts it (stage 13)");
     const badge = sheet().querySelector(".g-sheet__head .g-num");
     assert.equal(badge.textContent, "3");
     assert.ok(badge.getAttribute("class").includes("g-num--catcher"));

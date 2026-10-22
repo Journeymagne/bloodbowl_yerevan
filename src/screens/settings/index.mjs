@@ -92,7 +92,7 @@ function managedHtml(user) {
 
 function accountHtml({ user, teamCount, telegram, telegramError }) {
   const admin = user.isAdmin
-    ? `<div class="g-settings__admin">${renderNavRow({ href: "#/administration", title: t("nav.administration"), desc: t("settings.adminHint") })}</div>`
+    ? `<div class="g-settings__admin">${renderNavRow({ href: "#/administration", title: t("nav.administration"), desc: t("settings.adminHint"), chevron: "chevronShort" })}</div>`
     : "";
   return identityHtml(user, teamCount)
     + (user.managedByServer === true ? managedHtml(user) : editableHtml(user, telegram, telegramError))
