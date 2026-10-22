@@ -169,6 +169,10 @@ nine migrations, applied in one window with the site in maintenance — see
 - **Favoured of… rolls a D8 on every advancement**, in the roster and in the
   post-match, as the league's rules say; a player who has every skill of the god
   skips it.
+- **A god's skill (Favoured of…) adds to the player's value** what a skill of its
+  category costs him: +20k when his position has Mutation among its primary
+  categories, +40k otherwise. It still does not raise his rank. A player who
+  already has a god's skill is worth 20k or 40k more, and so is his team.
 - The 14-player limit counts everyone on the roster, the players missing the next
   match included.
 - Raise Dead is available to a side with a Plague Ridden player as well.
@@ -192,6 +196,9 @@ nine migrations, applied in one window with the site in maintenance — see
   value may rise by 15k for such a player.
 - A post-match retried after a revision conflict compares the states by value,
   not by their JSON text.
+- `npm run build` removes from `dist/` what it no longer writes, once the new
+  files are in place: a file deleted from the repository is not served after
+  the next deploy.
 
 ### Removed
 
