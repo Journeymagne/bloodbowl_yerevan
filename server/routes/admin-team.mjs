@@ -6,9 +6,11 @@
  * put right through /api/admin/* and nowhere else. A coach's route refuses every write of a team in a match
  * (TEAM_IN_MATCH, server/season/live-match.mjs), to an administrator as well; none of these asks. The team is put right
  * for the match to be settled on, and a post-match already open starts over with the team as it now stands
- * (POST_TEAM_CHANGED, stage 09b). Each takes the team's row first, `FOR UPDATE`, and no row of the match: a tap holds
- * the pairing and then waits on the team, and a write that held the team and then waited on the pairing would close
- * a cycle with it.
+ * (POST_TEAM_CHANGED, stage 09b). Each takes the team's row, `FOR UPDATE`, and no row of the match before it: a tap
+ * holds the pairing and then waits on the team, and a write that held the team and then waited on the pairing would
+ * close a cycle with it. A fallen player added afterwards that names a match is the one that touches a pairing (its
+ * row's key, for the record's reference): it takes that pairing first, `FOR KEY SHARE`, in the tap's order, and the
+ * team after it.
  *
  * - `POST /api/admin/teams/:id/treasury {treasury, note, revision}` sets the treasury to the sum given and writes why:
  *   one `admin` line of the ledger, the difference, with the admin's reason as its note and the admin as its actor.
@@ -199,10 +201,15 @@ function fallenPlayer(slug, { name, position, number }) {
   return normalizeRosterPlayer({ ...createPlayer(rows[rowIndex], rowIndex, 0, { number: number ?? "" }), name }, rows);
 }
 
-/** A pairing this team is a side of, in any state, with its round: 400 for `pairingId` for any other. */
+/**
+ * A match this team played, with its round: a pairing of two teams with the team a side of it, its result confirmed
+ * or the match begun (as `adminTeamMatches` offers them, and an abandoned one); 400 for `pairingId` for any other — a
+ * bye, a pairing not begun, another team's.
+ */
 async function pairingOfTeam(client, teamId, pairingId) {
   const { rows } = await client.query(
-    "SELECT id, round_number FROM match_pairing_context WHERE id = $1 AND $2::uuid IN (home_team_id, away_team_id)",
+    `SELECT id, round_number FROM match_pairing_context WHERE id = $1 AND $2::uuid IN (home_team_id, away_team_id)
+       AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL AND (result_status = 'confirmed' OR preparation_status = 'in_progress')`,
     [pairingId, teamId],
   );
   if (!rows[0]) throw invalid("pairingId");
@@ -210,11 +217,13 @@ async function pairingOfTeam(client, teamId, pairingId) {
 }
 
 /**
- * The transaction of a fallen player added afterwards. The team is locked first, so its race is the one the record is
- * made for; then the position, the pairing, and the row: a match's death when it names the match (`from_match`, the
- * coach's to leave alone), dead when the admin says or now, recorded by the admin.
+ * The transaction of a fallen player added afterwards. A match named is held first (its row's key, `FOR KEY SHARE`, in
+ * the order a tap or a post-match takes the pairing and then the team: never a cycle with one); then the team, so its
+ * race is the one the record is made for; then the position, the pairing's check, and the row: a match's death when
+ * it names the match (`from_match`, the coach's to leave alone), dead when the admin says or now, recorded by the admin.
  */
 async function writeFallen(client, teamId, admin, fallen) {
+  if (fallen.pairingId) await client.query("SELECT 1 FROM season_pairings WHERE id = $1 FOR KEY SHARE", [fallen.pairingId]);
   const team = await teamForUser(client, teamId, admin, { lock: true, admin: true });
   const player = fallenPlayer(team.base_team_slug, fallen);
   const pairing = fallen.pairingId ? await pairingOfTeam(client, team.id, fallen.pairingId) : null;

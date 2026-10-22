@@ -150,7 +150,9 @@ test("a fallen player added afterwards is a full record the undo can return", db
   const before = await teamRow(client, teamId);
   const { result: added, log } = await recording(() => addFallen(teamId, admin.token, { player: { name: "Gorbag", position: "Blitzer", number: 7 }, cause: "Died before 3.0", pairingId, diedAt: "2025-03-01" }));
   assert.equal(added.status, 201);
-  assert.match(log[1], /^SELECT .* FROM saved_teams .* FOR UPDATE$/, "the team is locked first");
+  // The match named first, its key alone (a tap holds the pairing, then waits on the team: never a cycle), then the team.
+  assert.match(log[1], /^SELECT 1 FROM season_pairings WHERE id = \$1 FOR KEY SHARE$/, "the pairing is held first");
+  assert.match(log[2], /^SELECT .* FROM saved_teams .* FOR UPDATE$/, "then the team is locked");
   assert.deepEqual([log[0], ...log.slice(-2)], ["BEGIN", "COMMIT", "release"]);
   assert.ok(!log.some((sql) => sql.startsWith("UPDATE")), "the roster is not written");
   assert.deepEqual(Object.keys(added.body), ["fallen"]);
@@ -178,6 +180,9 @@ test("what an afterwards death must name, and what it may not", db, () => withAp
   const teamId = await seedTeam(client, coach.id), wolves = await seedTeam(client, wolf.id, { name: "Wolves" }), bears = await seedTeam(client, bear.id, { name: "Bears" });
   const theirs = await friendly(client, { user: wolf.id, team: wolves }, { user: bear.id, team: bears });
   const pending = await friendly(client, { user: coach.id, team: teamId }, { user: wolf.id, team: wolves }, { status: "pending", score: null });
+  const begun = await friendly(client, { user: coach.id, team: teamId }, { user: bear.id, team: bears }, { status: "pending", score: null });
+  await client.query("UPDATE season_pairings SET preparation_status = 'in_progress' WHERE id = $1", [begun]);
+  const bye = await leaguePairing(client, { user: coach.id, team: teamId }, null, { status: "pending", score: null });
   const good = { player: { name: "Gorbag", position: "Blitzer", number: 7 }, cause: "Died before 3.0" };
   const tomorrow = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
   for (const [body, field, label] of [
@@ -193,6 +198,8 @@ test("what an afterwards death must name, and what it may not", db, () => withAp
     [{ ...good, player: null }, "player", "no player"],
     [{ ...good, cause: "" }, "cause", "no cause"],
     [{ ...good, pairingId: theirs }, "pairingId", "a pairing of other teams"],
+    [{ ...good, pairingId: pending }, "pairingId", "a match not begun"],
+    [{ ...good, pairingId: bye }, "pairingId", "a bye: no match"],
     [{ ...good, pairingId: NOBODY }, "pairingId", "no such pairing"],
     [{ ...good, pairingId: "abc" }, "pairingId", "a pairing id that is no UUID"],
     [{ ...good, diedAt: tomorrow }, "diedAt", "a day to come"],
@@ -203,15 +210,16 @@ test("what an afterwards death must name, and what it may not", db, () => withAp
     [{ ...good, diedAt: 1740787200000 }, "diedAt", "a number"],
   ]) refused(await addFallen(teamId, admin.token, body), field, label);
   assert.deepEqual(await fallenRows(client, teamId), [], "a refusal writes nothing");
-  // Without a pairing it is no match's death; a pairing of the team's own, whatever its state, is one.
+  // Without a pairing it is no match's death; a match the team played — its result confirmed, or begun (an abandoned
+  // one) — is one.
   const plain = await addFallen(teamId, admin.token, { player: { name: " Ugluk ", position: "Human Lineman" }, cause: "Old age", pairingId: null });
   assert.equal(plain.status, 201);
   assert.deepEqual([plain.body.fallen.fromMatch, plain.body.fallen.pairingId, plain.body.fallen.player.name, plain.body.fallen.player.number, plain.body.fallen.player.rowIndex],
     [false, null, "Ugluk", "", 0], "no number given is none, not a «1» nobody wore");
   assert.ok(Math.abs(new Date(plain.body.fallen.diedAt) - Date.now()) < 60000, "no date is now");
-  const inPending = await addFallen(teamId, admin.token, { ...good, pairingId: pending.toUpperCase(), diedAt: "2025-03-01T10:00:00+04:00" });
+  const inPending = await addFallen(teamId, admin.token, { ...good, pairingId: begun.toUpperCase(), diedAt: "2025-03-01T10:00:00+04:00" });
   assert.equal(inPending.status, 201);
-  assert.deepEqual([inPending.body.fallen.fromMatch, inPending.body.fallen.pairingId, new Date(inPending.body.fallen.diedAt).toISOString()], [true, pending, "2025-03-01T06:00:00.000Z"]);
+  assert.deepEqual([inPending.body.fallen.fromMatch, inPending.body.fallen.pairingId, new Date(inPending.body.fallen.diedAt).toISOString()], [true, begun, "2025-03-01T06:00:00.000Z"]);
   assert.equal((await addFallen(NOBODY, admin.token, good)).body.error.code, "TEAM_NOT_FOUND");
 }));
 
