@@ -1,32 +1,37 @@
-﻿# Gata Blood Bowl League Reference
+﻿# Gata League
 
-League management and reference site for the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league.
+The site of the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league. Each coach runs their teams through the season on it, from the draft of a new team to the post-match of the last game, and anyone can read the league's rules, its table and its reference.
 
-Current release: **2.1.0**. See [CHANGELOG.md](CHANGELOG.md) for release details and upgrade instructions.
+Current release: **3.0.0**. See [CHANGELOG.md](CHANGELOG.md) for what changed, and "Moving to 3.0" in [DEPLOYMENT.md](DEPLOYMENT.md) for moving a 2.x site to it.
 
 The site contains:
 
-- team rosters and team-building data;
-- star player reference cards;
-- skills and traits reference entries;
-- Gata league rules and patch notes;
-- a team builder with saved rosters, player progression and transfers;
-- season registration, pairings, results and administration;
-- friendly challenges with the same match workflow as league games;
-- pre-match and post-match checklists with roster and treasury settlement;
+- a coach's teams: the draft of a new team, the overview, the roster with its match records, the players who miss the next match and the fallen, hiring and selling, player profiles, advancement with dice rolled on the site or at the table, each player's career by match, and the treasury and resources with their history;
+- matches: the season's match board, the preparation, the match in play, the post-match step by step, and friendly challenges;
+- the league table and the season's calendar, an opponent's team and a coach's profile;
+- the reference: team rules, star players, skills and traits, inducements, the league's rules and patch notes, with one search over them;
+- the administration: coaches, the season's rounds, pairings and entries, and any team's roster;
+- a guest's home page, settings with eight palettes in a light or dark mode, and English and Russian throughout;
 - legal/disclaimer text for an unofficial fan project.
 
 ## Project Structure
 
-- `content/Gata` - generated Markdown content used as the source for the site.
+- `content/Gata` - the English Markdown vault the site is built from; `content/Gata-ru` - its Russian translation, with the same file names (see `docs/i18n-glossary.md`).
 - `scripts/import-gata-content.py` - optional importer from the original Gata `.xlsx` and `.docx` source files.
-- `scripts/build-data.mjs` - converts Markdown content into `public/data.json`.
-- `scripts/build-site.mjs` - copies the static app into `dist` for hosting.
-- `index.html`, `src/app.js`, `src/styles.css` - static frontend.
-- `src/components/matchday.mjs` and `games/checklist-layout.mjs` - shared heroes, scoreboards and match checklist layouts; each checklist screen retains its own rules and actions.
-- `src/screens/admin/*` - the administration (the coaches, a coach's page, the season) over `src/data/admin.mjs`.
-- `src/styles/tokens.css`, `controls.css`, `overlays.css` - common theme, form and dialog styles; screen styles specialise layout.
-- `public/data.json` - generated site data.
+- `scripts/build-data.mjs` - converts the vaults into `public/data.en.json` and `public/data.ru.json`.
+- `scripts/build-site.mjs` - copies the static app into `dist` for hosting, with `src/styles.css` folded into one stylesheet.
+- `index.html`, `src/app.js`, `src/styles.css` - the page, the bootstrap and the list of stylesheets.
+- `src/core` - the router and the route table, the API client, i18n, the DOM helpers, the theme.
+- `src/shell` - the frame around every screen: the phone's header and tabs, the desktop's side navigation, the team switcher, the current match.
+- `src/ui` - the design system's components (buttons, sheets, steppers, the roster table, the match board…) and `base.css`; `src/styles/tokens.css` holds the eight palettes.
+- `src/screens/*` - one folder per part of the site: `auth`, `home`, `teams` (My Teams, the draft), `team` (overview, roster, player, treasury and resources), `matches` (preparation, post-match, challenges, the match page), `season`, `coaches`, `ref`, `settings`, `admin`.
+- `src/data` - what the screens read and write through the API: the session, teams, the roster's save queue, the treasury, games, the administration.
+- `src/domain` - the league's rules as pure functions (rosters, costs, advancement, the match and the post-match), shared by the screens and the server.
+- `src/i18n/en.json`, `ru.json` - every string of the interface, in both languages.
+- `server/` - the API over Postgres; `server/db/migrations/` - the schema, one numbered file per change.
+- `scripts/mock-api.mjs`, `scripts/mock/` - an in-memory fake API for driving the screens without a database.
+- `docs/redesign/screens/*.json` - the app states `npm run screens` photographs.
+- `public/data*.json` - generated site data.
 - `dist` - generated deploy output, ignored by Git and recreated during build.
 - `dist/local-preview.html` - the site with all reference data inlined. It still
   has to be **served** (`npm run dev`, or any static server pointed at `dist/`)
@@ -38,7 +43,7 @@ The site contains:
 Install these first:
 
 - **Node.js** (includes `npm`) - <https://nodejs.org/en/download>
-- **Docker Desktop**, for the local PostgreSQL database that keeps users, saved teams and profile edits - <https://docs.docker.com/desktop/setup/install/windows-install/> (Windows; the same site has the macOS and Linux installers)
+- **Docker Desktop**, for the local PostgreSQL database that keeps users, teams, matches and the season - <https://docs.docker.com/desktop/setup/install/windows-install/> (Windows; the same site has the macOS and Linux installers)
 
 Open a new terminal after installing so `node` and `npm` are on the `PATH`, and make sure Docker Desktop is running.
 
@@ -54,7 +59,7 @@ npm start              # build the site and serve it
 
 The `.env` file is not in the repository (it holds passwords and is git-ignored), so it has to be created from `.env.example` before anything else works - both Docker and the server read it. The example values are fine for local use. If you change `POSTGRES_PASSWORD`, put the same password inside `DATABASE_URL`: the app connects with `DATABASE_URL`, not with `POSTGRES_PASSWORD`.
 
-The site and API then run at <http://localhost:3002>. Log in with `ADMIN_LOGIN` / `ADMIN_PASSWORD` from `.env` to reach the admin screens.
+The site and API then run at <http://localhost:3002>. Sign in with `ADMIN_LOGIN` / `ADMIN_PASSWORD` from `.env` to reach the administration.
 
 On later runs only `npm run postgres:up` and `npm start` are needed; run `npm run db:migrate` again when a new file appears in `server/db/migrations/`.
 
@@ -72,20 +77,22 @@ If a step fails:
 
 ### `npm run dev` vs `npm start`
 
-`npm run dev` builds the reference data and serves the source files as they are at <http://localhost:5173>. It needs no Docker, no database and no `.env`, but it has no API either: login, saved teams, the season and administration screens cannot load anything.
+`npm run dev` builds the reference data and serves the source files as they are at <http://localhost:5173>. It needs no Docker, no database and no `.env`, but it has no API either: signing in, teams, matches, the season and the administration cannot load anything.
 
 | | `npm run dev` | `npm start` |
 |---|---|---|
 | Needs Docker, Postgres, `.env` | no | yes |
-| API (login, saved teams, season, admin) | no | yes |
+| API (sign-in, teams, matches, season, administration) | no | yes |
 | Serves | source files in `src/` | the built copy in `dist/` |
 | After editing `src/` | refresh the page | `npm run build`, then refresh |
 | After editing `content/` | restart `npm run dev` | `npm run build`, then refresh |
 | Port | 5173 | 3002 |
 
-Use `npm run dev` for the reference pages and general styling, `npm start` for anything behind a login.
+Use `npm run dev` for the reference pages and general styling, `npm start` for anything behind a sign-in.
 
 `npm run dev` serves the stylesheets unminified, so a style can look right there and still break in the built site. Check CSS changes once against the build before calling them done.
+
+The screens behind a sign-in can also be driven by hand without a database, against an in-memory fake API: `npm run build`, then `node scripts/mock-api.mjs`, and open <http://localhost:5174>. Any login signs in with the password `mock-pass`; `MOCK_PORT` picks another port, `MOCK_ADMIN=1` makes the coach an administrator, and `MOCK_EMPTY=1` gives a coach with no team and no match. It forgets everything when it stops.
 
 ## Commands
 
@@ -96,19 +103,57 @@ npm run start
 npm run postgres:up
 npm run postgres:down
 npm run postgres:reset
+npm run db:migrate
 ```
 
 Checks:
 
 ```bash
-npm run check      # unreachable functions + file/function size budgets
+npm run check      # unreachable functions, unused imports, uses never imported, file/function size budgets
 npm test           # unit tests (node:test, no dependencies)
 GATA_TEST_DATABASE_URL=postgres://gata_admin:…@localhost:5437/gata_league npm test   # + database tests
-npm run i18n:check # EN/RU page parity
-npm run smoke      # API + static exposure, needs a running server
+npm run i18n:check # EN/RU page parity and the glossary; English that skipped t()
 ```
 
 The database tests (migrations, and SQL a fake client cannot check) run only when GATA_TEST_DATABASE_URL names a local Postgres. Each one creates its own gata_test_* database from template0 and drops it afterwards; the database in the URL is never opened. Without the variable they are skipped.
+
+Smoke checks, each against a running server on this machine (`npm run build` first: they read the built rules). Each makes its own fixtures:
+
+```bash
+npm run smoke              # the API and static exposure; APP_URL (default http://localhost:3002)
+npm run smoke:pre-match    # the preparation
+npm run smoke:friendly     # challenges and a friendly
+npm run smoke:post-match   # the post-match
+npm run smoke:admin        # the administration; APP_URL, SMOKE_ADMIN_LOGIN, SMOKE_ADMIN_PASSWORD
+```
+
+The three match smokes sign in as the preview coaches of `npm run preview:seed` ("A Match, Locally" below), and take `DATABASE_URL`, which must name a local database, and `SMOKE_BASE_URL`: `smoke:pre-match` and `smoke:friendly` default to http://localhost:3003, `smoke:post-match` to http://localhost:3002.
+
+`smoke:admin` signs in as an administrator. Keep that login and password in a file only you can read (`chmod 600`), in `output/` where Git ignores it, that sets `ADMIN_LOGIN` and `ADMIN_PASSWORD`; only ever `source` it - never `cat` it, and never type the password on the command line:
+
+```bash
+. output/admin.env && SMOKE_ADMIN_LOGIN="$ADMIN_LOGIN" SMOKE_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+  APP_URL=http://localhost:3002 npm run smoke:admin
+```
+
+It prints no password or token. A coach it enters in the season stays there after the run, with a rival: use a database you can throw away.
+
+Screenshots, with the local Google Chrome running headless, of the app states a JSON file lists (the servers it points at must be running), and two sets of them compared pixel by pixel:
+
+```bash
+npm run screens -- docs/redesign/screens/rd-12.json --out output/screens/before
+npm run screens:diff -- output/screens/before output/screens/after --out output/screens/diff.json
+```
+
+Maintenance mode, which closes the site to coaches while an operator works on it (see "Maintenance Mode" in `DEPLOYMENT.md`):
+
+```bash
+npm run maintenance:on -- --kind planned --ends "2026-11-02T19:00+04:00"
+npm run maintenance:status
+npm run maintenance:off
+```
+
+Backups and rehearsals: `npm run backup:db` and `npm run backup:status` (see "Database Backups" in `DEPLOYMENT.md`); `npm run rehearsal:restore`, `rehearsal:check`, `rehearsal:migrate` and `rehearsal:transitions` (below).
 
 Two optional checks drive a real browser. They need Playwright, which is
 intentionally not a dependency of this project:
@@ -117,22 +162,14 @@ intentionally not a dependency of this project:
 npm i -D playwright && npx playwright install chromium
 ```
 
-Public screens, the builder and static exposure, against the dev server:
+Public screens and static exposure, against the dev server:
 
 ```bash
 npm run dev            # in another terminal
 node scripts/browser-check.mjs
 ```
 
-The logged-in screens can be driven by hand against a small in-memory fake API,
-so no database is needed: `npm run build`, then `node scripts/mock-api.mjs`.
-
-On Windows PowerShell, if `npm` is blocked by execution policy, use:
-
-```powershell
-npm.cmd run build
-npm.cmd run dev
-```
+On Windows PowerShell, if `npm` is blocked by execution policy, use `npm.cmd` (`npm.cmd run build`), and set a variable with `$env:APP_PORT='3003'` instead of `APP_PORT=3003 …`.
 
 Useful environment variables in `.env`:
 
@@ -140,7 +177,8 @@ Useful environment variables in `.env`:
 - `DATABASE_URL` - Postgres connection string used by the app.
 - `DATABASE_CHECK_RETRIES`, `DATABASE_CHECK_DELAY_MS` - startup database connection retry settings.
 - `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` - database settings.
-- `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_TELEGRAM` - seeded site admin account.
+- `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_TELEGRAM` - seeded site admin account. Its login, password, Telegram and rights live here only: the site shows them read only.
+- `REHEARSAL_PASSWORD` - the password every account of a rehearsal copy gets (below).
 
 `npm run postgres:up` starts only Postgres from `docker-compose.yml`. `npm start` builds the reference data and starts the site/API locally. The server reads `.env` and connects to Postgres through `localhost:${POSTGRES_PORT}`.
 
@@ -165,45 +203,28 @@ Delete the local database data and recreate it from scratch on the next start:
 npm run postgres:reset
 ```
 
-## Local Pre-match Preview
+## A Match, Locally
 
-The game page opens a Gata Sevens checklist: fans, seasonal weather, available roster and optional journeymen, inducements, and both coaches' confirmation. A team may start with fewer than seven available players. All Lineman positions can be used for journeymen, subject to their position limits, regardless of the roster's Qty label. Kick/receive selection happens at the table and is omitted from the app's checklist. Start saves match-only players/effects and spends treasury exactly once. Mercenaries remain unavailable until Gata hiring rules are specified. Existing preparations retain their fans, weather and purchases when the policy updates; both coaches review them again. Started match snapshots remain sealed.
+`npm run preview:seed` creates a separate preview season with two demo coaches and a match between them, and leaves every other coach alone. It prints the match's preparation address; sign in as `preview-home` or `preview-away`, password `preview2026`, each in a browser profile of its own to play both sides. Rerunning it keeps the match where it is. It refuses a database that is not local.
 
-The whole site uses the builder's Matchday styling: framed page headers, square cards and controls, monospace stat strips, and the same six colour palettes. This includes navigation, reference pages, saved team cards, season tables, game screens and dialogs. Saved teams use roster cards on desktop as well as mobile.
-
-For a local preview with an existing Postgres instance:
-
-```powershell
-npm.cmd run build
-npm.cmd run db:migrate
-$env:APP_PORT='3003'
-npm.cmd run preview:seed
-npm.cmd run server
+```bash
+npm run build
+npm run db:migrate
+APP_PORT=3003 npm run preview:seed
+APP_PORT=3003 npm run server
 ```
 
-The seed prints the match URL and creates only a separate preview season and demo accounts. Sign in as `preview-home` or `preview-away`, password `preview2026`. Use separate browser profiles to act as both coaches. Rerunning the seed keeps the match's current preparation.
+A match goes through three stages; the preparation and the post-match are screens in a frame of their own, without the site's navigation:
 
-With the local server running, `npm.cmd run smoke:pre-match` checks authorization, conflicts, phase order, roster changes, effects, snapshots and concurrent/idempotent spending on disposable fixtures. It removes only its own fixtures afterward. Set `SMOKE_BASE_URL` if using a port other than 3003. Both helpers refuse a non-local database.
+- **Preparation** (`#/games/:id/pre-match`): fans, the weather (one roll for the match), the roster and journeymen, inducements and their effects, and the start. A team may start with fewer than seven available players. Every Lineman position can field journeymen, within its position limit, whatever the roster's Qty says. Kick and receive are decided at the table. Mercenaries are not the league's and are not offered. The start saves the match's own players and effects and spends the treasury once; a started match's snapshot is sealed.
+- **The match in play:** each coach records it in the team's roster - touchdowns, casualties, completions and the rest as taps, and injuries - while the team's own roster, treasury and dead are held until the post-match is finished.
+- **Post-match** (`#/games/:id/post-match`), seven steps for each side: the score (a concession, or a technical result and its reason), income, players (the match's records with their SPP, the MVP, injuries, veterans who leave after a concession), the roster (staff, hiring and selling, journeymen, Raise Dead), the treasury (the Coach's Safe, Expensive Mistakes), the next match, and the review. Advancement works inside it, with the dice rolled on the site or at the table. A side's step is written when it is pressed. The match is finished once both coaches confirm the summary: the finish applies both rosters, the treasuries and the result in one transaction, once, however often pressed. The players who died go to the team's fallen.
 
-## Friendly Challenges
+The match page itself (`#/games/:id`) takes a coach of either side to where the match is now, and shows anyone else the match.
 
-In My Games, choose your saved team and another coach to send a friendly challenge. The recipient chooses their own team when accepting. Pending challenges can be declined by the recipient or cancelled by the sender. Accepted challenges open a match for both coaches and remain accessible in My Games and recent challenge responses.
+**Friendly challenges** (`#/t/:id/challenges`): a coach challenges another, found by login or team name or among the recent opponents; the other accepts with a team of their own and goes straight to the preparation, or declines; the sender can cancel. A friendly uses the same preparation and post-match as a league match, can be played whatever the season's round, and awards no League Points: it never enters the league table. A team with an accepted match cannot be deleted.
 
-Friendly matches use the same Gata Sevens preparation checklist, match snapshots, treasury spending and two-coach result confirmation as league matches. They can be played independently of season rounds. Results award zero LP, including bonuses, and never enter the season standings or schedule. Teams participating in accepted matches cannot be deleted, preserving their match history.
-
-Apply migration `006_friendly_challenges.sql` before starting the updated server. With the local preview accounts and server running, `npm.cmd run smoke:friendly` checks the complete flow, access rules, concurrent acceptance/start, and zero LP on disposable teams and matches; it removes its own fixtures afterward. `SMOKE_BASE_URL` defaults to `http://localhost:3003`.
-
-## Post-match Checklist
-
-Started league and friendly games open the same post-match checklist: agree on the result, record income and Dedicated Fans, enter match statistics and final injuries, choose MVP manually, optionally advance players, manage the roster, resolve treasury risks and prepare the next roster. A final review shows both coaches' MVPs, SPP, injuries, purchases, treasury and fans before they confirm. All MVP/advancement/fan/treasury dice are rolled at the table and entered by the coach. MVP awards give 5 SPP. Advancement may be skipped even when enough SPP are saved for a characteristic increase.
-
-Changes stay in a saved draft until both coaches confirm and either completes the match. Completion applies both rosters and the agreed result in one transaction, with version checks and receipts preventing duplicate SPP or cash. Friendlies award zero LP while retaining SPP, winnings, injuries and recovery. Old MNG flags clear; new lasting injuries and temporary retirement persist. Gata rules include rookie protection, a 15k bonus for fully painted teams, Coach's Safe, journeyman retention and team-specific advancement/roster rules. Independent opponent edits do not discard your form; edits to your own draft in another window require a refresh.
-
-Permanently hiring a Mortuary Assistant or Plague Doctor costs 50k. Each adds 50k to TV/CTV. Their separate one-match inducements cost 100k.
-
-Apply `007_post_match.sql` with `npm.cmd run db:migrate`, then rebuild and restart the API. Routes: `#/games/:id/post-match/:step?`, `GET/PATCH /api/games/:id/post-match`, `POST /api/games/:id/finish`. Existing started matches with saved match rosters can use the checklist. Matches without snapshots continue using the previous result entry.
-
-`npm.cmd run smoke:post-match` checks league/friendly completion, permissions, revisions, transaction rollback, manual MVP, optional advancement, recovery, legacy game counts and concurrent/idempotent completion on disposable local fixtures. It defaults to `http://localhost:3002` and refuses a non-local database. Add `-- --keep-preview` to leave a separate friendly game at the player step and print its URL; use the preview accounts above. Detailed rules and implementation decisions are in [the post-match implementation notes](docs/superpowers/plans/2026-10-06-post-match-checklist.md).
+With the preview accounts and the server running, `smoke:pre-match`, `smoke:friendly` and `smoke:post-match` check the same flows on fixtures of their own, which they remove afterwards (`SMOKE_BASE_URL` names the server, `DATABASE_URL` its local database). `smoke:post-match -- --keep-preview` leaves one friendly at its Players step and prints its address.
 
 ## Rehearsing a migration on a copy of production
 
@@ -251,7 +272,9 @@ exits 1 when anything changed. An OK needs migrations to have been applied
 between the two snapshots: with none, it says "OK, but no migrations were
 applied" and nothing was tested. `output/rehearsal/report.md` also says how long
 the migrations took, which stage each team got and why, which fallen players
-were carried over, and which matches are still half-way through.
+were carried over, which matches are still half-way through, and which
+technical results and rosters over eight re-rolls the administrator will have
+to look at.
 
 It exits 0 for an OK, 1 when existing data changed, and 2 when no migration was
 applied between the snapshots — nothing was tested. It also requires the new
@@ -270,6 +293,16 @@ sign in with `REHEARSAL_PASSWORD`. Booting resets `ADMIN_LOGIN`'s password to
 `ADMIN_PASSWORD` (and its Telegram to `ADMIN_TELEGRAM`), and inserts that admin
 if production's admin has a different login, so an `--after` taken later sees one
 more user.
+
+`npm run rehearsal:transitions` checks the states a site can be in at the moment
+it moves from 2.1.0 to 3.0 - a preparation half done, a match begun, a
+post-match past its Players step, a score sent and not answered, a challenge not
+accepted. `--seed <url>` makes them on a 2.1.0 server over `gata_rehearsal`
+before `rehearsal:check -- --before`; `--finish <url>` takes each to its end on
+the 3.0 server once migrated, and checks the score, SPP, money and table. It
+speaks only HTTP, only to this machine, and refuses a site of the other version
+before writing anything. The order of the whole rehearsal is in the script's
+header, `scripts/rehearsal-transitions.mjs`.
 
 Fourteen days after day X (the release), delete the copies:
 
@@ -307,26 +340,11 @@ npm.cmd run import:gata
 npm.cmd run build
 ```
 
-## Team XLSX Import
-
-Roster sheets from the league workbook can be converted into a cloud-importable Postgres SQL file and an Administration UI import file:
-
-```powershell
-npm.cmd run team-import:sql -- --xlsx "X:\Downloads\Gata League 2_  Info.xlsx" --sheet "Drunken Rune Guard (Andrei)" --sql-out ".codex_tmp\team-imports\drunken-rune-guard.sql"
-```
-
-The command also writes a `.credentials.json` file with the generated login/password and a `.team-import.json` file next to the SQL. Log in as an admin, open Administration, click Import Users, and upload the `.team-import.json` file to create or update the user and saved team through the site.
-
-To apply that SQL to a remote database, point `DATABASE_URL` at the cloud Postgres instance and run:
-
-```powershell
-$env:DATABASE_URL="postgres://user:password@host:5432/database"
-npm.cmd run team-import:apply -- ".codex_tmp\team-imports\drunken-rune-guard.sql"
-```
+An import changes `content/Gata` only: bring `content/Gata-ru` in step before committing (`docs/i18n-glossary.md`, "Keeping the RU vault in sync").
 
 ## Deployment
 
-See `DEPLOYMENT.md` for deployment and handoff instructions.
+See `DEPLOYMENT.md` for deployment and handoff instructions, and its "Moving to 3.0" for the day the site moves from 2.x.
 
 ## Notes
 
