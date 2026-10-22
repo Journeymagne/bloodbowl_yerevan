@@ -253,7 +253,8 @@ test("a player's links stay in the administration", async () => {
     await visit();
     assert.equal(openRow().querySelector("a.g-btn--dark").getAttribute("href"), `${EDIT}/p1`, "his profile");
     fireEvent(toggle("fallen-f1"), "click");
-    assert.equal(openRow().querySelector("a.g-btn--dark").getAttribute("href"), `${EDIT}/d1`, "a fallen player's profile");
+    // A fallen player's way to his profile is white in its ring (StatsInjured.html; fidelity N8), not the dark one.
+    assert.equal(openRow().querySelector("a.g-btn").getAttribute("href"), `${EDIT}/d1`, "a fallen player's profile");
     // His page: «‹ Roster» back to the admin's roster; a fallen player's page too; an id the roster holds nowhere too.
     for (const id of ["p1", "d1", "zz"]) {
       admin({ fallen: [PIKE] });
