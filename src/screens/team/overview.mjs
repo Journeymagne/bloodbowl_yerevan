@@ -426,8 +426,11 @@ export async function renderTeamOverview(teamId) {
   // The board's part: the match shown, the opponent read for the match on, «Before the match» (stage 09a).
   const gamesNow = () => (state.games.loaded && !held.games ? state.games.items : null);
   const band = bandVisit({ teamId, root: view, draw, read: () => ({ team: listed(teamId), games: gamesNow(), seasonData: state.season.data, data: state.data }) });
+  // A team in its build that has no match in the coach's games has no records to read. Since stage 12 every new team
+  // starts in its build and may play (a friendly, or a round that paired it) before the admin moves it into the season.
+  const plays = () => (gamesNow() ?? []).some((game) => game.home?.team?.id === teamId || game.away?.team?.id === teamId);
   const readLeaders = async () => {
-    if (!here || listed(teamId)?.stage === "draft") return;
+    if (!here || (listed(teamId)?.stage === "draft" && !plays())) return;
     if (records.reading) {
       records.again = true;
       return;

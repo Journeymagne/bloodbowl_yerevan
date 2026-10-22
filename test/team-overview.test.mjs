@@ -2103,7 +2103,7 @@ test("a list read again after the coach left draws nothing", async () => {
 
 // Review M2: one read of the records for the start of a visit, once the games have answered — a games answer on its
 // way when the page is drawn (app.js's at sign-in, or the overview's own after a failure) asks for no second one.
-test("a cold start reads the records once, after the games have answered; a team in its build reads none", async () => {
+test("a cold start reads the records once, after the games have answered; a team in its build reads none until it plays", async () => {
   coach({ games: [], gamesLoaded: false });
   api.reply("GET /api/games", 200, { games: GAMES, currentGames: [] });
   const games = api.hold("GET /api/games");
@@ -2125,6 +2125,19 @@ test("a cold start reads the records once, after the games have answered; a team
   await turns();
   assert.ok(view.querySelector(".g-pagehead h1"));
   assert.equal(sent("GET /api/teams/t4/events"), 0);
+  releaseCurrentScreen();
+  api.assertAnswered();
+  // Since stage 12 every new team starts in its build and may play before it is moved into the season: a friendly of
+  // Fresh Meat on, its records are read as any team's.
+  const friendly = game("gt4", { kind: "friendly", season: null, roundStatus: null, roundNumber: 0, preparationStatus: "in_progress",
+    home: side("t4", "Fresh Meat", "teams/orc"), away: RIVAL });
+  coach({ games: [...GAMES, friendly] });
+  state.activeTeamId = "t4";
+  api.reply("GET /api/teams/t4/events", 200, { events: [], revision: 1 });
+  await renderTeamOverview("t4");
+  await notifyGames([...GAMES, friendly]);
+  await turns();
+  assert.ok(sent("GET /api/teams/t4/events") >= 1, "a build that plays reads its records");
   releaseCurrentScreen();
   api.assertAnswered();
 });
