@@ -120,5 +120,6 @@ test("the roll and the elite line stand under one rule, each over its own, 15px 
   assert.ok(!read(ARTICLE).replace(/\/\*[\s\S]*?\*\//g, "").match(/\.g-skill-detail__facts[^{]*\{[^}]*text-overflow/), "no ellipsis on the lines");
 
   renderReferencePage("skills/claws");
-  assertStyled(view, REF, ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
+  // The page's band is the page head since stage 13 (Task 4).
+  assertStyled(view, REF, "page-head.css", ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
 });
