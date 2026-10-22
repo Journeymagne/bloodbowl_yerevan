@@ -22,6 +22,7 @@ const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { t } = await import("../src/core/i18n.mjs");
 const { formatDay } = await import("../src/core/format.mjs");
+const { adminRequest } = await import("../src/data/admin.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const data = expandCollections(JSON.parse(text("public/data.en.json")));
@@ -233,6 +234,14 @@ test("a phone's administration: the two links, the round's card, the rows with t
   assert.equal(view.querySelector(".g-coaches__roundtitle").textContent, "Round 7 · results confirmed");
   assert.equal(view.querySelector(".g-coaches__roundnote").textContent, "Round 8 can be generated");
   assert.ok(view.querySelector(".g-coaches__round").classList.contains("g-coaches__round--done"));
+  // A season the page loaded before (the round's results not confirmed then) is read anew: the card says how it stands now.
+  width(true);
+  signIn({ season: done });
+  state.season = { data: SEASON, loaded: true, loading: false, error: "" };
+  await renderAdminCoaches();
+  await settle();
+  assert.ok(api.calls.some(({ key }) => key === "GET /api/season"), "read again on the visit");
+  assert.equal(view.querySelector(".g-coaches__roundtitle").textContent, "Round 7 · results confirmed");
   // No round under way: no card.
   await visit({ season: { ...SEASON, rounds: [] } }, { phone: true });
   assert.equal(view.querySelector(".g-coaches__round"), null);
@@ -410,6 +419,32 @@ test("a coach with a team: the button says what is missing, then sends once; the
   assert.equal(document.querySelector("#coach-new-login").value, "");
 });
 
+test("the window speaks from inside itself: what «Create» still wants, the news of the coach made; its empty regions stay on the page", async () => {
+  await visit();
+  click("[data-coach-new]");
+  const said = () => sheet().querySelector("[data-window-said]");
+  assert.equal(said().getAttribute("role"), "status");
+  assert.ok(sheet().contains(said()), "in the window: under a modal the page's own live region is inert");
+  click(create());
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+  assert.equal(said().textContent, "Enter a login");
+  type("#coach-new-login", "newbie_coach");
+  type("#coach-new-telegram", "newbie");
+  type("#coach-new-team", "Mudfoot Boyz");
+  click('[data-coach-race="teams/orc"]');
+  api.reply("POST /api/admin/coaches", 201, { user: NEWBIE, team: { id: "t9", name: "Mudfoot Boyz", stage: "draft" }, password: PASSWORD, entryId: "e9" });
+  api.reply("GET /api/admin/users", 200, { users: [...USERS, NEWBIE] });
+  click(create());
+  await settle();
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+  assert.equal(said().textContent, "Coach in the league. newbie_coach · team «Mudfoot Boyz» in the build");
+  // An empty alert or copy line is not hidden away (a region a reader has not met is not heard): the gap is taken back.
+  assert.deepEqual(valuesOf(CSS, ".g-coachnew__alert:empty", "display"), []);
+  assert.deepEqual(valuesOf(CSS, ".g-coachnew__alert:empty", "margin-bottom"), ["calc(-1 * var(--space-14))"]);
+  assert.deepEqual(valuesOf(CSS, ".g-coachnew__copied:empty", "display"), []);
+  assert.deepEqual(valuesOf(CSS, ".g-coachnew .g-sheet__body", "gap"), ["var(--space-14)"]);
+});
+
 test("the season's entry off sends enter: false; Enter in a field is «Create»", async () => {
   await visit();
   fill();
@@ -469,6 +504,64 @@ test("a press while the coach is being created sends nothing more; a lost answer
   await settle();
   assert.equal(words(sheet().querySelector('[role="alert"]')), t("administration.mayHaveWritten"));
   assert.equal(sheet().querySelector('[role="alert"] a'), null);
+});
+
+test("after a lost answer, a press again of the same login that the server refuses as taken leads to the coach made, not to a refusal", async () => {
+  await visit();
+  fill();
+  // The first try: no answer, and the coaches read again do not have the coach yet.
+  api.fail("POST /api/admin/coaches");
+  click(create());
+  await settle();
+  assert.equal(words(sheet().querySelector('[role="alert"]')), t("administration.mayHaveWritten"));
+  // Pressed again: the server says the login is taken — the first try's coach. The window leads to his page and the reset.
+  api.reply("POST /api/admin/coaches", 409, { error: { code: "LOGIN_ALREADY_REGISTERED", message: "Taken." } });
+  api.reply("GET /api/admin/users", 200, { users: [...USERS, NEWBIE] });
+  click(create());
+  await settle();
+  const link = sheet().querySelector('[role="alert"] a');
+  assert.deepEqual([link?.getAttribute("href"), words(link?.querySelector(".g-callout__title"))], ["#/administration/users/u9", t("administration.createdNoPassword")]);
+  assert.equal(api.calls.filter(({ key }) => key === "POST /api/admin/coaches").length, 2);
+  // Another login is another try: its refusal is the server's words.
+  type("#coach-new-login", "orc_boss");
+  api.reply("POST /api/admin/coaches", 409, { error: { code: "LOGIN_ALREADY_REGISTERED", message: "Taken." } });
+  click(create());
+  await settle();
+  assert.equal(words(sheet().querySelector('[role="alert"]')), t("error.LOGIN_ALREADY_REGISTERED"));
+});
+
+test("a press while another write of the administration is on its way sends nothing and says why", async () => {
+  await visit();
+  fill();
+  api.reply("DELETE /api/admin/teams/t1", 200, { ok: true });
+  const gate = api.hold("DELETE /api/admin/teams/t1");
+  const other = adminRequest("/api/admin/teams/t1", { method: "DELETE" });
+  try {
+    click(create());
+    await settle();
+    assert.equal(words(sheet().querySelector('[role="alert"]')), t("administration.writing"));
+    assert.equal(api.calls.filter(({ key }) => key === "POST /api/admin/coaches").length, 0, "nothing sent");
+    assert.equal(create().textContent, "Create", "free to press again");
+  } finally {
+    gate.release();
+    await other;
+  }
+});
+
+test("«Open the coach» with a modifier opens his page elsewhere: the window, and its password, stay", async () => {
+  await visit();
+  fill();
+  api.reply("POST /api/admin/coaches", 201, { user: NEWBIE, team: { id: "t9", name: "Mudfoot Boyz", stage: "draft" }, password: PASSWORD, entryId: "e9" });
+  api.reply("GET /api/admin/users", 200, { users: [...USERS, NEWBIE] });
+  click(create());
+  await settle();
+  for (const init of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }]) {
+    fireEvent(sheet().querySelector("a[data-coach-open]"), "click", init);
+    assert.ok(isOpen(), JSON.stringify(init));
+    assert.equal(sheet().querySelector(".g-coachnew__password").textContent, PASSWORD);
+  }
+  click(sheet().querySelector("a[data-coach-open]"));
+  assert.equal(isOpen(), false, "a plain press leaves the page, and the window goes first");
 });
 
 test("a refusal stays in the sheet, the fields kept", async () => {
@@ -612,7 +705,7 @@ test("the prototypes' measures: the table's columns and heads, the rows, «Open�
   // The heads in capitals, said so (L21).
   assert.deepEqual(valuesOf(CSS, ".g-coaches__head", "text-transform"), ["uppercase"]);
   assert.deepEqual(valuesOf(CSS, ".g-coaches__head", "letter-spacing"), ["0.04em"]);
-  assert.deepEqual(valuesOf(CSS, ".g-coaches__head", "border-bottom"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-coaches__head", "border-bottom"), ["1px solid var(--control-border)"], "the prototype's #C9D3CE under the head");
   assert.deepEqual(valuesOf(CSS, ".g-coaches__row", "min-height"), ["60px"]);
   assert.deepEqual(valuesOf(CSS, ".g-coaches__row", "border-bottom"), ["1px solid var(--line)"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-coaches__open", "min-height"), ["36px"]);
@@ -620,6 +713,13 @@ test("the prototypes' measures: the table's columns and heads, the rows, «Open�
   assert.deepEqual(valuesOf(CSS, ".g-coaches__open", "border-radius"), ["var(--radius-md)"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-coaches__tools .g-search", "width"), ["320px"]);
   assert.deepEqual(valuesOf(CSS, ".g-coaches .g-search__input", "height"), ["44px"]);
+  // A desk's words are the prototype's 15px; a phone's the shared 16px (iPhone's Safari zooms into a smaller field), with
+  // AdminMobile's field: no magnifier, 14 in.
+  assert.deepEqual(valuesOf(CSS, ".g-coaches .g-search__input", "font"), ["400 16px/1.2 var(--font-body)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-coaches--desk .g-search__input", "font-size"), ["15px"]);
+  assert.deepEqual(valuesOf(CSS, ".g-coaches--phone .g-search__input", "font-size"), []);
+  assert.deepEqual(valuesOf(CSS, ".g-coaches--phone .g-search > .g-icon", "display"), ["none"]);
+  assert.deepEqual(valuesOf(CSS, ".g-coaches--phone .g-search__input", "padding"), ["0 var(--space-14)"]);
   assert.deepEqual(valuesOf(CSS, ".g-coaches__who .g-status", "height"), ["26px"]);
   // AdminMobile's round: the warning's tint in the card's ring, 10 between its lines (L21).
   assert.deepEqual(valuesOf(CSS, ".g-coaches__round", "background"), ["var(--warn-tint)"]);

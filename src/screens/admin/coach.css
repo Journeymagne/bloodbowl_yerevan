@@ -90,6 +90,13 @@
   font-weight: 600;
 }
 .g-acoach__account .g-toggle__caption { font-size: 12px; }
+/*
+ * One's own switch, and the server's admin's, are closed: the rule under them («Your own admin rights cannot be taken
+ * away») is what the admin reads there, so it keeps its colour; the closed state is the track's alone (toggle.css dims
+ * the whole button, the words to about 2.5:1).
+ */
+.g-acoach__account .g-toggle:disabled { opacity: 1; }
+.g-acoach__account .g-toggle:disabled .g-toggle__track { opacity: .6; }
 
 /* «Save» and «Reset password…»: 48 high, 12 round, 15px bold, 8 apart; the reset in the button's ring. */
 .g-acoach__actions {

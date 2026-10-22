@@ -6,9 +6,11 @@
  * 1. Whose token. It asks `sessionTokenHolds()` before anything else: when another tab has signed in or out since the
  *    page read its session, nothing is sent (stage 05, R12), since the request would go out as whoever that tab
  *    signed in, under the admin this page shows.
- * 2. One on its way. While a write is out, another sends nothing (`{ignored: true}`): a second press, or another
- *    button of the screen. The screen's busy state says so; this makes sure of it. A season write's way ends when the
- *    season it changed is in place, read again if need be.
+ * 2. One on its way. While a write is out, another sends nothing (`ignored`): a second press, or another button of
+ *    the screen, or of the next screen while the last one's write is still out. The screen's busy state says so; this
+ *    makes sure of it, and an ignored press carries the words that say why (`administration.writing`, code `BUSY`),
+ *    so a screen that did not know the way was held can say so. A season write's way ends when the season it changed
+ *    is in place, read again if need be.
  * 3. A lost answer is not sent again. No connection, a timeout, a server that failed (a 5xx: its write may have
  *    committed before it did) or a proxy's answer without the server's words may each mean the write was applied: the
  *    write says so (`unknown`, `administration.mayHaveWritten`) and the screen reads again and shows what the server
@@ -31,6 +33,12 @@ let writing = null;
 /** An answer without what it should hold. */
 const empty = () => ({ error: t("request.noAnswer"), code: "" });
 
+/** A press while another write is on its way: nothing was sent, and these are the words that say why. */
+const held = () => ({ ignored: true, refusal: t("administration.writing"), code: "BUSY", unknown: false });
+
+/** Whether an answer is `/api/season`'s whole bundle (server/season/store.mjs `loadSeasonBundle`), not a part with a season in it. */
+const seasonBundle = (answer) => Boolean(answer?.season) && Array.isArray(answer.rounds) && Array.isArray(answer.standings);
+
 /** What a write that did not go through says: that it may have been written, or the server's refusal. */
 function refused(error) {
   if (unanswered(error)) return { refusal: t("administration.mayHaveWritten"), code: error?.code ?? "", unknown: true };
@@ -49,11 +57,11 @@ async function read(path) {
 /**
  * One write, by the three rules above. `settle(outcome)` is what follows the answer before the way is free again: the
  * season put in place, or read again.
- * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean}|{ignored: true}>}
+ * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean, ignored?: true}>}
  */
 async function write(path, { method, body }, settle = async () => {}) {
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab"), code: "OTHER_TAB", unknown: false };
-  if (writing) return { ignored: true };
+  if (writing) return held();
   const mine = {};
   writing = mine;
   try {
@@ -73,11 +81,11 @@ async function write(path, { method, body }, settle = async () => {}) {
 /**
  * Ask the administration's API. A GET is a read: it goes, and answers or says why not. Anything else is a write,
  * kept by the three rules above: another tab's token sends nothing (`code: "OTHER_TAB"`); a write already on its way
- * sends nothing either (`{ignored: true}`, and the screen draws nothing new); an answer that does not come back is
- * `unknown`, never sent again. `body` goes as JSON. Never throws on a refusal.
+ * sends nothing either (`ignored: true`, with the words that say so, `code: "BUSY"`); an answer that does not come back
+ * is `unknown`, never sent again. `body` goes as JSON. Never throws on a refusal.
  * @param {string} path
  * @param {{method?: string, body?: object}} [options]
- * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean}|{ignored: true}>}
+ * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean, ignored?: true}>}
  */
 export function adminRequest(path, { method = "GET", body } = {}) {
   return method === "GET" ? read(path) : write(path, { method, body });
@@ -94,20 +102,21 @@ async function readSeasonAgain() {
 
 /**
  * A write that changes the season (a round, a pairing, a result, an entry, the playoff places). An answer that is the
- * season (`/api/season`'s shape) is put in `state.season` as it came, for the admin who sent it; any other answer (a
- * game's), and one that did not come back, have the season read again, so the screen patches from what the server
+ * season (`/api/season`'s whole bundle: the season, its rounds and its standings) is put in `state.season` as it came,
+ * for the admin who sent it; any other answer (a game's, or one with a season and nothing else), and one that did not
+ * come back, have the season read again, so the screen patches from what the server
  * holds. A read of the season already on its way (a screen's refresh, the session's change) may have gone before the
  * write did: the answer waits for it to land, and is put in place after it, so the older season never stands over the
  * write's. The way is free once the season is in place: a press while it is read, or while that read is waited for,
  * sends nothing.
  * @param {string} path @param {{method?: string, body?: object}} [options] a POST unless said
- * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean}|{ignored: true}>} as adminRequest's
+ * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean, ignored?: true}>} as adminRequest's
  */
 export function seasonWrite(path, { method = "POST", body } = {}) {
   const userId = state.auth.currentUser?.id;
   const sender = () => state.auth.currentUser?.id === userId;
   return write(path, { method, body }, async ({ answer, unknown }) => {
-    if (answer?.season && sender()) {
+    if (seasonBundle(answer) && sender()) {
       if (state.season.loading) await loadSeason();
       // Signed out or in as someone else while that read landed: the answer is not theirs; read theirs instead.
       if (sender()) return replaceSeasonData(answer);

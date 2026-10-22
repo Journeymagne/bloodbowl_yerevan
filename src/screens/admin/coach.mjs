@@ -202,10 +202,11 @@ function teamsMarkup(model, now) {
   const rows = model.teams.length
     ? model.teams.map((team) => teamRowMarkup(team, now)).join("")
     : `<p class="g-acoach__none">${escapeHtml(t("administration.noTeams"))}</p>`;
+  // The coach's delete has its own words, by its button: a refusal there is no team's.
   return `<section class="g-admin__card g-acoach__teamscard" aria-labelledby="acoach-teams">`
     + `<div class="g-admin__cardhead"><h2 id="acoach-teams">${escapeHtml(t("administration.col.teams"))}</h2>${add}</div>`
     + alertMarkup(now.alert?.teams) + statusMarkup(now.status?.teams) + `<div class="g-acoach__teams">${rows}</div>`
-    + noteMarkup(t("administration.teamsNote")) + dangerMarkup(model, now) + "</section>";
+    + noteMarkup(t("administration.teamsNote")) + alertMarkup(now.alert?.coach) + dangerMarkup(model, now) + "</section>";
 }
 
 /** The screen's frame around what it shows: the head, and the content under it (`data-screen`). */
@@ -220,7 +221,7 @@ function headMarkup(phone, login = "") {
 /**
  * «Coach» in the form of the width.
  * @param {ReturnType<typeof adminCoachModel>} model
- * @param {{login?: string, isAdmin?: boolean, working?: string, alert?: {account?: string, teams?: string}, status?: {account?: string, teams?: string}}} [edit]
+ * @param {{login?: string, isAdmin?: boolean, working?: string, alert?: {account?: string, teams?: string, coach?: string}, status?: {account?: string, teams?: string}}} [edit]
  *   what the visit holds over the server's: the form as typed, the write on its way, what each card says of the last one
  */
 export function adminCoachMarkup(model, edit = {}) {
@@ -305,14 +306,17 @@ async function asked(visit, question) {
 
 /**
  * One write of the page, once: `work` names it while it is on its way (the button that says so). An ignored write
- * (another of the administration still on its way) sent nothing, and the page is as it was.
+ * (another of the administration still on its way) sent nothing: the page is as it was, and says why.
  */
 async function send(visit, draw, work, path, options) {
   visit.working = work;
   draw();
   const outcome = await adminRequest(path, options);
   visit.working = "";
-  if (visit.here && outcome.ignored) draw();
+  if (visit.here && outcome.ignored) {
+    draw();
+    toast(outcome.refusal);
+  }
   return outcome;
 }
 
@@ -398,6 +402,9 @@ async function deleteTeam(visit, draw, button) {
     else visit.alert.teams = t("administration.mayHaveWritten");
     ownTeamsChanged(visit);
   } else {
+    // Refused (the team entered into the season meanwhile): the coach is read again, so its «Delete» stands as the
+    // server has it now, closed with its reason.
+    if (outcome.code !== "OTHER_TAB") await readAgain(visit, { form: false });
     visit.alert.teams = outcome.refusal;
   }
   draw();
@@ -417,18 +424,22 @@ async function deleteCoach(visit, draw) {
     return;
   }
   unsay(visit, "teams");
+  unsay(visit, "coach");
   if (!await asked(visit, { message: t("administration.deleteCoachConfirm", { login: model.login }), confirmLabel: t("administration.deleteCoach") })) return;
   const outcome = await send(visit, draw, "coach", `/api/admin/users/${encodeURIComponent(visit.userId)}`, { method: "DELETE" });
   if (!visit.here || outcome.ignored) return;
-  if (outcome.unknown && (await readAgain(visit, { form: false })).code === "USER_NOT_FOUND") {
-    location.hash = adminUrl();
-    return;
-  }
   if (outcome.answer) {
     location.hash = adminUrl();
     return;
   }
-  visit.alert.teams = outcome.unknown ? t("administration.mayHaveWritten") : outcome.refusal;
+  // Refused (the coach entered a team into the season meanwhile) or no answer: the coach is read again, so the button
+  // stands as the server has it now — closed with its reason — and the words go by it. One who is gone was deleted.
+  const again = outcome.code === "OTHER_TAB" ? null : await readAgain(visit, { form: false });
+  if (outcome.unknown && again?.code === "USER_NOT_FOUND") {
+    location.hash = adminUrl();
+    return;
+  }
+  visit.alert.coach = outcome.unknown ? t("administration.mayHaveWritten") : outcome.refusal;
   draw();
 }
 
@@ -493,7 +504,7 @@ export async function renderAdminCoach(userId) {
   }
   const visit = {
     here: true, userId, user: null, teams: [], error: "", code: "", login: "", isAdmin: false, working: "", asking: false,
-    alert: { account: "", teams: "" }, status: { account: "", teams: "" },
+    alert: { account: "", teams: "", coach: "" }, status: { account: "", teams: "", coach: "" },
   };
   const draw = () => {
     if (visit.here) patch(view, markupOf(visit));

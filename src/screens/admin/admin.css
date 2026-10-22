@@ -38,7 +38,17 @@
   text-transform: none;
   overflow-wrap: anywhere;
 }
+/*
+ * A part of the path that leads somewhere («Coaches», «orc_boss»): 24px or more from 901px (D2), a thumb's 44 up to
+ * 900px, over its 14/1.4 line (19.6px). The room is a padding above and below that a margin as large takes back, so
+ * the line keeps its height and the path its place (as a.g-adminentries__team).
+ */
 .g-admin__crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: calc(9.8px - 12px) 0;
+  padding: calc(12px - 9.8px) 0;
   color: var(--accent-text);
   font-weight: 600;
   text-decoration: underline;
@@ -108,7 +118,8 @@
   border: 0;
   background: none;
   color: var(--ink);
-  font: 700 24px/1.2 var(--font-display);
+  /* The prototypes' h2 has no line height of its own: `normal`, 36px for Oswald 24. */
+  font: 700 24px/normal var(--font-display);
   letter-spacing: 0;
   text-transform: none;
   overflow-wrap: anywhere;
@@ -181,7 +192,18 @@
 
 /* ---- A phone (AdminMobile.html) ---- */
 @media (max-width: 900px) {
+  /*
+   * AdminMobile.html is white: the 2.x view's wash (site-matchday.css's .view::after, the accent's tint fading over
+   * 320px) is off under the administration's screens, as under the league's (league.css); a desk's stand on its grey.
+   * The team's edit is the roster's and keeps the roster's.
+   */
+  #app-view:has(> .g-admin__head, > .g-adminseason, .g-admin__refusal)::after { display: none; }
   .g-admin__head .g-pagehead--phone { margin: 0; }
+  .g-admin__crumbs a {
+    min-height: var(--size-touch);
+    margin: calc(9.8px - var(--size-touch) / 2) 0;
+    padding: calc(var(--size-touch) / 2 - 9.8px) 0;
+  }
   .g-admin__head .g-pagehead--phone .g-pagehead__title { font-size: 24px; }
 
   /* Two buttons side by side, 48 high and 8 apart: the shown section filled, the other ringed. */

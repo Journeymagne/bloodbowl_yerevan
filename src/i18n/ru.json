@@ -149,6 +149,7 @@
   "administration.only": "Раздел только для администратора",
   "administration.onlySub": "Войдите под учётной записью администратора лиги.",
   "administration.mayHaveWritten": "Ответ не пришёл: сайт читает данные заново — проверьте, сохранилось ли.",
+  "administration.writing": "Другая правка ещё в пути: подождите немного и нажмите снова.",
   "administration.reading": "Читаем…",
   "administration.readFailed": "Не удалось прочитать: {reason}",
   "administration.again": "Повторить",

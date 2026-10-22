@@ -497,13 +497,23 @@ test("a delete closed says why on a press; an open one asks, then goes to the co
   assert.equal(writes().length, 0);
   assert.equal(location.hash, "#/administration/users/u2");
 
-  // Refused: the server's words; a lost answer that finds the coach gone goes to the coaches too.
+  // Refused: the server's words by the button, not over the teams; the coach read again, so the button is closed with
+  // the server's reason now (a team entered into the season meanwhile).
   await visit({ coach: { ...ORC_BOSS, deleteBlock: null }, teams: [] });
   confirmWith(true);
-  api.reply("DELETE /api/admin/users/u2", 409, { error: { code: "USER_IN_FRIENDLY_GAMES", message: "No." } });
+  api.reply("DELETE /api/admin/users/u2", 409, { error: { code: "USER_IN_SEASON", message: "No." } });
+  api.reply("GET /api/admin/users/u2", 200, { user: { ...ORC_BOSS, deleteBlock: "season" }, teams: [] });
   click("[data-acoach-delete]");
   await settle();
-  assert.equal(words(view.querySelector('.g-acoach__teamscard [role="alert"]')), t("error.USER_IN_FRIENDLY_GAMES"));
+  await settle();
+  const alerts = view.querySelectorAll('.g-acoach__teamscard [role="alert"]');
+  assert.deepEqual(alerts.map(words), ["", t("error.USER_IN_SEASON")], "the teams' alert says nothing; the coach's, by the delete, says why");
+  const parts = view.querySelector(".g-acoach__teamscard").childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(parts[parts.indexOf(alerts[1]) + 1]?.classList.contains("g-acoach__danger"), "right over the delete");
+  assert.equal(view.querySelector("[data-acoach-delete]").getAttribute("aria-disabled"), "true", "closed, as the server has it now");
+  assert.equal(words(view.querySelector("#acoach-delete-why")), t("administration.block.season"));
+  assert.deepEqual(adminCalls().filter((key) => key.startsWith("GET")).length, 2, "read again once");
+  // A lost answer that finds the coach gone goes to the coaches too.
   await visit({ coach: { ...ORC_BOSS, deleteBlock: null }, teams: [] });
   confirmWith(true);
   api.fail("DELETE /api/admin/users/u2");
@@ -537,6 +547,18 @@ test("a team's delete asks, then the coach is read again; a lost answer is not s
   await settle();
   assert.deepEqual(adminCalls(), ["GET /api/admin/users/u2", "DELETE /api/admin/teams/rt3", "GET /api/admin/users/u2"]);
   assert.equal(words(view.querySelector('.g-acoach__teamscard [role="alert"]')), t("administration.mayHaveWritten"));
+
+  // Refused (entered into the season meanwhile): the coach read again, the team's «Delete» closed with the server's reason.
+  await visit();
+  confirmWith(true);
+  api.reply("DELETE /api/admin/teams/rt3", 409, { error: { code: "TEAM_IN_SEASON_CANNOT_BE_DELETED", message: "No." } });
+  api.reply("GET /api/admin/users/u2", 200, { user: ORC_BOSS, teams: [TEAMS[0], TEAMS[1], { ...TEAMS[2], inActiveSeason: true, deleteBlock: "season" }] });
+  click('[data-acoach-team-delete="rt3"]');
+  await settle();
+  await settle();
+  assert.deepEqual(adminCalls(), ["GET /api/admin/users/u2", "DELETE /api/admin/teams/rt3", "GET /api/admin/users/u2"]);
+  assert.equal(words(view.querySelector('.g-acoach__teamscard [role="alert"]')), t("error.TEAM_IN_SEASON_CANNOT_BE_DELETED"));
+  assert.equal(view.querySelector('[data-acoach-team-delete="rt3"]').getAttribute("aria-disabled"), "true");
 });
 
 test("a new team for the coach is a draft of 600k", async () => {
@@ -780,6 +802,10 @@ test("D2: a thumb's targets 44 and more, a desk's as the prototype draws them, 2
 
 test("readable: the coach's line, the facts, the rows, the closed delete, the danger, in every palette", () => {
   assertReadable(CSS, ".g-acoach__line", "color", ["--page", "--surface"], 4.5);
+  // One's own closed switch: its rule keeps the caption's colour (toggle.css's), the track alone is dimmed.
+  assertReadable("src/ui/toggle.css", ".g-toggle__caption", "color", ["--surface"], 4.5);
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__account .g-toggle:disabled", "opacity"), ["1"]);
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__account .g-toggle:disabled .g-toggle__track", "opacity"), [".6"]);
   assertReadable(CSS, ".g-acoach__factlabel", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-acoach__factvalue", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-acoach__tile", "color", ["--header"], 4.5);

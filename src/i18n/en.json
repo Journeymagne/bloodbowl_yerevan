@@ -149,6 +149,7 @@
   "administration.only": "This section is for the administrator only",
   "administration.onlySub": "Sign in with the league administrator's account.",
   "administration.mayHaveWritten": "No answer came: the site is reading the data again — check whether it was saved.",
+  "administration.writing": "Another change is still on its way: wait a moment and press again.",
   "administration.reading": "Reading…",
   "administration.readFailed": "Could not read: {reason}",
   "administration.again": "Try again",

@@ -56,10 +56,14 @@ export function adminHeadMarkup({ title, sub = "", crumbsHtml = "", section, pho
   return `<div class="g-admin__head">${renderPageHead({ title, sub, phone })}${crumbsHtml}</div><div class="g-admin__switch">${sections}</div>`;
 }
 
-/** What a coach who is no admin is shown on an administration address: the section is the admin's, and the way home. */
+/**
+ * What a coach who is no admin is shown on an administration address: the section is the admin's, and the way home.
+ * Its title stands as the other screens' heads do (a phone's 24px title, a desk's band): on a phone the shell's header
+ * does not name it.
+ */
 export function adminRefusalMarkup() {
-  return renderPageHead({ title: t("administration.title") })
-    + renderCallout({ title: t("administration.only"), sub: t("administration.onlySub"), href: "#/" });
+  return `<div class="g-admin__refusal"><div class="g-admin__head">${renderPageHead({ title: t("administration.title"), phone: true })}</div>`
+    + `${renderCallout({ title: t("administration.only"), sub: t("administration.onlySub"), href: "#/" })}</div>`;
 }
 
 /**

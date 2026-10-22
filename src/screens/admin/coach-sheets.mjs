@@ -23,7 +23,6 @@ import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
-import { announce } from "../../components/live-region.mjs";
 import { toast } from "../../components/toast.mjs";
 import { adminRequest } from "../../data/admin.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
@@ -36,7 +35,7 @@ import { wireRadioGroups } from "../../ui/choice.mjs";
 import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { mountSheetHost } from "../team/manage/sheet-host.mjs";
-import { copyPassword, passwordMarkup, raceChoiceMarkup } from "./coach-new.mjs";
+import { copyPassword, passwordMarkup, raceChoiceMarkup, tell, windowSaidMarkup } from "./coach-new.mjs";
 import { isAdminViewer } from "./frame.mjs";
 
 /** What the reset's window is shown by (`#admin-reset`). */
@@ -112,7 +111,7 @@ function teamMarkup(sheet) {
   return renderSheet({
     id: TEAM_NEW_SHEET_ID, title: t("administration.teamNew.title"), wide: true, className: "g-coachnew",
     sub: t("administration.teamNew.sub", { login: sheet.coach.login, budget: formatMoney(startingBudget) }),
-    bodyHtml: alert + name + raceChoiceMarkup({ selected: form.race, all: sheet.all, busy })
+    bodyHtml: windowSaidMarkup(sheet.said) + alert + name + raceChoiceMarkup({ selected: form.race, all: sheet.all, busy })
       + `<p class="g-admin__note">${escapeHtml(t("administration.teamNew.note", { budget: formatMoney(startingBudget) }))}</p>`,
     footHtml: renderButton({ label: t("common.cancel"), data: { sheetClose: "" } }) + createMarkup(sheet),
   });
@@ -192,7 +191,7 @@ async function create() {
   const want = wantOf(sheet.form);
   if (want) {
     host.querySelector(PLACE[want])?.focus();
-    announce(NEED[want]());
+    tell(sheet, NEED[want](), () => shown === sheet, draw);
     return;
   }
   const name = sheet.form.name.trim();
@@ -201,8 +200,9 @@ async function create() {
   draw();
   const outcome = await adminRequest(`/api/admin/users/${encodeURIComponent(sheet.coach.id)}/teams`, { method: "POST", body: teamBody(raceTeamOf(sheet.form.race), name) });
   if (outcome.ignored) {
-    // Another write of the administration is still on its way: nothing was sent, and the button is free again.
-    say(sheet, "");
+    // Another write of the administration is still on its way: nothing was sent, the button is free again, and the
+    // window says why.
+    say(sheet, outcome.refusal);
     return;
   }
   if (outcome.answer?.team) {

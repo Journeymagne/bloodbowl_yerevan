@@ -204,12 +204,13 @@ function took(visit, answer) {
 
 /**
  * Read the coaches (and the season, for its name and its round), the screen saying so meanwhile; the title takes the
- * focus once they are in, as on the way in.
+ * focus once they are in, as on the way in. The season is read anew, not taken as the page loaded it: a phone's card
+ * says how the round stands now (results confirmed since, a round started).
  */
 async function read(visit, draw) {
   Object.assign(visit, { users: null, error: "" });
   draw();
-  const [answer] = await Promise.all([readAdminUsers(), loadSeason()]);
+  const [answer] = await Promise.all([readAdminUsers(), loadSeason(true)]);
   if (!visit.here) return;
   took(visit, answer);
   draw();

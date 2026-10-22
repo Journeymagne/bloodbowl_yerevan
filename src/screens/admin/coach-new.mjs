@@ -26,7 +26,6 @@ import { adminCoachUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
-import { announce } from "../../components/live-region.mjs";
 import { toast } from "../../components/toast.mjs";
 import { adminRequest, readAdminUsers } from "../../data/admin.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
@@ -123,6 +122,31 @@ const bodyOf = (form) => ({
   login: form.login.trim(), telegram: normalizeTelegram(form.telegram), teamName: form.teamName.trim(), baseTeamSlug: form.race, enter: form.enter,
 });
 
+/**
+ * What the window says to a screen reader alone (what «Create» still wants, the news of the coach made), from inside
+ * the window: under a modal the rest of the page, the shell's live region among it, is inert and says nothing. First in
+ * the window's body in either of its forms, so a patch keeps the one node and only its words change.
+ * @param {string} said
+ */
+export function windowSaidMarkup(said) {
+  return `<p class="g-sr-only" role="status" data-window-said>${escapeHtml(said ?? "")}</p>`;
+}
+
+/**
+ * Say `words` in the window's own status (`windowSaidMarkup`), emptied first, so the same words twice are heard twice
+ * (as components/live-region.mjs does); nothing when the window is no longer the one it was said for.
+ * @param {{said?: string}} sheet @param {string} words @param {() => boolean} still whether it is still that window @param {() => void} redraw
+ */
+export function tell(sheet, words, still, redraw) {
+  sheet.said = "";
+  redraw();
+  setTimeout(() => {
+    if (!still()) return;
+    sheet.said = words;
+    redraw();
+  }, 0);
+}
+
 /** Always on the page, so a screen reader hears what is put in it: a refusal, or the coach made whose password did not come back. */
 function alertMarkup(shown) {
   const lost = shown.lost
@@ -136,7 +160,7 @@ function formMarkup(shown) {
   const { form, busy } = shown;
   const field = (id, name, label, extra = {}) => renderTextField({ id, name, label, value: form[name], autocomplete: "off", readonly: busy, ...extra });
   const season = state.season.data?.season?.name ?? "";
-  return alertMarkup(shown)
+  return windowSaidMarkup(shown.said) + alertMarkup(shown)
     + `<div class="g-coachnew__fields">${field("coach-new-login", "login", t("administration.coachNew.login"), { verbatim: true })}`
     + `${field("coach-new-telegram", "telegram", t("administration.telegram"), { verbatim: true, placeholder: t("auth.telegramPlaceholder") })}`
     + `${field("coach-new-team", "teamName", t("administration.coachNew.teamName"))}</div>`
@@ -185,7 +209,7 @@ function sheetMarkup(shown) {
   return renderSheet({
     id: COACH_NEW_SHEET_ID, title: t("administration.created"), sub: t("administration.createdLine", { login: result.login, team: result.team }), wide: true,
     className: "g-coachnew",
-    bodyHtml: passwordMarkup(result) + `<p class="g-admin__note">${escapeHtml(t("administration.passwordNote"))}</p>`,
+    bodyHtml: windowSaidMarkup(shown.said) + passwordMarkup(result) + `<p class="g-admin__note">${escapeHtml(t("administration.passwordNote"))}</p>`,
     footHtml: renderButton({ label: t("administration.openCoach"), href: adminCoachUrl(result.userId), data: { coachOpen: "" } })
       + renderButton({ label: t("administration.done"), kind: "primary", data: { sheetClose: "", coachDone: "" } }),
   });
@@ -198,7 +222,7 @@ let host = null;
  * The window while it is open, and null while it is not: the form as typed, whether every race is shown, a write on
  * its way, what was said of the last one, and the news of the coach made (his password among it).
  * @type {null|{form: {login: string, telegram: string, teamName: string, race: string, enter: boolean}, all: boolean,
- *   busy: boolean, refusal: string, lost: null|{userId: string, login: string},
+ *   busy: boolean, refusal: string, lost: null|{userId: string, login: string}, tried?: {login: string, before: Set<string>}, said?: string,
  *   result: null|{userId: string, login: string, team: string, password: string, copied: ""|"done"|"manual"},
  *   opener: Element|null, users: () => object[], onUsers: (answer: object) => void}}
  */
@@ -272,7 +296,8 @@ async function created(sheet, sent, answer, before) {
   sheet.result = { userId: String(answer.user?.id ?? ""), login: answer.user?.login ?? sent.login, team: answer.team?.name ?? sent.teamName, password, copied: "" };
   draw();
   host.querySelector("[data-coach-copy]")?.focus();
-  announce(`${t("administration.created")}. ${t("administration.createdLine", { login: sheet.result.login, team: sheet.result.team })}`);
+  const news = `${t("administration.created")}. ${t("administration.createdLine", { login: sheet.result.login, team: sheet.result.team })}`;
+  tell(sheet, news, () => shown === sheet, draw);
 }
 
 /**
@@ -290,7 +315,10 @@ async function lostAnswer(sheet, sent, before) {
 
 /**
  * «Create»: what the form still wants is said, and the admin is put there; a complete form is sent once. A second
- * press while it is on its way finds the sheet busy and sends nothing.
+ * press while it is on its way finds the sheet busy and sends nothing. After an answer that did not come back the
+ * window remembers the try (its login, and who was in the league before it): a press again of the same login that the
+ * server refuses as taken was, most likely, the first try's coach — the coaches are read again against the league of
+ * that first press, and the window leads to his page and the reset, not to a refusal.
  */
 async function create() {
   const sheet = shown;
@@ -298,24 +326,27 @@ async function create() {
   const want = wantOf(sheet.form);
   if (want) {
     host.querySelector(PLACE[want])?.focus();
-    announce(NEED[want]());
+    tell(sheet, NEED[want](), () => shown === sheet, draw);
     return;
   }
   const sent = bodyOf(sheet.form);
-  const before = new Set(sheet.users().map((user) => loginKey(user.login)));
+  const again = sheet.tried?.login === loginKey(sent.login) ? sheet.tried : null;
+  const before = again?.before ?? new Set(sheet.users().map((user) => loginKey(user.login)));
   Object.assign(sheet, { busy: true, refusal: "", lost: null });
   draw();
   const outcome = await adminRequest("/api/admin/coaches", { method: "POST", body: sent });
   if (outcome.ignored) {
-    // Another write of the administration is still on its way: nothing was sent, and the button is free again.
-    say(sheet, {}, "");
+    // Another write of the administration is still on its way: nothing was sent, the button is free again, and the
+    // window says why.
+    say(sheet, { refusal: outcome.refusal }, outcome.refusal);
     return;
   }
   if (outcome.answer) {
     await created(sheet, sent, outcome.answer, before);
     return;
   }
-  if (outcome.unknown) {
+  if (outcome.unknown || (again && outcome.code === "LOGIN_ALREADY_REGISTERED")) {
+    sheet.tried = { login: loginKey(sent.login), before };
     await lostAnswer(sheet, sent, before);
     return;
   }
@@ -370,8 +401,12 @@ function wire(root) {
     if (key === ENTER_KEY) change({ enter: checked });
   });
   delegate(root, "click", "[data-coach-copy]", () => void copy());
-  // «Open the coach» leaves the page the window stands over: the password goes first.
-  delegate(root, "click", "[data-coach-open]", () => closeCoachNew());
+  // «Open the coach» leaves the page the window stands over: the password goes first. A press that opens the coach's
+  // page elsewhere (a new tab or window, with a modifier or the middle button) leaves this page, and the window, as it is.
+  delegate(root, "click", "[data-coach-open]", (event) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || (event.button ?? 0) !== 0) return;
+    closeCoachNew();
+  });
   wireSheets(root, { onClose: () => closeCoachNew({ focus: true }) });
 }
 

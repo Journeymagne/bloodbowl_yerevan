@@ -25,6 +25,8 @@ const ADMIN = { id: "u1", login: "admin", isAdmin: true };
 const ORC_BOSS = { id: "u2", login: "orc_boss", telegram: "@orc_boss", isAdmin: false, savedTeamCount: 2 };
 const SEASON = { season: { id: "s1", name: "Season 1", currentRound: 7 }, standings: [], rounds: [] };
 const keys = () => api.calls.map(({ key }) => key);
+/** What a press gets while another write is on its way: nothing sent, and the words that say why. */
+const HELD = () => ({ ignored: true, refusal: t("administration.writing"), code: "BUSY", unknown: false });
 
 /** The admin signed in on this page, under the token the page read the session with. */
 function signIn(token = "tok") {
@@ -100,6 +102,8 @@ test("a coach who is no admin is shown the banner home, and only the admin is an
   }
   const page = mount(adminRefusalMarkup());
   assert.equal(page.querySelector("h1").textContent, "Administration");
+  // Its title stands as the other screens' heads: a phone's title (the shell's header does not name it), a desk's band.
+  assert.ok(page.querySelector(".g-admin__refusal .g-admin__head .g-pagehead").classList.contains("g-pagehead--phone"));
   const banner = page.querySelector("a.g-callout");
   assert.equal(banner.getAttribute("href"), "#/");
   assert.equal(page.querySelector(".g-callout__title").textContent, t("administration.only"));
@@ -160,8 +164,8 @@ test("a second write while one is on its way sends nothing; a read still goes; t
   api.reply("POST /api/admin/coaches", 201, { user: ORC_BOSS });
   const gate = api.hold("POST /api/admin/coaches");
   const first = adminRequest("/api/admin/coaches", { method: "POST", body: { login: "orc_boss" } });
-  assert.deepEqual(await adminRequest("/api/admin/coaches", { method: "POST", body: { login: "orc_boss" } }), { ignored: true });
-  assert.deepEqual(await adminRequest("/api/admin/users/u2", { method: "DELETE" }), { ignored: true }, "any write: one on its way at a time");
+  assert.deepEqual(await adminRequest("/api/admin/coaches", { method: "POST", body: { login: "orc_boss" } }), HELD());
+  assert.deepEqual(await adminRequest("/api/admin/users/u2", { method: "DELETE" }), HELD(), "any write: one on its way at a time");
   api.reply("GET /api/admin/users", 200, { users: [ADMIN, ORC_BOSS] });
   assert.deepEqual(await readAdminUsers(), { users: [ADMIN, ORC_BOSS] }, "a read writes nothing and goes");
   assert.deepEqual(keys(), ["POST /api/admin/coaches", "GET /api/admin/users"]);
@@ -195,13 +199,23 @@ test("a season write puts the server's season in place", async () => {
   assert.deepEqual(keys(), ["POST /api/games/g1/confirm", "GET /api/season"]);
   assert.equal(state.season.data, after);
 
+  // An answer with a season in it that is not the whole bundle (a part of it, the settings' own) is read again: put in
+  // place, it would leave the page a season without its rounds and standings.
+  signIn();
+  api.reply("PATCH /api/season/admin/settings", 200, { season: { ...SEASON.season, playoffPlaces: 4 } });
+  const full = { ...SEASON, season: { ...SEASON.season, playoffPlaces: 4 } };
+  api.reply("GET /api/season", 200, full);
+  await seasonWrite("/api/season/admin/settings", { method: "PATCH", body: { playoffPlaces: 4 } });
+  assert.deepEqual(keys(), ["PATCH /api/season/admin/settings", "GET /api/season"]);
+  assert.equal(state.season.data, full, "the season read again, whole");
+
   // A refusal changes nothing and reads nothing.
   signIn();
   api.reply("PATCH /api/season/admin/settings", 422, { error: { code: "FIELD_INVALID" } });
   const refused = await seasonWrite("/api/season/admin/settings", { method: "PATCH", body: { playoffPlaces: 99 } });
   assert.equal(refused.code, "FIELD_INVALID");
   assert.deepEqual(keys(), ["PATCH /api/season/admin/settings"]);
-  assert.equal(state.season.data, after);
+  assert.equal(state.season.data, full);
 });
 
 test("a read of the season on its way when a season write is answered does not put back the season from before the write", async () => {
@@ -224,7 +238,7 @@ test("a read of the season on its way when a season write is answered does not p
     reading.release();
     await refresh;
   }
-  assert.deepEqual(second, { ignored: true }, "the way stays held until the write's season is in place: a second «+ pair» sends nothing");
+  assert.deepEqual(second, HELD(), "the way stays held until the write's season is in place: a second «+ pair» sends nothing");
   assert.equal((await written).answer, after);
   assert.equal(state.season.data, after, "the write's season stands, not the older read's");
   assert.equal(state.season.loading, false);
@@ -270,7 +284,7 @@ test("a lost answer reads again and sends nothing twice", async () => {
   const second = seasonWrite("/api/season/admin/rounds/generate", { method: "POST" });
   await new Promise((resolve) => { setImmediate(resolve); });
   assert.equal(reading.count, 1);
-  assert.deepEqual(await seasonWrite("/api/season/admin/rounds/generate", { method: "POST" }), { ignored: true });
+  assert.deepEqual(await seasonWrite("/api/season/admin/rounds/generate", { method: "POST" }), HELD());
   reading.release();
   assert.equal((await second).unknown, true);
   assert.deepEqual(keys(), ["POST /api/season/admin/rounds/generate", "GET /api/season"]);
@@ -355,10 +369,29 @@ test("the prototypes' measures: the band, the switch, the card, the grid", () =>
   }
 });
 
-test("D2: a thumb's switch 44 and more, a desk's 24 and more", () => {
-  const px = (value) => Number(String(value).replace("px", ""));
+test("D2: a thumb's switch 44 and more, a desk's 24 and more; the path's links too, the line keeping its height", () => {
+  const px = (value) => (value === "var(--size-touch)" ? 44 : Number(String(value).replace("px", "")));
   assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-admin__switch .g-seg__item", "min-height")[0]) >= 44);
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-admin__switch .g-seg__item", "min-height")[0]) >= 24);
+  // «Coaches», «orc_boss»: 24 from 901px, 44 up to 900px, over a 14/1.4 line (19.6px) whose height a margin keeps.
+  assert.deepEqual(valuesOf(CSS, ".g-admin__crumbs", "font"), ["400 14px/1.4 var(--font-body)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-admin__crumbs a", "display"), ["inline-flex"]);
+  assert.ok(px(valuesOf(CSS, ".g-admin__crumbs a", "min-height")[0]) >= 24, "a desk's");
+  assert.deepEqual(valuesOf(CSS, ".g-admin__crumbs a", "padding").slice(0, 1), ["calc(12px - 9.8px) 0"]);
+  assert.deepEqual(valuesOf(CSS, ".g-admin__crumbs a", "margin").slice(0, 1), ["calc(9.8px - 12px) 0"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__crumbs a", "min-height"), ["var(--size-touch)"], "a thumb's");
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__crumbs a", "padding"), ["calc(var(--size-touch) / 2 - 9.8px) 0"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__crumbs a", "margin"), ["calc(9.8px - var(--size-touch) / 2) 0"]);
+});
+
+test("a phone's administration is white: the 2.x wash is off under its screens and its refusal, not under the team's roster", () => {
+  const rule = "#app-view:has(> .g-admin__head, > .g-adminseason, .g-admin__refusal)::after";
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", rule, "display"), ["none"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", rule, "display"), [], "a desk's page is the desk's grey");
+});
+
+test("a card's title stands at the prototypes' line height: `normal`, 36px for Oswald 24", () => {
+  assert.deepEqual(valuesOf(CSS, ".g-admin__cardhead", "font"), ["700 24px/normal var(--font-display)"]);
 });
 
 test("readable: the letter on its circle, the muted words, the path's links, the switch, in every palette", () => {
