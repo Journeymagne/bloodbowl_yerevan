@@ -206,6 +206,32 @@ test("a list that could not be read says why with Refresh, which reads it again"
   }
 });
 
+test("«Refresh» gone with its callout once the list is read: its focus goes to the title", async () => {
+  try {
+    width(true);
+    coach();
+    api.fail("GET /api/challenges");
+    await renderTeamChallenges("t1");
+    await settle();
+    const retry = view.querySelector("[data-friendly-retry]");
+    retry.focus();
+    // Failing again: the button stays, and so does the focus.
+    fireEvent(retry, "click");
+    await settle();
+    assert.ok(view.querySelector("[data-friendly-retry]") === retry);
+    assert.ok(document.activeElement === retry);
+    list(CHALLENGES);
+    fireEvent(retry, "click");
+    await settle();
+    assert.equal(sent("GET /api/challenges").length, 3);
+    assert.ok(view.querySelector("[data-friendly-retry]") === null, "the list is read: no callout");
+    assert.ok(document.activeElement === title(), "not left on the body");
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
 test("a second press while the challenge is on its way sends nothing", async () => {
   try {
     await visit();

@@ -41,8 +41,10 @@
  * sheet is open (any read — the tab seen again, «Refresh», the one after a write — after it was cancelled) closes the
  * sheet, the page saying why: no draw leaves the sheet open with nothing drawn.
  *
- * A closed sheet gives the focus back to the button that opened it, or to the title once that is gone. Leaving closes
- * the sheet and stops listening; an answer that comes after draws nothing and leads nowhere.
+ * A closed sheet gives the focus back to the button that opened it, or to the title once that is gone. A focus a draw
+ * takes away — a card answered, «Refresh» once the read succeeds, a button a refusal closes — goes to the sheet's first
+ * control, or to the title. Leaving closes the sheet and stops listening; an answer that comes after draws nothing and
+ * leads nowhere.
  */
 import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
@@ -272,6 +274,8 @@ async function refresh(visit) {
   visit.held = false;
   if (visit.presetPending && mayOpen(visit) && visit.payload && !visit.readError) openSend(visit, visit.preset);
   else draw(visit);
+  // «Refresh» goes with the callout of the read that failed, once the read succeeds: its focus goes to the title.
+  refocus(visit);
 }
 
 /** What a write's answer said, or that none came: in its sheet while that is open, otherwise on the page. */
