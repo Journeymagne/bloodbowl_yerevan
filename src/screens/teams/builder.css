@@ -155,13 +155,14 @@
   background: var(--line);
   overflow: hidden;
 }
+/* The fill is the accent's words' colour: 3:1 on the --line track in every palette (--accent was 2.48:1 in night). */
 .g-build__bar::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 0;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--accent-text);
 }
 .g-build__bar--over::before { background: var(--danger); }
 .g-build__bar--0::before { width: 0; }

@@ -405,7 +405,8 @@ test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, giving way down 
   // The count never gives way: no shrinking, no wrapping; its size follows the tile's (17px in a 95px one, 13px at the least).
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "flex"), ["none"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "white-space"), ["nowrap"]);
-  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "font-size"), ["clamp(13px, calc(26cqi - 7.6px), 17px)"]);
+  // 15px first, for a browser that drops the container query's clamp (stage 13, the 07-desk handoff).
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "font-size"), ["15px", "clamp(13px, calc(26cqi - 7.6px), 17px)"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "container-type"), ["inline-size"], "what the count's size is measured against");
   // What the match added is a superscript beside the count, as the table's.
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "vertical-align"), ["super"]);

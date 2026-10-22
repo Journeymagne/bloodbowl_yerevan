@@ -138,8 +138,8 @@ function telegramCardMarkup(model) {
     + `<p class="g-coach__note">${escapeHtml(t("coach.contactNote"))}</p></div>`;
 }
 
-/** His teams: each a link to its page, the tile of its letters, its name and line, a chevron. */
-const teamsMarkup = (teams) => `<div class="g-coach__teams">${teams.map((team) => link(team.href, "g-coach__team", `${renderTeamFace(team)}${icon("chevron", 16)}`)).join("")}</div>`;
+/** His teams: each a link to its page, the tile of its letters, its name and line, the short chevron CoachProfile draws. */
+const teamsMarkup = (teams) => `<div class="g-coach__teams">${teams.map((team) => link(team.href, "g-coach__team", `${renderTeamFace(team)}${icon("chevronShort", 16)}`)).join("")}</div>`;
 
 /** «Your meetings»: «Round 3 · league» over «Ours — Theirs», the outcome at the right in its tone; the words when there are none. */
 function meetingsMarkup(model, heading) {

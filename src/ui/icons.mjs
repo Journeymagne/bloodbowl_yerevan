@@ -11,7 +11,11 @@ const SHAPES = {
   minus: '<path d="M5 12h14"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   back: '<path d="M15 18l-6-6 6-6"/>',
-  chevron: '<path d="M9 6l6 6-6 6"/>',
+  // Two chevrons, as the prototypes draw them (stage 13, L14): the long one is the kit's (Callout, ListRow, Team,
+  // Matches, Stats, Ref, the board's «next»); the short one only CoachProfile's teams, AdminMobile's coaches and
+  // Settings' «Администрирование» draw, and «Карьера» turned down (PlayerCareer's M6 9l6 6 6-6).
+  chevron: '<path d="M9 5l7 7-7 7"/>',
+  chevronShort: '<path d="M9 6l6 6-6 6"/>',
   // «Advance» (DeskRoster.html): an arrow up.
   up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   check: '<path d="M5 12l5 5 9-10"/>',

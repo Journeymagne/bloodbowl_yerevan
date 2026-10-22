@@ -87,7 +87,8 @@ function sppMarkup(line, screen) {
 }
 
 /**
- * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and a chevron.
+ * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and the kit's
+ * long chevron, as its ListRow ends.
  * Closed (`reason`: why the edit is, or that its fields are changed and are saved or cancelled first) it stays in
  * reach, saying why as its title and, pressed, in a message (`data-roster-closed`, K7).
  * @param {import("./model.mjs").PlayerLine} line @param {string} reason

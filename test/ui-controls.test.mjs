@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { PALETTES, assertReadable, colourOf, contrast, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { PALETTES, assertContrast, assertReadable, colourOf, contrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { BUTTON_KINDS, renderButton, renderIconButton } from "../src/ui/button.mjs";
 import { wireRadioGroups } from "../src/ui/choice.mjs";
@@ -72,7 +72,7 @@ test("the filled danger button wears --danger-fill with --on-danger-fill, readab
   assert.deepEqual(valuesOf(css, ".g-btn--danger", "color"), ["var(--on-danger-fill)"]);
   assertReadable(css, ".g-btn--danger", "color", ["--danger-fill"], 4.5);
   assertReadable(css, ".g-btn--danger", "background", ["--surface"], 3);
-  for (const selector of [".g-btn--danger-outline", ".g-btn--danger-quiet"]) assert.deepEqual(valuesOf(css, selector, "color"), ["var(--danger)"], selector);
+  assert.deepEqual(valuesOf(css, ".g-btn--danger-quiet", "color"), ["var(--danger)"]);
   const sheets = readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css") && !name.endsWith("tokens.css"));
   const wearers = sheets.filter((name) => /var\(\s*--(?:on-)?danger-fill\s*\)/.test(readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8")));
   assert.deepEqual(wearers.map((name) => name.split("\\").join("/")), ["ui/button.css"]);
@@ -97,17 +97,66 @@ test("a closed danger button is drawn as a closed primary is: the grey fill at f
     assert.deepEqual(valuesOf(css, selector, "color"), [], `${selector}: the label keeps the colour of its kind`);
   }
   assert.deepEqual(valuesOf(css, ".g-btn--danger", "color"), ["var(--on-danger-fill)"]);
-  // The label on the closed fill, in all eight palettes: never less readable than the closed primary's (the same grey
-  // under a white label), and, in a dark palette, 4.5:1. In a light palette the prototypes' own #A9B3AE under white is
+  // The label on the closed fill, in the four light palettes (a dark one draws no fill: the test below): never less
+  // readable than the closed primary's (the same grey under a white label). The prototypes' own #A9B3AE under white is
   // 2.15:1, which is what a closed main button is there (WCAG 1.4.3 leaves an inactive control out); 2 is the floor.
-  for (const palette of Object.keys(PALETTES)) {
+  for (const palette of Object.keys(PALETTES).filter((key) => PALETTES[key] === "light")) {
     const tokens = tokensOf(palette);
     const [fill, danger, primary] = ["--disabled", "--on-danger-fill", "--on-accent"].map((name) => colourOf(`var(${name})`, tokens));
     const [red, main] = [contrast(danger, fill), contrast(primary, fill)];
     assert.ok(red >= main, `${palette}: the closed red label (${red.toFixed(2)}:1) is below the closed primary's (${main.toFixed(2)}:1)`);
-    assert.ok(red >= (PALETTES[palette] === "dark" ? 4.5 : 2), `${palette}: the closed red label is ${red.toFixed(2)}:1`);
+    assert.ok(red >= 2, `${palette}: the closed red label is ${red.toFixed(2)}:1`);
   }
   assertReadable(css, ".g-btn--danger", "color", ["--danger-fill"], 4.5);
+});
+
+// Stage 13, decision 13 and the owner's answer 3: in a dark palette the grey fill of a closed main button read as one
+// more grey button (M2: «almost no different from a plain grey one»). There it is drawn as closed: no fill, a dashed
+// ring of --line-strong, the label --muted. The mode is data-mode on <html>, or the system's dark when theme-boot.js did
+// not run (tokens.css's own fallback); a light palette keeps the prototypes' grey fill under the white label.
+test("a closed main button in a dark palette is an outline, not a grey fill; its label reads 4.5:1", () => {
+  const css = "src/ui/button.css";
+  const closed = { background: ["transparent"], border: ["1.5px dashed var(--line-strong)"], color: ["var(--muted)"] };
+  for (const kind of ["primary", "danger"]) {
+    for (const [property, value] of Object.entries(closed)) {
+      assert.deepEqual(valuesOf(css, `:root[data-mode="dark"] .g-btn--${kind}:disabled`, property), value, `${kind}, data-mode dark: ${property}`);
+      assert.deepEqual(inMedia(css, "prefers-color-scheme: dark", `:root:not([data-mode]) .g-btn--${kind}:disabled`, property), value, `${kind}, the system's dark: ${property}`);
+    }
+    // The light look is the rule without a mode: the prototypes' grey fill, the label of its kind.
+    assert.deepEqual(valuesOf(css, `.g-btn--${kind}:disabled`, "background"), ["var(--disabled)"], kind);
+  }
+  // Nothing dims it: the closed rule's opacity 1 still holds, so the muted label is what it is.
+  assert.deepEqual(valuesOf(css, ".g-btn--primary:disabled", "opacity"), ["1"]);
+  assertContrast("--muted", ["--page", "--surface"], 4.5, { what: "a closed main button's label" });
+  // The two dark blocks say the same, so the mode set by hand and the system's dark cannot drift apart.
+  const bare = readFileSync(new URL("../src/ui/button.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const bodies = [...bare.matchAll(/:root(?:\[data-mode="dark"\]|:not\(\[data-mode\]\)) \.g-btn--primary:disabled,\s*:root[^{]+\{([^}]*)\}/g)].map(([, body]) => body.replace(/\s+/g, " ").trim());
+  assert.equal(bodies.length, 2, "one block for data-mode dark, one for the system's dark");
+  assert.equal(bodies[0], bodies[1]);
+});
+
+// The 06 handoff: no call ever asked for a red-ringed button with red words; «Log out» is danger-quiet (M1, 6).
+test("no danger-outline kind is left", () => {
+  assert.deepEqual(BUTTON_KINDS, ["primary", "outline", "dark", "danger", "danger-quiet"]);
+  assert.throws(() => renderButton({ label: "x", kind: "danger-outline" }), /unknown button kind: danger-outline/);
+  const css = readFileSync(new URL("../src/ui/button.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /danger-outline/);
+});
+
+// The 07-desk handoff: a tile's count is sized by its container (cqi). A browser without container query units drops
+// that declaration whole, and the count would fall to the stepper's base size; 15px, between the tile's 13 and 17,
+// stands first in the same rule so the clamp overrides it wherever it is understood.
+test("the stepper's figure has a size before its container query", () => {
+  const sizes = valuesOf("src/ui/action-stepper.css", ".g-stepper--tile .g-stepper__value", "font-size");
+  assert.deepEqual(sizes, ["15px", "clamp(13px, calc(26cqi - 7.6px), 17px)"]);
+  const bare = readFileSync(new URL("../src/ui/action-stepper.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const [rule] of bare.matchAll(/[^{}]+\{[^{}]*cq[iwhb][^{}]*\}/g)) {
+    const declarations = rule.slice(rule.indexOf("{") + 1, -1).split(";").map((part) => part.trim()).filter(Boolean);
+    const at = declarations.findIndex((declaration) => /\dcq[iwhb]\b/.test(declaration));
+    const property = declarations[at].split(":")[0].trim();
+    assert.ok(declarations.slice(0, at).some((declaration) => declaration.split(":")[0].trim() === property && !/cq[iwhb]\b/.test(declaration)),
+      `${rule.split("{")[0].trim()}: ${property} has no size before its container query`);
+  }
 });
 
 test("a button with an href is a link and never disabled", () => {

@@ -126,14 +126,14 @@ function tableMarkup(model) {
     + `<div class="g-coaches__rows" role="rowgroup">${model.rows.map(rowMarkup).join("")}</div></div></div>`;
 }
 
-/** AdminMobile's rows: each a link to the coach, his letter, the login over «@orc_boss · teams: 2», a chevron. */
+/** AdminMobile's rows: each a link to the coach, his letter, the login over «@orc_boss · teams: 2», its short chevron. */
 function itemsMarkup(model) {
   if (!model.rows.length) return noneMarkup(model);
   return model.rows.map((row) => {
     const line = [row.telegram, t("administration.teamsCount", { teams: row.teams })].filter(Boolean).join(" · ");
     const text = `<span class="g-coaches__itemtext"><b class="g-coaches__itemlogin">${escapeHtml(row.login)}</b>`
       + `<span class="g-coaches__itemline">${escapeHtml(line)}</span></span>`;
-    return link(row.href, "g-coaches__item", `${avatarMarkup(row.login, 40)}${text}${icon("chevron", 16)}`);
+    return link(row.href, "g-coaches__item", `${avatarMarkup(row.login, 40)}${text}${icon("chevronShort", 16)}`);
   }).join("");
 }
 
