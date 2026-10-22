@@ -5,6 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -312,7 +313,7 @@ test("the index is a column on a phone and two columns of groups from 901px", ()
 
 test("the sheet breaks at 900/901 only, gives the screen its edge-to-edge band, and sets the case wherever it sets a font", () => {
   const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(SHEET);
   // The band goes out over the frame's padding (stage 13, pre-flight L3), which the page no longer gives up.
   assert.deepEqual(valuesOf(SHEET, "#app-view:has(> .g-ref)", "padding"), []);
   for (const { selectors, body } of blocks(css)) {

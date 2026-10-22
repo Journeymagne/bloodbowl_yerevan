@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 
 const SHEET = "src/screens/ref/prose.css";
 const css = readFileSync(new URL(`../${SHEET}`, import.meta.url), "utf8");
@@ -57,7 +58,7 @@ test("every heading sets its own face and case, and the sheet breaks at 900/901 
     assert.match(body, /(^|;|\s)font:/, selectors.join(", "));
     assert.match(body, /text-transform:\s*none/, selectors.join(", "));
   }
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.match(query.trim(), /^\((max-width: 900px|min-width: 901px)\)$/);
+  assertBreakpoints(SHEET);
 });
 
 test("the headings the build writes are h2 to h5 at 24, 22, 18 and 16px, and none of them is left to the 2.x h1-h6 rule", () => {

@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -562,8 +563,7 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
     const css = text(SHEETS);
     assert.doesNotMatch(css, /--focus-ring/);
     assert.doesNotMatch(css, /text-overflow/, "nothing is cut with «…»");
-    const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+    assert.deepEqual(mediaQueries(SHEETS), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
     // The shared frame on the class every player's sheet wears; the edit's own by its id (fix round 1, M4).
     for (const selector of [`${FRAME} .g-player-edit__note`, `${FRAME} .g-player-sheet__prep`, `${FRAME} .g-player-sheet__refusal`, `${FRAME} .g-toggle`, `${FRAME} .g-sheet__foot .g-btn`,
       "#player-edit .g-player-edit__c", "#player-edit .g-player-edit__spptitle", "#player-edit .g-player-edit__sppnote"]) {
@@ -603,15 +603,9 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
 });
 
 test("D2: up to 900px the fields 48px and the buttons 52px; from 901px the fields and the buttons 44px, the SPP tiles' buttons 24px or more", () => {
-  const css = text(SHEETS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (query) => {
-    const start = css.indexOf(`@media (${query}) {`);
-    assert.ok(start >= 0, `player-sheets.css has no @media (${query})`);
-    return css.slice(start, css.indexOf("\n}", start));
-  };
   const px = (found) => found.slice(1).map(Number);
-  const phone = block("max-width: 900px");
-  const desk = block("min-width: 901px");
+  const phone = mediaText(SHEETS, "max-width: 900px");
+  const desk = mediaText(SHEETS, "min-width: 901px");
   assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [48], "a phone's fields");
   assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-sheet__foot \.g-btn \{[^}]*height: (\d+)px;/)), [52], "a phone's buttons");
   assert.deepEqual(px(desk.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [44], "a desk's fields");

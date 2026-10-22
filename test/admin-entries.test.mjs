@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
 // The API is installed before anything that asks it is imported: the client takes `fetch` when it loads.
@@ -473,7 +474,8 @@ test("readable: the statuses, the coach, the buttons, in every palette", () => {
 });
 
 test("nothing is cut with «…»; long names wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   for (const selector of [".g-adminentries__team", ".g-adminentries__coach", ".g-adminentries__status"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").length, `${selector} wraps`);
   }

@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -1157,7 +1158,7 @@ test("every key in both dictionaries; styled; D2", () => {
     const css = text(file);
     assert.doesNotMatch(css, /--focus-ring/, file);
     assert.doesNotMatch(css, /text-overflow/, file);
-    for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
+    assertBreakpoints(file);
   }
   // Every new rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform.
   const own = [[FIX, ".g-player-fix__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
@@ -1227,11 +1228,7 @@ test("every key in both dictionaries; styled; D2", () => {
   assertReadable(ROLLS, "#roster-skill .g-roster__rollstate--bad", "color", ["--surface"], 4.5);
   // D2: up to 900px what is pressed is 44px or more; from 901px never under 24px.
   const bare = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (file, query) => {
-    const css = bare(file), start = css.indexOf(`@media (${query}) {`);
-    return start < 0 ? "" : css.slice(start, css.indexOf("\n}", start));
-  };
-  const height = (file, query, selector) => Number(block(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
+  const height = (file, query, selector) => Number(mediaText(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
   assert.equal(height(FIX, "max-width: 900px", ".g-player-fix__undo"), 44);
   assert.equal(height(FIX, "min-width: 901px", ".g-player-fix__undo"), 32);
   assert.ok(height(FIX, "min-width: 901px", ".g-player-fix__undo") >= 24);

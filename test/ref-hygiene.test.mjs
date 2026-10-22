@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { assertContrast, blocks, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { icon } from "../src/ui/icons.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -69,7 +70,7 @@ test("the clear button is a 44px target on a phone and 24px from 901px, its 18px
   assert.deepEqual(valuesOf(SEARCH, CLEAR, "margin-right"), ["calc((18px - 44px) / 2)", "calc((18px - 24px) / 2)"]);
   assert.deepEqual(valuesOf(SEARCH, ".g-search > .g-icon", "left"), ["var(--space-14)"]);
   assert.match(valuesOf(SEARCH, ".g-search__input", "padding")[0], /^0 var\(--space-14\) /);
-  for (const [, query] of read(SEARCH).matchAll(/@media\s*([^{]+)\{/g)) assert.match(query.trim(), /^\((max-width: 900px|min-width: 901px)\)$/);
+  assertBreakpoints(SEARCH);
 });
 
 const SHEETS = ["src/screens/ref/article.css", "src/screens/ref/prose.css", "src/screens/ref/team.css"];

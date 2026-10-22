@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import {
   LIVE_GAME, PLAYERS, STYLES, api, callKeys, coach, playerPage, releaseCurrentScreen, renderTeamRoster, save, settle, state, text, view, withPlayers,
@@ -369,7 +370,7 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   // Stage 07e: a block of its own, in a sheet of its own with no width — the form is a class.
   const uncommented = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/g-career|g-profile__career/.test(uncommented("src/screens/team/roster/profile.css")), "the profile's sheet holds no career rule");
-  assert.ok(!/@media/.test(uncommented(CAREER)), "no width: the form is a class (a fallen player's page on a desk draws the phone's block, stage 07e)");
+  assert.deepEqual(mediaQueries(CAREER), [], "no width: the form is a class (a fallen player's page on a desk draws the phone's block, stage 07e)");
   // PlayerCareer.html's #DCE3DF is --line-strong: the totals' two rules and the list's ring; a row's #E6EBE8 rule is --line.
   assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border-width"), ["1px 0"]);
@@ -425,7 +426,7 @@ test("the grey zero wins by its place: after the value rule", () => {
   assert.equal(value.length, 1, "one rule for the value");
   assert.equal(zero.length, 1, "one rule for the nought");
   assert.ok(zero[0] > value[0], "the nought's rule stands after the value's");
-  assert.doesNotMatch(css, /@media[^{]*\{[^@]*\.g-career__(value|zero)/, "neither is set again under a width");
+  for (const query of mediaQueries(CAREER)) assert.doesNotMatch(mediaText(CAREER, query), /\.g-career__(value|zero)/, "neither is set again under a width");
   assert.doesNotMatch(css, /[^\s,{}]\.g-career__(value|zero)|\.g-career__(value|zero)[^\s,{]/, "neither is weighed by another selector");
   // The markup gives a nought both, so the order is what paints it.
   assert.deepEqual(valuesOf(CAREER, ".g-career__zero", "color"), ["var(--muted)"]);

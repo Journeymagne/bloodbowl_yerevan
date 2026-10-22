@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 // The API is installed before anything that asks it is imported (pre-flight L24).
@@ -297,7 +298,8 @@ test("styled", async () => {
   assert.ok(order.every((place) => place > 0), "every sheet of the stage imported");
   assert.deepEqual(order, [...order].sort((one, other) => one - other), "the stage's sheets in the order of its tasks, after the 09a ones");
   assert.ok(at("screens/coaches/profile.css") > styles.lastIndexOf('@import url("ui/'), "after every ui/ sheet it overrides");
-  assert.doesNotMatch(text(CSS), /ellipsis|@media \((?!max-width: 900px|min-width: 901px)/, "no «…»; the 900/901 breakpoints only");
+  assert.doesNotMatch(text(CSS), /ellipsis/, "no «…»");
+  assertBreakpoints(CSS);
   for (const selector of [".g-coach__login", ".g-coach__handle", ".g-coach .g-teamface__name", ".g-coach .g-teamface__line", ".g-coach__vs"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }

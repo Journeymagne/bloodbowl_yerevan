@@ -1,6 +1,6 @@
 /**
  * The page stage 07b's roster tests stand on (test/team-roster-skips.test.mjs, test/team-roster-fallen-undo.test.mjs),
- * set up as test/team-roster.test.mjs sets it up (lines 1–80): the window's events, the fake API before the screen's
+ * set up as test/helpers/roster-screen.mjs sets it up: the window's events, the fake API before the screen's
  * modules are imported, the view. Then a coach whose team has three who play, four who miss the next match and two
  * fallen, and the queries the tests read the screen by; the player's address as the router draws it (stage 07d).
  *

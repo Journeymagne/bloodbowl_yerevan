@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
@@ -694,8 +695,7 @@ test("the look: contrast on what each text sits on, no inline widths, and the br
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__players", "align-self"), ["stretch"]);
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__team", "align-self"), ["stretch"]);
   for (const sheet of [css, roster]) assert.doesNotMatch(sheet, /\bstyle\s*=/);
-  const queries = [css, roster].flatMap((sheet) => [...sheet.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim()));
-  assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
+  assert.ok([BUILDER_CSS, ROSTER_CSS].flatMap((file) => assertBreakpoints(file)).length >= 2, "only the stage's two breakpoints, both");
   // The save stands at the foot of a phone's screen and is an ordinary block on a desk.
   assert.match(roster, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/);
   assert.match(roster, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*static/);

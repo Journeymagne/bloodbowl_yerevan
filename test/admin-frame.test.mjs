@@ -5,6 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 
 // The client takes `fetch` when it loads (helpers/fake-api.mjs): the fake one first, then the modules that ask it.
 const api = installFakeApi();
@@ -341,7 +342,8 @@ test("a name is text; no inline style; styled", () => {
 });
 
 test("nothing wraps into «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   for (const selector of [".g-admin__crumbs", ".g-admin__note", ".g-admin__cardhead"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }

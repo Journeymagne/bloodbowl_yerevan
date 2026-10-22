@@ -4,7 +4,7 @@ import test, { beforeEach } from "node:test";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled } from "./helpers/ui.mjs";
-import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 // The fake API comes first: api-client.mjs picks `fetch` up when it loads.
@@ -267,8 +267,7 @@ test("the sheet sets its own font, border and case; a phone has a column, a desk
   assert.deepEqual(valuesOf(SHEET, ".g-guest__tiles", "grid-template-columns"), ["1fr 1fr"]);
   assert.deepEqual(valuesOf(SHEET, ".g-guest__card", "box-shadow"), ["var(--ring)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-guest__card", "border-radius"), ["var(--radius-2xl)"]);
-  const bare = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)[1];
+  const wide = mediaText(SHEET, "min-width: 901px");
   assert.match(wide, /\.g-guest__hero\s*\{[^}]*background:\s*var\(--header\);[^}]*color:\s*var\(--header-ink\);/);
   assert.match(wide, /\.g-guest__hero \.g-btn--primary\s*\{[^}]*background:\s*var\(--header-ink\);[^}]*color:\s*var\(--header\);/);
   assert.match(wide, /\.g-guest__hero \.g-btn:not\(\.g-btn--primary\)\s*\{[^}]*border-color:\s*var\(--header-ink\);/);

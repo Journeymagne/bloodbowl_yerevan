@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
 // Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change; the test is the page.
@@ -1486,8 +1487,7 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   assert.doesNotMatch(css, /\bstyle\s*=/);
   assert.doesNotMatch(css, /\.g-new(?:__card|__head|__titles|__title|__sub|__body|__foot)?\b(?!__label|__ref|-sheet)/, "the rules of the page that was are gone");
   assert.doesNotMatch(css, /text-overflow|white-space:\s*nowrap/);
-  const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
+  assert.ok(assertBreakpoints(NEW_CSS).length >= 2, "only the stage's two breakpoints, both");
   // The races: 44px, 10 round, 0 12 in, 14px 500 on --surface in the ring; the chosen one on --accent-tint-soft in the 2px ring, 700.
   assert.deepEqual(valuesOf(NEW_CSS, ".g-races__item", "min-height"), ["44px"]);
   assert.deepEqual(["border", "border-radius", "padding", "background", "box-shadow", "font"].map((property) => valuesOf(NEW_CSS, ".g-races__item", property)),

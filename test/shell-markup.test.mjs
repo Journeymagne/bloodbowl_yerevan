@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { mediaText } from "./helpers/css.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { ROUTE_NAMES } from "../src/core/routes.mjs";
 import { shellModel } from "../src/shell/navigation.mjs";
@@ -333,15 +334,14 @@ test("the administration item breaks at its soft hyphen in Russian, and its page
 });
 
 test("the current SideNav item and the pressed language show without colour: a border, where forced colours remove the rest", () => {
-  const forced = read(SIDE_CSS).match(/@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/);
+  const forced = mediaText(SIDE_CSS, "forced-colors: active");
   assert.ok(forced, "a forced-colors block");
   for (const selector of ['.g-sidenav__link[aria-current="page"]', '.g-lang__item[aria-pressed="true"]::before']) {
-    assert.ok(forced[1].includes(selector), `${selector} is drawn in the forced-colors block`);
+    assert.ok(forced.includes(selector), `${selector} is drawn in the forced-colors block`);
     assert.match(valuesOf(SIDE_CSS, selector, "border")[0], /^\d+px solid \w+$/, selector);
   }
   assert.deepEqual(valuesOf(SIDE_CSS, ".g-lang__item::before", "box-sizing"), ["border-box"], "a border on the pill leaves it 36×28");
-  const tabs = read(HEADER_CSS).match(/@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/);
-  assert.ok(tabs?.[1].includes('.g-tab[aria-current="page"]'), "the current tab is told from the others by more than its colour");
+  assert.ok(mediaText(HEADER_CSS, "forced-colors: active").includes('.g-tab[aria-current="page"]'), "the current tab is told from the others by more than its colour");
 });
 
 test("a long team name is cut at three lines in the SideNav, and the whole name is its title", () => {

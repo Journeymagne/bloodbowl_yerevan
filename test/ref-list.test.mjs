@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -400,9 +401,8 @@ test("on a phone a split page is two screens: the list, or — with something ch
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "display"), ["none"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__main", "display"), ["none"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__panel", "display"), ["block"]);
-  const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
+  const phone = mediaText(SHEET, "max-width: 900px");
   for (const selector of [".g-ref--split .g-ref__panel", ".g-ref--split.g-ref--open .g-ref__main", ".g-ref--split.g-ref--open .g-ref__panel"]) {
-    const phone = css.match(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)[1];
     assert.ok(phone.includes(selector), `${selector} is a phone rule`);
   }
 });
@@ -431,7 +431,7 @@ test("from 901px the rows are a grid of 220px columns in a framed card that scro
 
 test("the list sheet breaks at 900/901 only, and sets the case wherever it sets a font", () => {
   const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(SHEET);
   for (const { selectors, body } of blocks(css)) {
     if (/(?:^|[;\s])font\s*:/.test(body)) assert.match(body, /text-transform\s*:/, `${selectors}: a font without its case`);
     if (/(?:^|[;\s])font\s*:/.test(body)) assert.match(body, /letter-spacing\s*:/, `${selectors}: a font without its tracking`);

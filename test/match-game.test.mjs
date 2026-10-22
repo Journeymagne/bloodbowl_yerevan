@@ -7,6 +7,7 @@ import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 
 /*
  * `#/games/:id` in 3.0 (stage 13, Task 5; the owner's answer 1): a side's coach is sent where the match is now — its
@@ -310,7 +311,7 @@ test("every key in both dictionaries", () => {
 test("names wrap, nothing is cut with «…»; the 900/901 breakpoints only; buttons 44px on a phone, at least 24 on a desk", async () => {
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp|--focus-ring/);
-  for (const [, query] of bare.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   for (const selector of [".g-game__note", ".g-game__back"]) {
     assert.deepEqual(valuesOf(CSS, selector, "overflow-wrap"), ["anywhere"], selector);
     for (const property of ["font", "letter-spacing", "text-transform", "border", "background"]) assert.equal(valuesOf(CSS, selector, property).length, 1, `${selector} ${property}`);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { assertContrast, assertReadable, blocks, read, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { renderPlayerBadge } from "../src/ui/number-badge.mjs";
@@ -42,13 +43,8 @@ const row = (key, extra = {}) => ({
 
 const table = (props = {}) => renderRosterTable({ label: "Active roster", columns: COLUMNS, groups: GROUPS, rows: [row("p1"), row("p2", { name: "Brug" })], ...props });
 
-/** The part of the sheet that is for 901px and up, and the part for 900px and down. */
-function parts(css) {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  const narrow = [...bare.replace(wide, "").matchAll(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/g)].map((match) => match[1]).join("\n");
-  return { wide, narrow };
-}
+/** The part of a sheet that is for 901px and up, and the part for 900px and down. */
+const parts = (file) => ({ wide: mediaText(file, "min-width: 901px"), narrow: mediaText(file, "max-width: 900px") });
 
 const spaced = (text) => text.replace(/\s+/g, " ").trim();
 
@@ -269,7 +265,7 @@ test("a player's skills are drawn twice — under the name for a desk, in a row 
   assert.equal(body.querySelector("tr.g-rtable__skillrow td [data-skill]").textContent, "Block");
   assert.ok(valuesOf(SHEET, ".g-rtable__skills--desk", "display").includes("none"));
   assert.ok(valuesOf(SHEET, ".g-rtable__skillrow", "display").includes("none"));
-  const { wide, narrow } = parts(read(SHEET));
+  const { wide, narrow } = parts(SHEET);
   assert.match(narrow, /\.g-rtable__skills--desk[^{]*\{[^}]*display:\s*none/, "a phone has the row of chips, not the desk's");
   assert.match(wide, /\.g-rtable__skillrow[^{]*\{[^}]*display:\s*none/, "a desk has the chips under the name, not the row");
   assert.ok(!/\.g-rtable__skillrow\s*\{[^}]*display:\s*none/.test(narrow), "and the row is not hidden on a phone");
@@ -333,7 +329,7 @@ test("a desk column is hidden on a phone, and the over-heads are the desk's", ()
   assert.equal(body.querySelectorAll("tr.g-rtable__row td.g-rtable__c--desk").length, deskColumns.length);
   assert.deepEqual(fragment.querySelectorAll("tfoot td.g-rtable__c--desk").map((cell) => cell.textContent), deskColumns);
   assert.equal(fragment.querySelectorAll('thead th[scope="col"]').length - heads.length, COLUMNS.length - deskColumns.length);
-  const { narrow, wide } = parts(read(SHEET));
+  const { narrow, wide } = parts(SHEET);
   assert.match(narrow, /\.g-rtable__c--desk[^{]*\{[^}]*display:\s*none/);
   assert.match(narrow, /\.g-rtable__groups[^{]*\{[^}]*display:\s*none/);
   // From 901px nothing is hidden but the phone's extra rows, and the skills of a player who has none (DeskRoster.html says nothing of them).
@@ -358,7 +354,7 @@ test("the columns' widths are on the <col>s, because a fixed table takes them fr
   assert.equal(grid.querySelectorAll("tfoot tr.g-rtable__foot td").length, COLUMNS.length);
   assert.deepEqual(grid.querySelectorAll("tbody tr.g-rtable__row").map((tr) => elements(tr).length), [10, 10]);
   assert.equal(valuesOf(SHEET, ".g-rtable", "table-layout").at(-1), "fixed");
-  const { narrow, wide } = parts(read(SHEET));
+  const { narrow, wide } = parts(SHEET);
   const declared = (css, selector) => [...css.matchAll(new RegExp(`${selector.replace(/\./g, "\\.")}\\s*\\{[^}]*?(?:^|[;\\s])width:\\s*([^;]+);`, "g"))].map((match) => match[1].trim());
   assert.deepEqual(declared(narrow, ".g-rtable__col--stats"), ["36px"], "a phone: the characteristics' 36px, the player's column takes the rest");
   assert.deepEqual(declared(narrow, ".g-rtable__col--who"), [], "a phone gives the player's column no width of its own");
@@ -379,7 +375,7 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   assert.ok(valuesOf(SHEET, ".g-rtable__who", "position").includes("sticky"));
   assert.ok(valuesOf(SHEET, ".g-rtable__who", "left").includes("0"));
   assert.ok(valuesOf(SHEET, ".g-rtable__who", "background").includes("var(--surface)"));
-  const { wide, narrow } = parts(read(SHEET));
+  const { wide, narrow } = parts(SHEET);
   assert.match(wide, /\.g-rtable-frame\s*\{[^}]*overflow-x:\s*auto/);
   assert.match(wide, /\.g-rtable__who[^{]*\{[^}]*position:\s*sticky/);
   assert.ok(!/sticky/.test(narrow), "a phone's table is the page's width and does not scroll");
@@ -396,7 +392,7 @@ test("from 901px the table scrolls inside its frame and the player's column stay
 });
 
 test("every number stands centred under its label, on a phone and on a desk, the SPP columns too: one axis for a header and its values (fix round 1)", () => {
-  const { narrow, wide } = parts(read(SHEET));
+  const { narrow, wide } = parts(SHEET);
   // The values: centred; the strong and quiet figures keep it (their font shorthand does not reset text-align).
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c", "text-align"), ["center"]);
   for (const tone of [".g-rtable__c--strong", ".g-rtable__c--quiet"]) assert.deepEqual(valuesOf(SHEET, tone, "text-align"), [], tone);
@@ -417,7 +413,7 @@ test("every number stands centred under its label, on a phone and on a desk, the
 });
 
 test("a long position stays whole: on its name's line when it fits, under it when it does not, never cut with «…» (fix round 1)", () => {
-  const { wide } = parts(read(SHEET));
+  const { wide } = parts(SHEET);
   // A desk's name line wraps between the name and the position (Amazon's «Eagle Warrior Linewoman» is the reference's name).
   assert.match(wide, /\.g-rtable__text\s*\{[^}]*flex-direction:\s*row;[^}]*flex-wrap:\s*wrap;/);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__sub", "overflow-wrap"), ["anywhere"], "a word longer than the cell breaks rather than overflows");
@@ -440,7 +436,7 @@ test("a header's button fills its whole column: no padding on the header, so 36p
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "padding"), ["0"]);
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "box-sizing"), ["border-box"]);
   // Nothing after the rule takes the padding back: the player's header (a desk's 12px on the left) is the one exception, with its own, stronger rule.
-  const { narrow, wide } = parts(read(SHEET));
+  const { narrow, wide } = parts(SHEET);
   assert.ok(!/th\.g-rtable__h\s*\{[^}]*padding/.test(narrow + wide));
   assert.match(wide, /th\.g-rtable__h--who,[^{]*\{[^}]*padding-left:\s*var\(--space-16\)/);
   // 44px on a phone; 40px on a desk (D2: a desk's controls are compact, never under 24px), as DeskRoster.html's labels.
@@ -453,7 +449,7 @@ test("a strong value keeps its digits tabular after the font shorthand that woul
 });
 
 test("what a finger presses on a phone is 44px; a desk's is compact and never under 24px (D2, WCAG 2.5.8)", () => {
-  const { narrow, wide } = parts(read(SHEET));
+  const { narrow, wide } = parts(SHEET);
   const base = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").replace(wide, "").replace(narrow, "");
   const value = (css, selector, property) => [...css.matchAll(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.()>]/g, "\\$&")}\\s*\\{[^}]*?(?:^|[;\\s])${property}:\\s*([^;]+);`, "g"))].map((match) => match[1].trim());
   assert.deepEqual(value(base, ".g-sort", "min-height"), ["var(--size-touch)"]);
@@ -487,9 +483,7 @@ test("the sheet sets what the 2.x globals for table, th, td and button would oth
 });
 
 test("only the stage's two breakpoints", () => {
-  const queries = [...read(SHEET).matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  assert.ok(queries.length >= 2);
-  for (const query of queries) assert.match(query, /^\((max-width: 900px|min-width: 901px)\)$/);
+  assert.ok(assertBreakpoints(SHEET).length >= 2);
   assert.ok(!read(SHEET).includes("--focus-ring"));
 });
 

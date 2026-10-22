@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const { acceptModel, sendModel } = await import("../src/screens/matches/challenges-model.mjs");
@@ -348,7 +349,7 @@ test("styled", () => {
   assert.ok(at("screens/matches/challenges.css") > 0);
   assert.ok(at("screens/matches/challenges-sheets.css") > styles.lastIndexOf('@import url("ui/'), "after ui/sheet.css, which it overrides");
   const css = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.doesNotMatch(css, /@media \((?!max-width: 900px|min-width: 901px)/, "the 900/901 breakpoints only");
+  assertBreakpoints(CSS);
   assert.doesNotMatch(css, /#[0-9a-f]{3,6}\b|rgba?\(/i, "colours are tokens");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "dialog.g-sheet.g-challenge-send", "height"), ["92dvh"], "ChallengeSend.html's 92%");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "dialog.g-sheet.g-challenge-send", "max-height"), ["92dvh"]);

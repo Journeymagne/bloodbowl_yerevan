@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
 import { renderCrest } from "../src/shell/crest.mjs";
@@ -418,7 +419,7 @@ test("the figures and the head's field as DeskOverview.html and Team.html draw t
   // Readable: the grey second part on a desk's card and on a phone's tile, the accent on the card.
   assertReadable(tile, ".g-kpi__rest", "color", ["--surface", "--surface-2"], 4.5);
   assertReadable(tile, ".g-kpi--accent .g-kpi__v", "color", ["--surface"], 4.5);
-  for (const file of [css, tile]) for (const [, query] of text(file).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
+  for (const file of [css, tile]) assertBreakpoints(file);
   assert.doesNotMatch(bare, /--focus-ring/);
 });
 
@@ -1519,7 +1520,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assertReadable(LISTS_CSS, ".g-overview__leaderpos", "color", ["--surface", "--page"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadertag", "color", ["--surface", "--page"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadername", "color", ["--surface", "--page"], 4.5);
-  for (const [, query] of text(LISTS_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(LISTS_CSS);
   assert.doesNotMatch(bare, /--focus-ring/);
 });
 
@@ -1755,7 +1756,7 @@ test("a long name in «Ready to advance» wraps; nothing is cut with «…» (th
   }
   for (const selector of [".g-overview__readywho", ".g-overview__readyname", ".g-overview__readypos"]) assert.deepEqual(valuesOf(READY_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
   assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readyrow", "align-items"), ["center"]);
-  for (const [, query] of text(READY_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(READY_CSS);
   assert.doesNotMatch(source, /--focus-ring/);
 });
 

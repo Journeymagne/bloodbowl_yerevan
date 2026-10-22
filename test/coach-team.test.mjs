@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const api = installFakeApi();
@@ -348,7 +349,8 @@ test("styled", async () => {
   const styles = text("src/styles.css");
   const at = (file) => styles.indexOf(`@import url("${file}");`);
   assert.ok(at("screens/coaches/team.css") > at("screens/season/league.css") && at("screens/season/league.css") > 0, "imported after the stage's sheets before it, at the end");
-  assert.doesNotMatch(text(CSS), /ellipsis|@media \((?!max-width: 900px|min-width: 901px)/, "no «…»; the 900/901 breakpoints only");
+  assert.doesNotMatch(text(CSS), /ellipsis/, "no «…»");
+  assertBreakpoints(CSS);
   for (const selector of [".g-opp__name", ".g-opp__pname", ".g-opp__pline", ".g-opp__meta", ".g-opp__coachname", ".g-opp__tg"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }

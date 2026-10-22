@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 
@@ -705,7 +706,7 @@ test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut wit
     assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   }
   assert.doesNotMatch(bare, /--focus-ring/);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   assert.equal(mediaText(CSS, "max-width: 900px").includes("ellipsis"), false);
   const styles = text("src/styles.css").trim().split("\n");
   assert.ok(styles.includes('@import url("screens/matches/matches.css");'), "the sheet reaches the page");

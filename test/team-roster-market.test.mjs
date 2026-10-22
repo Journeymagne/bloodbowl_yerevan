@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -63,13 +64,6 @@ const stepOfTheRoster = () => {
   fireEvent(toggle("p5#0"), "click");
   fireEvent(aside().querySelector("[data-roster-return]"), "click");
   fireEvent(toggle("p1#0"), "click");
-};
-/** The parts of `file` inside its `@media (<query>)` block. */
-const mediaBlock = (file, query) => {
-  const css = text(file).replace(/\/\*[\s\S]*?\*\//g, "");
-  const start = css.indexOf(`@media (${query}) {`);
-  assert.ok(start >= 0, `${file} has no @media (${query})`);
-  return css.slice(start, css.indexOf("\n}", start));
 };
 
 test("the «+» stands right after «Player» in the active roster's header, on a phone and on a desk; the other tables have none", async () => {
@@ -635,7 +629,7 @@ test("on a phone: no «Cancel», the + alone, a 44px target", async () => {
       assert.ok(card(0).querySelector(".g-market__stepper"));
       assertStyled(view, ...STYLES);
     });
-    const phone = mediaBlock(MARKET, "max-width: 900px");
+    const phone = mediaText(MARKET, "max-width: 900px");
     assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone (K7)");
     assert.match(phone, /\.g-market__addword \{\s*display: none;\s*\}/, "the + alone");
     // A phone's targets are a thumb wide (D2): the «+» a 26px circle in its 44px.
@@ -769,7 +763,7 @@ test("a lone shut «Sell» keeps the second place of the pair", async () => {
     }
     const lone = ".g-roster__actions > [data-roster-sell]:only-child";
     assert.deepEqual(valuesOf(MARKET, lone, "grid-column"), ["-2 / -1"], "the last column: the second of two, the only one of one");
-    for (const query of ["max-width: 900px", "min-width: 901px"]) assert.ok(!mediaBlock(MARKET, query).includes(lone), `not only ${query}`);
+    for (const query of ["max-width: 900px", "min-width: 901px"]) assert.ok(!mediaText(MARKET, query).includes(lone), `not only ${query}`);
   });
 });
 
@@ -857,8 +851,8 @@ test("the sheet on a phone: his card, the same lines, one red button", async () 
       assert.ok(sendButton().classList.contains("g-btn--danger"));
       assertStyled(view, ...STYLES);
     });
-    const phone = mediaBlock(MARKET, "max-width: 900px");
-    const desk = mediaBlock(MARKET, "min-width: 901px");
+    const phone = mediaText(MARKET, "max-width: 900px");
+    const desk = mediaText(MARKET, "min-width: 901px");
     assert.match(desk, /\.g-market__who \{\s*display: none;\s*\}/, "no card on a desk: the sub says who");
     assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone: the cross");
     assert.match(phone, /#roster-sell \.g-sheet__sub \{\s*display: none;\s*\}/, "no sub on a phone: the card says who");
@@ -1402,7 +1396,7 @@ test("the name and the skills are text", async () => {
 
 // K6: D2's compact sizes from 901px, as DeskRosterHire.html and DeskRosterSell.html draw them, never under 24px.
 test("D2: the market's compact controls on a desk are the prototype's and 24px or more", () => {
-  const desk = mediaBlock(MARKET, "min-width: 901px");
+  const desk = mediaText(MARKET, "min-width: 901px");
   const px = (value) => Number(String(value).replace(/px$/, ""));
   const sizes = [
     [/\.g-roster__hire \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/, [24, 24], "the «+»"],
@@ -1448,8 +1442,7 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     const css = text(MARKET);
     assert.doesNotMatch(css, /\bstyle\s*=/);
     assert.doesNotMatch(css, /--focus-ring/);
-    const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
+    assert.ok(assertBreakpoints(MARKET).length >= 2, "only the stage's two breakpoints, both");
     // Each new block says its font, border, background, case, spacing and weight (the 2.x globals outlive it, stage 13).
     for (const selector of [".g-market__label", ".g-market__value", ".g-market__name", ".g-market__price", ".g-market__stats", ".g-market__meta", ".g-market__numbers", ".g-market__refusal", ".g-market__prep", ".g-market__lines"]) {
       for (const property of ["font", "letter-spacing", "text-transform"]) assert.equal(valuesOf(MARKET, selector, property).length, 1, `${selector} ${property}`);

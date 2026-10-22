@@ -100,7 +100,7 @@ test("an anchored sheet carries its modifier and sits by the SideNav from 901px"
   const sheet = "src/ui/sheet.css";
   assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "width").includes("300px"));
   assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "margin").includes("72px auto auto 12px"));
-  const phone = readFileSync(new URL(`../${sheet}`, import.meta.url), "utf8").match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  const phone = mediaText(sheet, "max-width: 900px");
   assert.ok(!phone.includes("anchored"), "up to 900px it is the ordinary sheet from the bottom");
   assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__title", "text-transform"), ["uppercase"], "on a desk the title is a small caption over the list");
   assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__head", "border-bottom"), ["0"], "with no rule under it");

@@ -6,6 +6,7 @@ import { document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, blocks, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 
 const frame = el(document, "div", { id: "app-frame", "data-shell": "guest" },
   el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }),
@@ -270,8 +271,7 @@ test("a sheet's scroll lock does not shift the page", () => {
 // R13-M6 (WCAG 2.4.11): the phone's header sticks to the top, 102px drawn and 91px folded (measured live). An element
 // the keyboard reaches above the view, as Shift+Tab does, is scrolled to stand under it, not behind it.
 test("on a phone, an element scrolled into view by the keyboard stands clear of the sticky header", () => {
-  const css = read("src/shell/frame.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  const phone = css.match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  const phone = mediaText("src/shell/frame.css", "max-width: 900px");
   const padding = phone.match(/(?:^|\n)\s*html \{[^}]*scroll-padding-top: (\d+)px;/);
   assert.ok(padding, "html sets scroll-padding-top under 900px");
   assert.ok(Number(padding[1]) >= 102, `${padding[1]}px clears a 102px header`);
@@ -367,9 +367,7 @@ test("every frame class the page names is styled, the frame reaches the page, an
   assert.ok(names.has("g-frame"));
   for (const name of names) assert.match(css, new RegExp(`\\.${name}(?![\\w-])`), `.${name} is not styled`);
   assert.match(read("src/styles.css"), /@import url\("shell\/frame\.css"\);/);
-  for (const [, query] of read("src/shell/frame.css").matchAll(/@media\s*([^{]+)\{/g)) {
-    assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
-  }
+  assertBreakpoints("src/shell/frame.css");
 });
 
 test("a current tab is scrolled clear of the fade at the row's edge, not only inside the row", () => {

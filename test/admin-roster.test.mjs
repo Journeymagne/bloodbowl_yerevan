@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -432,7 +433,8 @@ test("the name and the logo wait for the roster's queue and say so; an empty nam
 test("the name and logo card: the prototype's card, a 48px field and button, 40px buttons on a desk and 44px on a phone; nothing cut", () => {
   const CSS = "src/screens/admin/team.css";
   const px = (value) => Number.parseFloat(value);
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   // After the other administration sheets and the 2.x ones it outweighs; stage 13's match page (screens/matches/game.css,
   // scoped to `.g-game`) comes after it.
   const imports = text("src/styles.css").match(/@import url\("[^"]+"\);/g);

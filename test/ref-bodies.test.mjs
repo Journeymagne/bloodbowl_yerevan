@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -300,26 +301,20 @@ test("the 2.x Leagues module is gone, and nothing names it", () => {
 
 const SHEET = "src/screens/ref/article.css";
 
-/** The part of the sheet that is for 901px and up, the part for 900px and down, and the rest. */
-function parts(css) {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  const narrow = [...bare.replace(wide, "").matchAll(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/g)].map((match) => match[1]).join("\n");
-  return { wide, narrow };
-}
+/** The part of a sheet that is for 901px and up, and the part for 900px and down. */
+const parts = (file) => ({ wide: mediaText(file, "min-width: 901px"), narrow: mediaText(file, "max-width: 900px") });
 
 test("the Skill Table's two shapes: up to 900px the lists, from 901px the vault's table, never both", () => {
-  const { wide, narrow } = parts(read(SHEET));
+  const { wide, narrow } = parts(SHEET);
   assert.match(narrow, /\.g-ref-skilltable__desk\s*\{[^}]*display:\s*none/);
   assert.match(wide, /\.g-ref-skilltable\s*\{[^}]*display:\s*none/);
   assert.ok(!/\.g-ref-skilltable__desk\s*\{[^}]*display:\s*none/.test(wide), "the table shows on a desktop");
   assert.ok(!/\.g-ref-skilltable\s*\{[^}]*display:\s*none/.test(narrow), "the lists show on a phone");
-  const queries = [...read(SHEET).matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  for (const query of queries) assert.match(query, /^\((max-width: 900px|min-width: 901px)\)$/);
+  assertBreakpoints(SHEET);
 });
 
 test("from 901px the vault's Skill Table has the card's whole width, past the article's 820px, with snug cells so seven columns fit at 1440", () => {
-  const { wide } = parts(read(SHEET));
+  const { wide } = parts(SHEET);
   const rules = blocks(wide);
   const classes = (selector) => (selector.match(/\./g) ?? []).length;
   const declared = (selector, property) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g"))].map((match) => match[1].trim()));

@@ -5,6 +5,7 @@ import test from "node:test";
 import { document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries } from "./helpers/css.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { toast, toastError } from "../src/components/toast.mjs";
 import { announce } from "../src/components/live-region.mjs";
@@ -149,7 +150,7 @@ test("a toast is drawn on the 3.0 tokens, from 44px", () => {
   const css = read(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(css, /ellipsis|nowrap|--danger-fill/, "long words wrap; the red fill is the danger button's");
   assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.g-toast \{ animation: g-toast-in 160ms ease-out; \}/, "it rises only for whoever did not ask for less motion");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.equal(query.trim(), "(prefers-reduced-motion: no-preference)");
+  for (const query of mediaQueries(CSS)) assert.equal(query, "(prefers-reduced-motion: no-preference)");
   assert.ok(read("src/styles.css").includes('@import url("ui/page-head.css");\n@import url("ui/toast.css");\n'), "among the ui/ sheets, before every screen's");
 });
 

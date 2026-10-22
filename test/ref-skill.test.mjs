@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaText, outsideMedia } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -420,13 +421,8 @@ test("in Russian the labels are Russian and the names stay the vault's", () => {
 
 const ARTICLE = "src/screens/ref/article.css";
 const REF = "src/screens/ref/ref.css";
-const bare = (file) => read(file).replace(/\/\*[\s\S]*?\*\//g, "");
-/** The part of a sheet that is for 901px and up (it is the last block of the file), and the part that is not. */
-const split = (file) => {
-  const css = bare(file);
-  const wide = css.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  return { wide, rest: css.replace(wide, "") };
-};
+/** The part of a sheet that is for 901px and up, and the part that is not. */
+const split = (file) => ({ wide: mediaText(file, "min-width: 901px"), rest: outsideMedia(file, "min-width: 901px") });
 
 test("the panel's badge is 52px, its name 700 34px in the display face, its caption quiet; none in capitals", () => {
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "width"), ["52px"]);

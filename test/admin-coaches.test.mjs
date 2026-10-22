@@ -7,6 +7,7 @@ import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 // The client takes `fetch` when it loads (helpers/fake-api.mjs): the fake one first, then the modules that ask it.
@@ -690,7 +691,8 @@ test("styled; no inline style or handler", async () => {
 });
 
 test("nothing is cut with «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis/);
+  assertBreakpoints(CSS);
   // `nowrap` only on the admin's chip (decision: the chip and the numbers).
   assert.deepEqual([...text(CSS).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{[^{}]*white-space:\s*nowrap/g)].map(([, selector]) => selector.trim()), [".g-coaches__who .g-status"]);
   for (const selector of [".g-coaches__login", ".g-coaches__tg", ".g-coaches__edited", ".g-coaches__itemlogin", ".g-coaches__itemline", ".g-coachnew__password", ".g-coachnew__race", ".g-coaches__none"]) {

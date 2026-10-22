@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const { challengesModel } = await import("../src/screens/matches/challenges-model.mjs");
@@ -295,7 +296,7 @@ test("styled", () => {
   assert.ok(at("screens/matches/challenges.css") > styles.lastIndexOf('@import url("ui/'), "after every ui/ sheet it overrides");
   const css = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(css, /ellipsis|text-overflow|line-clamp|nowrap/, "no «…»: long names wrap");
-  assert.doesNotMatch(css, /@media \((?!max-width: 900px|min-width: 901px)/, "the 900/901 breakpoints only");
+  assertBreakpoints(CSS);
   assert.doesNotMatch(css, /#[0-9a-f]{3,6}\b|rgba?\(/i, "colours are tokens");
   for (const selector of [".g-friendly__login", ".g-friendly__line", ".g-friendly__side", ".g-friendly__pair", ".g-friendly__past"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);

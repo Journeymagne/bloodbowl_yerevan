@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
@@ -328,7 +329,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp/);
   for (const selector of [".g-prep-ind__name", ".g-prep-ind__note", ".g-prep-ind__why", ".g-prep-budget__petty"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   // Imported after every sheet it was written over (stage 10 adds the season's sheets after it, in the order of its tasks).
   const styles = text("src/styles.css");
   const at = styles.indexOf('@import url("screens/matches/prep-inducements.css");');
