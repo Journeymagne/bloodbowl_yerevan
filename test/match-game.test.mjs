@@ -159,6 +159,12 @@ test("the admin's way back from a preparation is the match page, which sends nob
   const fixture = { id: "g", kind: "league", seasonName: "Mock Season", roundNumber: 3, tableNumber: 1, closed: false };
   const admin = prepModel({ preparation, snapshots: {}, viewerSide: "home", isAdmin: true, fixture }, "home", "", { data, userId: "admin" });
   assert.equal(admin.back, gameUrl("g"));
+  // An administrator who plays home, looking at the away side: the match page would send him straight back into the
+  // preparation (he is its coach), so «‹» is his own team's matches, whichever side is shown.
+  const playing = { preparation, snapshots: {}, viewerSide: "home", isAdmin: true, fixture };
+  assert.equal(prepModel(playing, "away", "", { data, userId: "u-t1" }).back, teamUrl("t1", "matches"));
+  assert.equal(prepModel(playing, "home", "", { data, userId: "u-t1" }).back, teamUrl("t1", "matches"));
+  assert.equal(prepModel({ ...playing, isAdmin: false }, "home", "", { data, userId: "u-t1" }).back, teamUrl("t1", "matches"));
   const shown = game({ home: side("t1", "u-t1", "Ashgrove Wardens"), away: side("r1", "u-r1", "Silverbrook Rangers"), preparationStatus: "preparing" });
   assert.equal(gameDestination(shown, "admin"), "", "the match page sends the admin nowhere: no way round");
   // The page a preparation or a post-match shows while it is read, or when it could not be: «‹» is the side's matches,
@@ -175,7 +181,7 @@ test("the admin's way back from a preparation is the match page, which sends nob
 test("a score sent before 3.0: the receiving coach confirms it once, however often pressed; the proposer reads who confirms", async () => {
   await visit(game(SENT));
   assert.deepEqual(location.replaced, [], "the coach who confirms stays on the page");
-  assert.equal(view.querySelector(".g-match__mid--score").textContent, "2–1");
+  assert.equal(view.querySelector(".g-match__mid--score").textContent, "2 : 1", "the score sent, as the matches' card writes it");
   assert.equal(view.querySelector(".g-status").textContent, "Awaiting confirmation");
   assert.equal(button("confirm").textContent.trim(), "Confirm the score");
   assert.equal(button("reject").textContent.trim(), "Reject");
@@ -273,7 +279,7 @@ test("the match card: the score or «vs», CAS, the phase, each team leading to 
   assert.deepEqual(played.home, { name: "Ashgrove Wardens", sub: "u1-login", href: teamUrl("t1") });
   assert.deepEqual(played.away, { name: "Silverbrook Rangers", sub: "u2-login", href: playerTeamUrl("u2", "t2") });
   const waiting = model(game(SENT));
-  assert.deepEqual([waiting.phase, waiting.chipTone, waiting.score, waiting.cas, waiting.confirm, waiting.waitingFor], ["sent", "wait", "2–1", "1–0", true, ""]);
+  assert.deepEqual([waiting.phase, waiting.chipTone, waiting.score, waiting.cas, waiting.confirm, waiting.waitingFor], ["sent", "wait", "2 : 1", "1–0", true, ""]);
   assert.deepEqual([model(game()).phase, model(game()).score, model(game()).cas], ["open", "", ""]);
   assert.equal(model(game({ roundStatus: "completed" })).phase, "closed");
   assert.equal(model(game({ kind: "friendly", season: null })).line, "Friendly");
@@ -282,7 +288,60 @@ test("the match card: the score or «vs», CAS, the phase, each team leading to 
   const empty = model(game({ away: null }), ADMIN);
   assert.deepEqual(empty.away, { name: "—" });
   assert.deepEqual(model(game(SENT), ADMIN).links, []);
-  for (const phase of GAME_PAGE_PHASES) assert.ok(["sent", "played", "closed", "open"].includes(phase));
+  for (const phase of GAME_PAGE_PHASES) assert.ok(["sent", "played", "technical", "closed", "open"].includes(phase));
+});
+
+test("a begun preparation is linked from the match page: preparing, ready or in play; not before it begins", () => {
+  for (const status of ["preparing", "ready", "in_progress"]) {
+    const { links } = gamePageModel({ game: game({ preparationStatus: status }), viewer: ADMIN });
+    assert.deepEqual(links.map(({ label, href }) => [label, href]), [["Match preparation", preMatchUrl("g")]], status);
+  }
+  assert.deepEqual(gamePageModel({ game: game(), viewer: ADMIN }).links, [], "a preparation not begun: no link");
+});
+
+test("a technical result says why, as the league's page does, with no casualties: it was not played", async () => {
+  const technical = { ...CONFIRMED, resultType: "technical", technicalReason: "no_team", homeTouchdowns: 2, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0 };
+  const model = gamePageModel({ game: game(technical), viewer: ADMIN });
+  assert.deepEqual([model.phase, model.chipTone, model.score, model.cas], ["technical", "neutral", "2–0", ""]);
+  assert.equal(model.technical, "Technical win · the opponent could not field a team");
+  assert.equal(gamePageModel({ game: game({ ...technical, technicalReason: null }), viewer: ADMIN }).technical, "Technical win", "stored before stage 12: «other»");
+  assert.equal(gamePageModel({ game: game(CONFIRMED), viewer: ADMIN }).technical, "", "a played result has none");
+  await visit(game(technical), ADMIN);
+  assert.equal(view.querySelector(".g-status").textContent, "Technical result");
+  assert.equal(view.querySelector(".g-game__note").textContent, "Technical win · the opponent could not field a team");
+  assert.doesNotMatch(view.querySelector(".g-match").textContent, /CAS/);
+  // A side's coach of a technical result reads the page too: there is no post-match to send him to.
+  await visit(game(technical));
+  assert.deepEqual(location.replaced, []);
+  assert.equal(view.querySelector(".g-status").textContent, "Technical result");
+  api.assertAnswered();
+});
+
+test("a refused press whose re-read sends the coach on is said in a toast first; the games are read again after any answer", async () => {
+  await withoutTimers(async () => {
+    await visit(game(SENT));
+    api.reply("POST /api/games/g/confirm", 409, { error: { code: "NO_RESULT_AWAITING_CONFIRMATION", message: "There is no result awaiting confirmation." } });
+    api.reply("GET /api/games/g", 200, { game: game({ ...SENT, resultStatus: "rejected" }) });
+    fireEvent(button("confirm"), "click");
+    await flush();
+  });
+  assert.equal(toasts().at(-1), t("error.NO_RESULT_AWAITING_CONFIRMATION"), "the refusal is said before the coach goes");
+  assert.ok(document.querySelectorAll("output").at(-1).className.includes("g-toast--error"));
+  assert.deepEqual(location.replaced, [preMatchUrl("g")]);
+  assert.equal(sent("GET /api/games").length, 1, "after a 409 the coach's games are read again: the frame's card follows");
+  api.assertAnswered();
+  // The coach leaves while the answer is on its way: the games are read again all the same, the visit is not.
+  await visit(game(SENT));
+  api.reply("POST /api/games/g/confirm", 200, { game: game(CONFIRMED) });
+  const gate = api.hold("POST /api/games/g/confirm");
+  fireEvent(button("confirm"), "click");
+  await settle();
+  releaseCurrentScreen();
+  gate.release();
+  await flush();
+  assert.equal(sent("GET /api/games").length, 1, "the server's state changed: the frame no longer offers «Confirm the score»");
+  assert.equal(sent("GET /api/games/g").length, 1, "the page gone, the match is not read again");
+  api.assertAnswered();
 });
 
 test("every key in both dictionaries", () => {

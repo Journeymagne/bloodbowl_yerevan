@@ -13,13 +13,20 @@
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl, seasonTabUrl, teamUrl } from "../../core/routes.mjs";
 import { isGameClosedForPlayers, isGameResultSubmitted } from "../../data/games.mjs";
+import { TECHNICAL_REASONS } from "../../domain/league-rules.mjs";
 import { isMatchLive, sentCasualties, sentScore } from "../../shell/current-match.mjs";
 
-/** The phases the page's chip says (`gamePage.status.${phase}`): a score waiting, a result in, a round over without one, the rest. */
-export const GAME_PAGE_PHASES = Object.freeze(["sent", "played", "closed", "open"]);
+/**
+ * The phases the page's chip says (`gamePage.status.${phase}`): a score waiting, a result played, a result decided without
+ * being played (stage 12's technical one), a round over without one, the rest.
+ */
+export const GAME_PAGE_PHASES = Object.freeze(["sent", "played", "technical", "closed", "open"]);
 
 /** The page's chip by phase: a score waiting is the warning colour, the rest is quiet. */
-const PHASE_TONES = { sent: "wait", played: "neutral", closed: "neutral", open: "neutral" };
+const PHASE_TONES = { sent: "wait", played: "neutral", technical: "neutral", closed: "neutral", open: "neutral" };
+
+/** The preparation's states once one is begun: the page links to it from then on (fidelity N2). */
+const PREPARED = Object.freeze(["preparing", "ready", "in_progress"]);
 
 /** The score as the card reads it, the home side first. */
 const HOME_FIRST = { own: "home", other: "away" };
@@ -49,9 +56,9 @@ export function gameDestination(game, viewerId) {
   return fresh ? preMatchUrl(game) : "";
 }
 
-/** The page's phase: a result in, a score waiting, a round over for players without either, the rest. */
+/** The page's phase: a result in (played, or technical), a score waiting, a round over for players without either, the rest. */
 function phaseOf(game) {
-  if (isGameResultSubmitted(game)) return "played";
+  if (isGameResultSubmitted(game)) return game.resultType === "technical" ? "technical" : "played";
   if (game.resultStatus === "awaiting_confirmation") return "sent";
   return isGameClosedForPlayers(game) ? "closed" : "open";
 }
@@ -73,20 +80,21 @@ function cardSide(side, viewerId) {
   return { name: side.team.name || "—", sub: side.user?.login ?? "", href };
 }
 
-/** The ways on, for anyone who may read them: the preparation of a match begun, the post-match once it is opened. */
+/** The ways on, for anyone who may read them: the preparation once it is begun, the post-match once it is opened. */
 function linksOf(game) {
   const links = [];
-  if (game.preparationStatus === "in_progress") links.push({ label: t("shell.match.prepare"), href: preMatchUrl(game) });
+  if (PREPARED.includes(game.preparationStatus)) links.push({ label: t("shell.match.prepare"), href: preMatchUrl(game) });
   const postMatch = game.postMatchStatus ?? "not_started";
   if (postMatch !== "not_started") links.push({ label: t("shell.match.postMatch"), href: postMatchUrl(game, postMatch === "completed" ? "review" : "") });
   return links;
 }
 
 /**
- * The match page: its title and line, the two sides, the score (a result in, or the one sent) and its casualties, the
- * phase and its chip's tone; for a side a score sent before 3.0 waits on, whether it confirms (`confirm`, the side that
- * did not send it), who confirms it (`waitingFor`, for the side that did) or that the round is closed (`roundClosed`:
- * the server refuses a player then, so nothing is offered); the ways on.
+ * The match page: its title and line, the two sides, the score (a result in, or the one sent, «2 : 1» as the matches'
+ * card writes it) and its casualties, the phase and its chip's tone; a technical result's reason (`technical`, as the
+ * league's page says it — it was not played, so no casualties); for a side a score sent before 3.0 waits on, whether it
+ * confirms (`confirm`, the side that did not send it), who confirms it (`waitingFor`, for the side that did) or that the
+ * round is closed (`roundClosed`: the server refuses a player then, so nothing is offered); the ways on.
  * @param {{game: object, viewer: {id: string, isAdmin?: boolean}|null}} input
  */
 export function gamePageModel({ game, viewer }) {
@@ -101,10 +109,11 @@ export function gamePageModel({ game, viewer }) {
     line: game.kind === "friendly" ? t("gamePage.friendly") : t("gamePage.round", { season: game.season?.name ?? "", round: game.roundNumber }),
     home: cardSide(game.home, viewerId),
     away: cardSide(game.away, viewerId),
-    score: phase === "played" ? resultPair(game, "Touchdowns") : phase === "sent" ? sentScore(game, HOME_FIRST) : "",
+    score: phase === "played" || phase === "technical" ? resultPair(game, "Touchdowns") : phase === "sent" ? sentScore(game, HOME_FIRST, " : ") : "",
     cas: phase === "played" ? resultPair(game, "Casualties") : phase === "sent" ? sentCasualties(game, HOME_FIRST) : "",
     phase,
     chipTone: PHASE_TONES[phase],
+    technical: phase === "technical" ? t(`league.technical.${TECHNICAL_REASONS.includes(game.technicalReason) ? game.technicalReason : "other"}`) : "",
     confirm: waiting && !closed && game.viewerIsProposer === false,
     waitingFor: waiting && !closed && game.viewerIsProposer === true ? game[other]?.team?.name ?? "" : "",
     roundClosed: closed,

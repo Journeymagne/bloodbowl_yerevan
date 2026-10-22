@@ -1705,6 +1705,7 @@
   "gamePage.friendly": "Товарищеский",
   "gamePage.status.sent": "Ждёт подтверждения",
   "gamePage.status.played": "Сыгран",
+  "gamePage.status.technical": "Технический результат",
   "gamePage.status.closed": "Не сыгран",
   "gamePage.status.open": "Ещё не сыгран",
   "gamePage.cas": "CAS {cas}",

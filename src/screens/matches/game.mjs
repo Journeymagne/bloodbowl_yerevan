@@ -13,7 +13,8 @@
  * A press sends one request (`POST /api/games/:id/confirm|reject`), however often it is pressed: both buttons say the
  * answer is on its way (`aria-busy`, `aria-disabled`) until the match is read again and drawn. Then the coach's games
  * are read again (the frame's card follows); a rejection says so in a toast and, the match open again, leads to its
- * preparation. A refusal is said in the server's words as an alert; after a 409 the match has changed and is read again.
+ * preparation. A refusal is said in the server's words as an alert; after a 409 the match has changed and is read again
+ * (said in a toast instead when the match read sends the coach on).
  * A match that cannot be read is said with the way back to the matches — «Match not found» for one the server does not
  * know, which is what a coach of neither side gets (404). A guest is sent to sign in by the router before this (the
  * address is a signed-in one, core/routes.mjs).
@@ -61,8 +62,9 @@ function backMarkup() {
   return `<a class="g-game__back" href="${escapeHtml(href)}">${icon("back", 14)}<span>${escapeHtml(t("gamePage.back"))}</span></a>`;
 }
 
-/** What the card says of a score sent: that the round is closed, or who confirms it. */
+/** What the card says: a technical result's reason; of a score sent, that the round is closed, or who confirms it. */
 function noteMarkup(model) {
+  if (model.technical) return `<p class="g-game__note">${escapeHtml(model.technical)}</p>`;
   if (model.roundClosed) return `<p class="g-game__note">${escapeHtml(t("gamePage.roundClosed"))}</p>`;
   if (!model.waitingFor) return "";
   return `<p class="g-game__note g-game__note--wait">${escapeHtml(t("gamePage.waiting", { team: model.waitingFor }))}</p>`;
@@ -112,6 +114,8 @@ async function openGame(visit, { first = false } = {}) {
   if (!visit.here) return;
   const href = gameDestination(game, state.auth.currentUser?.id ?? "");
   if (href) {
+    // A refusal whose re-read sends the coach on is said before he goes: the page that would say it is not drawn.
+    if (visit.error) toast(visit.error, { tone: "error" });
     location.replace(href);
     return;
   }
@@ -125,7 +129,11 @@ async function openGame(visit, { first = false } = {}) {
   view.querySelector("h1")?.focus();
 }
 
-/** One answer to the score sent, however often pressed: sent, then the match read again (after a 409 too). */
+/**
+ * One answer to the score sent, however often pressed: sent, then the match read again (after a 409 too). The coach's
+ * games — the frame's, not the visit's — are read again once the server has answered so (a success or a 409: the match
+ * has changed either way), whether or not the page is still on screen.
+ */
 async function respond(visit, action) {
   if (visit.busy || !visit.game || !["confirm", "reject"].includes(action)) return;
   visit.busy = action;
@@ -134,6 +142,7 @@ async function respond(visit, action) {
   try {
     await apiRequest(`${visit.path}/${action}`, { method: "POST", body: "{}" });
   } catch (error) {
+    if (error?.status === 409) void invalidateGames();
     if (!visit.here) return;
     visit.error = refusalWords(error);
     if (error?.status === 409) {
@@ -144,8 +153,8 @@ async function respond(visit, action) {
     draw(visit);
     return;
   }
-  if (!visit.here) return;
   void invalidateGames();
+  if (!visit.here) return;
   if (action === "reject") toast(t("gamePage.rejected"));
   await openGame(visit);
 }

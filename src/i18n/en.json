@@ -1705,6 +1705,7 @@
   "gamePage.friendly": "Friendly",
   "gamePage.status.sent": "Awaiting confirmation",
   "gamePage.status.played": "Played",
+  "gamePage.status.technical": "Technical result",
   "gamePage.status.closed": "Not played",
   "gamePage.status.open": "Not played yet",
   "gamePage.cas": "CAS {cas}",
