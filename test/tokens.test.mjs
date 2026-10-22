@@ -108,7 +108,7 @@ const LEGACY_ALIASES = {
   "--primary-bg": "var(--accent)", "--primary-bg-hover": "var(--accent-ink)", "--primary-border": "var(--accent)",
   "--primary-text": "var(--on-accent)", "--primary-text-shadow": "none",
   "--active-button-bg": "var(--accent-tint)", "--active-button-border": "var(--accent)", "--active-button-text": "var(--on-accent-tint)",
-  "--modal-bg": "var(--surface)", "--overlay-bg": "var(--scrim)", "--scroll-fade": "var(--surface)",
+  "--overlay-bg": "var(--scrim)", "--scroll-fade": "var(--surface)",
 };
 
 test("every palette wears the prototype's colours", () => {

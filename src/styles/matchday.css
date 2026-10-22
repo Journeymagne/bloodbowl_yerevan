@@ -1,13 +1,6 @@
 /*
  * Matchday uses the site's six palettes; every colour comes from theme tokens.
- * What is left is what the 2.x game page and the friendly challenges still draw: the eyebrow over a panel's
- * title, and the challenge dialog. The 2.x roster editor's cards, sidebar and dock went with it in stage 12.
+ * What is left is what the 2.x game page still draws: the eyebrow over a panel's title. The 2.x roster editor's
+ * cards, sidebar and dock went with it in stage 12; the 2.x challenge dialog with «My games» in stage 09c.
  */
 .matchday-eyebrow { display: block; font: .55rem/1.5 var(--label-font); letter-spacing: 1.5px; color: var(--muted); }
-.matchday-hire-dialog { width: 100%; max-width: none; margin: auto 0 0; border-bottom: 0; }
-.matchday-hire-dialog > header { display: flex; justify-content: space-between; gap: 12px; align-items: start; position: sticky; top: 0; z-index: 1; padding: 20px 18px 17px; border-bottom: 1px solid var(--line); background: var(--modal-bg); }
-.matchday-hire-dialog h2 { margin: 5px 0 0; }
-.matchday-hire-dialog header p { font-size: .7rem; margin: 7px 0 0; color: var(--muted); }
-@media (min-width: 601px) {
-  .matchday-hire-dialog { width: min(780px, calc(100% - 40px)); max-height: 85dvh; margin: auto; border-bottom: 2px solid var(--line-bright); }
-}

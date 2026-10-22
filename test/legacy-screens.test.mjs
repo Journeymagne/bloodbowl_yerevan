@@ -19,19 +19,6 @@ test("the VS between player cards is readable, not a tint of the surface", () =>
   assertReadable("src/styles/site-matchday.css", ".game-versus > strong", "color", ["--surface", "--surface-2"], 3);
 });
 
-test("the badges of the games list are text colour, not the pale border colour", () => {
-  const pre = "src/styles/pre-match.css";
-  const onPage = ["--surface", "--surface-2", "--page"];
-  assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
-  // The badge's outline is a border and keeps the border colour.
-  assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
-});
-
-test("a started round or game is accent text on its pill, not a pale green made for a dark page", () => {
-  // The pill is the --md-wash tint (site-matchday.css); its label is .6rem, so 4.5:1.
-  assertReadable("src/styles/season.css", '.season-status-pill[data-status="started"]', "color", ["--accent-tint-soft", "--surface"], 4.5);
-});
-
 test("the destructive confirm button keeps its label readable in every palette, hovered too", () => {
   const sheet = "src/styles/season.css";
   const button = ".primary-button.danger-action";

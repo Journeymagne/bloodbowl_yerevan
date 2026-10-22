@@ -39,7 +39,6 @@
   --active-button-bg: var(--accent-tint);
   --active-button-border: var(--accent);
   --active-button-text: var(--on-accent-tint);
-  --modal-bg: var(--surface);
   --overlay-bg: var(--scrim);
   --scroll-fade: var(--surface);
 }
