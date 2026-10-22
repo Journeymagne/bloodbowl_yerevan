@@ -229,8 +229,10 @@
 .g-after__card--switches .g-toggle__label { font: 600 15px/1.3 var(--font-body); }
 .g-after__card--switches .g-toggle__caption { font: 400 12px/1.35 var(--font-body); }
 
-/* From 901px the controls are the prototype's (D2: never under 24px): the score's steppers 40px, a reason 40px. */
+/*
+ * From 901px the controls are the prototype's (D2: never under 24px): the score's steppers 40px. A reason stays 44px on
+ * every width, as the modes beside it and DeskPostResult's radios are.
+ */
 @media (min-width: 901px) {
   .g-after__step { width: 40px; height: 40px; }
-  .g-after__reason { min-height: 40px; }
 }

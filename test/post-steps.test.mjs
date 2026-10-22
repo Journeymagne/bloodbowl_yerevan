@@ -206,6 +206,19 @@ test("a technical result asks why; the reason goes with the score (stage 12, dec
   assert.equal(mount(score(modelOf(both, "result"), { unlocked: true }).contentHtml).querySelectorAll('[data-after-reason] [aria-disabled="true"]').length, 0);
 });
 
+test("a friendly's technical result asks no reason and promises no points: it goes as «another reason»", () => {
+  const model = modelOf(begin({ events: {} }), "", {}, { fixture: { ...FIXTURE, kind: "friendly" } });
+  const technical = { mode: "technical", winner: "home" };
+  const drawn = drawScore(model, technical);
+  assert.equal(drawn.querySelector("[data-after-reason]"), null, "no reason to choose");
+  assert.equal(drawn.querySelector(".g-after__reasonsub"), null, "no «+2 to the winner's points»");
+  assert.equal(drawn.querySelector(".g-after__for").textContent, "Friendly: off the table");
+  const footer = score(model, technical).footer;
+  assert.deepEqual([footer.disabled, footer.hint], [false, ""], "nothing to pick first");
+  assert.deepEqual(resultAction(model, { ...resultDraft(model), ...technical }),
+    { type: "result", mode: "technical", winner: "home", reason: "other", home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } });
+});
+
 test("the opponent's technical result says its reason in the line about the opponent", () => {
   const sent = (reason) => act(begin({ events: {} }), "away", { type: "result", mode: "technical", winner: "away", reason,
     home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } }, {});
@@ -437,9 +450,9 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   for (const [selector, property] of [[".g-after__step", "height"], [".g-after__step", "width"], [".g-after__mode", "min-height"], [".g-after__reason", "min-height"], [".g-after__card--switches .g-toggle", "min-height"]]) {
     assert.ok(px(own(selector, property)[0]) >= 44, `${selector} ${property}`);
   }
-  // A reason is 44px on a phone, the desk's 40px from 901px (the plan's value; never under 24).
-  assert.deepEqual(own(".g-after__reason", "min-height"), ["44px", "40px"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-after__reason", "min-height"), ["40px"]);
+  // A reason is 44px on every width, as the modes in the same card and DeskPostResult's radios are.
+  assert.deepEqual(own(".g-after__reason", "min-height"), ["44px"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-after__reason", "min-height"), []);
   assert.equal(inMedia(CSS, "max-width: 900px", ".g-after__reason", "min-height").length, 0, "nothing smaller on a phone");
   assert.ok(px(valuesOf("src/screens/matches/prep.css", ".g-prep__faces--6 .g-prep__face", "min-height")[0]) >= 44, "the faces, the preparation's 46px");
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-after__step", "height"), ["40px"]);

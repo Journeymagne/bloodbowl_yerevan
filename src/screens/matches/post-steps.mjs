@@ -114,7 +114,8 @@ export function resultDraft(model) {
 
 /**
  * The score the draft stands for, as the domain writes it (`setResult`): a technical one 2–0 to its winner, CAS 0, with
- * its reason ("" until one is picked); a winner only when not played (ours until the coach picks).
+ * its reason ("" until one is picked; a friendly's is «another», none being asked — it gives no points); a winner only
+ * when not played (ours until the coach picks).
  */
 function draftScore(model, draft) {
   const own = model.sideName, rival = otherSide(own);
@@ -122,7 +123,7 @@ function draftScore(model, draft) {
   const winner = mode === "played" ? "" : [own, rival].includes(draft.winner) ? draft.winner : own;
   if (mode === "technical") {
     const side = (name) => ({ touchdowns: name === winner ? 2 : 0, casualties: 0 });
-    const reason = TECHNICAL_REASONS.includes(draft.reason) ? draft.reason : "";
+    const reason = model.kind === "friendly" ? "other" : TECHNICAL_REASONS.includes(draft.reason) ? draft.reason : "";
     return { mode, winner, reason, [own]: side(own), [rival]: side(rival) };
   }
   return { mode, winner, [own]: { touchdowns: draft.own.touchdowns, casualties: draft.own.casualties }, [rival]: { touchdowns: draft.other.touchdowns, casualties: draft.other.casualties } };
@@ -233,7 +234,9 @@ function modeCard(model, score, locked) {
   const winner = score.mode === "played" ? ""
     : renderSegmentedControl({ label: t("after.winner"), selected: score.winner, data: { segGroup: "after-winner" },
       items: ["home", "away"].map((value) => ({ value, label: model.post[value].team.name, disabled: locked })) });
-  const technical = score.mode === "technical" ? `${reasonsMarkup(score, locked)}${noteMarkup(t("after.technicalNote"))}` : "";
+  // A friendly gives no points: why it was technical changes nothing, so it is not asked (its reason is «another»).
+  const reasons = model.kind === "friendly" ? "" : reasonsMarkup(score, locked);
+  const technical = score.mode === "technical" ? `${reasons}${noteMarkup(t("after.technicalNote"))}` : "";
   return `<div class="g-after__card">${labelMarkup(t("after.howEnded"))}${group}${winner ? `${labelMarkup(t("after.winner"))}${winner}` : ""}`
     + `${technical}${noteMarkup(t("after.modeNote"))}</div>`;
 }
