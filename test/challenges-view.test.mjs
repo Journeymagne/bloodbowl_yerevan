@@ -311,14 +311,19 @@ test("the prototypes' Oswald titles at Oswald's own line height: the phone's tit
 });
 
 test("a desk's band: its title on the cards' edge, 32 in, and the line under it 4 below, the band 94 high as the prototype's", () => {
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin"), ["-28px -32px var(--space-4)"], "the band to the edges");
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "padding-inline"), ["32px"], "page-head.css pads 28");
+  // Stage 13: the view pads 24 32 40 as DeskChallenges.html's main, and the band reaches the edges by the frame's own
+  // figures (page-head.css); the page keeps only the 24 under the band (4 and its gap of 20).
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin"), [], "the band's margin is page-head.css's");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin-bottom"), ["var(--space-4)"], "24 to the first card");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "padding-inline"), [], "page-head.css pads the frame's 32");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk", "padding"), [], "the view's 32 is the prototype's");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk", "gap"), ["var(--space-20)"]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "margin"), ["var(--space-4) 0 0"], "not the page's reset");
   assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "line-height"), ["normal"]);
 });
 
 test("a phone's page is grey to the view's edges at any width up to 900, 16 in", () => {
-  // The view pads 26 20 40 up to 900px and 20 16 32 up to 600 (site-matchday.css): it gives that up for the page.
+  // The view pads 16 16 28 up to 900px (shell/frame.css): it gives that up for the page, which is grey to the edges.
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-friendly--phone)", "padding"), ["0"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "margin"), [], "no margin taking back one width's padding");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "padding"), ["var(--space-16) var(--space-16) 28px"]);
