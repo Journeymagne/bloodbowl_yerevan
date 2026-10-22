@@ -59,7 +59,6 @@ function announce() {
 function resetCoachSlices() {
   state.myTeams = { items: [], loaded: false, loading: false, error: "" };
   state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
-  state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
   state.season = { data: null, loaded: false, loading: false, error: "" };
   // Last, and through active-team.mjs: its listeners (the header) hear it, with the rest already gone.
   resetActiveTeam();

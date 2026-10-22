@@ -406,7 +406,10 @@ test("a team in a match says the post-match will start over", async () => {
 });
 
 test("the 2.x editor is gone", () => {
-  for (const file of ["src/screens/saved-roster.mjs", "src/components/roster-editor", "src/components/roster-editor-shared.mjs", "src/components/roster-notices.mjs"]) {
+  const gone = ["src/screens/saved-roster.mjs", "src/components/roster-editor", "src/components/roster-editor-shared.mjs", "src/components/roster-notices.mjs",
+    // Their last readers went with the editor and the 2.x administration (the fix wave of stage 12).
+    "src/components/icons.mjs", "src/components/content-links.mjs", "src/components/team-delete.mjs"];
+  for (const file of gone) {
     assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
   }
   const app = text("src/app.js");

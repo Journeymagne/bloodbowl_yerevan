@@ -226,10 +226,8 @@ test("signing out forgets the coach even when the server cannot be reached", asy
 test("a session that dies mid-use resets every slice of the coach", () => {
   fresh();
   state.season.loaded = true;
-  state.admin.loaded = true;
   session.sessionEnded();
   assert.equal(state.season.loaded, false);
-  assert.equal(state.admin.loaded, false);
   assert.equal(heard, 1);
   api.assertAnswered();
 });
@@ -507,12 +505,11 @@ test("who is signed in is set by the session alone; a screen that has a newer co
 });
 
 // R14 (N2): another tab signed in as someone else. Nothing the page loaded for the coach before is the new one's.
-test("a coach another tab swapped in starts clean: no active team, games, season or administration of the one before", async () => {
+test("a coach another tab swapped in starts clean: no active team, games or season of the one before", async () => {
   await signedInWithAnUnreadOrReadList();
   state.activeTeamId = "t1";
   state.games = { items: [{ id: "g1" }], currentItems: [], loaded: true, loading: false, error: "" };
   state.season = { data: { myEntry: { id: "e1" } }, loaded: true, loading: false, error: "" };
-  state.admin = { users: [{ id: "u9" }], loaded: true, loading: false, error: "", editingTeams: new Map() };
   api.items.set(TOKEN, "other");
   api.reply("GET /api/auth/me", 200, SECOND);
   api.reply("GET /api/teams", 200, { teams: [{ id: "t5" }] });
@@ -522,7 +519,6 @@ test("a coach another tab swapped in starts clean: no active team, games, season
   assert.equal(state.activeTeamId, null);
   assert.deepEqual([state.games.items, state.games.loaded], [[], false]);
   assert.deepEqual([state.season.data, state.season.loaded], [null, false]);
-  assert.deepEqual([state.admin.users, state.admin.loaded], [[], false]);
   assert.deepEqual(state.myTeams.items, [{ id: "t5" }], "the new coach's own list");
   api.assertAnswered();
 });

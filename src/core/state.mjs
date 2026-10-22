@@ -23,16 +23,6 @@ export const state = {
   // The id of one of `myTeams.items`, chosen by data/active-team.mjs; null for a guest or a coach with no team.
   activeTeamId: null,
   games: { items: [], currentItems: [], loaded: false, loading: false, error: "" },
-  savedRosterUi: {
-    expandedPlayers: new Set(),
-  },
-  admin: {
-    users: [],
-    loaded: false,
-    loading: false,
-    error: "",
-    editingTeams: new Map(),
-  },
   season: {
     data: null,
     loaded: false,
