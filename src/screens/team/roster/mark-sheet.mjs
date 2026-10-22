@@ -55,6 +55,12 @@ function noteOf(text) {
 }
 
 /**
+ * The words as another reason's field of one line shows them, and as its note keeps them: a line break of a death's
+ * cause, written before the reason changed, is a space (a browser would join the lines with nothing between them).
+ */
+const oneLine = (text) => (typeof text === "string" ? text.replace(/\r\n?|\n/g, " ") : text);
+
+/**
  * The mark the sheet's choice makes (what `markSkip` sends, or for a death what `markDeath` does), or null while it is
  * not whole: no reason chosen, a lasting injury without its characteristic, another reason or a death without words
  * or with more than the server keeps.
@@ -68,7 +74,7 @@ export function chosenMark({ code, stat, text }) {
   if (!Object.hasOwn(WORDS_MAX, code)) return null;
   const words = noteOf(text);
   if (!words || words.length > WORDS_MAX[code]) return null;
-  return code === "dead" ? { code, cause: words } : { code, note: words };
+  return code === "dead" ? { code, cause: words } : { code, note: oneLine(words) };
 }
 
 /**
@@ -100,14 +106,16 @@ function reasonOptions() {
 /**
  * What the chosen reason asks for under the cards: a lasting injury's characteristic, another reason's words, a
  * death's cause (not typed over while the death is on its way); and an injury's effect, said before it is done.
+ * The cause is written on two lines, as StatsMngDead.html and DeskRosterDeath.html draw it (stage 13, decision 16);
+ * another reason's words stay one line, so the field changes with the reason and the words go with it.
  */
 function detailMarkup(choice, busy) {
   let detail = "";
   if (choice.code === "lasting") detail = statChipsMarkup({ stat: choice.stat, group: MARK_STAT, label: t("teamRoster.mark.stat"), plain: true });
-  if (choice.code === "other") detail = renderTextField({ id: MARK_TEXT, name: MARK_TEXT, label: t("teamRoster.mark.note"), value: choice.text });
+  if (choice.code === "other") detail = renderTextField({ id: MARK_TEXT, name: MARK_TEXT, label: t("teamRoster.mark.note"), value: oneLine(choice.text) });
   if (choice.code === "dead") {
     const help = t("teamRoster.mark.causeHelp");
-    detail = renderTextField({ id: MARK_TEXT, name: MARK_TEXT, label: t("teamRoster.fallen.cause"), help, value: choice.text, readonly: busy });
+    detail = renderTextField({ id: MARK_TEXT, name: MARK_TEXT, label: t("teamRoster.fallen.cause"), help, value: choice.text, multiline: true, readonly: busy });
   }
   const effect = LASTING_EFFECT.includes(choice.code) ? `<p class="g-roster__markeffect">${escapeHtml(t("teamRoster.mark.effectsStay"))}</p>` : "";
   return `${detail}${effect}`;

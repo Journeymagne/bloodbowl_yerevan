@@ -47,6 +47,29 @@
 }
 .g-field__input::placeholder { color: var(--muted); }
 
+/*
+ * A field of several lines (a death's cause), with the line's ring and colours. StatsMngDead.html
+ * on a phone: from 64px, 10px 12px, radius 12, 15/1.4, not resized by hand. DeskRosterDeath.html
+ * from 901px: from 60px, radius 10, 14/1.4, taller by hand. Two rows fit in either minimum.
+ */
+.g-field__input--area {
+  display: block;
+  height: auto;
+  min-height: 64px;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-lg);
+  font: 400 15px/1.4 var(--font-body);
+  resize: none;
+}
+@media (min-width: 901px) {
+  .g-field__input--area {
+    min-height: 60px;
+    border-radius: var(--radius-md);
+    font: 400 14px/1.4 var(--font-body);
+    resize: vertical;
+  }
+}
+
 /* The input and the control beside it (a "save" button): the input takes what the control leaves. */
 .g-field__control {
   display: flex;
