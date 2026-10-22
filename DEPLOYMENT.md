@@ -4,12 +4,16 @@ This document is for the person who will publish the Gata Blood Bowl League refe
 
 ## Quick Deploy Checklist
 
-1. Clone the repository.
-2. Use the `gata-league` branch, or merge it into the branch you want to deploy.
-3. Run `npm install`.
-4. Run `npm run build`.
-5. Confirm that `dist/` was generated.
-6. Publish `dist/` on a static host.
+Since 2.0 the site is a Node server with Postgres (accounts, teams, the season), not a static site:
+`dist/` alone serves the reference pages and nothing behind a sign-in.
+
+1. Deploys go through GitHub Actions from `main` to the VPS ("VPS Deployment" below): `git reset --hard
+   origin/main && npm install && npm run build`, then `npm run deploy:migrate` and the pm2 restart.
+2. `npm run build` writes `dist/` and removes from it whatever an earlier build left that this one did
+   not write (a deleted stylesheet, module, font or image is not served afterwards).
+3. A migration in `server/db/migrations/` is applied by `npm run deploy:migrate`; read "Database
+   Backups" before one that changes data.
+4. The move from 2.x to 3.0 is a window of its own: "Moving to 3.0" below.
 
 ## Updating Content
 
@@ -45,32 +49,29 @@ GATA_CHANGELOG_DOCX
 
 ## Smoke Test Before Publishing
 
-Run:
+**The guest's screens, with no server** (`npm run dev` has no API: whatever needs a sign-in sends the
+visitor to `#/login`, which cannot sign anyone in there):
 
 ```bash
 npm run build
 npm run dev
 ```
 
-Open:
+Open <http://localhost:5173> and check at least:
 
-```text
-http://localhost:5173
-```
+- The guest's front page opens: the league, the way in, the table's card, the reference's tiles.
+- `#/ref/teams` lists 37 teams (`scripts/browser-check.mjs` counts the same rows).
+- A team's rules page, for example `#/teams/amazon`, opens with its roster table.
+- The settings' palette and language switch change the page (`#/settings` as a guest: language and
+  palette only).
 
-Check at least:
+The counts come from the build: `npm run build` prints the page total, and `public/data.en.json` carries
+the rest in its `counts` field. Check there rather than here if the two ever disagree.
 
-- Overview opens.
-- Teams shows 37 cards.
-- Star Players shows 75 cards.
-- Skills shows 86 cards.
-- Traits shows 38 cards.
-- Team Builder can add a player and update cost.
-- A team detail page, for example `#/teams/amazon`, shows a horizontally scrollable roster table on mobile.
-
-The counts come from the build: `npm run build` prints the page total (292),
-and `public/data.en.json` carries the rest in its `counts` field. Check there
-rather than here if the two ever disagree.
+**Everything behind a sign-in** (the builder `#/teams/new`, a team's roster, matches, the season, the
+administration) needs `npm start` with Postgres and a signed-in coach ("A Match, Locally" in
+`README.md`), or the five smoke checks of "Commands" in `README.md` against such a server. Before the
+3.0 release they are part of "Moving to 3.0" (T−2 days).
 
 ## Current UX And Content Questions
 
@@ -640,16 +641,25 @@ The owner posts in the league's Telegram; Claude drafts the text. It gives:
 
 1. **The final rehearsal (M5), on a fresh dump.** Follow "Rehearsing a migration on a copy of
    production" in `README.md`: seed the transitions on 2.1.0, then finish them on 3.0.
-2. **The five smoke checks**, on the 3.0 server over `gata_rehearsal` ("Commands" in `README.md`):
-   - `smoke`
-   - `smoke:pre-match`
-   - `smoke:friendly`
-   - `smoke:post-match`
-   - `smoke:admin`
+2. **The five smoke checks**, on the 3.0 server over `gata_rehearsal` ("Commands" in `README.md`). A
+   restored production dump has no preview coaches, and the three match smokes sign in as them: seed
+   them first, into the same database. `<3.0 server>` is that server's address (for example
+   `http://localhost:3081`), `<gata_rehearsal>` the database's local URL:
+
+   ```bash
+   DATABASE_URL=<gata_rehearsal> npm run preview:seed
+   APP_URL=<3.0 server> npm run smoke
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:pre-match
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:friendly
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:post-match
+   . output/<admin env file> && SMOKE_ADMIN_LOGIN="$ADMIN_LOGIN" SMOKE_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+     APP_URL=<3.0 server> npm run smoke:admin
+   ```
 
    `smoke:admin` signs in with the administrator's login and password. They are test values, kept in a
    `0600` file under `output/` that is only ever `source`d, never printed. The same values start that
-   server and let `rehearsal:transitions -- --finish` sign in.
+   server and let `rehearsal:transitions -- --finish` sign in. Without `SMOKE_BASE_URL` the match smokes
+   go to their own defaults (3003, and 3002 for `smoke:post-match`), not to the 3.0 server.
 3. **The pull request.** `redesign → main` is green and has no conflicts.
 4. **Rosters over 14 players (M2), on the same dump:**
 
