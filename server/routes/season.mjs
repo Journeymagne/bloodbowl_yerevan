@@ -10,6 +10,7 @@
  * `myTeams` and the admin half need one.
  */
 import { pool } from "../db/pool.mjs";
+import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
@@ -200,7 +201,8 @@ async function handleSeasonPairingRoutes(request, response, url) {
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const body = await readJson(request);
     const season = await ensureActiveSeason();
-    await updateSeasonPairing(season.id, seasonPairingMatch[1], body, true, user.id);
+    // One transaction: the pairing's lock holds through the post-match's check and the write (decision 29).
+    await withTransaction((client) => updateSeasonPairing(season.id, seasonPairingMatch[1], body, true, user.id, client));
     return send(response, 200, await loadSeasonBundle(user));
   }
 

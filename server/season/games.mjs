@@ -214,6 +214,14 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
  */
 function nextResult(pairing, body, friendly, sides) {
   const kind = friendly ? "friendly" : "league";
+  // A change of the teams alone (no mode, no score) keeps a technical result technical: its winner (the side
+  // with more touchdowns) and its reason, scored with the sides the write leaves — not a played 2–0 without a reason.
+  const scoreSent = ["homeTouchdowns", "awayTouchdowns", "homeCasualties", "awayCasualties"].some((field) => Object.hasOwn(body, field));
+  if (body.mode === undefined && !scoreSent && pairing.result_type === "technical") {
+    if (!sides.hasHome || !sides.hasAway) throw httpError(400, "FIELD_INVALID", { field: "mode" });
+    const winner = Number(pairing.away_touchdowns) > Number(pairing.home_touchdowns) ? "away" : "home";
+    return scoreLeagueResult({ ...sides, kind, resultType: "technical", winner, technicalReason: pairing.technical_reason ?? "other" });
+  }
   const mode = body.mode ?? "played";
   if (!RESULT_TYPES.includes(mode)) throw httpError(400, "FIELD_INVALID", { field: "mode" });
   if (mode === "technical") {
@@ -239,9 +247,10 @@ function nextResult(pairing, body, friendly, sides) {
 /**
  * The reason of a confirmed technical result, changed by the admin (stage 12): the reason and the points it
  * gives (`technicalPoints`; the winner is the side with more touchdowns), and nothing else — the score, the
- * status, its confirmation and a finished post-match stay as they are, so a result the post-match wrote is
- * changed too. While its post-match is open the reason is not changed: the finish writes the reason the
- * post-match holds over it.
+ * status, its confirmation stay as they are, so a result the post-match wrote is changed too. A finished
+ * post-match keeps everything it settled (the score, the SPP, the money) but its result's reason, which is set
+ * to the new one: its page counts its points from it, and would show the old ones beside the table's new. While
+ * its post-match is open the reason is not changed: the finish writes the reason the post-match holds over it.
  *
  * @param {string} seasonId the active season's
  * @param {string} pairingId a league pairing of that season
@@ -266,6 +275,11 @@ export async function setTechnicalReason(seasonId, pairingId, reason) {
     await client.query(
       "UPDATE season_pairings SET technical_reason = $2, home_points = $3, away_points = $4, updated_at = now() WHERE id = $1",
       [pairingId, reason, technicalPoints({ won: homeWon, reason }), technicalPoints({ won: !homeWon, reason })],
+    );
+    await client.query(
+      `UPDATE match_post_games SET state = jsonb_set(state, '{result,reason}', to_jsonb($2::text)), updated_at = now()
+       WHERE pairing_id = $1 AND state->>'status' = 'completed' AND jsonb_typeof(state->'result') = 'object'`,
+      [pairingId, reason],
     );
   });
 }

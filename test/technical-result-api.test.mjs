@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { accessPostMatch } from "../server/season/post-match.mjs";
 import { matchPoints } from "../src/domain/league-rules.mjs";
+import { postPoints } from "../src/domain/post-match/score.mjs";
 import { callApi, seedCoach, sessionFor, withApiDatabase } from "./helpers/api-db.mjs";
 import { G, SIDES, coaches, id, startedFriendly, teams } from "./helpers/match-db.mjs";
 import { scratchSkip } from "./helpers/scratch-db.mjs";
@@ -102,6 +104,19 @@ test("a played result carries no reason, and takes one away", db, () => withApiD
     result_status: "confirmed" }, "a body without a mode is a played result, as 2.x sends it");
 }));
 
+test("a change of the teams alone keeps a technical result technical, its reason and its points", db, () => withApiDatabase(async ({ client }) => {
+  const admin = await season(client);
+  await callApi("PATCH", `/api/games/${L}`, { token: admin, body: technical("away", "no_team") });
+  const before = resultOf(await pairing(client, L));
+  const teamsOnly = await callApi("PATCH", `/api/season/admin/pairings/${L}`, { token: admin, body: { homeEntryId: ENTRIES.home, awayEntryId: ENTRIES.away } });
+  assert.equal(teamsOnly.status, 200);
+  assert.deepEqual(resultOf(await pairing(client, L)), before, "still technical, «the opponent could not field a team», 0–4");
+  // A side taken away: a technical result needs both, so it is refused, not made a played one.
+  const one = await callApi("PATCH", `/api/season/admin/pairings/${L}`, { token: admin, body: { homeEntryId: ENTRIES.home, awayEntryId: null } });
+  assert.deepEqual([one.status, one.body.error?.code, one.body.error?.params], [400, "FIELD_INVALID", { field: "mode" }]);
+  assert.deepEqual(resultOf(await pairing(client, L)), before);
+}));
+
 test("a technical result needs both sides, a winner and a reason", db, () => withApiDatabase(async ({ client }) => {
   const admin = await season(client);
   await callApi("PATCH", `/api/games/${L}`, { token: admin, body: { homeTouchdowns: 1, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0 } });
@@ -136,7 +151,9 @@ test("a reason changed afterwards recounts the points and nothing else, a post-m
   const after = await pairing(client, L);
   assert.deepEqual([after.technical_reason, after.home_points, after.away_points], ["no_team", 0, 4]);
   assert.deepEqual(rest(after), rest(before), "the score, the status, the confirmation as they were");
-  assert.deepEqual(await postRow(client, L), post, "the post-match is sealed: its record untouched");
+  // The finished post-match keeps all it settled but its result's reason, which its page counts the points from.
+  const sealed = await postRow(client, L);
+  assert.deepEqual(sealed.state, { ...post.state, result: { ...post.state.result, reason: "no_team" } }, "only the result's reason changed in it");
   const shown = listed(changed.body, L);
   assert.deepEqual([shown.technicalReason, shown.awayPoints, shown.homeTouchdowns, shown.awayTouchdowns], ["no_team", 4, 0, 2], "the season comes back");
   assert.equal(changed.body.standings.find((standing) => standing.entryId === ENTRIES.away).points, 4);
@@ -179,8 +196,19 @@ test("the post-match's finish writes the reason it holds, and its points; a reas
   const post = await postRow(client, L);
   assert.equal((await reasonOf(admin, L, { technicalReason: "other" })).status, 200);
   assert.deepEqual([(await pairing(client, L)).technical_reason, (await pairing(client, L)).away_points], ["other", 2]);
-  assert.deepEqual(await postRow(client, L), post, "the finished post-match is as it was");
+  const after = await postRow(client, L);
+  assert.deepEqual(after.state, { ...post.state, result: { ...post.state.result, reason: "other" } }, "the finished post-match as it was, but its result's reason");
+  // Its page and the table now count the same points.
+  assert.equal(postPoints(after.state, "away", "league").total, (await pairing(client, L)).away_points);
 }));
+
+test("the admin's result is one transaction on both routes: the pairing's lock holds through the post-match's check and the write", () => {
+  for (const file of ["server/routes/games.mjs", "server/routes/season.mjs"]) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /await updateSeasonPairing\(/, `${file}: never on the pool, one statement at a time`);
+    assert.match(source, /withTransaction\(\(client\) => updateSeasonPairing\([^)]*, client\)\)/, file);
+  }
+});
 
 test("a post-match opened on the admin's technical result takes its reason, and the reason is not changed while it is open", db, () => withApiDatabase(async ({ client }) => {
   const admin = await season(client);
