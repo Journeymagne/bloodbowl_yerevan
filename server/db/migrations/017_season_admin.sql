@@ -26,6 +26,12 @@
 -- asked for one, and none is invented: it reads as 'other', 2 points, as it counted
 -- until now. The admin sets the reason afterwards and the points are recounted
 -- (stage 12, Task 2). No row is read, written or deleted.
+--
+-- Rolling back. 2.1.0 runs on this schema (the view is the same, with one more
+-- column), but its played write does not clear technical_reason: once a reason is
+-- stored, that pairing's played result is refused by the CHECK. A rollback below
+-- stage 12 after reasons exist runs UPDATE season_pairings SET technical_reason = NULL
+-- first.
 
 ALTER TABLE seasons
   ADD COLUMN playoff_places INTEGER,

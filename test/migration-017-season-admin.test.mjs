@@ -103,7 +103,10 @@ test("the view is 006's, with the reason among the pairing's columns", { skip: s
 
 test("017 alters two tables and puts the view back; no row is read, written or deleted", () => {
   const sql = migrationText("017_season_admin.sql");
-  assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP\s+TABLE|DROP\s+COLUMN|ALTER\s+COLUMN)\b/i);
+  assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP\s+TABLE|DROP\s+COLUMN|ALTER\s+COLUMN|DO|PERFORM|COPY|MERGE|CALL|EXECUTE)\b/i,
+    "nothing reads or writes a row, a block of code or a call included");
+  assert.equal(sql.match(/\bDROP\b/gi).length, 1, "the only DROP is the view's");
+  assert.match(sql, /DROP VIEW match_pairing_context;\s*CREATE VIEW match_pairing_context AS/, "dropped right before it is created again");
   assert.deepEqual(sql.match(/\bALTER\s+TABLE\s+\w+/gi), ["ALTER TABLE seasons", "ALTER TABLE season_pairings"]);
   assert.equal(sql.match(/\bDROP\s+VIEW\b/gi).length, 1);
   assert.equal(sql.match(/\bDROP VIEW match_pairing_context;/g).length, 1);
