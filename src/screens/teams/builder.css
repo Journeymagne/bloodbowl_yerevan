@@ -44,13 +44,6 @@
   letter-spacing: 0;
 }
 
-/*
- * The sticky save needs the page itself to be the one that scrolls; the frame clips sideways with
- * overflow-x: hidden, which makes .g-main the container a sticky element sticks in, and it never scrolls.
- * Scoped to this screen with :has() for now. Stage 13 makes it global in frame.css and removes this rule.
- */
-.g-main:has(.g-build) { overflow-x: clip; }
-
 /* ---- The head ---- */
 .g-build__head {
   box-sizing: border-box;

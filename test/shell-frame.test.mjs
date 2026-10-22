@@ -237,6 +237,19 @@ test("the footer under the content carries the data date; the date is read when 
   assert.match(document.querySelector("#site-footer .g-site-footer").textContent, /^Updated 07\/10\/2026 · /);
 });
 
+// Stage 13 (decision 6): `overflow-x: hidden` made .g-main a box that scrolls (though it never does), the one a sticky
+// part sticks to, so it never stuck; each screen with one clipped it back with a rule of its own. `clip` cuts off what
+// goes past the sides without making a box, so the window is what every sticky part sticks to.
+test("the main clips sideways for every screen, so a sticky part sticks to the window", () => {
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
+  assert.deepEqual([valuesOf("src/shell/frame.css", ".g-main", "overflow"), valuesOf("src/shell/frame.css", ".g-main", "overflow-y")], [[], []]);
+  for (const file of sources().filter((name) => name.endsWith(".css"))) {
+    for (const { selectors } of blocks(read(file))) {
+      for (const selector of selectors) assert.ok(!selector.includes(".g-main:has("), `${file}: ${selector} clips the main for one screen`);
+    }
+  }
+});
+
 test("a short page fills the screen without scrolling: the content grows into it, and nothing takes the old top bar's height off", () => {
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "display"), ["flex"]);
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "flex-direction"), ["column"]);

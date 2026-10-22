@@ -34,18 +34,21 @@ html { scrollbar-gutter: stable; }
 }
 
 /*
- * What 2.x `.main` did: a wide 2.x table never pushes the page sideways. And a
- * column of its own, so a short page fills the screen and the footer line
- * stands at its foot: the content grows into the room the header leaves. Its
- * old floor (pages.css, the screen less an 81px top bar that is gone) would
- * scroll an empty page.
+ * Nothing wide pushes the page sideways: what goes past the main's sides is
+ * cut off with `clip`, which, unlike `hidden`, makes no box that scrolls. So
+ * the window is the one box a sticky part sticks to, on every screen: the
+ * roster's panel, the reference's, a profile's head, the builder's save, a
+ * match visit's foot. And a column of its own, so a short page fills the
+ * screen and the footer line stands at its foot: the content grows into the
+ * room the header leaves. Its old floor (pages.css, the screen less an 81px
+ * top bar that is gone) would scroll an empty page.
  */
 .g-main {
   display: flex;
   flex: 1 0 auto;
   flex-direction: column;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 .g-frame #app-view {
   flex: 1 0 auto;

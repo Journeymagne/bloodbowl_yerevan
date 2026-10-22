@@ -667,7 +667,8 @@ test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () =>
   assertReadable(SETTINGS, ".g-team-settings-screen__back", "color", ["--header"], 4.5);
   // The page reaches the screen's edges, the head sticking in a main that does not scroll (K3), as the profile's.
   assert.deepEqual(valuesOf(SETTINGS, ".g-frame #app-view:has(> .g-team-settings-screen)", "padding"), ["0"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-main:has(.g-team-settings-screen)", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"], "the shell's main, for every screen (stage 13)");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-main:has(.g-team-settings-screen)", "overflow-x"), []);
   // The row of the phone's page is framed as the history's card is.
   const entry = (property) => valuesOf(SETTINGS, ".g-team-settings-entry", property);
   assert.deepEqual([entry("padding"), entry("border"), entry("border-radius"), entry("background")], [["0 var(--space-16)"], ["1px solid var(--line)"], ["var(--radius-lg)"], ["var(--surface)"]]);

@@ -298,17 +298,6 @@
 }
 
 @media (min-width: 901px) {
-  /*
-   * The frame keeps a wide 2.x table from pushing the page sideways with `overflow-x: hidden`, which
-   * makes it a box that scrolls (though it never does) and so the one a sticky panel sticks to: it
-   * would never stick. Cut off with `clip` it is not a box, and the panel sticks to the window. Only
-   * here: the frame's other screens have sticky panels of their own that are held still by it today.
-   *
-   * Temporary: when stage 13 deletes the 2.x `.builder-summary` sticky (styles/responsive.css), the
-   * `overflow-x: clip` belongs on `.g-main` in shell/frame.css and this rule goes (with the pin in
-   * test/ref-skill.test.mjs that frame.css still says `hidden`).
-   */
-  .g-main:has(.g-ref) { overflow-x: clip; }
   /* DeskRef.html: the band, then its main's 24 32 40 — the frame's padding, which the band goes out over by its figures. */
   .g-ref { gap: 0; }
 

@@ -18,8 +18,6 @@
     flex-direction: column;
     padding: 0;
   }
-  /* What .g-main's overflow-x: hidden would do without making it a scroll box, which would hold the head's sticking (K3). */
-  .g-main:has(.g-profile) { overflow-x: clip; }
 
   .g-profile {
     box-sizing: border-box;

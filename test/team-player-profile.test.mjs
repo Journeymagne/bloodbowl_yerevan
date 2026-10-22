@@ -298,9 +298,9 @@ test("one h1 in every state of the address: waiting, a read that failed, gone, f
 test("the head stays at the top while the page scrolls, as the prototype's", () => {
   assert.deepEqual(valuesOf(PROFILE, ".g-profile__head", "position"), ["sticky"]);
   assert.deepEqual(valuesOf(PROFILE, ".g-profile__head", "top"), ["0"]);
-  // K3: the shell's .g-main hides what goes past its sides, which makes it a scroll box the head would stick in: clip it instead.
-  assert.deepEqual(valuesOf(PROFILE, ".g-main:has(.g-profile)", "overflow-x"), ["clip"]);
-  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["hidden"]);
+  // K3: the head sticks to the window, because the shell's .g-main clips what goes past its sides without being a scroll box (stage 13, every screen).
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf(PROFILE, ".g-main:has(.g-profile)", "overflow-x"), []);
   // The view's 2.x padding gives way: the head is the screen's width, as Player.html draws it.
   assert.deepEqual(valuesOf(PROFILE, ".g-frame #app-view:has(> .g-profile)", "padding"), ["0"]);
   // WCAG 2.4.11: what the keyboard reaches stands clear of the head, which is taller than the shell's.

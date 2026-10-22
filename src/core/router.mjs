@@ -99,6 +99,9 @@ const screens = {
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
 
+/** The name of the route drawn last: another one starts at the top of the page (`renderRoute`). */
+let shownRoute = "";
+
 /** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */
 function reloadTeams() {
   view.innerHTML = `<div class="loading">${escapeHtml(t("myTeams.loadingTeam"))}</div>`;
@@ -131,6 +134,13 @@ async function renderTeamScreen(name, params, current) {
  * The 2.x screens still set their own nav highlight on the way in, which
  * lights nothing now; the 3.0 frame takes its tabs and items from the route
  * name (shell/navigation.mjs), redrawn here before the screen.
+ *
+ * Nothing resets the window's scroll on a hash change, so another route than
+ * the one drawn last starts at the top of the page, before it is drawn. The
+ * same route drawn again (another player, another team, a language switch)
+ * leaves the place to its screen, which starts over itself when it draws
+ * another screen (core/dom.mjs, `drawScreen`). An address sent on scrolls
+ * nothing: its target is the route that comes next.
  */
 export function renderRoute() {
   const current = ++ticket;
@@ -149,6 +159,8 @@ export function renderRoute() {
   }
   releaseCurrentScreen();
   const { name, params } = matchRoute(route);
+  if (name !== shownRoute) globalThis.scrollTo?.(0, 0);
+  shownRoute = name;
   refreshShell({ name, params });
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
