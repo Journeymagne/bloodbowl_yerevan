@@ -210,7 +210,7 @@ test("the admin undoes a death a match recorded, and is told what the undo keeps
   });
 });
 
-test("the admin rolls nothing on the site: «Roll two D16» says why; at the table the advancement goes on the admin's route", async () => {
+test("the admin rolls nothing on the site: the sheet opens at the table, «Roll on the site» closed with why; the advancement goes on the admin's route", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: false }, async () => {
       const ann = { ...PLAYERS[0], spp: { touchdowns: 10 } };
@@ -220,18 +220,17 @@ test("the admin rolls nothing on the site: «Roll two D16» says why; at the tab
       const sheet = () => view.querySelector("dialog#player-advance");
       fireEvent(sheet().querySelector('.g-options [data-option-value="random"]'), "click");
       fireEvent(sheet().querySelector('[data-advance-category="General"]'), "click");
-      const roll = sheet().querySelector("[data-advance-roll]");
-      assert.equal(roll.textContent, "Roll two D16");
-      assert.equal(roll.getAttribute("aria-disabled"), "true");
-      assert.equal(roll.getAttribute("title"), NO_SITE_ROLL);
-      fireEvent(roll, "click");
+      const way = (value) => sheet().querySelector(`[data-seg-group="advance-via"] [data-seg-value="${value}"]`);
+      assert.equal(way("table").getAttribute("aria-checked"), "true", "the table is the admin's way from the start");
+      assert.equal(way("site").getAttribute("aria-disabled"), "true");
+      assert.equal(way("site").getAttribute("title"), NO_SITE_ROLL, "the site's segment says why");
+      assert.equal(sheet().querySelector("[data-advance-roll]"), null, "no «Roll two D16» to press");
+      fireEvent(way("site"), "click");
       await settle();
-      assert.equal(toasts().at(-1), NO_SITE_ROLL);
+      assert.equal(way("table").getAttribute("aria-checked"), "true", "the site is not taken");
       assert.equal(api.calls.filter(({ key }) => key.endsWith("/rolls") && key.startsWith("POST")).length, 0, "no roll asked");
-      // At the table: open, two faces marked, one taken — one step of the queue, on the admin's route.
-      const table = sheet().querySelector('[data-seg-group="advance-via"] [data-seg-value="table"]');
-      assert.notEqual(table.getAttribute("aria-disabled"), "true");
-      fireEvent(table, "click");
+      // At the table: two faces marked, one taken — one step of the queue, on the admin's route.
+      assert.notEqual(way("table").getAttribute("aria-disabled"), "true");
       fireEvent(sheet().querySelector('[data-advance-face="3"]'), "click");
       fireEvent(sheet().querySelector('[data-advance-face="5"]'), "click");
       fireEvent(sheet().querySelector('[data-advance-pick="Fend"]'), "click");

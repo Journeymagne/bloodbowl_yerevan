@@ -201,7 +201,7 @@ export function takenHeld(line, { level, type, grant }) {
 export function advanceSheetOf(sheet, line, where) {
   if (where.mode.kind === "match") return null;
   if (sheet.step === "done") return takenHeld(line, sheet.taken) ? { ...sheet, reason: undoClosed(line, where) } : null;
-  return { ...sheet, reason: advanceClosed(line, where), rollReason: rollClosed(line, where) };
+  return { ...sheet, reason: advanceClosed(line, where), rollReason: rollClosed(line, where), noSite: Boolean(where.admin) };
 }
 
 /** The advancement's sheet while it is chosen in, or null: none open, another kind, or on its done step (a press there is a second press). */
@@ -487,8 +487,9 @@ export function advanceHandlers(saving, lent) {
       const reason = line ? advanceClosed(line, where) : "";
       if (reason) toast(reason);
       else if (line) {
-        const sheet = { kind: "advance", key, type: "", category: "", skill: "", step: "type", refusal: "", taken: null, ...UNROLLED, asking: false, waiting: "",
-          favouredRoll: null, bonus: null };
+        // The admin rolls nothing on the site (decision 23): the sheet opens at the table.
+        const sheet = { kind: "advance", key, type: "", category: "", skill: "", step: "type", refusal: "", taken: null, ...UNROLLED, ...(where.admin ? { via: "table" } : {}),
+          asking: false, waiting: "", favouredRoll: null, bonus: null };
         Object.assign(visit, { sheet, opener: button });
         draw();
       }
@@ -501,7 +502,7 @@ export function advanceHandlers(saving, lent) {
       const words = (refusal ? refusalWordsOf("teamAdvance", refusal) : "") || waitingWords(now.sheet, type) || keptWords(now.sheet);
       if (words) toast(words);
       if (words || now.sheet.asking || !ADVANCEMENT_TYPES.includes(type)) draw();
-      else change(now.sheet, { type, category: "", skill: "", ...UNROLLED });
+      else change(now.sheet, { type, category: "", skill: "", ...UNROLLED, ...(now.where.admin ? { via: "table" } : {}) });
     },
     onAdvanceCategory: (category) => {
       const now = pressed();

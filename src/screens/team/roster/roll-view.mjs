@@ -159,8 +159,11 @@ export function rollLabel(sheet, choices) {
  */
 export function viaMarkup({ sheet, choices }) {
   const fixed = wayFixed(sheet, choices);
+  // On the admin's visit (`noSite`) the site rolls nothing: its segment is closed with why, the table the way.
+  const closed = (value) => fixed || (value === "site" && sheet.noSite);
   const items = ["site", "table"].map((value) => ({
-    value, label: value === "site" ? t("teamAdvance.via.site") : t("teamAdvance.via.table"), disabled: fixed, reason: fixed ? keptWords(sheet) : "",
+    value, label: value === "site" ? t("teamAdvance.via.site") : t("teamAdvance.via.table"), disabled: closed(value),
+    reason: fixed ? keptWords(sheet) : closed(value) ? t("adminTeam.noSiteRoll") : "",
   }));
   const control = renderSegmentedControl({ label: t("teamAdvance.via.label"), items, selected: sheet.via, data: { segGroup: VIA_GROUP } });
   return `${control}<p class="g-advance__note">${escapeHtml(noteWords(sheet, choices))}</p>`;
