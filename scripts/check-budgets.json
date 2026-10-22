@@ -7,8 +7,8 @@
       "scripts"
     ],
     "maxFunctions": 0,
-    "maxUnusedImports": 18,
-    "_note": "maxUnusedImports came in with stage 09b's fix wave at 18: named imports nothing in their module uses, every one in a file the stage did not touch (server/routes and others; npm run check:dead-code lists them; the 2.x roster editor's went with it in stage 12). Lower it as they go."
+    "maxUnusedImports": 8,
+    "_note": "maxUnusedImports came in with stage 09b's fix wave at 18: named imports nothing in their module uses, every one in a file the stage did not touch (server/routes and others; npm run check:dead-code lists them). Stage 12 took it to 8 once its lanes were merged — the 2.x roster editor's, the 2.x season's and administration's went with them. Lower it as they go."
   },
   "structure": {
     "roots": [
