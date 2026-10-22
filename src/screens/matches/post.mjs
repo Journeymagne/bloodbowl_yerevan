@@ -384,7 +384,7 @@ async function pollRead(visit) {
 function placeholderMarkup(gameId, noticeHtml) {
   const phone = isPhone();
   const href = placeholderBack(gameId, { viewer: state.auth.currentUser, activeTeamId: state.activeTeamId ?? null, games: state.games.items });
-  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("backShort", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("after.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
   return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}" data-screen="${SCREEN}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;

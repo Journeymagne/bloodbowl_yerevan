@@ -10,7 +10,11 @@ const SHAPES = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
-  back: '<path d="M15 18l-6-6 6-6"/>',
+  // Two back arrows, as the two chevrons (review of stage 13, mirroring L14): the long one is the kit's (Team, OppTeam,
+  // Player, Ref, Adv*, TeamNew, the desk's pages, the board's «previous»); the short one only the preparation's and
+  // post-match's frames and the builder's head draw (Pre*, Post*, Builder*; the team's settings stand under that head).
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  backShort: '<path d="M15 6l-6 6 6 6"/>',
   // Two chevrons, as the prototypes draw them (stage 13, L14): the long one is the kit's (Callout, ListRow, Team,
   // Matches, Stats, Ref, the board's «next»); the short one only CoachProfile's teams, AdminMobile's coaches and
   // Settings' «Администрирование» draw, and «Карьера» turned down (PlayerCareer's M6 9l6 6 6-6).

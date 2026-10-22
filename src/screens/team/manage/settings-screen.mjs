@@ -29,7 +29,7 @@ import { settingsMarkup } from "./settings.mjs";
 export function settingsScreenMarkup(model, { noticeHtml = "" } = {}) {
   const { teamId, team, settings } = model;
   const sub = [team.name, settings.raceTitle].filter(Boolean).join(" · ");
-  const back = `<a class="g-team-settings-screen__back" href="${escapeHtml(teamUrl(teamId, "team"))}" aria-label="${escapeHtml(t("teamSettings.backLabel"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-team-settings-screen__back" href="${escapeHtml(teamUrl(teamId, "team"))}" aria-label="${escapeHtml(t("teamSettings.backLabel"))}">${icon("backShort", 18)}</a>`;
   const titles = '<div class="g-team-settings-screen__titles">'
     + `<h1 class="g-team-settings-screen__title" id="team-settings-title" tabindex="-1">${escapeHtml(t("teamSettings.title"))}</h1>`
     + `<p class="g-team-settings-screen__sub">${escapeHtml(sub)}</p></div>`;

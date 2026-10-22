@@ -26,7 +26,7 @@ import { renderSegmentedControl } from "../../ui/segmented-control.mjs";
 /** «‹», back to where the coach came from: a thumb's on a phone, the prototype's 40px on a desk. */
 function backMarkup(model) {
   assertLinkHref(model.back);
-  return `<a class="g-prep__back" href="${escapeHtml(model.back)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  return `<a class="g-prep__back" href="${escapeHtml(model.back)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("backShort", 18)}</a>`;
 }
 
 /** A step's mark: ✓ once done, else its number. */

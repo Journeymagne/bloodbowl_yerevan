@@ -132,3 +132,44 @@ test("every chevron under src/ is the one its prototype draws", () => {
   }
   assert.deepEqual(found, Object.fromEntries(Object.entries(SITES).map(([file, names]) => [file, [...names].sort()])));
 });
+
+/*
+ * The back arrows mirror the chevrons (review of stage 13): the long M15 5l-7 7 7 7 is the kit's — Team, OppTeam,
+ * Player*, Ref*, Adv*, TeamNew and the desk's pages, DeskOverview's board «previous» beside its long «next» —; the short
+ * M15 6l-6 6 6 6 only Pre*, Post*, Builder* (and the team's settings, under the builder's head) draw.
+ */
+const BACK_LONG = "M15 5l-7 7 7 7";
+const BACK_SHORT = "M15 6l-6 6 6 6";
+
+const BACK_SITES = {
+  "src/ui/match-board.mjs": ["back"], // DeskOverview, DeskSeason: the board's «previous» (14, inside its arrow())
+  "src/ui/sheet.mjs": ["back"], // Adv*: a sheet's step back
+  "src/screens/ref/frame.mjs": ["back 18"], // Ref*, DeskRef*: «‹ Справочник»
+  "src/screens/coaches/team.mjs": ["back 14"], // OppTeam, DeskOppTeam: «‹ Таблица»
+  "src/screens/matches/game.mjs": ["back 14"], // the match page: no prototype, so the kit's
+  "src/screens/team/roster/profile.mjs": ["back 16"], // Player*: «‹ Состав»
+  "src/screens/matches/prep-frame.mjs": ["backShort 18"], // Pre*, Post*, DeskPre*, DeskPost*: the frame's «‹»
+  "src/screens/matches/prep.mjs": ["backShort 18"], // the same frame while the preparation is read
+  "src/screens/matches/post.mjs": ["backShort 18"], // the same frame while the post-match is read
+  "src/screens/teams/builder-view.mjs": ["backShort 18"], // Builder, DeskBuilder
+  "src/screens/team/manage/settings-screen.mjs": ["backShort 18"], // the team's settings, under Builder's head
+};
+
+test("two back arrows, as the prototypes draw them; the board's «previous» and «next» are a long pair", () => {
+  assert.ok(ICON_NAMES.includes("back") && ICON_NAMES.includes("backShort"));
+  assert.ok(icon("back", 14).includes(`<path d="${BACK_LONG}"/>`));
+  assert.ok(icon("backShort", 18).includes(`<path d="${BACK_SHORT}"/>`));
+  const board = mount(renderMatchBoard({ own: { name: "Wardens" }, tabs: true, pager: [{ label: "1", result: "w", current: false }, { label: "2", result: null, current: true }] }));
+  const glyph = (step) => board.querySelector(`[data-board-step="${step}"] svg path`).getAttribute("d");
+  assert.deepEqual([glyph(-1), glyph(1)], [BACK_LONG, LONG]);
+  const files = readdirSync(new URL("../src/", import.meta.url), { recursive: true })
+    .map((name) => `src/${name.split("\\").join("/")}`)
+    .filter((file) => file.endsWith(".mjs") && file !== "src/ui/icons.mjs");
+  const found = {};
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const named = [...source.matchAll(/(?:icon\(|icon: |, )"(back(?:Short)?)"(?:\s*,\s*(\d+))?/g)].map(([, name, size]) => (size ? `${name} ${size}` : name));
+    if (named.length) found[file] = named.sort();
+  }
+  assert.deepEqual(found, BACK_SITES);
+});

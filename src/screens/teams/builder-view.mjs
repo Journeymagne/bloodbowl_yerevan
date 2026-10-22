@@ -90,7 +90,7 @@ function staffRefusal(race, draft, key) {
 // ---------------------------------------------------------------------------
 
 function headMarkup(race, name) {
-  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("backShort", 18)}</a>`;
   const titles = `<div class="g-build__titles"><h1 class="g-build__title" tabindex="-1">${escapeHtml(name || race.title)}</h1>`
     + `<p class="g-build__sub">${escapeHtml(t("newTeam.subtitle", { race: race.title }))}</p></div>`;
   return `<header class="g-build__head" data-key="build-head">${back}${titles}${renderStatusChip({ label: t("teams.stage.draft"), onDark: true })}`
