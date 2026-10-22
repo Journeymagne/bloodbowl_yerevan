@@ -5,7 +5,9 @@ import { document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
-import { LIVE_GAME, api, callKeys, coach, openRow, renderTeamRoster, save, settle, text } from "./helpers/roster-page.mjs";
+import {
+  LIVE_GAME, PLAYERS, api, callKeys, coach, openRow, releaseCurrentScreen, renderTeamRoster, save, settle, text, withPlayers,
+} from "./helpers/roster-page.mjs";
 
 // Stage 09a, Task 1 (Review Focus 1): the roster was drawn before the match began — the opponent pressed «Start the
 // match» a moment ago — and the coach's «+» on touchdowns is a save of the roster. The server refuses it, TEAM_IN_MATCH:
@@ -44,6 +46,111 @@ test("a refusal for a match the games do not show yet is said in the server's wo
     fireEvent(openRow().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
     await settle();
     assert.deepEqual(toasts().slice(before), [EN["error.TEAM_IN_MATCH"]]);
+    api.assertAnswered();
+  }));
+});
+
+// Stage 13, Task 10 (07a's hand-offs, plan 09a's decision 25): a read of the team and its records is made before the
+// games are (`readWithGames`), so a match that ends or begins between the two would lay a team from before it on games
+// from after it. The match's phase is asked before the team's read and after the games': moved, the team is read again
+// — at most twice more, then the last read is taken. And a tap whose answer comes once the coach has left is no reason
+// for that visit to read anything: the next visit reads the records afresh.
+
+const TEAM = "GET /api/teams/t1";
+const RECORDS = "GET /api/teams/t1/events";
+const TAP = "POST /api/teams/t1/events";
+/** The same match, its post-match finished on another device: over. */
+const OVER = { ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" };
+const gamesAre = (games) => api.reply(GAMES, 200, { games, currentGames: [] });
+/** t1 at `revision`, Ann with `touchdowns` in the roster. */
+const annWith = (touchdowns, revision) => withPlayers(PLAYERS.map((player) => (player.id === "p1" ? { ...player, spp: { touchdowns } } : player)), { revision });
+/** The server answers the team and its records at `revision`, Ann with `touchdowns`, from now on. */
+const serverHas = (touchdowns, revision) => {
+  api.reply(TEAM, 200, { team: annWith(touchdowns, revision) });
+  api.reply(RECORDS, 200, { events: [], revision });
+};
+const plus = (counter) => openRow().querySelector(`[data-action-key="${counter}"] [data-action-step="1"]`);
+const countOf = (counter) => openRow().querySelector(`[data-action-key="${counter}"] .g-stepper__value`).textContent;
+/** The «+N» a counter shows for the match. */
+const deltaOf = (counter) => openRow().querySelector(`[data-action-key="${counter}"] .g-stepper__delta`)?.textContent ?? null;
+const teamReads = () => callKeys().filter((key) => key === TEAM).length;
+/** Ann's touchdown in the match, as POST …/events answers it. */
+const ROW = { id: "e1", pairingId: "g2", playerId: "p1", counter: "touchdowns", delta: 1, injury: null, settledAt: null };
+
+/** Ann's row open on a phone, in the match the games say is on; nothing the page sent before is counted. */
+async function inTheMatch() {
+  coach({ open: "p1#0" });
+  gamesAre([LIVE_GAME]);
+  await renderTeamRoster("t1");
+  api.calls.length = 0;
+}
+
+test("a match that ends between the team's read and the games' is read again before it is taken", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    await inTheMatch();
+    // A tap whose answer is lost: the records are read again (match-taps.mjs), the games still saying the match is on.
+    api.fail(TAP);
+    const team = api.hold(TEAM);
+    const records = api.hold(RECORDS);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(team.count, 1);
+    // The read catches the team before the finish; the finish lands, and the games read after the team say so.
+    serverHas(1, 5);
+    gamesAre([OVER]);
+    team.release({ status: 200, body: { team: annWith(0, 4) } });
+    records.release({ status: 200, body: { events: [], revision: 4 } });
+    await settle();
+    assert.equal(teamReads(), 2, "read again: the first may be from before the finish");
+    const keys = callKeys().filter((key) => key === TEAM || key === GAMES);
+    assert.deepEqual(keys, [TEAM, GAMES, TEAM, GAMES], "the games after the team, each time");
+    assert.equal(countOf("touchdowns"), "1", "the roster the finish wrote, not the one before it");
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false, "open once it is taken");
+    api.assertAnswered();
+  }));
+});
+
+test("a phase that keeps moving is read at most three times in a row", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    await inTheMatch();
+    api.fail(TAP);
+    // Each read of the games says the other thing: over, on again, over again.
+    serverHas(1, 5);
+    let games = api.hold(GAMES);
+    fireEvent(plus("touchdowns"), "click");
+    for (const [round, said] of [[1, OVER], [2, LIVE_GAME], [3, OVER]]) {
+      await settle();
+      assert.deepEqual([teamReads(), games.count], [round, 1], `read ${round}: the team, then the games`);
+      games.release({ status: 200, body: { games: [said], currentGames: [] } });
+      if (round === 3) break;
+      serverHas(round + 1, round + 5);
+      games = api.hold(GAMES);
+    }
+    await settle();
+    assert.equal(teamReads(), 3, "no fourth read: the third is taken");
+    assert.equal(countOf("touchdowns"), "3", "the last read's roster");
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false);
+    api.assertAnswered();
+  }));
+});
+
+test("a tap answered after the coach left: the next visit reads the records afresh", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    await inTheMatch();
+    const tap = api.hold(TAP);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(tap.count, 1);
+    releaseCurrentScreen();
+    // Written: the row is the server's, and the visit the tap was sent from is gone.
+    api.reply(RECORDS, 200, { events: [ROW], revision: 4 });
+    tap.release({ status: 201, body: { event: ROW } });
+    await settle();
+    assert.deepEqual(callKeys().filter((key) => key !== TAP), [], "a visit that has left reads nothing");
+    await renderTeamRoster("t1");
+    await settle();
+    assert.ok(callKeys().includes(RECORDS), "the next visit reads the records");
+    assert.equal(deltaOf("touchdowns"), "+1", "with the row the tap wrote: the match's touchdown");
     api.assertAnswered();
   }));
 });

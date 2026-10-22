@@ -575,6 +575,33 @@ test("a purchase refused after a 422 whose read failed reads the roster again; o
   });
 });
 
+// 07c T5-3 (stage 13): the words a 422 left in the cart are of the roster it refused; the read that takes that roster's
+// place takes them too. A read that fails takes nothing.
+test("an old refusal is gone once a read the server answered takes its place: the cart's", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    stepOfTheRoster();
+    await settle();
+    openCart(0);
+    fireEvent(buyButton(), "click");
+    await settle();
+    assert.match(refusalLine().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply(TEAM_READ, 200, { team: rich({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(buyButton(), "click");
+    assert.match(refusalLine().textContent, /Ann/, "said again at the press");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(hireSheet()?.isModal, "the sheet stays, the cart in it");
+    assert.equal(countOf(0), "1");
+    assert.ok(!refusalLine(), "the words said of the roster before it are gone");
+    assert.equal(patches().length, 1, "nothing bought meanwhile");
+  });
+});
+
 test("a match begun while the cart is open closes it, the focus back on the «+»", async () => {
   await withoutTimers(async () => {
     coach({ teamAnswer: rich() });
@@ -1206,6 +1233,30 @@ test("a sale refused after a 422 whose read failed reads the roster again; once 
     assert.equal(patches()[1].body.revision, 5);
     assert.deepEqual(patches()[1].body.roster.players.map((player) => player.id), without("p8").map((player) => player.id));
     assert.equal(patches()[1].body.roster.treasury, 167.5);
+  });
+});
+
+// 07c T5-3 (stage 13): the sale's sheet loses the 422's words as the cart does.
+test("an old refusal is gone once a read the server answered takes its place: the sale's", async () => {
+  await withoutTimers(async () => {
+    await drawFor(null);
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    fireEvent(toggle("p5#0"), "click");
+    fireEvent(aside().querySelector("[data-roster-return]"), "click");
+    await settle();
+    fireEvent(toggle("p8#0"), "click");
+    fireEvent(sellIn(aside()), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.match(saleRefusal().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply(TEAM_READ, 200, { team: forSale(SALE_PLAYERS, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(sellSheet()?.isModal, "the sheet stays");
+    assert.ok(!saleRefusal(), "the words said of the roster before it are gone");
   });
 });
 

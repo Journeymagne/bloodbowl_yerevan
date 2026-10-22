@@ -1349,7 +1349,10 @@ test("a match that ended elsewhere: the tap is refused, the screen reads the gam
       assert.equal(patches().length, 0, "nothing saved on the roster read during the match");
       reading.release();
       await settle();
-      assert.deepEqual(callKeys(), [EVENTS, "GET /api/teams/t1", "GET /api/teams/t1/events", "GET /api/games"]);
+      // The games read after the roster say the match the screen had on is over: the roster may have been read on its
+      // other side, so it is read once more, and that read, on games that say the same, is taken (stage 13, Task 10).
+      const read = ["GET /api/teams/t1", "GET /api/teams/t1/events", "GET /api/games"];
+      assert.deepEqual(callKeys(), [EVENTS, ...read, ...read]);
       assert.ok(!view.querySelector(".g-roster__notices"), "no banner of a match");
       assert.equal(countOf("touchdowns"), "0", "the refused step is gone");
       api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
