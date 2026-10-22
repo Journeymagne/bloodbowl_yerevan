@@ -154,3 +154,28 @@ test("a tap answered after the coach left: the next visit reads the records afre
     api.assertAnswered();
   }));
 });
+
+// The other order (07a T11, the Task 10 review): the coach is back — his player's page, the way back — while the tap is
+// still in the air. A read of the records made then does not hold its row, and the visit that sent it has gone; were
+// it taken, the screen would show no «+1» and a second tap would write the touchdown twice.
+test("a tap still in the air when the coach comes back: the new visit takes its row before a counter opens", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    await inTheMatch();
+    const tap = api.hold(TAP);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    releaseCurrentScreen();
+    const entered = renderTeamRoster("t1");
+    await settle();
+    assert.ok(!openRow() || plus("touchdowns").hasAttribute("aria-disabled"), "no counter takes a step while that tap is in the air");
+    // Written now: the records hold the row from here on.
+    api.reply(RECORDS, 200, { events: [ROW], revision: 4 });
+    tap.release({ status: 201, body: { event: ROW } });
+    await entered;
+    await settle();
+    assert.equal(deltaOf("touchdowns"), "+1", "the row the tap wrote, once");
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false, "open once the records are read after it");
+    assert.equal(callKeys().filter((key) => key === TAP).length, 1, "the tap was sent once");
+    api.assertAnswered();
+  }));
+});

@@ -65,10 +65,12 @@ import { adminHandlers } from "./admin-block.mjs";
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
- * language switch); another team's roster, which the team switcher opens from this one, is another page and starts
- * at its top.
+ * language switch); another team's roster, which the team switcher opens from this one, is another page: from its top.
  */
 let shownTeam = null;
+
+/** By team, the taps a visit left in the air (`whenQuiet`): the next visit reads after them, not to miss their rows (07a T11). */
+const tapsLeft = new Map();
 
 /** `listener` on `target` for `type`, and what takes it off; a target that cannot be listened to is none. */
 function listen(target, type, listener) {
@@ -77,8 +79,7 @@ function listen(target, type, listener) {
 }
 
 /**
- * What one visit holds. A new object for every visit, so an answer that comes after the coach left finds its own
- * visit closed.
+ * What one visit holds. A new object for every visit, so an answer that comes after the coach left finds it closed.
  * @typedef {object} Visit
  * @property {boolean} here
  * @property {boolean} drawn
@@ -361,9 +362,8 @@ function settleWaiting(saving, { retry }) {
  *
  * Only when no step waits and none is in the air, and no read is: a step that waits keeps its draft and meets the new
  * revision as the conflict the coach settles; the queue's own saves put their answer in the list and in the queue
- * alike, so they never ask. Heard on every change of the list and of the queue, so a write heard while a request or
- * a read was in the air is followed once it has answered; each revision of the list once, so a read that fails is
- * not made again for it.
+ * alike, so they never ask. Heard on every change of the list and of the queue, so a write heard while a request or a
+ * read was in the air is followed once it has answered; each list revision once, so a failed read is not made again.
  * @param {Saving} saving
  */
 function followList(saving) {
@@ -467,9 +467,7 @@ function pressHandlers({ read, ...saving }) {
     onRefused: (reason) => toast(reason),
     onReload: () => void reloadRoster(saving),
     // An injury whose fate is not known, after a read that failed: «Try again» reads the records (R14).
-    onReread: () => {
-      if (!reading(visit)) void readAgain(saving);
-    },
+    onReread: () => tappingOf(saving).readAgain(),
     // Kept for the team and the match on while the page lives (memory.mjs, R13): a visit elsewhere and back finds it as it was.
     onOutside: (on) => {
       const mode = modeOf(teamId);
@@ -537,6 +535,7 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
   // The team and its fallen, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.
   const read = async () => {
     const ticket = ++visit.reads;
+    if (tapsLeft.has(teamId)) await tapsLeft.get(teamId);
     const since = visit.heard.length;
     const answer = await readSnapshot(teamId);
     if (!visit.here || ticket !== visit.reads) return;
@@ -553,6 +552,7 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.
   onScreenLeave("team-roster", () => {
     visit.here = false;
+    if (visit.pending.length) tapsLeft.set(teamId, whenQuiet(visit).then(() => tapsLeft.delete(teamId)));
     while (offs.length) offs.pop()();
     // A desk's player mode is the roster (M4); a phone's leaves the way back once his profile has been drawn.
     leaveVisit(memory, !playerId || !isPhone() ? "roster" : visit.titled ? "player" : "");
