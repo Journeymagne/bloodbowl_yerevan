@@ -1,8 +1,7 @@
 /*
- * A coach's profile (screens/coaches/profile.mjs): CoachProfile.html up to 900px, DeskCoachProfile.html from 901px. Font,
- * border, background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive
- * this sheet until stage 13. Colours are tokens: the letter's and the tiles' maroon has none, so they are the header's.
- * Long names wrap; nothing is cut with «…» (the switcher's one line is its own). A thumb's targets are 44 high (D2).
+ * A coach's profile (screens/coaches/profile.mjs): CoachProfile.html up to 900px, DeskCoachProfile.html from 901px.
+ * Colours are tokens: the letter's and the tiles' maroon has none, so they are the header's. Long names wrap; nothing is
+ * cut with «…» (the switcher's one line is its own). A thumb's targets are 44 high (D2).
  */
 .g-coach {
   box-sizing: border-box;
@@ -227,7 +226,7 @@
   font: 700 15px/1.2 var(--font-body);
 }
 
-/* An admin's way to the coach's 2.x panels. */
+/* An admin's way to the coach's page in the administration. */
 .g-coach__admin {
   display: inline-flex;
   align-self: flex-start;

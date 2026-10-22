@@ -1,7 +1,5 @@
 /*
- * Recent results as ten equal squares, the oldest at the left. Font, border,
- * background, text-transform and border-radius are set here on purpose: the
- * 2.x globals outlive this sheet until stage 13.
+ * Recent results as ten equal squares, the oldest at the left.
  */
 .g-form {
   display: grid;

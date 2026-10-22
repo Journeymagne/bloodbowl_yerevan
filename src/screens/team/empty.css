@@ -1,7 +1,5 @@
 /*
- * The overview of a coach with no team (screens/team/empty.mjs). Font,
- * text-transform and weight are set here on purpose: the 2.x heading rules
- * (shell.css h1) outlive this sheet until stage 13.
+ * The overview of a coach with no team (screens/team/empty.mjs).
  */
 .g-team-empty {
   display: flex;

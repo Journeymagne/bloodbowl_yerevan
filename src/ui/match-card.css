@@ -1,8 +1,6 @@
 /*
  * A match as a card: heading and state, meta line, the two teams, then what
- * the screen puts in it. Font, border, background, text-transform and
- * border-radius are set here on purpose: the 2.x globals (h1…h6 { font },
- * :focus-visible { border-radius }) outlive this sheet until stage 13.
+ * the screen puts in it.
  */
 .g-match {
   box-sizing: border-box;

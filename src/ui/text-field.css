@@ -1,8 +1,6 @@
 /*
- * A labelled input. Font, border, background, text-transform and
- * border-radius are set here on purpose: the 2.x globals (input { font:
- * inherit }, :focus-visible { border-radius }) outlive this sheet until
- * stage 13. The keyboard ring is base.css's outline, so none is set here.
+ * A labelled input. The keyboard ring is base.css's outline, so none is
+ * set here.
  */
 .g-field {
   display: flex;

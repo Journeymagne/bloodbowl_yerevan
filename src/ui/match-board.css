@@ -1,9 +1,6 @@
 /*
  * The match board (ui/match-board.mjs): a dark card, the two teams with the
- * score between them, and a bar of squares and actions. Font, border,
- * background, text-transform and border-radius are set here on purpose: the
- * 2.x globals (h1…h6 { font }, :focus-visible { border-radius }) outlive this
- * sheet until stage 13.
+ * score between them, and a bar of squares and actions.
  *
  * The design system's MatchBoard README is older than 0.9 (its actions are
  * «Start the match» and «Cancel the start»); the anatomy and the drawing are

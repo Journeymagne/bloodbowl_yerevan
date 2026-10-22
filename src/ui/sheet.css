@@ -5,10 +5,7 @@
  * footer's button sits at its right. Nothing here sets `display` on the
  * dialog, so a closed one stays hidden by the browser's own rule. The team
  * switcher is an `anchored` sheet: the same from the bottom up to 900px, a
- * 300px panel by the SideNav from 901px. Font, border, background,
- * text-transform, font-weight and border-radius are set on purpose: the 2.x
- * globals (h2 { font: 800 … }, :focus-visible { border-radius }) outlive this
- * sheet until stage 13.
+ * 300px panel by the SideNav from 901px.
  */
 dialog.g-sheet {
   box-sizing: border-box;
@@ -201,7 +198,7 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
 }
 
 /*
- * A question before something that cannot be taken back (components/dialog.mjs `confirmAction`): the caller's words,
+ * A question before something that cannot be taken back (`confirmAction`, ui/sheet.mjs): the caller's words,
  * then «Cancel» and the action. Up to 900px PlayerDeadConfirm.html's sheet: the words 15/1.5 in --ink-2, the body
  * 10 16 12; «Cancel» and the action in two halves under the foot's rule, 8 apart. From 901px DeskAdminReset.html's
  * window: 520 wide, 20 round, 110 from the top (the sheet's own, no `at`); the head 18 20 18 24, 16 between the title

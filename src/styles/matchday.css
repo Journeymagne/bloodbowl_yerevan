@@ -1,6 +1,0 @@
-/*
- * Matchday uses the site's six palettes; every colour comes from theme tokens.
- * What is left is what the 2.x game page still draws: the eyebrow over a panel's title. The 2.x roster editor's
- * cards, sidebar and dock went with it in stage 12; the 2.x challenge dialog with «My games» in stage 09c.
- */
-.matchday-eyebrow { display: block; font: .55rem/1.5 var(--label-font); letter-spacing: 1.5px; color: var(--muted); }

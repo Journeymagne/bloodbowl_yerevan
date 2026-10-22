@@ -2,10 +2,7 @@
  * The builder's second sheet (screens/teams/builder-view.mjs; builder.css has
  * the head, the budget, the team and the players, and the page's grid): the
  * numbers, names and the captain, the staff and the save. Imported right after
- * builder.css, so the cascade is the one sheet's it was cut from. Font, border,
- * background, text-transform and font-weight are set here on purpose: the 2.x
- * global rules (bare buttons and inputs, p margins) outlive this sheet until
- * stage 13.
+ * builder.css, so the cascade is the one sheet's it was cut from.
  *
  * Up to 900px the list of numbers opens from its button and the save is a bar
  * at the foot of the screen. From 901px the list is always there under a

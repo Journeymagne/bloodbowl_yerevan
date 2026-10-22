@@ -1,9 +1,8 @@
 /*
- * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs, season-entries.mjs):
- * the season's tabs, the cards of the rounds and their tables, a pair's sheet, the entries and the playoff places.
- * DeskAdminSeason.html and DeskAdminEntries.html from 901px; up to 900px the desk's cards in one column, every target
- * 44px (no prototype). Font, border, background, text-transform, letter-spacing and font-weight are set here on
- * purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens. Long names wrap; nothing is cut with «…».
+ * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs, season-entries.mjs): the
+ * season's tabs, the cards of the rounds and their tables, a pair's sheet, the entries and the playoff places.
+ * DeskAdminSeason.html and DeskAdminEntries.html from 901px; up to 900px the desk's cards in one column, every target 44px
+ * (no prototype). Colours are tokens. Long names wrap; nothing is cut with «…».
  */
 
 .g-adminseason {

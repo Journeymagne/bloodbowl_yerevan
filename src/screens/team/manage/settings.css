@@ -2,10 +2,8 @@
  * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder, DeskBuilder): a card in the
  * right column of a desk, a screen's body on a phone (settings-screen.mjs, under Builder.html's head; owner,
  * 2026-10-20), and the row of the phone's team page that leads there — and the lines the sheets add to sheet.css's
- * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x globals (button { font: inherit }, p, h1, h2, ul)
- * outlive this sheet until stage 13. The keyboard ring is base.css's. A long name, a long note or a long rule wraps:
- * nothing here is cut with «…».
+ * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. The keyboard ring is base.css's. A long
+ * name, a long note or a long rule wraps: nothing here is cut with «…».
  */
 
 .g-team-settings {

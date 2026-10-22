@@ -314,7 +314,7 @@ test("the skip link and the loading line are 3.0's, drawn by the frame", () => {
   assert.deepEqual(valuesOf(css, ".g-loading", "font"), ["400 15px/1.4 var(--font-body)"]);
 });
 
-/** Every stylesheet of 3.0: src/**\/*.css but the 2.x tables of src/styles/, which go with their rules at stage 13's wave 2. */
+/** Every stylesheet that draws: src/**\/*.css but src/styles/, which holds the tokens alone since the 2.x tables went (stage 13). */
 const sheets30 = () => sources().filter((file) => file.endsWith(".css") && !file.startsWith("src/styles/"));
 
 test("no .view is left: not in index.html, not in a stylesheet, no wash under a page", () => {

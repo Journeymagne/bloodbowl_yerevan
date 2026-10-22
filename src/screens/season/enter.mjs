@@ -10,11 +10,11 @@
 import { delegate, drawKeepingFocus } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
-import { confirmAction } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { enterSeason, seasonCallFor } from "../../data/season-entry.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { confirmAction } from "../../ui/sheet.mjs";
 
 /**
  * The call as a banner: «Enter the season» for `enter`, the other team named for `taken`; nothing for no call. A team in

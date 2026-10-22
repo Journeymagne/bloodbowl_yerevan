@@ -33,7 +33,7 @@ Date.now = () => clock;
 const later = (ms = 1000) => {
   clock += ms;
 };
-// What the coach answers when asked first (components/dialog.mjs asks the browser where there is no <dialog>).
+// What the coach answers when asked first (ui/sheet.mjs confirmAction asks the browser where there is no <dialog>).
 const asked = [];
 let yes = true;
 globalThis.confirm = (message) => {

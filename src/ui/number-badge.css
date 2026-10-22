@@ -1,7 +1,5 @@
 /*
- * A player's number on a disc in his position's colour. Font, text-transform,
- * letter-spacing and border-radius are set on purpose, as in every src/ui sheet:
- * the 2.x globals outlive this sheet until stage 13.
+ * A player's number on a disc in his position's colour.
  */
 .g-num {
   position: relative;

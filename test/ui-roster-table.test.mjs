@@ -305,6 +305,14 @@ test("a changed value says so in words, not only in colour; a zero is quiet; thi
   assert.equal(none.querySelector("sup"), null);
 });
 
+// 2.x's th and td rule held every cell at its top; each kind of cell names its own alignment, so its going moved nothing
+// (stage 13, Task 23): the over-heads at the top, as they were, the rest in the middle (a desk's player at the top).
+test("every kind of cell sets its own vertical alignment", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__g", "vertical-align"), ["top"]);
+  for (const selector of [".g-rtable__who", ".g-rtable__c", ".g-rtable__h"]) assert.equal(valuesOf(SHEET, selector, "vertical-align")[0], "middle", selector);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__skillrow > td", "vertical-align"), ["top"]);
+});
+
 test("the cells of a group carry its class, and a column with none carries no group's", () => {
   const body = mount(table()).querySelector("tbody.g-rtable__player");
   const classes = body.querySelectorAll("tr.g-rtable__row td").map((cell) => cell.getAttribute("class"));

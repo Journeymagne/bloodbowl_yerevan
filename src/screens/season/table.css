@@ -1,8 +1,7 @@
 /*
  * The league's table (screens/season/table.mjs): League.html up to 900px, the table of DeskSeason.html from
  * 901px, and the overview's mini table (DeskOverview.html). The rows' grid and look are here; the card a desk
- * draws the table in, with its heading, is the page's (league.css). Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13.
+ * draws the table in, with its heading, is the page's (league.css).
  *
  * Long names wrap; nothing is cut with «…» (the owner's answer on wrapping; the prototypes cut them).
  * The head does not stick to the top on a phone, as League.html's does inside its own scroller: here the

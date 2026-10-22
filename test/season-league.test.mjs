@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -24,6 +24,9 @@ const { view } = await import("../src/core/view.mjs");
 const { t } = await import("../src/core/i18n.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+/** Every stylesheet of the app, comments out. */
+const allCss = () => readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css"))
+  .map((name) => text(`src/${name}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
 const data = expandCollections(JSON.parse(text("public/data.en.json")));
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -401,7 +404,7 @@ test("every key in both dictionaries", () => {
 // rule that took it away under these pages.
 test("no stylesheet draws a wash under the view", () => {
   assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /#app-view[^{}]*::after/, "nothing to take away");
-  assert.doesNotMatch(text("src/styles/site-matchday.css"), /\.view::after/, "the 2.x wash is gone");
+  assert.doesNotMatch(allCss(), /\.view\b/, "the 2.x view and its wash are gone");
   assert.doesNotMatch(text("index.html"), /class="[^"]*\bview\b/, "the 2.x view is gone");
 });
 
@@ -423,5 +426,5 @@ test("the sizes: the season's row, its two columns, the calendar's targets (D2),
   assert.doesNotMatch(text(CSS), /ellipsis/);
   assert.deepEqual(valuesOf(CSS, ".g-league__team", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(valuesOf(CSS, ".g-league__pair--mine", "background"), ["var(--accent-tint)"]);
-  for (const sheet of ["src/styles/season.css", "src/styles/responsive.css"]) assert.doesNotMatch(text(sheet), /season-table|season-withdrawn-label|fixture-headline|season-score-summary/, sheet);
+  assert.doesNotMatch(allCss(), /season-table|season-withdrawn-label|fixture-headline|season-score-summary/);
 });

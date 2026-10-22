@@ -11,13 +11,13 @@
  * was on), the close that gives the focus back to the button that opened it, and one press that sends one write, with
  * what the sheet says while it waits and when it is refused.
  */
-import { patchWithModal } from "../../../components/dialog.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { focusLost } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
 import { isWriting } from "../../../data/treasury.mjs";
+import { patchWithModal } from "../../../ui/sheet.mjs";
 import { teamOf } from "./team-of.mjs";
 
 /**

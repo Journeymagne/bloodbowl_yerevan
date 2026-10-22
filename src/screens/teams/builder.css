@@ -2,10 +2,7 @@
  * The builder (screens/teams/builder-view.mjs), the second step of
  * `#/teams/new` (the first, the name and the race, is new.css's): the head and
  * the budget, the team and the players here; the numbers, the staff and the
- * save in builder-roster.css, imported right after this sheet. Font, border,
- * background, text-transform and font-weight are set here on purpose: the 2.x
- * global rules (h1 at weight 800, a { color: inherit }, p and dl margins, bare
- * inputs) outlive this sheet until stage 13.
+ * save in builder-roster.css, imported right after this sheet.
  *
  * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
  * has no padding in it, so `.g-build` brings its own: 16px at the sides on a
@@ -35,7 +32,7 @@
   text-transform: none;
 }
 
-/* The 2.x globals give a heading a weight of 800 and a paragraph or a list its margins. */
+/* A heading, a paragraph or a list takes none of the browser's margins: the builder spaces its parts itself. */
 .g-build :where(p, dl, dd, dt, h1, h2) {
   margin: 0;
   padding: 0;

@@ -2,9 +2,8 @@
  * «Before the match» (screens/matches/before.mjs), the sheet that MatchesPrePlus/Minus/Even.html draw from the bottom of
  * a phone and DeskSeasonPrePlus/Minus/Even.html as a 640px modal: the CTV block, who misses the match on each side, the
  * inducement budget and the way to the reference. The frame is the sheet's (ui/sheet.css); this sheet's body has no
- * padding of its own, so the CTV block runs from edge to edge under the head, as in the prototypes. Font, border,
- * background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x global rules (h3, ul, dl,
- * a, p) outlive this sheet until stage 13. A long name wraps; nothing is cut with «…».
+ * padding of its own, so the CTV block runs from edge to edge under the head, as in the prototypes. A long name wraps;
+ * nothing is cut with «…».
  */
 dialog.g-sheet.g-before-sheet .g-sheet__body {
   gap: 0;

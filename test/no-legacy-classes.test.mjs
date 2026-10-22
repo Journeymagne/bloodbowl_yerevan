@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
@@ -61,10 +61,14 @@ test("a 3.0 screen draws no 2.x class", () => {
   }
 });
 
-// Pre-flight L28: the two calls lit 2.x's sidebar and marked a section nobody reads (components/page-chrome.mjs).
-test("no 3.0 module asks for the 2.x page chrome", () => {
+// Pre-flight L28: the two calls lit 2.x's sidebar and marked a section nobody reads (components/page-chrome.mjs). Once
+// no 3.0 module asked for it, the module went (Task 23), with the 2.x crest only it drew, the context line only «My
+// games» wrote, and the roster domain's barrel, which nothing ever imported.
+test("the 2.x page chrome and the modules nothing imports are gone, and no module asks for them", () => {
+  const gone = ["src/components/page-chrome.mjs", "src/components/matchday.mjs", "src/components/games/context.mjs", "src/domain/roster/index.mjs"];
+  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
   for (const file of scripts()) {
-    assert.doesNotMatch(read(file), /from\s+["'][^"']*components\/page-chrome\.mjs["']/, file);
+    assert.doesNotMatch(read(file), /from\s+["'][^"']*components\/(page-chrome|matchday|games\/context)\.mjs["']/, file);
   }
 });
 

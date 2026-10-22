@@ -1,8 +1,5 @@
 /*
- * Skill chips and the list they sit in. Font, border, background,
- * text-transform, font-weight and border-radius are set here on purpose: the
- * 2.x globals (button { font: inherit }, :focus-visible { border-radius })
- * outlive this sheet until stage 13.
+ * Skill chips and the list they sit in.
  */
 .g-skills {
   display: flex;

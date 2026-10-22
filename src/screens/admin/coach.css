@@ -2,10 +2,9 @@
  * «Coach» (screens/admin/coach.mjs) and its windows (coach-sheets.mjs): DeskAdminUser.html and DeskAdminReset.html
  * from 901px; up to 900px the same cards in one column and every target 44 (no prototype draws a phone's). The frame —
  * the head, the switch, the card, the grid of cards, the coach's letter, the note — is admin.css's; the password's box
- * and the race's choice are coaches.css's, as «Coach with a team» draws them. Font, border, background,
- * text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until
- * stage 13. Colours are tokens; the prototype's colour for each team's tile has none, so every tile is the header's.
- * Logins, names, lines and reasons wrap; nothing is cut with «…», nothing is kept to one line.
+ * and the race's choice are coaches.css's, as «Coach with a team» draws them. Colours are tokens; the prototype's
+ * colour for each team's tile has none, so every tile is the header's. Logins, names, lines and reasons wrap; nothing
+ * is cut with «…», nothing is kept to one line.
  */
 
 /* The page under the head: a phone's form is `--phone` (drawn by the width, as the 900px query reads it). */

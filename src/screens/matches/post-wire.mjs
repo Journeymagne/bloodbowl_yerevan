@@ -21,7 +21,6 @@
  * - An administrator's side (`prep-side`): the page is the other side's, its drafts dropped. A press on what is closed
  *   (`aria-disabled`) says why. The width crossing 900px draws the other form, the focus kept or on the title.
  */
-import { confirmAction } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { drawKeepingFocus, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -30,7 +29,7 @@ import { wireActionSteppers } from "../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
 import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { wireSegmentedControls } from "../../ui/segmented-control.mjs";
-import { wireSheets } from "../../ui/sheet.mjs";
+import { confirmAction, wireSheets } from "../../ui/sheet.mjs";
 import { wireStepButtons } from "../../ui/stepper.mjs";
 import { wireToggles } from "../../ui/toggle.mjs";
 import { onPhoneChange } from "../team/roster/screen.mjs";

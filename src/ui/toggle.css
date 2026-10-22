@@ -1,6 +1,5 @@
 /*
- * An on/off row. Font, border, background, text-transform and border-radius
- * are set here on purpose: the 2.x globals outlive this sheet until stage 13.
+ * An on/off row.
  */
 .g-toggle {
   box-sizing: border-box;

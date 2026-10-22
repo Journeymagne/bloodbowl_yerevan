@@ -3,8 +3,6 @@
  * under the tables, and from 901px the desk — the page band's 24px, the three tables in one card with the other two
  * sections as bands across it (DeskRosterInjured.html), and the panel's compact sizes (D2: a desk's controls are
  * compact, never under WCAG 2.5.8's 24px; a phone keeps 44px). roster.css lays the screen out; this sheet follows it.
- * Font, border, background, text-transform and letter-spacing are set on purpose: the 2.x globals outlive this sheet
- * until stage 13.
  */
 /*
  * The admin's band (stage 12, DeskAdminTeamEdit.html; screens/admin/admin.css draws it): its own margin goes, the

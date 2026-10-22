@@ -2,9 +2,7 @@
  * The league's page (screens/season/league.mjs): League.html up to 900px, DeskSeason.html without its board from
  * 901px, and the season's calendar, which has no prototype of its own and is drawn as DeskSeason.html's calendar.
  * The season's row of a desk — the table's card at the left, a column at its right — is here too: a team's desk
- * season (screens/matches) stands in it as well. The table's rows are table.css's. Font, border, background,
- * text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until
- * stage 13.
+ * season (screens/matches) stands in it as well. The table's rows are table.css's.
  *
  * Long names wrap; nothing is cut with «…».
  */

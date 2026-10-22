@@ -1,6 +1,5 @@
 /*
- * A die. Font, text-transform and border-radius are set here on purpose: the
- * 2.x globals outlive this sheet until stage 13.
+ * A die.
  */
 .g-die {
   box-sizing: border-box;

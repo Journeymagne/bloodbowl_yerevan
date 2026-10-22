@@ -1,7 +1,5 @@
 /*
- * Buttons. Font, border, background, text-transform and border-radius are
- * set here on purpose: the 2.x globals (button { font: inherit },
- * :focus-visible { border-radius }) outlive this sheet until stage 13.
+ * Buttons.
  */
 
 /* Outline is the base look: the secondary, or state-toggling, action. */

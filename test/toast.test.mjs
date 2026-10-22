@@ -8,9 +8,8 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { toast, toastError } from "../src/components/toast.mjs";
 import { announce } from "../src/components/live-region.mjs";
-import { patchWithModal } from "../src/components/dialog.mjs";
 import { patch } from "../src/core/dom.mjs";
-import { renderSheet } from "../src/ui/sheet.mjs";
+import { patchWithModal, renderSheet } from "../src/ui/sheet.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const CSS = "src/ui/toast.css";
@@ -97,7 +96,7 @@ test("a toast over two open dialogs stands in the top one, and goes down one at 
     const view = page();
     patchWithModal(view, screen(), "#money");
     const sheet = view.querySelector("#money");
-    // A question asked over the sheet (components/dialog.mjs confirmAction): a dialog at the end of the body.
+    // A question asked over the sheet (ui/sheet.mjs confirmAction): a dialog at the end of the body.
     const asking = el(document, "dialog", { class: "g-sheet", id: "asking" });
     document.body.appendChild(asking);
     asking.showModal();

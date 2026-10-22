@@ -498,7 +498,7 @@ test("a press that is still down when the sheet closes is forgotten with it, how
   dialog.close();
   reopenAndClickBackdrop();
   assert.deepEqual(closed, ["forgotten", "forgotten", "forgotten"], "Escape, the backdrop, and the backdrop again; a close the screen made is its own");
-  // Some embedded browsers never send `close` (components/dialog.mjs says so): the sheet's own close is enough.
+  // Some embedded browsers never send `close`: the sheet's own close is enough.
   dialog.close = () => dialog.removeAttribute("open");
   dialog.showModal();
   pressInside();

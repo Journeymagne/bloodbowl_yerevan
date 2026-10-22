@@ -1,8 +1,7 @@
 /*
  * The post-match's Players step (screens/matches/post-players.mjs): PostPlayers.html on a phone, DeskPostPlayers.html on
- * a desk. Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals
- * outlive this sheet until stage 13. Up to 900px every control is a thumb's 44px or more; from 901px the prototype's
- * sizes, never under 24px (D2). Names wrap; nothing is cut with «…».
+ * a desk. Up to 900px every control is a thumb's 44px or more; from 901px the prototype's sizes, never under 24px (D2).
+ * Names wrap; nothing is cut with «…».
  */
 
 /* The match's events: rows 52px high, each a button that opens the player's sheet. */
@@ -156,7 +155,7 @@
 /* A desk's table (DeskPostPlayers.html): # · player · TD CAS COMP KO MVP · SPP · injury, rows of 52px. */
 .g-after__notes { display: flex; flex-direction: column; gap: var(--space-4); }
 
-/* The 2.x globals (table { min-width: 760px }, th and td with their padding, border and background) are set aside here. */
+/* The table and its cells set their widths, padding, borders, background and alignment in full: the page has no table rules. */
 .g-after__table {
   box-sizing: border-box;
   width: 100%;
@@ -187,6 +186,7 @@
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
+  vertical-align: top;
 }
 .g-after__th:nth-child(1) { width: 44px; }
 .g-after__th:nth-child(2) { width: 53.8%; }

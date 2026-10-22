@@ -20,7 +20,6 @@
  * a team chosen, and hand «New team» to the sheet it is given (app.js gives it:
  * the frame imports no screen).
  */
-import { patchWithModal } from "../components/dialog.mjs";
 import { delegate, focusLost, patch } from "../core/dom.mjs";
 import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
@@ -30,6 +29,7 @@ import { state } from "../core/state.mjs";
 import { activeTeam, isTeamListRead, syncActiveTeam } from "../data/active-team.mjs";
 import { onGamesChange } from "../data/games.mjs";
 import { onMyTeamsChange, raceTitleOf } from "../data/teams.mjs";
+import { patchWithModal } from "../ui/sheet.mjs";
 import { renderAppHeader } from "./app-header.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";

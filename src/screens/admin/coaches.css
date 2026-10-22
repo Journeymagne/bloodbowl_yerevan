@@ -1,9 +1,8 @@
 /*
  * «Coaches» (screens/admin/coaches.mjs) and the window «Coach with a team» (coach-new.mjs): DeskAdminUsers.html and
  * DeskAdminCoachNew.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). The frame — the head, the switch,
- * the card, the coach's letter, the note — is admin.css's. Font, border, background, text-transform, letter-spacing
- * and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens.
- * Logins, contacts and names wrap; nothing is cut with «…»; only the admin's chip keeps to one line.
+ * the card, the coach's letter, the note — is admin.css's. Colours are tokens. Logins, contacts and names wrap;
+ * nothing is cut with «…»; only the admin's chip keeps to one line.
  */
 
 /* ---- The search and «+ Coach with a team» ---- */

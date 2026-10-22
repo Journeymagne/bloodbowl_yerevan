@@ -1,22 +1,22 @@
 /**
  * Every choice, multi-step flow and detail view opens in a sheet: advancement,
- * a missed-match reason, the rule behind a skill chip.
+ * a missed-match reason, the rule behind a skill chip, a question before
+ * something that cannot be taken back (confirmAction).
  *
- * It is the native `<dialog>` that components/dialog.mjs already stands on,
- * so the focus trap, the backdrop and the role come with it. A screen puts
- * renderSheet(…) in its own markup and shows it with
- * patchWithModal(root, markup, "#" + id), which opens it modally and keeps it
- * open, and focus where it was, through the screen's redraws. Up to 900px it
- * is a sheet from the bottom of the screen, from 901px a modal in the middle,
- * as high as its prototype puts its window (`at`).
+ * It is the native `<dialog>`, so the focus trap, the backdrop and the role
+ * come with it. A screen puts renderSheet(…) in its own markup and shows it
+ * with patchWithModal(root, markup, "#" + id), which opens it modally and
+ * keeps it open, and focus where it was, through the screen's redraws. Up to
+ * 900px it is a sheet from the bottom of the screen, from 901px a modal in
+ * the middle, as high as its prototype puts its window (`at`).
  *
  * What goes inside is the caller's: bodyHtml and footHtml are markup from
  * other render…() functions, and the screen's state (which step, whether it
  * is open) stays with the screen.
  */
-import { delegate, escapeHtml } from "../core/dom.mjs";
+import { delegate, escapeHtml, focusLost, patch } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
-import { renderIconButton } from "./button.mjs";
+import { renderButton, renderIconButton } from "./button.mjs";
 import { classNames } from "./markup.mjs";
 import { renderStepDots } from "./progress-dots.mjs";
 
@@ -73,25 +73,25 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
 /**
  * Wire every sheet under `root`.
  *
- * The close button, a click on the backdrop and Escape are one path: the
- * dialog is closed and `onClose(id)` hears it. Escape is taken here, and its
- * default prevented, so that the browser does not close the dialog behind the
- * screen's back. A close request that is no keydown inside `root` (the Android
- * back gesture, an Escape pressed while focus sits on the body after a click
- * on part of the sheet that takes none) reaches the dialog as a `cancel`,
- * which does not bubble: it is heard in the capture phase, the same way the
- * 2.x screens do, and taken into the same path. A browser that is told not to
- * close sends no `cancel` after the Escape keydown, so nothing is reported
- * twice. A click that lands on the dialog element itself is the backdrop: the
- * panel fills the dialog, so a click inside never targets it. But a press that
- * began inside the panel and was let go over the backdrop (a text selection
- * dragged out of a field) also ends as a click on the dialog, the nearest
- * element holding both ends: the `pointerdown` says where the press began, and
- * only a press that began on the backdrop, or none at all (a keyboard, a
- * script), closes the sheet. A press that never ends in a click is forgotten:
- * a `pointercancel` (a scroll, a system gesture) and the sheet closing, by
- * whatever means, clear it, so the next click on the backdrop is not taken for
- * the end of it. Back is the screen's own step and closes nothing.
+ * The close button, a click on the backdrop and Escape are one path: the dialog
+ * is closed and `onClose(id)` hears it. Escape is taken here, and its default
+ * prevented, so that the browser does not close the dialog behind the screen's
+ * back. A close request that is no keydown inside `root` (the Android back
+ * gesture, an Escape pressed while focus sits on the body after a click on part
+ * of the sheet that takes none) reaches the dialog as a `cancel`, which does
+ * not bubble: it is heard in the capture phase and taken into the same path. A
+ * browser that is told not to close sends no `cancel` after the Escape keydown,
+ * so nothing is reported twice. A click that lands on the dialog element itself
+ * is the backdrop: the panel fills the dialog, so a click inside never targets
+ * it. But a press that began inside the panel and was let go over the backdrop
+ * (a text selection dragged out of a field) also ends as a click on the dialog,
+ * the nearest element holding both ends: the `pointerdown` says where the press
+ * began, and only a press that began on the backdrop, or none at all (a
+ * keyboard, a script), closes the sheet. A press that never ends in a click is
+ * forgotten: a `pointercancel` (a scroll, a system gesture) and the sheet
+ * closing, by whatever means, clear it, so the next click on the backdrop is
+ * not taken for the end of it. Back is the screen's own step and closes
+ * nothing.
  *
  * @param {Element} root a container that outlives re-renders
  * @param {object} [handlers]
@@ -150,4 +150,102 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
     root.removeEventListener("cancel", onCancel, true);
     root.removeEventListener("close", onClosed, true);
   };
+}
+
+/** Patch a screen's markup without dropping a native modal's open state or the focus in it. */
+export function patchWithModal(root, markup, selector = "") {
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  const wanted = selector ? template.content.querySelector(selector) : null;
+  for (const dialog of root.querySelectorAll("dialog:modal")) {
+    if (wanted && dialog.matches(selector)) wanted.setAttribute("open", "");
+    else { if (!dialog.open) dialog.open = true; dialog.close(); }
+  }
+  patch(root, template.content);
+  const dialog = wanted && root.querySelector(selector);
+  if (dialog && !dialog.matches(":modal")) {
+    if (dialog.open) dialog.close();
+    dialog.showModal();
+  }
+}
+
+/** Each question's window has an id of its own: its title's id and the selectors that find it stay unique. */
+let asked = 0;
+
+/**
+ * Ask the coach to confirm, and resolve to what they chose.
+ *
+ * Once the browser's confirm(): unstyled, untranslatable beyond the message, and with an «OK» that says nothing of
+ * what is about to happen. A window names the action on its own button. It is asynchronous, so callers await it.
+ *
+ * The 3.0 window on renderSheet (ruling L7): from 901px DeskAdminReset's, 520 wide and 110 from the top (no `at`), up
+ * to 900px a sheet from the bottom as PlayerDeadConfirm's. It is named by the action (or the `title` given), says the
+ * caller's message, and ends in «Cancel», in its ring and in the focus, beside the action: the primary, or the red
+ * button when `destructive`. The window stands in a host of its own at the end of <body>, so no screen's redraw takes
+ * it away and no screen's sheets hear it. The answer is no for «Cancel», the cross, the backdrop, Escape, the Android
+ * back gesture, or a close of any other kind (wireSheets' one path); yes only for the action. Either way the window
+ * goes, and the focus goes back to what had it when the question was asked.
+ *
+ * @param {object} options
+ * @param {string} options.message         already translated
+ * @param {string} [options.title]         names the window; the action's label when left out
+ * @param {string} [options.confirmLabel]  names the action, not "OK"
+ * @param {string} [options.cancelLabel]
+ * @param {boolean} [options.destructive]  the action is the red button
+ * @returns {Promise<boolean>}
+ */
+export function confirmAction({
+  message,
+  title = "",
+  confirmLabel = "",
+  cancelLabel = "",
+  destructive = false,
+} = {}) {
+  // Without <dialog> there is no safe way to block on a choice, so fall back
+  // to the browser's own prompt rather than proceeding as if confirmed.
+  if (typeof HTMLDialogElement === "undefined") {
+    return Promise.resolve(confirm(message));
+  }
+
+  const opener = document.activeElement;
+  const id = `confirm-${++asked}`;
+  const action = confirmLabel || t("common.confirm");
+  const host = document.createElement("div");
+  host.setAttribute("data-confirm-host", "");
+  host.innerHTML = renderSheet({
+    id,
+    title: title || action,
+    className: "g-confirm",
+    bodyHtml: `<p class="g-confirm__text" id="${id}-text">${escapeHtml(message)}</p>`,
+    footHtml: renderButton({ label: cancelLabel || t("common.cancel"), data: { confirm: "no" } })
+      + renderButton({ label: action, kind: destructive ? "danger" : "primary", data: { confirm: "yes" } }),
+  });
+  const dialog = host.querySelector("dialog");
+  dialog.setAttribute("aria-describedby", `${id}-text`);
+  document.body.append(host);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const offs = [];
+    const settle = (confirmed) => {
+      if (settled) return;
+      settled = true;
+      offs.forEach((off) => off());
+      if (dialog.open) dialog.close();
+      host.parentNode?.removeChild(host);
+      if (!focusLost(opener)) opener.focus();
+      resolve(confirmed);
+    };
+    offs.push(
+      wireSheets(host, { onClose: () => settle(false) }),
+      delegate(host, "click", "[data-confirm]", (event, button) => settle(button.getAttribute("data-confirm") === "yes")),
+    );
+    // A close no button, key or backdrop made (another script's) is a no as well.
+    dialog.addEventListener("close", () => settle(false));
+
+    dialog.showModal();
+    // Cancel takes focus, so Enter does not fire the destructive action and
+    // Escape and the default both land on the same, safe answer.
+    host.querySelector('[data-confirm="no"]').focus();
+  });
 }

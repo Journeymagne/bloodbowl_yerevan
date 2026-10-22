@@ -5,8 +5,7 @@
  * the sheet that sells a player or cancels his purchase, as StatsSell.html and DeskRosterSell.html draw it. The sheets
  * themselves are ui/sheet.css's; what the prototypes change of them is set here, on their ids (#roster-hire,
  * #roster-sell), the head and the foot once for both. Sizes (D2): a phone's targets a thumb wide (--size-touch), a
- * desk's as the prototypes draw them, never under 24px. Font, border, background, text-transform, letter-spacing and
- * font-weight are set on purpose: the 2.x globals (p, button, dl, ul) outlive this sheet until stage 13.
+ * desk's as the prototypes draw them, never under 24px.
  */
 
 /*

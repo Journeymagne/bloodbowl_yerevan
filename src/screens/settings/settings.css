@@ -1,8 +1,5 @@
 /*
- * Settings (screens/settings/index.mjs). Font, border, background,
- * text-transform and font-weight are set here on purpose: the 2.x global rules
- * (shell.css h1/h2 at weight 800, the roster tables' headings) outlive this
- * sheet until stage 13.
+ * Settings (screens/settings/index.mjs).
  *
  * Up to 900px it is one column, the account first. The title is the page
  * head's (ui/page-head.mjs), drawn before this section: only for a screen

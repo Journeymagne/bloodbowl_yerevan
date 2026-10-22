@@ -1,8 +1,6 @@
 /*
  * The treasury strip of the desk roster (DeskRoster): the money first, then what the team holds, then the button
- * that adds or takes money. Font, border, background, text-transform, letter-spacing and font-weight are set here
- * on purpose, as in ui/resource-counter.css: the 2.x globals (button { font: inherit }, span) outlive this sheet
- * until stage 13. The keyboard ring is base.css's.
+ * that adds or takes money. The keyboard ring is base.css's.
  *
  * From 901px only: the phone has the treasury card instead. The strip wraps, so a narrow desktop (901 to about
  * 1050px, with the SideNav beside it) never clips a cell; the lines between the cells are the one-pixel gap that

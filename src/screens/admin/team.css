@@ -7,9 +7,8 @@
  * The prototype's values: the banner 14px 16px on --warn-tint, radius 14, its words 15px 700 and 13px, «Back to the
  * coach» 40px with the control's ring; fields 48px (text-field.css) and the main button 48px, radius 12, 15px 700; the
  * other buttons 40px on a desk and 44px on a phone (D2). The cards and the fields that have no prototype (the staff, the
- * fallen added afterwards, the name and logo) take the treasury card's look. Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are
- * tokens; long lines wrap, and nothing is cut.
+ * fallen added afterwards, the name and logo) take the treasury card's look. Colours are tokens; long lines wrap, and
+ * nothing is cut.
  */
 .g-adminteam {
   box-sizing: border-box;

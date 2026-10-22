@@ -7,11 +7,10 @@
  * skill is two dice (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in
  * Adv3Stat's card.
  *
- * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
- * letter-spacing and font-weight are set on purpose: the 2.x globals (p, b, ul, ol, button) outlive this sheet until
- * stage 13. A long skill or line wraps; nothing is cut with «…». Up to 900px what is pressed is 44px or more (D2): the
- * way's segments (40px in Adv3Random), the pair's cards and the faces marked at the table (32px) grow to it — the site's
- * list of faces, which only shows, keeps Adv3Random's 32px; from 901px as the prototypes.
+ * Where the prototypes give no line height, the font's own (`normal`). A long skill or line wraps; nothing is cut with
+ * «…». Up to 900px what is pressed is 44px or more (D2): the way's segments (40px in Adv3Random), the pair's cards and
+ * the faces marked at the table (32px) grow to it — the site's list of faces, which only shows, keeps Adv3Random's 32px;
+ * from 901px as the prototypes.
  */
 
 /* The roll's parts, one under the other (Adv3Random: 14 apart). */

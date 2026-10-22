@@ -1,8 +1,5 @@
 /*
- * A banner: a link with news, or a plain notice with one action. Font,
- * border, background, text-transform and border-radius are set here on
- * purpose: the 2.x globals (a { color: inherit }, :focus-visible {
- * border-radius }) outlive this sheet until stage 13.
+ * A banner: a link with news, or a plain notice with one action.
  */
 .g-callout {
   box-sizing: border-box;

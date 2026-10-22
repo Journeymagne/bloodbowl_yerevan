@@ -9,7 +9,7 @@ const COMMENT = /\/\*[\s\S]*?\*\//g;
  *
  * The source is many files so a person can find things in it; the site should
  * still fetch one. Inlining also keeps the parts covered by the version on the
- * index's link - an @import would ask for styles/roster.css with no ?v= on it
+ * index's link - an @import would ask for ui/base.css with no ?v= on it
  * and get a day-old copy after a deploy.
  *
  * scripts/build-site.mjs writes this, minified, to dist/src/styles.css, and

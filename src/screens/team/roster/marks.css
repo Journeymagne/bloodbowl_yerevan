@@ -1,9 +1,7 @@
 /*
  * Stage 07b on the roster (screens/team/roster/): the sections under «Active roster» — «Missing the match» and
  * «Fallen» — and a fallen player's opened row, his panel and his profile's body (fallen-view.mjs), which the
- * player's own address draws too. roster.css is the screen's own sheet and is full; what 07b adds is here. Font,
- * border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x global rules (h2,
- * h3, p, dl, dt, dd, a) outlive this sheet until stage 13.
+ * player's own address draws too. roster.css is the screen's own sheet and is full; what 07b adds is here.
  */
 
 /*

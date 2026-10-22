@@ -13,12 +13,11 @@
  * screen's redraws, and the screen that opened it takes it away when it is left (`closeBeforeSheet`). Its widths are the
  * sheet's (`renderSheet`, wide: 640px from 901px, from the bottom up to 900px) and before.css's.
  */
-import { patchWithModal } from "../../components/dialog.mjs";
 import { escapeHtml, focusLost } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { refUrl } from "../../core/routes.mjs";
-import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
+import { patchWithModal, renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { mountSheetHost, unmountSheetHost } from "../team/manage/sheet-host.mjs";
 import { absenceWords } from "../team/roster/panel.mjs";
 

@@ -3,10 +3,8 @@
  * the screen it is opened on, from the bottom of a phone (TeamNew) and a window
  * of 760px on a desk (DeskTeamNew). The sheet's frame is ui/sheet.css's; this
  * file draws what TeamNew and DeskTeamNew draw otherwise, and the races. The
- * builder is builder.css's; the team's settings draw their warnings in the
- * look of `.g-races__resets`. Font, border, background, text-transform and
- * font-weight are set here on purpose: the 2.x global rules (a { color:
- * inherit }, p margins, bare buttons) outlive this sheet until stage 13.
+ * builder is builder.css's; the team's settings draw their warnings in the look
+ * of `.g-races__resets`.
  *
  * Up to 900px (TeamNew): a sheet of up to 90% of the screen; the head 6 12 4
  * with «‹» (the switcher's way back) and the cross, 44px circles on

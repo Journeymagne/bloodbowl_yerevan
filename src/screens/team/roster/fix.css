@@ -10,9 +10,7 @@
  * 14/600, no frame and no fill — at the block's left; his value 14px in --ink-2, the value after the fix bold. And the
  * edit's last line, which opens it: under a rule, the words and a chevron, quiet when closed.
  *
- * Where nothing gives a line height, the font's own (`normal`). Font, border, background, text-transform,
- * letter-spacing and font-weight are set on purpose: the 2.x globals (h3, p, button) outlive this sheet until stage 13.
- * A long name wraps; nothing is cut with «…».
+ * Where nothing gives a line height, the font's own (`normal`). A long name wraps; nothing is cut with «…».
  */
 
 /* The blocks space themselves: 14px either side of the rule between two. */

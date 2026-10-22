@@ -1,12 +1,11 @@
 /*
  * The sheets of a team's friendlies (screens/matches/challenges-sheets.mjs): the challenge — ChallengeSend.html and
  * ChallengeSendSearch.html up to 900px, DeskChallenges.html's window of 760px from 901px — and the accept,
- * ChallengeAccept.html (a desk's is sheet.css's window of 480px). Values from those prototypes; font, border,
- * background, text-transform, letter-spacing and font-weight are set on purpose (the 2.x globals live until stage 13).
- * Colours are tokens: a coach's circle is the header's (the prototypes' own colours have none), a selected segment is
- * the segmented control's (--seg-on, --shadow-thumb). Long logins and team names wrap; nothing is cut with «…» (the
- * prototypes cut the coaches' teams and the segments). A thumb's targets are 44 high up to 900px (D2): the
- * prototypes' 36 and 38 are a desk's.
+ * ChallengeAccept.html (a desk's is sheet.css's window of 480px). Values from those prototypes. Colours are tokens: a
+ * coach's circle is the header's (the prototypes' own colours have none), a selected segment is the segmented
+ * control's (--seg-on, --shadow-thumb). Long logins and team names wrap; nothing is cut with «…» (the prototypes cut
+ * the coaches' teams and the segments). A thumb's targets are 44 high up to 900px (D2): the prototypes' 36 and 38 are
+ * a desk's.
  */
 
 /* ---- The challenge: the search over the list, the note of a coach the address named, the refusal ---- */

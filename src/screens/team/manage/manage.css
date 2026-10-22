@@ -1,7 +1,6 @@
 /*
  * The team page and its sheets (stage 08): the treasury, the resources, the history, Coach's Safe; the strip is
- * strip.css. Font, border, background, text-transform, letter-spacing and font-weight are set here on purpose: the
- * 2.x globals (button { font: inherit }, p, h2) outlive this sheet until stage 13. The keyboard ring is base.css's.
+ * strip.css. The keyboard ring is base.css's.
  */
 
 /* «Add / Take»: the sign, the amounts, the reason, the comment, the treasury after it. */

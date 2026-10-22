@@ -1,10 +1,9 @@
 /*
  * The administration's frame (screens/admin/frame.mjs) and what its screens share: the head with the path, the switch
  * between the coaches and the season, the content under them, the card, the grid of cards, the coach's letter, the
- * note. DeskAdmin*.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). Font, border, background,
- * text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until
- * stage 13. Colours are tokens; the prototypes' colour for each coach's letter has none, so every circle is the
- * header's. Long names and paths wrap; nothing is cut with «…».
+ * note. DeskAdmin*.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). Colours are tokens; the prototypes'
+ * colour for each coach's letter has none, so every circle is the header's. Long names and paths wrap; nothing is cut
+ * with «…».
  *
  * The prototypes' main pads 24 32 40 on a desk and 16 16 28 on a phone, which is the frame's padding of the view
  * (shell/frame.css): a desk's band goes out over it to the content's edges with its text 32px in, and the switch and

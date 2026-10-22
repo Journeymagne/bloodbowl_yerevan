@@ -41,7 +41,6 @@
  * from another screen's frame (the preparation's), the reading is said.
  */
 import { toast } from "../../components/toast.mjs";
-import { patchWithModal } from "../../components/dialog.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { API_ERROR, errorText } from "../../core/api.mjs";
 import { delegate, escapeHtml } from "../../core/dom.mjs";
@@ -57,6 +56,7 @@ import { PLAYERS_STAGE } from "../../domain/post-match/rules.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
+import { patchWithModal } from "../../ui/sheet.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";

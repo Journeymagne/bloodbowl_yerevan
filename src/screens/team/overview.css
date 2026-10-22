@@ -2,9 +2,7 @@
  * A team's overview (screens/team/overview.mjs). The figures, the board, the
  * callout and the pills are the ui/ sheets'; this one lays them out and draws
  * who can advance. The columns under the board, and the leaders and the recent
- * results in them, are overview-lists.css's. Font, border, background,
- * text-transform and font-weight are set here on purpose: the 2.x global rules
- * (h2, ul, a, p) outlive this sheet until stage 13.
+ * results in them, are overview-lists.css's.
  *
  * Written for a phone first. From 901px the figures are white cards in a ring
  * that wrap by 180px, and the head has the reference's search at its right

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -38,8 +38,31 @@ test("the preloads are the faces the first screen paints with, exactly as fonts.
   }
 });
 
-test("Comfortaa is no longer preloaded", () => {
-  assert.doesNotMatch(html, /comfortaa/i);
+test("Comfortaa and Nunito are no longer preloaded", () => {
+  assert.doesNotMatch(html, /comfortaa|nunito/i);
+});
+
+// The 2.x faces went with the 2.x tables (stage 13): every sheet of the app and of the maintenance page names only the two.
+test("no font but Golos Text and Oswald is declared", () => {
+  const sheets = [
+    ...readdirSync(path.join(root, "src"), { recursive: true }).filter((name) => name.endsWith(".css")).map((name) => `src/${name}`),
+    ...readdirSync(path.join(root, "public/maintenance")).filter((name) => name.endsWith(".css")).map((name) => `public/maintenance/${name}`),
+    "assets/fonts/ui/fonts.css",
+  ];
+  for (const sheet of sheets) {
+    const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.doesNotMatch(css, /comfortaa|nunito/i, sheet);
+    for (const [, body] of css.matchAll(/@font-face\s*\{([^}]*)\}/g)) {
+      assert.match(body, /font-family:\s*["']?(Golos Text|Oswald)["']?\s*;/, `${sheet}: ${body.trim()}`);
+    }
+  }
+  assert.deepEqual(readdirSync(path.join(root, "assets/fonts")), ["ui"], "the 2.x faces' folders are gone");
+});
+
+// 883 KB that nothing draws (spec :546; stage 11's hand-off): the maintenance page draws the 96px one.
+test("the full-size 2.x logo no longer ships", () => {
+  assert.equal(existsSync(path.join(root, "assets/brand/gata-league-logo.png")), false);
+  assert.ok(existsSync(path.join(root, "assets/brand/gata-league-logo-96.png")));
 });
 
 test("fonts.css declares the two families the tokens name, and the licences ship with them", () => {

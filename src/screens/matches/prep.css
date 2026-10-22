@@ -1,8 +1,7 @@
 /*
  * The preparation 3.0 (screens/matches/prep-frame.mjs, prep-steps.mjs): PreFans.html … PreReview.html on a phone,
- * DeskPreReview.html and DeskPreInducements.html on a desk. Font, border, background, text-transform, letter-spacing and
- * font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Half-white on the dark head is
- * a mix of the header's ink, as match-board.css's.
+ * DeskPreReview.html and DeskPreInducements.html on a desk. Half-white on the dark head is a mix of the header's ink, as
+ * match-board.css's.
  *
  * Long lines wrap — the subtitle, a step's name, a reason —; nothing is cut with «…» (the owner's answer on wrapping).
  */

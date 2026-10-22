@@ -12,9 +12,7 @@
  * (ui/page-head.css) reads the same figures.
  *
  * The header's and the SideNav's own looks are app-header.css's and
- * side-nav.css's; this sheet says where they stand and when. Font, border,
- * background, text-transform and font-weight are set here on purpose: the 2.x
- * globals outlive this sheet until stage 13.
+ * side-nav.css's; this sheet says where they stand and when.
  */
 
 /* A sheet locks the page's scrolling (ui/sheet.css); the scrollbar's room stays, so nothing shifts sideways. */
@@ -40,8 +38,8 @@ html { scrollbar-gutter: stable; }
  * roster's panel, the reference's, a profile's head, the builder's save, a
  * match visit's foot. And a column of its own, so a short page fills the
  * screen and the footer line stands at its foot: the content grows into the
- * room the header leaves. Its old floor (pages.css, the screen less an 81px
- * top bar that is gone) would scroll an empty page.
+ * room the header leaves. The 2.x view's floor (the screen less an 81px top
+ * bar that is gone) would have scrolled an empty page.
  */
 .g-main {
   display: flex;

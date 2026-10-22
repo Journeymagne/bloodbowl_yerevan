@@ -2,9 +2,7 @@
  * The reference's articles (screens/ref/article.mjs): the kicker, the title, the vault's own text in
  * the prose frame (prose.css) and the way on to the article before and after; the two bodies that are
  * not the vault's text (screens/ref/bodies.mjs), Leagues and the Skill Table; and the panel of a skill
- * or a trait (screens/ref/skill.mjs). A team's rules have a sheet of their own (team.css). Font,
- * border, background, text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to
- * h6, p, a) outlive this sheet until stage 13.
+ * or a trait (screens/ref/skill.mjs). A team's rules have a sheet of their own (team.css).
  *
  * Up to 900px an article is the page itself, with no frame; the way up is the link at its top. From
  * 901px it is a card beside the table of contents, in columns that shrink with the window and never
@@ -492,7 +490,7 @@
    * The vault's Skill Table is seven columns, not a text to read: it takes the card's whole width, and
    * its cells are snug enough that at 1440px none of them hides behind the table's own scroll (the
    * natural width is about 810px of the 842px the card has). On a narrower desktop it scrolls sideways.
-   * Out-specifies the 820px of .g-article .g-prose above, and the 2.x first-column width of 48px.
+   * Out-specifies the 820px of .g-article .g-prose above, and prose.css's first-column width of 48px.
    */
   .g-article .g-prose.g-ref-skilltable__desk {
     max-width: none;

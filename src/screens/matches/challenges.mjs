@@ -46,7 +46,6 @@
  * control, or to the title. Leaving closes the sheet and stops listening; an answer that comes after draws nothing and
  * leads nowhere.
  */
-import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
 import { drawKeepingFocus, drawScreen, focusLost, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -58,7 +57,7 @@ import { answerChallenge, readChallenges, sendChallenge } from "../../data/chall
 import { readCoachTeam } from "../../data/coaches.mjs";
 import { invalidateGames, loadGames, onGamesChange } from "../../data/games.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
-import { wireSheets } from "../../ui/sheet.mjs";
+import { patchWithModal, wireSheets } from "../../ui/sheet.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { acceptModel, challengesModel, sendModel } from "./challenges-model.mjs";
 import { ACCEPT_SHEET, SEND_SHEET, acceptSheetMarkup, sendSheetMarkup } from "./challenges-sheets.mjs";

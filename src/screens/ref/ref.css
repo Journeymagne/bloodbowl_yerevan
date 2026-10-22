@@ -1,7 +1,5 @@
 /*
- * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs). Font, border, background,
- * text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, a, the form
- * controls) outlive this sheet until stage 13.
+ * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs).
  *
  * The head is the page head (ui/page-head.mjs). Up to 900px it is one column and the head shows on the
  * index only: the phone's header names every other reference screen, and the table of contents is the

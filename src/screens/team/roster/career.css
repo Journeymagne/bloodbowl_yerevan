@@ -8,9 +8,8 @@
  * The sheet has no width of its own: the form is a class, not the screen's. A fallen player's page (stage 07b) draws
  * the phone's block on a desk as well — a page of its own, with no table beside it to carry TD to MVP.
  *
- * Where the prototype gives no line height, the font's own (`normal`) is the prototype's. Font, border, background,
- * text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h2, h3, p, dl, dt, dd, ul) outlive
- * this sheet until stage 13. A long opponent or a long line of actions wraps; nothing is cut with «…».
+ * Where the prototype gives no line height, the font's own (`normal`) is the prototype's. A long opponent or a long line
+ * of actions wraps; nothing is cut with «…».
  */
 
 /* The block: a column 10px apart — the heading's button, the totals, the list while open. The prototype is

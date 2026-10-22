@@ -1,9 +1,6 @@
 /*
  * One row of chips that scrolls sideways when it does not fit; the chosen
- * chip is filled with the header colour. Font, border, background,
- * text-transform and border-radius are set here on purpose: the 2.x globals
- * (button { font: inherit }, :focus-visible { border-radius }) outlive this
- * sheet until stage 13.
+ * chip is filled with the header colour.
  */
 .g-chips {
   display: flex;

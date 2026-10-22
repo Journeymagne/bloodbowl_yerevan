@@ -5,8 +5,6 @@
  * --accent in the light palettes and keeps 3:1 on the surface in the dark ones, where --accent does not; an
  * error's is --danger, the red that keeps 3:1 there. Long words wrap. The region stands in the body, or in the
  * open sheet, which is in the top layer: `fixed` places it by the window either way, above the sheet's backdrop.
- * Font, border, background, text-transform and letter-spacing are set on purpose while the 2.x sheets are still
- * in the page.
  */
 .g-toasts {
   position: fixed;

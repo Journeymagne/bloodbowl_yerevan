@@ -1,7 +1,5 @@
 /*
- * The head of a screen (ui/page-head.mjs). Font, border, background,
- * text-transform and font-weight are set here on purpose: the 2.x global rules
- * (shell.css h1 at weight 800) outlive this sheet until stage 13.
+ * The head of a screen (ui/page-head.mjs).
  *
  * Up to 900px the title is for a screen reader (the shell's header names the
  * screen) unless the head is `--phone`, which stands as a title and its line

@@ -2,9 +2,7 @@
  * The team's roster (screens/team/roster/). The table, the badges, the chips,
  * the stat strip, the dots, the buttons and the sheet are the ui/ sheets'; this
  * one lays them out and draws the panel beside the table, the open row's panel
- * and the lines of text between them. Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x global rules
- * (h2, h3, p, dl, dt, dd, a) outlive this sheet until stage 13.
+ * and the lines of text between them.
  *
  * Written for a phone first: the table is the page's width and a player's row
  * opens under him. From 901px the panel stands beside the column of banners,

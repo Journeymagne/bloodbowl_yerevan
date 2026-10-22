@@ -1,7 +1,5 @@
 /*
- * A guest's front page (screens/home/guest.mjs). Font, border, background, text-transform, letter-spacing
- * and weight are set here on purpose: the 2.x globals (h1 to h6, a, the buttons) outlive this sheet until
- * stage 13.
+ * A guest's front page (screens/home/guest.mjs).
  *
  * Up to 900px it is one column: the lead and what the league is, the two ways in side by side, the
  * table's card, the reference's card with its four tiles. The league's band is the page head

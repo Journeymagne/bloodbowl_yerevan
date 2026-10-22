@@ -4,9 +4,8 @@
  * (`.g-player-sheet`: its head, body, foot and lines of words); this sheet sets what is the advancement's own, by its
  * id. ui/option-card.css draws the types' cards, which this sizes as the prototypes do.
  *
- * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
- * letter-spacing and font-weight are set on purpose: the 2.x globals (h3, p, button, dl) outlive this sheet until
- * stage 13. A long name or refusal wraps; nothing is cut with «…» — the price in its pill is short and hides nothing.
+ * Where the prototypes give no line height, the font's own (`normal`). A long name or refusal wraps; nothing is cut
+ * with «…» — the price in its pill is short and hides nothing.
  */
 
 /* The types (Adv1Type.html): the words at the font's own height; a refused one grey, its price a shade darker than its card. */

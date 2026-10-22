@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -24,7 +25,7 @@ globalThis.confirm = (message) => {
   return false;
 };
 
-const { confirmAction } = await import("../src/components/dialog.mjs");
+const { confirmAction } = await import("../src/ui/sheet.mjs");
 const { enterCallMarkup, seasonEnterVisit } = await import("../src/screens/season/enter.mjs");
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { state } = await import("../src/core/state.mjs");
@@ -291,9 +292,10 @@ test("from 901px the question is DeskAdminReset's window: 520 wide, 20 round, 11
   assert.deepEqual(desk(".g-confirm .g-sheet__foot .g-btn", "padding"), ["0 var(--space-16)"]);
 });
 
-test("patchWithModal stays for the sheets (Task 23 moves it), and a screen's patch leaves the question alone", async () => {
-  const { patchWithModal } = await import("../src/components/dialog.mjs");
-  assert.equal(typeof patchWithModal, "function", "Task 23 moves it");
+test("the question and patchWithModal live with the sheet, and a screen's patch leaves the question alone", async () => {
+  const { patchWithModal } = await import("../src/ui/sheet.mjs");
+  // components/dialog.mjs is gone: the window it drew is a sheet (Task 9b), and both its exports live with the sheet (Task 23).
+  assert.equal(existsSync(new URL("../src/components/dialog.mjs", import.meta.url)), false);
   // A page that is only a button: the window is the only dialog, and patchWithModal on the page does not touch it.
   const page = el(document, "section", {});
   document.body.appendChild(page);

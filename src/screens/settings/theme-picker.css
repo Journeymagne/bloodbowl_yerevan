@@ -1,9 +1,6 @@
 /*
  * The ThemePicker (screens/settings/theme-picker.mjs): the theme mode, then the
- * palettes of that mode as cards, two to a row. Font, border, background,
- * text-transform, font-weight and border-radius are set here on purpose: the
- * 2.x globals (button { font: inherit }, :focus-visible { border-radius })
- * outlive this sheet until stage 13.
+ * palettes of that mode as cards, two to a row.
  *
  * The miniature draws a palette in its own colours: tokens.css gives
  * [data-palette-preview="<key>"] the colours of :root[data-palette="<key>"],

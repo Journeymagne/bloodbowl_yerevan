@@ -7,7 +7,6 @@ import { assertContrast, colourOf, contrast } from "./helpers/contrast.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const tokensCss = read("src/styles/tokens.css");
-const aliasesCss = read("src/styles/legacy-aliases.css");
 const ALL_KEYS = [...PALETTE_KEYS.light, ...PALETTE_KEYS.dark];
 
 /** selector → {"--name": value}; innermost blocks only, so a rule inside @media keeps its own selector. */
@@ -91,24 +90,18 @@ const DERIVED = {
   "--focus-ring": "0 0 0 3px var(--accent)",
 };
 
-/** Every 2.x variable src/styles reads, except --line, --muted, --accent and --danger, which 3.0 reuses by name. */
-const LEGACY_ALIASES = {
-  "--bg": "var(--page)", "--panel": "var(--surface)", "--panel-2": "var(--surface-2)", "--line-bright": "var(--control-border)",
-  "--text": "var(--ink)", "--soft": "var(--accent-text)", "--focus": "var(--accent-text)",
-  "--radius": "var(--radius-md)",
-  "--body-font": "var(--font-body)", "--display-font": "var(--font-display)", "--label-font": "var(--font-body)",
-  "--md-wash": "var(--accent-tint-soft)",
-  "--grid-line": "transparent", "--grid-line-soft": "transparent", "--stripe-line": "transparent",
-  "--input-bg-soft": "var(--field)",
-  "--panel-glass": "var(--surface)", "--surface-soft": "var(--surface-2)", "--surface-strong": "var(--surface)",
-  "--table-head": "var(--surface-2)",
-  "--button-bg": "var(--surface)", "--button-bg-hover": "var(--surface-2)", "--button-border": "var(--control-border)",
-  "--button-text": "var(--ink-2)", "--button-muted-text": "var(--muted)",
-  "--primary-bg": "var(--accent)", "--primary-bg-hover": "var(--accent-ink)", "--primary-border": "var(--accent)",
-  "--primary-text": "var(--on-accent)", "--primary-text-shadow": "none",
-  "--active-button-bg": "var(--accent-tint)", "--active-button-border": "var(--accent)", "--active-button-text": "var(--on-accent-tint)",
-  "--overlay-bg": "var(--scrim)", "--scroll-fade": "var(--surface)",
-};
+/**
+ * The 2.x variable names legacy-aliases.css pointed at 3.0 tokens while the 2.x tables lived (--line, --muted, --accent
+ * and --danger were 3.0's names already). The tables and the aliases went at stage 13: none may come back.
+ */
+const RETIRED_NAMES = [
+  "--bg", "--panel", "--panel-2", "--line-bright", "--text", "--soft", "--focus", "--radius", "--body-font", "--display-font",
+  "--label-font", "--md-wash", "--grid-line", "--grid-line-soft", "--stripe-line", "--input-bg-soft", "--panel-glass",
+  "--surface-soft", "--surface-strong", "--table-head", "--button-bg", "--button-bg-hover", "--button-border", "--button-text",
+  "--button-muted-text", "--primary-bg", "--primary-bg-hover", "--primary-border", "--primary-text", "--primary-text-shadow",
+  "--active-button-bg", "--active-button-border", "--active-button-text", "--overlay-bg", "--scroll-fade", "--body-glow",
+  "--body-gradient",
+];
 
 test("every palette wears the prototype's colours", () => {
   const all = rules(tokensCss);
@@ -158,24 +151,24 @@ test("scales, type, fixed and derived tokens are the design system's", () => {
   for (const [token, value] of Object.entries({ ...SCALES, ...FIXED, ...DERIVED })) assert.equal(base[token], value, token);
 });
 
-test("the 2.x names point at 3.0 tokens and never shadow one", () => {
-  assert.deepEqual(rules(aliasesCss).get(":root"), LEGACY_ALIASES);
-  const tokens = new Set([...rules(tokensCss).values()].flatMap(Object.keys));
-  for (const name of Object.keys(LEGACY_ALIASES)) assert.equal(tokens.has(name), false, `${name} would shadow a 3.0 token`);
-});
-
-// The 2.x frame's own names (--sidebar-bg, --topbar-bg, …) lost their last reader with the frame (stage 05).
-test("every 2.x name is still read by some stylesheet: one nothing reads goes", () => {
+test("src/styles holds tokens.css alone: the 2.x tables, their fonts and their variable names are gone", () => {
+  assert.deepEqual(readdirSync(new URL("../src/styles/", import.meta.url)), ["tokens.css"]);
+  const imports = [...read("src/styles.css").matchAll(/@import url\("([^"]+)"\);/g)].map(([, file]) => file);
+  assert.equal(imports[0], "styles/tokens.css", "the tokens come first, before every sheet that reads them");
+  assert.deepEqual(imports.filter((file) => file.startsWith("styles/")), ["styles/tokens.css"]);
   const css = readdirSync(new URL("../src/", import.meta.url), { recursive: true })
-    .filter((name) => name.endsWith(".css") && !name.endsWith("legacy-aliases.css"))
-    .map((name) => read(`src/${name}`)).join("\n");
-  for (const name of Object.keys(LEGACY_ALIASES)) assert.match(css, new RegExp(`var\\(\\s*${name}\\s*[,)]`), `${name} is read by nothing`);
+    .filter((name) => name.endsWith(".css"))
+    .map((name) => read(`src/${name}`).replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
+  for (const name of RETIRED_NAMES) {
+    assert.doesNotMatch(css, new RegExp(`var\\(\\s*${name}\\s*[,)]|(^|[{;\\s])${name}\\s*:`), `${name} is a 2.x name`);
+    assert.equal(rules(tokensCss).get(":root")[name], undefined, `${name} is no 3.0 token either`);
+  }
 });
 
 test("every variable a stylesheet reads is defined", () => {
   // The frame's padding (--view-top, --view-side, --view-bottom) is set on #app-view by the frame's own sheet (stage 13).
   const frameCss = read("src/shell/frame.css");
-  const defined = new Set([...rules(tokensCss).values(), ...rules(aliasesCss).values(), ...rules(frameCss).values()].flatMap(Object.keys));
+  const defined = new Set([...rules(tokensCss).values(), ...rules(frameCss).values()].flatMap(Object.keys));
   for (const file of stylesheets()) {
     const css = read(file);
     const local = new Set([...rules(css).values()].flatMap(Object.keys));
@@ -221,9 +214,4 @@ test("white on the maintenance page's accent reads 4.5:1 in every palette", () =
     const ratio = contrast(colourOf(white, {}), colourOf(accent, {}));
     assert.ok(ratio >= 4.5, `${key}: ${white} on ${accent} is ${ratio.toFixed(2)}:1`);
   }
-});
-
-test("src/styles.css reads the aliases right after the tokens", () => {
-  const imports = [...read("src/styles.css").matchAll(/@import url\("([^"]+)"\);/g)].map(([, file]) => file);
-  assert.equal(imports[imports.indexOf("styles/tokens.css") + 1], "styles/legacy-aliases.css");
 });

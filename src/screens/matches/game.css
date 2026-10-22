@@ -2,9 +2,6 @@
  * The match page (`#/games/:id`, screens/matches/game.mjs; stage 13, decision 10). It has no prototype of its own:
  * the card is Matches.html's (ui/match-card.css), the head is the page's (ui/page-head.css), the buttons are the
  * kit's (ui/button.css). A column 16 apart; from 901px the card and what goes with it are at most 640px wide.
- *
- * Font, border, background, text-transform, letter-spacing and weight are set here on purpose: the 2.x global rules
- * outlive this sheet until the second wave of stage 13.
  */
 .g-game {
   box-sizing: border-box;

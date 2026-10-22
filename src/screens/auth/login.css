@@ -1,14 +1,11 @@
 /*
  * Signing in and registering (screens/auth/login.mjs), and the strength meter
- * it draws (password-meter.mjs). Font, border, background, text-transform and
- * font-weight are set here on purpose: the 2.x global rules (h1 at weight 800,
- * a { color: inherit }, ol and p margins) outlive this sheet until stage 13.
+ * it draws (password-meter.mjs).
  *
  * Up to 900px: the league's strip with the crest on the header colour, and the
  * form on a sheet under it; the page title is for a screen reader there (the
  * switch names the form). From 901px: two columns, the league at the left (its
  * pitch and three points, the footer at its foot), the form at the right.
- * Until the 3.0 shell (Task 14) this is drawn inside the 2.x frame.
  */
 .g-auth {
   box-sizing: border-box;

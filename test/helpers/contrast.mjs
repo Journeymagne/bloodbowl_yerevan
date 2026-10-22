@@ -7,9 +7,6 @@
  * one colour per value — a hex, a `var(--token)` or a two-colour
  * `color-mix(in srgb, …)`. A value it cannot read fails the test rather than
  * passing it.
- *
- * The 2.x screens see the 2.x names too: their tests pass legacy-aliases.css
- * as a layer. Stage 13 deletes that file, and with it those tests.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -80,8 +77,8 @@ export function inMedia(file, query, selector, property) {
 
 const customProperties = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]));
 
-/** Every custom property a palette sees: tokens.css for its mode and palette, then each layer's. */
-export function tokensOf(palette, layers = []) {
+/** Every custom property a palette sees: tokens.css for its mode and palette. */
+export function tokensOf(palette) {
   const rules = blocks(read("src/styles/tokens.css"));
   const declared = (selector) => rules.filter((block) => block.selectors.includes(selector)).map((block) => customProperties(block.body));
   return Object.assign(
@@ -89,7 +86,6 @@ export function tokensOf(palette, layers = []) {
     ...declared(":root"),
     ...(PALETTES[palette] === "dark" ? declared(':root[data-mode="dark"]') : []),
     ...declared(`:root[data-palette="${palette}"]`),
-    ...layers.flatMap((file) => blocks(read(file)).map((block) => customProperties(block.body))),
   );
 }
 
@@ -131,9 +127,9 @@ export function contrast(first, second) {
 const asColour = (value) => (value.startsWith("--") ? `var(${value})` : value);
 
 /** `colour` must hold `minimum`:1 on every one of `backgrounds` (tokens or colours), in every palette. */
-export function assertContrast(colour, backgrounds, minimum, { what = colour, layers = [] } = {}) {
+export function assertContrast(colour, backgrounds, minimum, { what = colour } = {}) {
   for (const palette of Object.keys(PALETTES)) {
-    const tokens = tokensOf(palette, layers);
+    const tokens = tokensOf(palette);
     for (const background of backgrounds) {
       const ratio = contrast(colourOf(asColour(colour), tokens), colourOf(asColour(background), tokens));
       assert.ok(ratio >= minimum, `${what} on ${background} in ${palette} is ${ratio.toFixed(2)}:1, below ${minimum}:1`);
@@ -142,9 +138,9 @@ export function assertContrast(colour, backgrounds, minimum, { what = colour, la
 }
 
 /** The colour `selector` gives `property` (its last value in the file) must hold `minimum`:1 on every one of `backgrounds`. */
-export function assertReadable(file, selector, property, backgrounds, minimum, { layers = [] } = {}) {
+export function assertReadable(file, selector, property, backgrounds, minimum) {
   const values = valuesOf(file, selector, property);
   assert.ok(values.length, `${file} has no ${property} for ${selector}`);
   const value = values.at(-1);
-  assertContrast(value, backgrounds, minimum, { what: `${selector} ${property} ${value}`, layers });
+  assertContrast(value, backgrounds, minimum, { what: `${selector} ${property} ${value}` });
 }

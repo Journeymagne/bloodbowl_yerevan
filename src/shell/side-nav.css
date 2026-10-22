@@ -2,9 +2,7 @@
  * The desktop SideNav (shell/side-nav.mjs): a column on the header colour, the
  * team at the top, the places to go, and the match card, the language and the
  * footer line at the bottom. `#side-nav` carries `g-sidenav`. Which viewport
- * shows it (from 901px) is the frame's, not this sheet's. Font, border,
- * background, text-transform and font-weight are set here on purpose: the 2.x
- * globals outlive this sheet until stage 13.
+ * shows it (from 901px) is the frame's, not this sheet's.
  *
  * Everything pressable is 44px. The crest is drawn at the prototype's 36×41
  * (DeskOverview.html). The footer's base style is the frame's (a quiet line on
