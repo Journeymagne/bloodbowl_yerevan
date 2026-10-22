@@ -16,9 +16,12 @@
   box-sizing: border-box;
 }
 
+/*
+ * No floor under the body's width: a phone narrower than 320px of CSS (a 360px one zoomed to 125% is 288) would scroll
+ * the whole page sideways, as 2.x's phones never did (its shell's 320px was reset to 0 up to 600px).
+ */
 body {
   margin: 0;
-  min-width: 320px;
   background: var(--page);
   color: var(--ink);
   font-size: 15px;

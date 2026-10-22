@@ -14,7 +14,10 @@ test("the base is 3.0's: border-box, the body on the page colour, controls in th
   for (const selector of ["*", "*::before", "*::after"]) assert.deepEqual(valuesOf(BASE, selector, "box-sizing"), ["border-box"], selector);
   const body = (property) => valuesOf(BASE, "body", property);
   assert.deepEqual([body("margin"), body("min-width"), body("background"), body("color"), body("font-size")],
-    [["0"], ["320px"], ["var(--page)"], ["var(--ink)"], ["15px"]]);
+    [["0"], [], ["var(--page)"], ["var(--ink)"], ["15px"]]);
+  // No floor under the body anywhere: a page under 320px of CSS (a 360px phone zoomed to 125%) must not scroll sideways
+  // (review of stage 13; 2.x reset its 320px to 0 on phones).
+  for (const sheet of sheets()) assert.deepEqual(valuesOf(sheet, "body", "min-width"), [], sheet);
   for (const control of ["button", "input", "select", "textarea"]) assert.deepEqual(valuesOf(BASE, control, "font"), ["inherit"], control);
   assert.deepEqual(valuesOf(BASE, "a", "color"), ["inherit"]);
 
