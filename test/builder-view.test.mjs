@@ -14,6 +14,9 @@ import { PLAYER_STATS, rowsForTeam } from "../src/domain/roster/values.mjs";
 import { builderMarkup, buildRefusalText, wireBuilder } from "../src/screens/teams/builder-view.mjs";
 
 const BUILDER_CSS = "src/screens/teams/builder.css";
+// The numbers, the names and the captain, the staff and the save: the builder's second sheet (stage 13).
+const ROSTER_CSS = "src/screens/teams/builder-roster.css";
+const BUILDER_SHEETS = [BUILDER_CSS, ROSTER_CSS];
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const human = data.teams.find((team) => team.slug === "teams/human");
 const goblin = data.teams.find((team) => team.slug === "teams/goblin");
@@ -67,7 +70,7 @@ test("the builder shows the budget, the race, the positions with their limits an
   assert.match(fragment.querySelector('[data-resource-key="bribes"]').getAttribute("class"), /g-resource--locked/, "humans have no Bribery and Corruption");
   assert.ok(fragment.querySelector('.g-toggle[data-toggle-key="apothecary"]'));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
+  assertStyled(fragment, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
   assertDictionaryCovers("src/screens/teams/builder-view.mjs");
 });
 
@@ -282,7 +285,7 @@ test("the list is shut on a phone until it is asked for, and the toggle says wha
   const open = mount(builderMarkup({ race: human, draft: filled(), rosterOpen: true }));
   assert.match(open.querySelector("[data-roster-toggle]").textContent, /Hide/);
   assert.equal(open.querySelector("#new-team-roster").getAttribute("class").includes("--shut"), false);
-  const css = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8");
+  const css = readFileSync(new URL(`../${ROSTER_CSS}`, import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__roster-list--shut\s*\{\s*display:\s*none/, "shut on a phone only");
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__roster-toggle\s*\{\s*display:\s*none/, "no toggle on a desk, where the list is always there");
 });
@@ -374,7 +377,7 @@ test("a race with a choice of league opens a sheet of options; one with a single
   assert.equal(choosing.querySelector('dialog#new-team-choice [aria-checked="true"]').getAttribute("data-option-value"), "Halfling Thimble Cup");
   assert.equal(mount(builderMarkup({ race: human, draft: newBuild(human, { name: "H" }) })).querySelector('[data-new-team-choice="league"]'), null);
   assert.equal(mount(builderMarkup({ race: human, draft: newBuild(human, { name: "H" }) })).querySelector(".g-build__team").textContent.includes("Old World Classic"), true);
-  assertStyled(choosing, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css", "sheet.css", "option-card.css");
+  assertStyled(choosing, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css", "sheet.css", "option-card.css");
 });
 
 test("the league and the favoured alignment are each chosen from a sheet, when there are two or more to choose from", () => {
@@ -546,7 +549,7 @@ test("a refusal of the save is said above the button, and a name typed is text",
   assert.equal(fragment.querySelector("img"), null);
   assert.ok(fragment.querySelector(".g-build__cta .g-callout--danger .g-callout__icon"), "a fault leads with its sign");
   assert.equal(mount(builderMarkup({ race: human, draft: filled() })).querySelector('.g-build__cta [role="alert"]'), null);
-  assertStyled(fragment, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
+  assertStyled(fragment, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
 });
 
 test("the rule's words for the four refusals the build gives are in both dictionaries, and fill every placeholder (K5c)", () => {
@@ -661,7 +664,9 @@ test("a screen that is released stops hearing the buttons, and one wired without
 });
 
 test("the look: contrast on what each text sits on, no inline widths, and the breakpoints are 900 and 901", () => {
-  const css = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const sheetText = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = sheetText(BUILDER_CSS);
+  const roster = sheetText(ROSTER_CSS);
   // The limit at its maximum is a pill on the warning tint (K5b): no new token.
   assertReadable(BUILDER_CSS, ".g-hire__limit--max", "color", ["--warn-tint"], 4.5);
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-hire__limit--max", "background"), ["var(--warn-tint)"]);
@@ -675,25 +680,42 @@ test("the look: contrast on what each text sits on, no inline widths, and the br
   assertReadable(BUILDER_CSS, ".g-build__count--short", "color", ["--surface", "--page"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__label", "color", ["--surface", "--page"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__hint", "color", ["--surface", "--page"], 4.5);
-  assertReadable(BUILDER_CSS, ".g-build__reroll-note", "color", ["--surface", "--page"], 4.5);
-  assertReadable(BUILDER_CSS, ".g-roster-row__position", "color", ["--surface", "--page"], 4.5);
+  assertReadable(ROSTER_CSS, ".g-build__reroll-note", "color", ["--surface", "--page"], 4.5);
+  assertReadable(ROSTER_CSS, ".g-roster-row__position", "color", ["--surface", "--page"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__h", "color", ["--surface", "--page"], 4.5);
   assertReadable(BUILDER_CSS, ".g-hire__name", "color", ["--surface", "--page"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__title", "color", ["--header"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__sub", "color", ["--header"], 4.5);
   assertReadable(BUILDER_CSS, ".g-build__head .g-btn", "color", ["--header"], 4.5);
   assertReadable(BUILDER_CSS, ".g-hire__avatar", "color", ["--pos-lineman", "--pos-big", "--pos-thrower", "--pos-catcher", "--pos-blitzer"], 4.5);
-  assertReadable(BUILDER_CSS, ".g-roster-row__captain", "color", ["--surface", "--page"], 4.5);
-  assertReadable(BUILDER_CSS, '.g-roster-row__captain[aria-checked="true"]', "color", ["--crest-gold"], 4.5);
+  assertReadable(ROSTER_CSS, ".g-roster-row__captain", "color", ["--surface", "--page"], 4.5);
+  assertReadable(ROSTER_CSS, '.g-roster-row__captain[aria-checked="true"]', "color", ["--crest-gold"], 4.5);
   // The first band's two cards end on one line on a desk.
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__players", "align-self"), ["stretch"]);
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__team", "align-self"), ["stretch"]);
-  assert.doesNotMatch(css, /\bstyle\s*=/);
-  const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
+  for (const sheet of [css, roster]) assert.doesNotMatch(sheet, /\bstyle\s*=/);
+  const queries = [css, roster].flatMap((sheet) => [...sheet.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim()));
   assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
   // The save stands at the foot of a phone's screen and is an ordinary block on a desk.
-  assert.match(css, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/);
-  assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*static/);
+  assert.match(roster, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/);
+  assert.match(roster, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*static/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 360px/);
   assert.match(readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8"), /focus order/i, "the desk's columns reorder the page; the sheet says so");
+});
+
+// Stage 13 (Task 1): builder.css ran to 705 lines. Cut where its own sections meet — the head, the budget, the sections, the
+// team and the players in one, the numbers, names and captain, the staff and the save in the other — and the second
+// imported right after the first, so the cascade is the one sheet's.
+test("the builder's two sheets, each 600 lines at most, imported in order", () => {
+  for (const file of BUILDER_SHEETS) {
+    const lines = readFileSync(new URL(`../${file}`, import.meta.url), "utf8").split("\n").length;
+    assert.ok(lines <= 600, `${file}: ${lines} lines`);
+  }
+  const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /@import url\("screens\/teams\/builder\.css"\);\n@import url\("screens\/teams\/builder-roster\.css"\);\n/);
+  const roster = readFileSync(new URL(`../${ROSTER_CSS}`, import.meta.url), "utf8");
+  for (const section of ["Numbers, names and the captain", "The staff", "The save"]) assert.match(roster, new RegExp(`---- ${section} ----`), section);
+  const builder = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8");
+  for (const section of ["The head", "The budget", "Sections", "The team", "The players"]) assert.match(builder, new RegExp(`---- ${section} ----`), section);
+  assert.doesNotMatch(builder, /\.g-roster-row|\.g-build__cta|\.g-build__roster-/, "what moved is in one sheet only");
 });

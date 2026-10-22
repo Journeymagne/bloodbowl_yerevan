@@ -3,8 +3,13 @@
  * 900px a column — the header, then the content and the footer line under it;
  * from 901px the SideNav beside the content, which carries the footer line
  * itself. A `bare` page (sign-in, registration) brings its own frame and gets
- * none of it: no header, no SideNav, no footer, and #app-view without the 2.x
- * screens' padding.
+ * none of it: no header, no SideNav, no footer, and #app-view without padding.
+ *
+ * The view's padding is the prototypes' `<main>`'s: 16 16 28 on a phone (Team.html,
+ * Matches.html, Player.html, CoachProfile.html, Guest.html), 24 32 40 on a desk
+ * (every Desk*.html but the sign-in). Its three figures are custom properties on
+ * #app-view, so a band that goes out over the padding to the content's edges
+ * (ui/page-head.css) reads the same figures.
  *
  * The header's and the SideNav's own looks are app-header.css's and
  * side-nav.css's; this sheet says where they stand and when. Font, border,
@@ -46,6 +51,7 @@ html { scrollbar-gutter: stable; }
   flex: 1 0 auto;
   min-height: 0;
 }
+#app-view { padding: var(--view-top) var(--view-side) var(--view-bottom); }
 
 /*
  * #app-view takes the focus from the skip link and after a form's navigation (sign-in, registration,
@@ -76,6 +82,11 @@ html { scrollbar-gutter: stable; }
 }
 
 @media (max-width: 900px) {
+  #app-view {
+    --view-top: 16px;
+    --view-side: 16px;
+    --view-bottom: 28px;
+  }
   .g-frame > .g-sidenav { display: none; }
   /*
    * The header sticks to the top of a phone's page, 102px drawn and 91px folded: an element the keyboard
@@ -90,6 +101,11 @@ html { scrollbar-gutter: stable; }
 }
 
 @media (min-width: 901px) {
+  #app-view {
+    --view-top: 24px;
+    --view-side: 32px;
+    --view-bottom: 40px;
+  }
   .g-frame {
     display: grid;
     grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
@@ -118,7 +134,6 @@ html { scrollbar-gutter: stable; }
   min-height: 100dvh;
   padding: 0;
 }
-.g-frame[data-shell="bare"] #app-view::after { display: none; }
 /* The screen's root fills the frame; a sheet a bare screen puts in #app-view (the post-match's, the preparation's) keeps
    its own place — a phone's at the bottom, a desk's window centred at its width. */
 .g-frame[data-shell="bare"] #app-view > :not(dialog) {

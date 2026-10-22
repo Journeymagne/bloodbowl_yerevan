@@ -174,7 +174,9 @@ test("every 2.x name is still read by some stylesheet: one nothing reads goes", 
 });
 
 test("every variable a stylesheet reads is defined", () => {
-  const defined = new Set([...rules(tokensCss).values(), ...rules(aliasesCss).values()].flatMap(Object.keys));
+  // The frame's padding (--view-top, --view-side, --view-bottom) is set on #app-view by the frame's own sheet (stage 13).
+  const frameCss = read("src/shell/frame.css");
+  const defined = new Set([...rules(tokensCss).values(), ...rules(aliasesCss).values(), ...rules(frameCss).values()].flatMap(Object.keys));
   for (const file of stylesheets()) {
     const css = read(file);
     const local = new Set([...rules(css).values()].flatMap(Object.keys));

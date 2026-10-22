@@ -202,19 +202,18 @@
 }
 
 @media (min-width: 901px) {
-  /* The band and the ribbon run to the edges the page gives them, so the 2.x padding of the screen (stage 13 takes it away) is given up and the parts keep their own. */
-  #app-view:has(> .g-guest) { padding: 0; }
-  #app-view > .g-guest {
-    max-width: none;
-    margin: 0;
-    gap: 0;
-  }
+  /*
+   * DeskGuest.html: the band, then its main's 24 32 40 — the frame's padding, which the band goes out over by the
+   * frame's own figures — with the ribbon and the cards 20 apart in it.
+   */
+  .g-guest { gap: 0; }
 
   .g-guest__head {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    padding: var(--space-20) 32px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
     border: 0;
     border-bottom: 1px solid var(--line);
     background: var(--surface);
@@ -227,7 +226,7 @@
     flex-flow: row wrap;
     align-items: center;
     gap: var(--space-24);
-    margin: var(--space-24) 32px 0;
+    margin: 0;
     padding: 28px 32px;
     border-radius: 20px;
     background: var(--header);
@@ -271,7 +270,7 @@
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     align-items: start;
     gap: var(--space-20);
-    margin: var(--space-20) 32px 40px;
+    margin: var(--space-20) 0 0;
   }
   .g-guest__card { padding: 18px var(--space-20); }
   .g-guest__title { font: 700 24px/1.15 var(--font-display); }

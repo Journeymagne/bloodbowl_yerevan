@@ -61,8 +61,8 @@
 }
 
 /*
- * The band reaches the content's edges over the view's own padding: `.view` pads 28px from 901px
- * (site-matchday.css, 2.x), and so does the offset here. It goes with that padding at stage 13.
+ * The band reaches the content's edges over the view's padding (24 above, 32 at the sides from 901px), by the frame's
+ * own figures (shell/frame.css), and keeps its words where the content's edge is: DeskOverview.html's 20 32.
  */
 @media (min-width: 901px) {
   .g-pagehead {
@@ -71,8 +71,8 @@
     justify-content: space-between;
     gap: var(--space-16);
     max-width: none;
-    margin: -28px -28px var(--space-24);
-    padding: var(--space-20) 28px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
     border-bottom: 1px solid var(--line);
     background: var(--surface);
   }

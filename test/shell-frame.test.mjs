@@ -5,7 +5,7 @@ import test from "node:test";
 import { document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, blocks, inMedia, valuesOf } from "./helpers/contrast.mjs";
 
 const frame = el(document, "div", { id: "app-frame", "data-shell": "guest" },
   el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }),
@@ -270,7 +270,67 @@ test("on a phone, an element scrolled into view by the keyboard stands clear of 
 // container; it is a place to start from, not a control, and draws no ring around the whole screen.
 test("the content takes the focus without a ring drawn round the whole screen", () => {
   assert.deepEqual(valuesOf("src/shell/frame.css", "#app-view:focus", "outline"), ["none"]);
-  assert.match(read("index.html"), /<section id="app-view" class="view" tabindex="-1">/);
+  assert.match(read("index.html"), /<section id="app-view" tabindex="-1">/);
+});
+
+// Stage 13 (decision 4): the view's padding is the prototypes' `<main>`'s — Team.html, Matches.html, Player.html,
+// CoachProfile.html, Guest.html up to 900px; every Desk*.html but the sign-in from 901px. A band reads the same figures.
+test("the frame pads the view as the prototypes' main: 16 16 28 on a phone, 24 32 40 on a desk", () => {
+  const frameCss = "src/shell/frame.css";
+  assert.deepEqual(valuesOf(frameCss, "#app-view", "padding"), ["var(--view-top) var(--view-side) var(--view-bottom)"]);
+  for (const [name, phone, desk] of [["--view-top", "16px", "24px"], ["--view-side", "16px", "32px"], ["--view-bottom", "28px", "40px"]]) {
+    assert.deepEqual(inMedia(frameCss, "max-width: 900px", "#app-view", name), [phone], name);
+    assert.deepEqual(inMedia(frameCss, "min-width: 901px", "#app-view", name), [desk], name);
+  }
+  // A page with a frame of its own (the builder, the sign-in, the match's visits) keeps none of it.
+  assert.deepEqual(valuesOf(frameCss, '.g-frame[data-shell="bare"] #app-view', "padding"), ["0"]);
+});
+
+/** Every stylesheet of 3.0: src/**\/*.css but the 2.x tables of src/styles/, which go with their rules at stage 13's wave 2. */
+const sheets30 = () => sources().filter((file) => file.endsWith(".css") && !file.startsWith("src/styles/"));
+
+test("no .view is left: not in index.html, not in a stylesheet, no wash under a page", () => {
+  assert.doesNotMatch(read("index.html"), /class="[^"]*\bview\b/, "the view is #app-view, without the 2.x class");
+  for (const file of sheets30()) {
+    for (const { selectors } of blocks(read(file))) {
+      for (const selector of selectors) {
+        assert.doesNotMatch(selector, /\.view(?![\w-])/, `${file}: ${selector}`);
+        assert.ok(!(selector.includes("#app-view") && selector.includes("::after")), `${file}: ${selector} draws under the view`);
+      }
+    }
+  }
+});
+
+// Stage 13, pre-flight L3: DeskRef.html and DeskGuest.html pad their main 24 32 40 under the band, as every desk page
+// does — the frame's figures. The two screens that gave the 2.x padding up from 901px take the frame's instead.
+test("from 901px the reference and a guest's front page stand in the frame's padding, as every desk page", () => {
+  for (const [file, root] of [["src/screens/ref/ref.css", ".g-ref"], ["src/screens/home/guest.css", ".g-guest"]]) {
+    for (const { selectors } of blocks(read(file))) {
+      for (const selector of selectors) assert.ok(!selector.includes("#app-view"), `${file}: ${selector} gives the frame's padding up`);
+    }
+    assert.deepEqual(inMedia(file, "min-width: 901px", root, "gap"), ["0"], `${root}: the band and the body, 24 apart by the band's margin`);
+  }
+  assert.deepEqual(inMedia("src/screens/ref/ref.css", "min-width: 901px", ".g-ref__body", "padding"), [], "the body's 24 32 40 are the frame's");
+  assert.deepEqual(inMedia("src/screens/home/guest.css", "min-width: 901px", ".g-guest__hero", "margin"), ["0"]);
+  assert.deepEqual(inMedia("src/screens/home/guest.css", "min-width: 901px", ".g-guest__grid", "margin"), ["var(--space-20) 0 0"]);
+});
+
+// Stage 13, pre-flight L35: what took the 2.x view's padding back reads the frame's figures, and what added 4 to its
+// 28 to make 32 adds nothing to the frame's 32.
+test("a page that reaches past the view's padding takes back the frame's figures, never the 2.x view's", () => {
+  const back = "calc(-1 * var(--view-top)) calc(-1 * var(--view-side))";
+  assert.deepEqual(inMedia("src/screens/season/league.css", "max-width: 900px", ".g-league", "margin"), [`${back} 0`]);
+  assert.deepEqual(inMedia("src/screens/coaches/profile.css", "max-width: 900px", ".g-coach--phone", "margin"), [`${back} calc(-1 * var(--view-bottom))`]);
+  assert.deepEqual(inMedia("src/screens/coaches/profile.css", "min-width: 901px", ".g-coach--desk", "padding"), ["0"]);
+  assert.deepEqual(inMedia("src/screens/coaches/team.css", "min-width: 901px", ".g-opp__body", "padding"), ["var(--space-24) 0 0"]);
+  const open = ".g-rtable__player.is-expanded > tr >";
+  const lastShown = ":nth-last-child(1 of :not(.g-rtable__c--desk))";
+  const table = "src/ui/roster-table.css";
+  assert.deepEqual(inMedia(table, "max-width: 900px", `${open} :first-child`, "box-shadow"), ["calc(-1 * var(--view-side)) 0 var(--surface-2)"]);
+  assert.deepEqual(inMedia(table, "max-width: 900px", `${open} ${lastShown}`, "box-shadow"), ["var(--view-side) 0 var(--surface-2)"]);
+  assert.deepEqual(inMedia(table, "max-width: 900px", `${open} :first-child${lastShown}`, "box-shadow"), ["calc(-1 * var(--view-side)) 0 var(--surface-2), var(--view-side) 0 var(--surface-2)"]);
+  // OppTeam.html's «‹ Table»: its line 30 from the top (14 + the 32 of its link, halved), the frame's 16 above it.
+  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp--phone > .g-opp__back", "margin"), ["-8px 0 -14px"]);
 });
 
 test("every frame class the page names is styled, the frame reaches the page, and it breaks at 900/901 only", () => {

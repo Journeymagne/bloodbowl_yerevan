@@ -299,11 +299,6 @@
 
 @media (min-width: 901px) {
   /*
-   * The band runs edge to edge, so the 2.x padding of the screen (which stage 13 takes away) is
-   * given up for the reference and the parts keep their own.
-   */
-  #app-view:has(> .g-ref) { padding: 0; }
-  /*
    * The frame keeps a wide 2.x table from pushing the page sideways with `overflow-x: hidden`, which
    * makes it a box that scrolls (though it never does) and so the one a sticky panel sticks to: it
    * would never stick. Cut off with `clip` it is not a box, and the panel sticks to the window. Only
@@ -314,11 +309,8 @@
    * test/ref-skill.test.mjs that frame.css still says `hidden`).
    */
   .g-main:has(.g-ref) { overflow-x: clip; }
-  #app-view > .g-ref {
-    max-width: none;
-    margin: 0;
-    gap: 0;
-  }
+  /* DeskRef.html: the band, then its main's 24 32 40 — the frame's padding, which the band goes out over by its figures. */
+  .g-ref { gap: 0; }
 
   .g-ref .g-ref-head {
     display: grid;
@@ -326,7 +318,8 @@
     align-items: center;
     column-gap: var(--space-16);
     row-gap: var(--space-4);
-    padding: var(--space-20) 32px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
     border-bottom: 1px solid var(--line);
     background: var(--surface);
   }
@@ -347,7 +340,6 @@
   .g-ref__body {
     flex-flow: row wrap;
     align-items: flex-start;
-    padding: 24px 32px 40px;
   }
   .g-ref__main {
     flex: 2 1 380px;
