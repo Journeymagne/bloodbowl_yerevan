@@ -4,7 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
+import { assertBreakpoints, inMedia, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -1232,10 +1232,13 @@ test("every key in both dictionaries; styled; D2", () => {
   assert.equal(height(FIX, "max-width: 900px", ".g-player-fix__undo"), 44);
   assert.equal(height(FIX, "min-width: 901px", ".g-player-fix__undo"), 32);
   assert.ok(height(FIX, "min-width: 901px", ".g-player-fix__undo") >= 24);
-  // The god's D8 is the characteristic's faces (rolls.css), in a row of eight on a desk too; its skills the advancement's own.
+  // The god's D8 is the characteristic's faces (rolls.css): four to a row on a phone (a thumb's 44 across, fidelity N3),
+  // a row of eight on a desk; its skills the advancement's own.
   assert.ok(height(ROLLS, "max-width: 900px", "#player-advance .g-advance__d8face") >= 44);
   assert.ok(height(ROLLS, "min-width: 901px", "#player-advance .g-advance__d8face") >= 24);
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(4, minmax(0, 1fr))"]);
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-favoured .g-favoured__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))"]);
+  assert.deepEqual(inMedia(ADVANCE, "min-width: 901px", "#player-advance .g-favoured .g-favoured__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))"], "on a desk only");
   assert.doesNotMatch(bare(ADVANCE), /g-favoured \.g-btn/, "no «Add …» left");
   // The profile's page holds the page only (T8): the sheets' rules live in their own files.
   assert.doesNotMatch(bare(PROFILE), /unadvance|g-favoured|roster-skill/);

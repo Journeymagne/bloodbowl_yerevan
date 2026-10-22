@@ -252,7 +252,6 @@
   font: 400 13px/1.45 var(--font-body);
 }
 #player-advance .g-favoured__skills { margin: 2px 0 0; }
-#player-advance .g-favoured .g-favoured__d8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 
 /* A step's hint (Adv2Category) and a D8's table in a line (rolls.css; Adv3Stat): 13px/1.45, quiet. */
 #player-advance .g-advance__hint,
@@ -369,6 +368,9 @@
  * rule, 16 24, the summary 15px, «Cancel» and «Take» 48px, 12px round, the button from 220px.
  */
 @media (min-width: 901px) {
+  /* The god's D8 in a row of eight on a desk; a phone's are four to a row, a thumb's 44 each (rolls.css; fidelity N3). */
+  #player-advance .g-favoured .g-favoured__d8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+
   /* 64px from the top is sheet.css's (`at: 64`); the window may be as tall as that leaves, over the 86dvh of the others. */
   dialog#player-advance {
     width: min(1080px, calc(100% - 32px));
