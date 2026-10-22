@@ -317,7 +317,7 @@ test("a close request that is no keydown (the Android back gesture, Escape with 
 });
 
 test("a cancel on a dialog that is not a sheet is left to its own screen", () => {
-  const fragment = mount(`${renderSheet({ id: "s7", title: "T", bodyHtml: "<p>x</p>" })}<dialog id="other" class="app-dialog"><p>y</p></dialog>`);
+  const fragment = mount(`${renderSheet({ id: "s7", title: "T", bodyHtml: "<p>x</p>" })}<dialog id="other"><p>y</p></dialog>`);
   const other = fragment.querySelector("#other");
   const closed = [];
   wireSheets(fragment, { onClose: (id) => closed.push(id) });

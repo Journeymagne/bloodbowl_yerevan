@@ -199,3 +199,79 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
   }
   .g-sheet__foot-start { margin-right: auto; }
 }
+
+/*
+ * A question before something that cannot be taken back (components/dialog.mjs `confirmAction`): the caller's words,
+ * then «Cancel» and the action. Up to 900px PlayerDeadConfirm.html's sheet: the words 15/1.5 in --ink-2, the body
+ * 10 16 12; «Cancel» and the action in two halves under the foot's rule, 8 apart. From 901px DeskAdminReset.html's
+ * window: 520 wide, 20 round, 110 from the top (the sheet's own, no `at`); the head 18 20 18 24, 16 between the title
+ * (28) and the 40px cross; the body 16 24; «Cancel» and the action at the right, 8 apart, 12 24 20 around them, as
+ * DeskAdminCoachNew's. Both: 48px buttons, 12 round, 15px bold. Their colours are button.css's own — «Cancel» the
+ * outline (white in its ring, here in --ink as the prototypes'), the action the primary or the red one.
+ */
+.g-confirm .g-sheet__body { gap: var(--space-14); }
+
+.g-confirm__text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 400 15px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-confirm .g-sheet__foot .g-btn {
+  height: auto;
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-confirm .g-sheet__foot .g-btn[data-confirm="no"] { color: var(--ink); }
+
+@media (max-width: 900px) {
+  .g-confirm .g-sheet__body { padding: var(--space-10) var(--space-16) var(--space-12); }
+  .g-confirm .g-sheet__foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-16) var(--space-24);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: 100%;
+    padding: 0 var(--space-10);
+  }
+}
+
+@media (min-width: 901px) {
+  dialog.g-sheet.g-confirm {
+    width: min(520px, calc(100% - 32px));
+    border-radius: 20px;
+  }
+  .g-confirm .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-confirm .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-confirm .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-confirm .g-sheet__body { padding: var(--space-16) var(--space-24); }
+  .g-confirm .g-sheet__foot {
+    justify-content: flex-end;
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24) var(--space-20);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: auto;
+    padding: 0 var(--space-16);
+  }
+}
