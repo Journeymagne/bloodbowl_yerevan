@@ -6,8 +6,12 @@
  *   score sent before 3.0 in a round long closed is here too, which 2.x's list of open games hid.
  * - The round under way (the last one `started`): its pairs in the prototype's six columns, «+ Pair by hand», and the
  *   next round's generation, closed with its reason while a pair of the round has no result (the server's own test,
- *   `assertCurrentRoundComplete`: a pair of two teams without the points of both) or a draft round stands.
- * - A draft round (the generation's, or an empty one): its pairs, «Start the round», «Delete the round».
+ *   `assertCurrentRoundComplete`: a pair of two teams without the points of both), a draft round stands, or a team
+ *   entered is still in its build (`admin.savedTeams[].stage`): a round would pair it, and its coach would go on buying
+ *   Start Re-rolls at the build's price between its league matches. The server does not refuse that itself (a known
+ *   limit of stage 12): the screen does not offer it.
+ * - A draft round (the generation's, or an empty one): its pairs, «Start the round» (closed while a pair of it holds a
+ *   team in its build, for the same reason), «Delete the round».
  * - With neither: the next round to generate, and «Empty round», a draft whose pairs are set by hand.
  * - The rounds before, folded: «Rounds 1–6 · over · matches: 24», and «Show» opens the same tables.
  *
@@ -38,11 +42,19 @@ function loginsOf(seasonData) {
   return logins;
 }
 
-/** One side of a pair: the entry, its team's name and its coach's login; null for no team there. */
+/** One side of a pair: the entry, its team's name and id, and its coach's login; null for no team there. */
 function sideOf(entries, entryId) {
   if (!entryId) return null;
   const entry = entries.find((item) => item.id === entryId);
-  return { entryId, team: entry?.team?.name ?? "—", coach: entry?.user?.login ?? "", userId: entry?.user?.id ?? "" };
+  return { entryId, teamId: entry?.team?.id ?? "", team: entry?.team?.name ?? "—", coach: entry?.user?.login ?? "", userId: entry?.user?.id ?? "" };
+}
+
+/** The ids of the teams still in their build (`draft`), as the admin's block of `/api/season` has them. */
+const buildsOf = (seasonData) => new Set((seasonData?.admin?.savedTeams ?? []).filter((team) => team.stage === "draft").map((team) => team.id));
+
+/** Why a round may not pair these teams yet: those still in their build, by name; "" for none. */
+function buildsRefusal(names) {
+  return names.length ? t("adminSeason.buildsFirst", { teams: names.join(", ") }) : "";
 }
 
 /** The score a side holds, else the one sent, else none: the manual result starts from it (2.x's form did). */
@@ -134,32 +146,41 @@ function roundOf(round, entries, logins) {
   return { id: round.id, number: Number(round.roundNumber ?? 0), status: round.status ?? "draft", lines };
 }
 
-/** Why the next round cannot be generated yet, "" when it can (the server's own two refusals, said before the press). */
-function generateRefusal(current, draft) {
+/**
+ * Why the next round cannot be generated yet, "" when it can: the server's own two refusals, said before the press, and
+ * a team entered that is still in its build (`builds`, the names of the season's entries whose team is).
+ */
+function generateRefusal(current, draft, builds) {
   if (draft) return t("adminSeason.draftFirst", { round: draft.number });
   const left = current ? current.lines.filter((line) => line.home && line.away && !line.scored).length : 0;
-  return left ? t("adminSeason.pairsLeft", { count: left }) : "";
+  return left ? t("adminSeason.pairsLeft", { count: left }) : buildsRefusal(builds);
 }
 
 /**
  * The rounds of the season as the admin runs them.
  * @param {{seasonData: object|null, awaiting?: object[]}} input `/api/season` as the admin reads it; the games of `GET /api/admin/awaiting`
- * @returns {{current: Round|null, draft: Round|null, past: Round[], awaiting: Line[], canGenerate: string, nextNumber: number, entries: object[]}}
- *   `Round = {id, number, status, lines: Line[]}`; `canGenerate` is "" or the reason the generation is closed
+ * @returns {{current: Round|null, draft: Round|null, past: Round[], awaiting: Line[], canGenerate: string, canStart: string, nextNumber: number,
+ *   entries: object[]}}
+ *   `Round = {id, number, status, lines: Line[]}`; `canGenerate` and `canStart` (the draft round's) are "" or the reason
+ *   the button is closed; `nextNumber` is the round the generation makes: a draft that stands, else the one after the last
  */
 export function seasonRoundsModel({ seasonData, awaiting = [] }) {
-  const entries = entriesOf(seasonData), logins = loginsOf(seasonData);
+  const entries = entriesOf(seasonData), logins = loginsOf(seasonData), builds = buildsOf(seasonData);
   const rounds = [...(seasonData?.rounds ?? [])].sort((first, second) => Number(first.roundNumber) - Number(second.roundNumber))
     .map((round) => roundOf(round, entries, logins));
   const current = rounds.filter((round) => round.status === "started").at(-1) ?? null;
   const draft = rounds.find((round) => round.status === "draft") ?? null;
+  const inBuild = (seasonData?.entries ?? []).filter((entry) => !entry.withdrawnAt && builds.has(entry.team?.id)).map((entry) => entry.team?.name ?? "—");
+  const drafted = (draft?.lines ?? []).flatMap((line) => [line.home, line.away]).filter((side) => side && builds.has(side.teamId)).map((side) => side.team);
   return {
     current,
     draft,
     past: rounds.filter((round) => round !== current && round !== draft),
     awaiting: awaiting.map(awaitingLine),
-    canGenerate: generateRefusal(current, draft),
-    nextNumber: Math.max(0, ...rounds.map((round) => round.number)) + 1,
+    canGenerate: generateRefusal(current, draft, inBuild),
+    canStart: buildsRefusal(drafted),
+    // While a draft round stands, it is the round a generation would make once it is gone.
+    nextNumber: draft?.number ?? Math.max(0, ...rounds.map((round) => round.number)) + 1,
     entries,
   };
 }
@@ -251,10 +272,11 @@ function currentMarkup(model, busy) {
     + `<p class="g-admin__note">${escapeHtml(note)}</p>${tableMarkup(round, t("adminSeason.roundN", { round: round.number }))}</section>`;
 }
 
-/** A draft round: its pairs set by hand until it starts; «Start the round», «Delete the round». */
-function draftMarkup(round, busy) {
+/** A draft round: its pairs set by hand until it starts; «Start the round» (closed with why while it pairs a build), «Delete the round». */
+function draftMarkup(model, busy) {
+  const round = model.draft;
   const actions = actionMarkup({ label: t("adminSeason.addPair"), busy: busy === `pair:${round.id}`, data: { seasonAddPair: round.id } })
-    + actionMarkup({ label: t("adminSeason.start"), kind: "go", busy: busy === `start:${round.id}`, data: { seasonStart: round.id } })
+    + actionMarkup({ label: t("adminSeason.start"), kind: "go", closed: model.canStart, busy: busy === `start:${round.id}`, data: { seasonStart: round.id } })
     + actionMarkup({ label: t("adminSeason.deleteRound"), kind: "danger", busy: busy === `delete:${round.id}`, data: { seasonDeleteRound: round.id, seasonRound: round.number } });
   return `<section class="g-admin__card g-adminseason__draft">${headMarkup(t("adminSeason.roundDraft", { round: round.number }), actions)}`
     + `<p class="g-admin__note">${escapeHtml(t("adminSeason.draftNote"))}</p>${tableMarkup(round, t("adminSeason.roundN", { round: round.number }))}</section>`;
@@ -294,6 +316,6 @@ function pastMarkup(rounds, open) {
  */
 export function adminRoundsMarkup(model, { busy = "", pastOpen = false, awaitingFailure = "" } = {}) {
   const now = model.current ? currentMarkup(model, busy) : "";
-  const next = model.draft ? draftMarkup(model.draft, busy) : model.current ? "" : nextMarkup(model, busy);
+  const next = model.draft ? draftMarkup(model, busy) : model.current ? "" : nextMarkup(model, busy);
   return `${awaitingMarkup(model.awaiting, awaitingFailure)}${now}${next}${pastMarkup(model.past, pastOpen)}`;
 }

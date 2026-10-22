@@ -276,7 +276,7 @@ it("a withdrawal asks first; a new entry from the coaches' teams", async () => {
   assert.ok(sheet()?.isModal, "the sheet opens");
   const card = (option) => [option.getAttribute("data-option-value"), words(option.querySelector(".g-option__title")), words(option.querySelector(".g-option__sub"))];
   assert.deepEqual(sheet().querySelectorAll("[data-option-value]").map(card), [
-    ["t-e1", "Grimtusk Raiders", "orc_boss"], ["t-x2", "Black Orc Second", "orc_boss · build"], ["t-x1", "Black Orcs", "lilit · build"], ["t-h1", "Old Guard", "veteran"],
+    ["t-e1", "Grimtusk Raiders", "orc_boss"], ["t-x2", "Black Orc Second", "orc_boss · in the build"], ["t-x1", "Black Orcs", "lilit · in the build"], ["t-h1", "Old Guard", "veteran"],
   ], "orc_boss is out of the season now: either team of the coach may enter");
   const save = () => sheet().querySelector("[data-entry-save]");
   assert.equal(save().getAttribute("title"), "Choose a team");
@@ -320,6 +320,18 @@ it("every coach in the season: «+ Entry» says why it opens nothing", async () 
   assert.equal(sheet(), null);
 });
 
+it("the teams left out are a coach's second ones: «+ Entry» says the coaches play the season already, and draws itself closed", async () => {
+  // orc_boss plays with Grimtusk Raiders; his second team is the only one without an entry.
+  await visit({ season: seasonWith({ gone: [], savedTeams: SAVED.filter((team) => team.id.startsWith("t-e") || team.id === "t-x2") }) });
+  const add = view.querySelector("[data-entries-add]");
+  assert.deepEqual([add.getAttribute("aria-disabled"), add.getAttribute("title")], ["true", t("adminSeason.noCandidatesCoach")]);
+  await press(add);
+  assert.equal(toasts().at(-1), t("adminSeason.noCandidatesCoach"));
+  assert.equal(sheet(), null);
+  // Closed, it is dimmed as a closed button is; busy, it is not.
+  assert.deepEqual(valuesOf(CSS, '.g-adminseason__btn:not(.g-adminseason__btn--go)[aria-disabled="true"]:not([aria-busy])', "opacity"), [".6"]);
+});
+
 it("the withdrawn are folded, and open", async () => {
   await visit();
   const card = view.querySelector(".g-adminentries__gone");
@@ -350,7 +362,7 @@ it("a refusal is the server's words; a lost answer reads the season again and se
   api.reply("POST /api/teams/t-e7/activate", 404, { error: { code: "TEAM_NOT_FOUND" } });
   await press(rowOf("e7").querySelector("[data-entries-activate]"));
   assert.equal(words(view.querySelector('.g-adminseason__alert[role="alert"]')), t("error.TEAM_NOT_FOUND"));
-  assert.deepEqual(keys(), ["GET /api/season", "POST /api/teams/t-e7/activate"], "a refusal changed nothing: nothing read again");
+  assert.deepEqual(keys(), ["GET /api/season", "POST /api/teams/t-e7/activate", "GET /api/season"], "a refusal may mean the screen is out of date: read again");
 
   await visit();
   api.fail("POST /api/teams/t-e7/activate");

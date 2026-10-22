@@ -23,7 +23,7 @@ globalThis.confirm = (message) => {
 
 const { renderAdminSeason } = await import("../src/screens/admin/season.mjs");
 const { PAIRING_STATUSES, seasonRoundsModel } = await import("../src/screens/admin/season-rounds.mjs");
-const { resultBody, resultDraft, resultSheetModel } = await import("../src/screens/admin/result-sheet.mjs");
+const { adminResultBody: resultBody, adminResultDraft: resultDraft, resultSheetModel } = await import("../src/screens/admin/result-sheet.mjs");
 const { TECHNICAL_REASONS, matchPoints } = await import("../src/domain/league-rules.mjs");
 const { adminSeasonUrl, matchRoute, resolveRedirect, routeFromHash } = await import("../src/core/routes.mjs");
 const { shellModel } = await import("../src/shell/navigation.mjs");
@@ -180,10 +180,28 @@ test("the model: the round on, the rounds before, the pairs' statuses and scores
   const scoredBye = seasonWith([round(7, "started", [live(1, "e7", null, { homeTouchdowns: 2, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0, homePoints: 4, awayPoints: 0, resultStatus: "confirmed" })])]);
   assert.equal(seasonRoundsModel({ seasonData: scoredBye }).current.lines[0].score, "tech. +4");
   const drafted = seasonRoundsModel({ seasonData: seasonWith([...PAST, round(7, "draft", [])]) });
-  assert.deepEqual([drafted.current, drafted.draft.number, drafted.canGenerate, drafted.nextNumber], [null, 7, "First start or delete round 7", 8]);
+  assert.deepEqual([drafted.current, drafted.draft.number, drafted.canGenerate, drafted.nextNumber], [null, 7, "First start or delete round 7", 7],
+    "while a draft round stands, it is the round a generation would make");
   // A pair its post-match keeps says so until the post-match confirms it.
   const kept = seasonRoundsModel({ seasonData: seasonWith([round(7, "started", [live(1, "e1", "e2", { postMatchStatus: "draft" })])]) });
   assert.deepEqual([kept.current.lines[0].status, kept.current.lines[0].post], ["post", true]);
+});
+
+test("a team entered still in its build closes the generation, and the start of a draft round that pairs it, with why", () => {
+  const builds = { savedTeams: [{ id: "t-e7", name: "Mudfoot Boyz", stage: "draft" }, { id: "t-e1", name: "Grimtusk Raiders", stage: "active" }] };
+  const done = round(7, "started", [live(1, "e3", "e2", played([2, 1])), live(2, "e7", "e1", played([1, 1]))]);
+  const open = seasonRoundsModel({ seasonData: seasonWith([...PAST, done]) });
+  assert.equal(open.canGenerate, "", "every team in the season: the round can be made");
+  const closed = seasonRoundsModel({ seasonData: seasonWith([...PAST, done], { admin: { users: [ADMIN], savedTeams: builds.savedTeams } }) });
+  assert.equal(closed.canGenerate, t("adminSeason.buildsFirst", { teams: "Mudfoot Boyz" }));
+  // A withdrawn build is out of new rounds: it closes nothing.
+  const gone = seasonWith([...PAST, done], { admin: { users: [ADMIN], savedTeams: builds.savedTeams },
+    entries: ENTRIES.map((entry) => (entry.id === "e7" ? { ...entry, withdrawnAt: "2026-10-10T10:00:00Z" } : entry)) });
+  assert.equal(seasonRoundsModel({ seasonData: gone }).canGenerate, "");
+  // A draft round that pairs a build: «Start the round» closed with why; one that does not, open.
+  const drafted = (pairs) => seasonRoundsModel({ seasonData: seasonWith([...PAST, round(7, "draft", pairs)], { admin: { users: [ADMIN], savedTeams: builds.savedTeams } }) });
+  assert.equal(drafted([pairing(7, 1, "e7", "e1")]).canStart, t("adminSeason.buildsFirst", { teams: "Mudfoot Boyz" }));
+  assert.equal(drafted([pairing(7, 1, "e3", "e1")]).canStart, "");
 });
 
 test("the sheet's model: the kind by the pair, a technical result's points, what each saves", () => {
@@ -206,6 +224,15 @@ test("the sheet's model: the kind by the pair, a technical result's points, what
   assert.deepEqual([byeModel.sides, byeModel.modes], [["home"], false]);
   assert.deepEqual(resultBody(bye, { ...resultDraft(bye), mode: "technical", home: { touchdowns: 1, casualties: 2 } }),
     { mode: "played", homeTouchdowns: 1, awayTouchdowns: 0, homeCasualties: 2, awayCasualties: 0 });
+  // A friendly gives no points: its technical result asks no reason and goes as «another reason».
+  const friendly = { ...pending, friendly: true };
+  const technical = { ...resultDraft(friendly), mode: "technical", winner: "home" };
+  assert.equal(resultSheetModel(friendly, { draft: technical }).points, null);
+  assert.deepEqual(resultBody(friendly, technical), { mode: "technical", winner: "home", technicalReason: "other" });
+  // A pair of the round under way with nothing on it may go; one with a result, a score sent or a post-match may not.
+  assert.deepEqual([pending, bye, confirmed, awaiting].map((line) => resultSheetModel(line).deletable), [true, true, false, false]);
+  assert.equal(resultSheetModel({ ...pending, post: true }).deletable, undefined, "a post-match's sheet has no delete");
+  assert.equal(resultSheetModel(friendly).deletable, false);
 });
 
 // ---------------------------------------------------------------------------
@@ -291,6 +318,30 @@ it("a technical result: the winner, the reason, the points it is worth; saved on
   assert.equal(sheet(), null, "the sheet closes");
   assert.ok(document.activeElement === resultOf("r7p3"), "the focus back on the row's «Result…»");
   api.assertAnswered();
+});
+
+it("a friendly's technical result asks no reason and promises no points; a pair under way with nothing on it can be deleted", async () => {
+  const friendly = { ...game(ROUND_7.pairings[1]), id: "g9", kind: "friendly", season: null, roundId: null, roundNumber: 0 };
+  await visit({ awaiting: [friendly] });
+  await press(resultOf("g9", "awaiting"));
+  await press(segment("result-mode", "technical"));
+  assert.equal(view.querySelector("#admin-result [data-option-value]"), null, "no reasons to choose");
+  assert.equal(view.querySelector(".g-resultsheet__points"), null, "no points promised");
+  assert.ok(words(sheet()).includes(t("adminSeason.friendlyTechnical")));
+  const save = view.querySelector("[data-result-save]");
+  assert.equal(save.getAttribute("aria-disabled"), null, "nothing missing");
+  api.reply("PATCH /api/games/g9", 200, { game: { id: "g9" } });
+  await press(save);
+  assert.deepEqual(writes().at(-1).body, { mode: "technical", winner: "home", technicalReason: "other" });
+
+  // The pair not played yet in the round under way: «Delete the pair» in its sheet, asked first.
+  await visit();
+  await press(resultOf("r7p3"));
+  const remove = view.querySelector("#admin-result [data-pair-delete]");
+  assert.equal(words(remove), t("adminSeason.deletePair"));
+  await press(sheet().querySelector("[data-sheet-close]"));
+  await press(resultOf("r7p1"));
+  assert.equal(view.querySelector("#admin-result [data-pair-delete]") === null, true, "a confirmed one has none");
 });
 
 it("a played result is the four counters; a bye's is one side", async () => {
@@ -493,16 +544,29 @@ it("a refusal is the server's words; a lost answer reads the season again and se
   await press(view.querySelector("[data-season-generate]"));
   assert.equal(words(view.querySelector('.g-adminseason__alert[role="alert"]')), t("error.NEED_A_COMMITTED_TEAM"));
 
-  // A refusal of the sheet's write stays in the sheet, the draft kept.
+  // A refusal of the sheet's write stays in the sheet, the draft kept; the season and the scores are read again, since
+  // a refusal may mean the screen is out of date.
   await visit();
   await press(resultOf("r7p3"));
   await press(stepOf("home-touchdowns", 1));
-  api.reply("PATCH /api/games/r7p3", 409, { error: { code: "POST_RESULT_LOCKED" } });
+  api.reply("PATCH /api/games/r7p3", 422, { error: { code: "FIELD_INVALID", params: { field: "mode" } } });
   await press(view.querySelector("[data-result-save]"));
   assert.ok(sheet()?.isModal, "the sheet stays open");
-  assert.equal(words(sheet().querySelector('.g-resultsheet__alert[role="alert"]')), t("error.POST_RESULT_LOCKED"));
+  assert.ok(words(sheet().querySelector('.g-resultsheet__alert[role="alert"]')));
   assert.equal(words(sheet().querySelector('[data-resource-key="home-touchdowns"] .g-resource__value')), "1");
-  assert.deepEqual(keys().slice(2), ["PATCH /api/games/r7p3"], "a refusal changed nothing: nothing read again");
+  assert.deepEqual(keys().slice(2), ["PATCH /api/games/r7p3", "GET /api/season", "GET /api/admin/awaiting"], "read again, never sent again");
+
+  // Out of date: a post-match opened on the pair meanwhile. Read again, the sheet is the post-match's, the words in it.
+  await visit();
+  await press(resultOf("r7p3"));
+  const opened = seasonWith([...PAST, round(7, "started", ROUND_7.pairings.map((one) => (one.id === "r7p3" ? { ...one, postMatchStatus: "draft" } : one)))]);
+  api.reply("PATCH /api/games/r7p3", 409, { error: { code: "POST_RESULT_LOCKED" } });
+  api.reply("GET /api/season", 200, opened);
+  await press(view.querySelector("[data-result-save]"));
+  assert.ok(sheet()?.isModal);
+  assert.equal(words(sheet().querySelector('.g-resultsheet__alert[role="alert"]')), t("error.POST_RESULT_LOCKED"));
+  assert.ok(sheet().querySelector("[data-result-post]"), "the sheet leads to the post-match now");
+  assert.equal(view.querySelector("[data-result-save]"), null);
 
   // A lost answer: never sent again; the season and the scores read again, the sheet closed, the screen says to check.
   await visit();
@@ -522,6 +586,53 @@ it("a refusal is the server's words; a lost answer reads the season again and se
   assert.deepEqual(writes().map(({ key }) => key), ["PATCH /api/games/r7p3"]);
 });
 
+it("a sheet closed while its write is on its way does not open again until the answer is in; a lost one closes whatever is open", async () => {
+  await visit();
+  await press(resultOf("r7p3"));
+  api.fail("PATCH /api/games/r7p3");
+  const gate = api.hold("PATCH /api/games/r7p3");
+  fireEvent(view.querySelector("[data-result-save]"), "click");
+  await flush();
+  await press(sheet().querySelector("[data-sheet-close]"));
+  assert.equal(sheet(), null);
+  await press(resultOf("r7p3"));
+  assert.equal(sheet(), null, "not while the write is out: it would look ready to send again");
+  await press(resultOf("r7p1"));
+  assert.equal(sheet(), null, "nor another pair's");
+  gate.release();
+  await flush();
+  assert.equal(sheet(), null);
+  assert.equal(writes().length, 1, "never sent twice");
+  assert.equal(words(view.querySelector('.g-adminseason__alert[role="alert"]')), t("administration.mayHaveWritten"));
+});
+
+it("the visit's first read of the scores awaiting landing after a write's own read does not put the older list back", async () => {
+  const cross = width(false);
+  signIn();
+  // The page holds the season already (the cards are drawn at once); the visit reads it and the scores again.
+  state.season = { data: SEASON, loaded: true, loading: false, error: "" };
+  api.reply("GET /api/season", 200, SEASON);
+  api.reply("GET /api/admin/awaiting", 200, { games: AWAITING });
+  api.reply("POST /api/games/r7p2/confirm", 200, { game: { id: "r7p2" } });
+  const gate = api.hold("GET /api/admin/awaiting");
+  const shown = renderAdminSeason("");
+  await flush();
+  // The first read of the scores is still out. A score is confirmed: its own read is sent, and lands first.
+  await press(resultOf("r7p2", "round"));
+  fireEvent(view.querySelector("[data-result-confirm]"), "click");
+  await flush();
+  const [first, second] = gate.waiting.splice(0);
+  gate.release();
+  second({ status: 200, body: { games: [AWAITING[0]] } });
+  await flush();
+  assert.equal(view.querySelectorAll(".g-adminseason__wait").length, 1, "the write's read: one score left");
+  first({ status: 200, body: { games: AWAITING } });
+  await shown;
+  await flush();
+  assert.equal(view.querySelectorAll(".g-adminseason__wait").length, 1, "the older list is not put back");
+  void cross;
+});
+
 it("the entries' tab: its own segment, the entries' cards in place of the rounds (admin-entries.test.mjs)", async () => {
   await visit({ tab: "entries" });
   assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Administration → Season · entries");
@@ -534,6 +645,7 @@ it("the entries' tab: its own segment, the entries' cards in place of the rounds
 it("a coach who is no admin is told the section is the admin's, and nothing is read", async () => {
   await visit({ user: COACH });
   assert.equal(view.querySelector("h1").textContent, "Administration");
+  assert.ok(document.activeElement === view.querySelector("h1"), "the refusal's title takes the focus, as the other screens' do");
   assert.equal(view.querySelector(".g-callout__title").textContent, t("administration.only"));
   assert.equal(view.querySelector(".g-adminseason__tabs"), null);
   assert.deepEqual(api.calls, []);
@@ -664,11 +776,16 @@ test("the prototype's measures: the six columns, the head in capitals, the rows,
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head", "text-transform"), ["uppercase"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head", "letter-spacing"), ["0.04em"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head", "font"), ["700 12px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head", "border-bottom"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head", "border-bottom"), ["1px solid var(--control-border)"], "the prototype's #C9D3CE under the head");
+  // A head's word is never split («TABLE» is 40.7px in its 40px column): it reaches into the gap.
+  assert.deepEqual(valuesOf(CSS, ".g-adminseason__row--head .g-adminseason__cell", "overflow-wrap"), ["normal"]);
+  // The prototype's head and rows stand 10 apart in the card, an entry's 6: the desk's step of 67.
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminseason__table", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminentries__list", "gap"), ["var(--space-6)"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__result", "min-height").slice(0, 1), ["36px"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__result", "border-radius"), ["var(--radius-md)"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__btn", "min-height").slice(0, 1), ["40px"]);
-  assert.deepEqual(valuesOf(CSS, ".g-adminseason__title", "font"), ["700 24px/1.2 var(--font-display)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-adminseason__title", "font"), ["700 24px/normal var(--font-display)"], "the prototypes' h2: `normal`, 36px");
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminseason__tabs", "max-width"), ["420px"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminseason__tabs .g-seg__item", "min-height"), ["38px"]);
 });
@@ -710,6 +827,16 @@ test("a phone's pair: home and away on equal tracks whatever the button, a statu
   assert.deepEqual(tracksUnder("status").map((index) => tracks[index]), ["1fr"], "the status's track may not shrink below its longest word");
   assert.deepEqual(phone(".g-adminseason__status", "min-width"), ["min-content"]);
   assert.deepEqual(valuesOf(CSS, ".g-adminseason__status", "overflow-wrap"), ["break-word"]);
+});
+
+test("a desk's status word is never split: its track no narrower than its longest word, the names giving way", () => {
+  const desk = tracksOf(inMedia(CSS, "min-width: 901px", ".g-adminseason__row", "grid-template-columns")[0]);
+  const prototype = tracksOf(valuesOf(CSS, ".g-adminseason__row", "grid-template-columns")[0]);
+  assert.equal(desk.length, prototype.length);
+  // At 901px with the SideNav the card is 565px inside: «подтверждения» (118px) had about 80.
+  assert.equal(desk[4], "minmax(min-content, 1.2fr)");
+  assert.deepEqual(desk.filter((track, index) => index !== 4), prototype.filter((track, index) => index !== 4), "the other columns are the prototype's");
+  assert.deepEqual(valuesOf(CSS, ".g-adminseason__status", "overflow-wrap"), ["break-word"], "its words break between them");
 });
 
 test("D2: «Result…», the segments, «+ Pair» — 44 on a phone, 24 and more from 901px", () => {

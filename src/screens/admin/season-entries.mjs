@@ -68,9 +68,11 @@ function lineOf(entry, savedTeams) {
 /**
  * The season's entries as the admin keeps them.
  * @param {object|null} seasonData `/api/season` as the admin reads it
- * @returns {{places: number|null, entries: object[], withdrawn: object[], candidates: {teamId: string, label: string, team: string, coach: string, stage: string}[]}}
+ * @returns {{places: number|null, entries: object[], withdrawn: object[], candidates: {teamId: string, label: string, team: string, coach: string, stage: string}[],
+ *   noCandidate: string}}
  *   an entry `{id, teamId, coachId, team, coach, stage: "active"|"draft", treasury, spent, href}` (`spent` and `treasury`
- *   null but for a build); a candidate is a coach's team that may enter
+ *   null but for a build); a candidate is a coach's team that may enter; `noCandidate` why none may ("" while one may):
+ *   every team of the coaches is entered, or the teams that are not are of coaches who play the season with another
  */
 export function entriesModel(seasonData) {
   const savedList = seasonData?.admin?.savedTeams ?? [];
@@ -78,14 +80,17 @@ export function entriesModel(seasonData) {
   const active = (seasonData?.entries ?? []).filter((entry) => !entry.withdrawnAt);
   const teamsIn = new Set(active.map((entry) => entry.team?.id)), coachesIn = new Set(active.map((entry) => entry.user?.id));
   const places = Number(seasonData?.season?.playoffPlaces);
+  const out = savedList.filter((team) => !teamsIn.has(team.id));
+  const candidates = out.filter((team) => !coachesIn.has(team.owner?.id)).map((team) => ({
+    teamId: team.id, team: team.name ?? "—", coach: team.owner?.login ?? "", stage: team.stage === "draft" ? "draft" : "active",
+    label: t("adminSeason.entryOption", { team: team.name ?? "—", coach: team.owner?.login ?? "" }),
+  }));
   return {
     places: Number.isInteger(places) && places >= PLAYOFF_PLACES.min ? places : null,
     entries: active.map((entry) => lineOf(entry, savedTeams)),
     withdrawn: (seasonData?.historicalEntries ?? []).filter((entry) => entry.withdrawnAt).map((entry) => lineOf(entry, savedTeams)),
-    candidates: savedList.filter((team) => !teamsIn.has(team.id) && !coachesIn.has(team.owner?.id)).map((team) => ({
-      teamId: team.id, team: team.name ?? "—", coach: team.owner?.login ?? "", stage: team.stage === "draft" ? "draft" : "active",
-      label: t("adminSeason.entryOption", { team: team.name ?? "—", coach: team.owner?.login ?? "" }),
-    })),
+    candidates,
+    noCandidate: candidates.length ? "" : t(out.length ? "adminSeason.noCandidatesCoach" : "adminSeason.noCandidates"),
   };
 }
 
@@ -141,7 +146,7 @@ function rowMarkup(line, busy) {
 
 /** «Entries · 8», «+ Entry» (closed with why when no team may enter), the rule, the rows. */
 function listMarkup(model, busy) {
-  const add = actionMarkup({ label: t("adminSeason.addEntry"), dialog: true, closed: model.candidates.length ? "" : t("adminSeason.noCandidates"), data: { entriesAdd: "" } });
+  const add = actionMarkup({ label: t("adminSeason.addEntry"), dialog: true, closed: model.noCandidate, data: { entriesAdd: "" } });
   const rows = model.entries.length
     ? `<ul class="g-adminentries__list">${model.entries.map((line) => rowMarkup(line, busy)).join("")}</ul>`
     : `<p class="g-admin__note">${escapeHtml(t("adminSeason.noEntries"))}</p>`;
@@ -183,7 +188,7 @@ export function entrySheetMarkup(model, { draft, busy = "", refusal = "" }) {
     sub: candidate.stage === "draft" ? t("adminSeason.candidateDraft", { coach: candidate.coach }) : candidate.coach,
   }));
   const list = options.length ? renderOptionList({ label: t("adminSeason.candidates"), options, selected })
-    : `<p class="g-admin__note">${escapeHtml(t("adminSeason.noCandidates"))}</p>`;
+    : `<p class="g-admin__note">${escapeHtml(model.noCandidate)}</p>`;
   const closed = selected ? "" : t("adminSeason.chooseTeam");
   const state = closed ? ` aria-disabled="true" title="${escapeHtml(closed)}"` : busy ? ' aria-busy="true" aria-disabled="true"' : "";
   const alert = `<div class="g-resultsheet__alert" role="alert">${refusal ? renderCallout({ tone: "danger", title: refusal }) : ""}</div>`;

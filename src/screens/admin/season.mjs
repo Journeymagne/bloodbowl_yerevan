@@ -10,8 +10,9 @@
  * the season is one at a time on the screen (`busy`) and on the page (`seasonWrite`): the season it answers with is
  * put in place, or read again, and the screen is patched from it, the focus where it was (or on the card's title,
  * when what had it went). A refusal is the server's words: in the sheet that sent it, which stays open, or over the
- * cards. An answer that did not come back is not sent again: the season is read again, the sheet closes, and the
- * screen says to check what the server holds. The width crossing 900px draws the other form, the focus kept or on
+ * cards; the season and the scores awaiting are read again with it, since it may mean the screen was out of date. An
+ * answer that did not come back is not sent again: the season is read again, the sheet closes, and the screen says to
+ * check what the server holds. The width crossing 900px draws the other form, the focus kept or on
  * the title; leaving stops listening.
  */
 import { confirmAction, patchWithModal } from "../../components/dialog.mjs";
@@ -32,7 +33,7 @@ import { wireSheets } from "../../ui/sheet.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { adminHeadMarkup, adminRefusalMarkup, isAdminViewer } from "./frame.mjs";
-import { MOST, RESULT_SHEET, resultBody, resultDraft, resultSheetMarkup, resultSheetModel } from "./result-sheet.mjs";
+import { MOST, RESULT_SHEET, adminResultBody, adminResultDraft, resultSheetMarkup, resultSheetModel } from "./result-sheet.mjs";
 import { ENTRY_SHEET, entriesMarkup, entriesModel, entrySheetMarkup, placesFrom } from "./season-entries.mjs";
 import { adminRoundsMarkup, seasonRoundsModel } from "./season-rounds.mjs";
 
@@ -44,7 +45,7 @@ const SEASON_PATH = "/api/season/admin";
  * season's) and why they were not sent, the withdrawn open.
  */
 function newVisit(tab) {
-  return { here: true, tab: tab === "entries" ? "entries" : "", awaiting: null, pastOpen: false, busy: "", refusal: "", sheet: null,
+  return { here: true, tab: tab === "entries" ? "entries" : "", awaiting: null, awaitingRead: 0, pastOpen: false, busy: "", refusal: "", sheet: null,
     entries: { places: null, placesError: "", goneOpen: false } };
 }
 
@@ -144,10 +145,31 @@ function giveFocusBack(sheet) {
   return (same ?? view.querySelector("[data-season-card]") ?? view.querySelector("h1"))?.focus();
 }
 
+/**
+ * The scores awaiting, read: only the answer of the last read sent is kept, so the visit's first read landing after a
+ * write's own read does not put the older list back.
+ */
+async function readAwaitingOnce(visit) {
+  visit.awaitingRead = (visit.awaitingRead ?? 0) + 1;
+  const mine = visit.awaitingRead;
+  const awaiting = await readAwaiting();
+  return visit.here && mine === visit.awaitingRead ? awaiting : null;
+}
+
 /** The scores awaiting, read again after a write that may have answered one. */
 async function readAwaitingAgain(visit) {
-  const awaiting = await readAwaiting();
-  if (visit.here) visit.awaiting = awaiting;
+  const awaiting = await readAwaitingOnce(visit);
+  if (awaiting) visit.awaiting = awaiting;
+}
+
+/**
+ * A refusal may mean the screen is out of date (a pair gone, a post-match opened, a round started elsewhere): the
+ * season and the scores awaiting are read again, so the cards and an open sheet show what the server holds now. Not
+ * for another tab's token, nor a press another write held: nothing was asked of the server.
+ */
+async function refusedReadAgain(visit, outcome) {
+  if (outcome.unknown || outcome.ignored || outcome.code === "OTHER_TAB") return;
+  await Promise.all([loadSeason(true), visit.tab === "entries" ? null : readAwaitingAgain(visit)]);
 }
 
 /**
@@ -165,6 +187,8 @@ async function act(visit, key, write, { ask = null, home = "" } = {}) {
   Object.assign(visit, { busy: key, refusal: "" });
   draw(visit);
   const outcome = await write();
+  if (!visit.here) return outcome;
+  if (outcome.refusal !== undefined) await refusedReadAgain(visit, outcome);
   if (!visit.here) return outcome;
   visit.busy = "";
   if (outcome.refusal !== undefined) visit.refusal = outcome.refusal;
@@ -186,15 +210,24 @@ async function sheetWrite(visit, key, write, after = async () => {}) {
   draw(visit);
   const outcome = await write();
   if (outcome.answer || outcome.unknown) await after();
+  else if (outcome.refusal !== undefined) await refusedReadAgain(visit, outcome);
   if (!visit.here) return;
   visit.busy = "";
   sheet.busy = "";
   const open = visit.sheet === sheet;
+  // A refusal stays in its sheet, drawn from the season as read again (it closes when its pair has gone).
   if (outcome.refusal !== undefined && !outcome.unknown && open) {
     sheet.refusal = outcome.refusal;
-    return draw(visit);
+    draw(visit);
+    if (visit.sheet === sheet) return undefined;
+    // Its pair is gone in the season read again: the words go over the cards.
+    visit.refusal = outcome.refusal;
+    draw(visit);
+    return settleFocus();
   }
   if (outcome.refusal !== undefined) visit.refusal = outcome.refusal;
+  // A lost answer closes whatever sheet is open: another one opened meanwhile would look ready to send again.
+  if (outcome.unknown && visit.sheet && !open) visit.sheet = null;
   if (!open || outcome.ignored) return draw(visit);
   visit.sheet = null;
   draw(visit);
@@ -227,8 +260,9 @@ function step(visit, key, delta) {
 function openSheet(visit, button) {
   const id = button.getAttribute("data-season-result");
   const found = pairOf(modelOf(visit), id);
-  if (!found || visit.sheet) return;
-  visit.sheet = { lineId: id, from: button.getAttribute("data-season-from"), draft: resultDraft(found.line), busy: "", refusal: "", opener: button };
+  // Not while a write is on its way: a sheet opened then would look ready to send while the last one's answer is out.
+  if (!found || visit.sheet || visit.busy) return;
+  visit.sheet = { lineId: id, from: button.getAttribute("data-season-from"), draft: adminResultDraft(found.line), busy: "", refusal: "", opener: button };
   draw(visit);
 }
 
@@ -284,7 +318,7 @@ function wireSheet(visit, events) {
   events.on("change", "[data-pair-side]", (event, select) => change(visit, { [`${select.getAttribute("data-pair-side")}EntryId`]: select.value ?? "" }));
   events.on("click", "[data-result-save]", (event, button) => {
     const found = visit.sheet && pairOf(modelOf(visit), visit.sheet.lineId);
-    if (found && !refused(button)) void sheetWrite(visit, "save", game("", "PATCH", resultBody(found.line, visit.sheet.draft)), awaiting);
+    if (found && !refused(button)) void sheetWrite(visit, "save", game("", "PATCH", adminResultBody(found.line, visit.sheet.draft)), awaiting);
   });
   events.on("click", "[data-result-confirm]", (event, button) => {
     if (!refused(button)) void sheetWrite(visit, "confirm", game("/confirm"), awaiting);
@@ -373,7 +407,7 @@ function wireEntries(visit, events) {
     draw(visit);
   });
   events.on("click", "[data-entries-add]", (event, button) => {
-    if (refused(button) || visit.sheet) return;
+    if (refused(button) || visit.sheet || visit.busy) return;
     visit.sheet = { kind: "entry", draft: { teamId: "" }, busy: "", refusal: "", opener: button };
     draw(visit);
   });
@@ -386,7 +420,7 @@ function wireEntries(visit, events) {
 /** The season read again, and (for the rounds) the scores awaiting with it; the screen drawn as they land. */
 async function readAll(visit) {
   draw(visit);
-  const reads = [loadSeason(true), visit.tab === "entries" ? null : readAwaiting()];
+  const reads = [loadSeason(true), visit.tab === "entries" ? null : readAwaitingOnce(visit)];
   const [, awaiting] = await Promise.all(reads);
   if (!visit.here) return;
   if (awaiting) visit.awaiting = awaiting;
@@ -403,6 +437,7 @@ export async function renderAdminSeason(tab = "") {
   if (!isAdminViewer()) {
     onScreenLeave("admin-season", () => { visit.here = false; });
     draw(visit);
+    view.querySelector("h1")?.focus();
     return;
   }
   const events = listenerGroup(view);
