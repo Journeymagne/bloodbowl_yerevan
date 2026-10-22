@@ -27,7 +27,9 @@
  * - tracker/stat changes keep a separate snapshot per action, including rapid
  *   clicks while an earlier request is still being saved;
  * - status is a state, not a sentence, so the interface can translate it;
- * - `hasPendingChanges()` is what the beforeunload guard asks.
+ * - `hasPendingChanges()` says whether anything is still to save. The 2.x editor's beforeunload guard asked it; that
+ *   went with the editor in stage 12 (the 3.0 roster asks its own queue, screens/team/roster/save.mjs `guardUnload`).
+ *   It stays as test/roster-store.test.mjs's view of the queue emptying, which its interleavings are written against.
  *
  * Everything is injectable so the whole thing can be tested without a browser
  * or a database — see test/roster-store.test.mjs, which reproduces the exact
