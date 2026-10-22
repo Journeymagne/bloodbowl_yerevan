@@ -65,11 +65,6 @@ export function toHtml(value) {
   return renderValue(value);
 }
 
-/** An `<option>`, marked selected when its value matches. */
-export function renderOption(value, label, selected) {
-  return `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
-}
-
 // ---------------------------------------------------------------------------
 // patch() — update the live DOM in place instead of replacing it
 // ---------------------------------------------------------------------------

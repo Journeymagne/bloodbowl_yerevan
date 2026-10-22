@@ -40,7 +40,7 @@ function canvasToDataUrl(canvas, mimeType, quality) {
   }
 }
 
-export async function optimizeLogoDataUrl(dataUrl) {
+async function optimizeLogoDataUrl(dataUrl) {
   const source = String(dataUrl || "");
   if (!source.startsWith("data:image/")) return source;
   if (source.startsWith("data:image/webp") && source.length <= logoOptimizeSkipLength) return source;

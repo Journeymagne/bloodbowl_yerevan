@@ -15,7 +15,6 @@ import {
   refUrl,
   resolveRedirect,
   routeFromHash,
-  savedRosterUrl,
   seasonTabUrl,
   settingsUrl,
   teamPlayerUrl,
@@ -59,7 +58,6 @@ test("a missing id gives an empty segment rather than the string 'undefined'", (
 
 test("the remaining link shapes are what the screens expect", () => {
   assert.equal(pageUrl({ slug: "teams/amazon" }), "#/teams/amazon");
-  assert.equal(savedRosterUrl("t1"), "#/t/t1/roster");
   assert.equal(seasonTabUrl(""), "#/season", "the default tab is the bare hash, not a trailing slash");
   assert.equal(seasonTabUrl("standings"), "#/season/standings");
 });
@@ -68,7 +66,6 @@ test("3.0 links are built from ids, encoded, and the 2.x builders point at them"
   assert.equal(teamUrl("t1"), "#/t/t1");
   assert.equal(teamUrl({ id: "t 1" }, "roster"), "#/t/t%201/roster");
   assert.equal(teamPlayerUrl("t1", { id: "p/1" }), "#/t/t1/roster/p%2F1");
-  assert.equal(savedRosterUrl("t1"), "#/t/t1/roster");
   assert.equal(playerUrl("u1"), "#/coaches/u1");
   assert.equal(playerTeamUrl("u1", "t1"), "#/coaches/u1/teams/t1");
   assert.deepEqual([teamsUrl(), newTeamUrl(), authUrl(), authUrl("register"), settingsUrl()],

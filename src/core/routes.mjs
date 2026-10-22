@@ -122,11 +122,6 @@ export function postMatchUrl(gameOrId, step = "") {
   return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
 }
 
-/** A team's «Roster» tab, as the 2.x administration's profile of a coach links it. */
-export function savedRosterUrl(teamOrId) {
-  return teamUrl(teamOrId, "roster");
-}
-
 /** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
 export function seasonTabUrl(tab) {
   return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
