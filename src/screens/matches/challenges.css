@@ -299,9 +299,12 @@
 }
 
 @media (max-width: 900px) {
-  /* Challenges.html's page is grey to its edges, 16 in: it takes back the view's padding of a phone (site-matchday.css). */
+  /*
+   * Challenges.html's page is grey to its edges, 16 in, at any width up to 900: the view gives up its 2.x padding
+   * (site-matchday.css: 26 20 40 up to 900px, 20 16 32 up to 600 — stage 13 takes it away) and the page keeps its own.
+   */
+  #app-view:has(> .g-friendly--phone) { padding: 0; }
   .g-friendly--phone {
-    margin: calc(-1 * var(--space-20)) calc(-1 * var(--space-16)) -32px;
     padding: var(--space-16) var(--space-16) 28px;
     background: var(--surface-2);
   }

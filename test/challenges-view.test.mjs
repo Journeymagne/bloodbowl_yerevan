@@ -317,6 +317,14 @@ test("a desk's band: its title on the cards' edge, 32 in, and the line under it 
   assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "line-height"), ["normal"]);
 });
 
+test("a phone's page is grey to the view's edges at any width up to 900, 16 in", () => {
+  // The view pads 26 20 40 up to 900px and 20 16 32 up to 600 (site-matchday.css): it gives that up for the page.
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-friendly--phone)", "padding"), ["0"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "margin"), [], "no margin taking back one width's padding");
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "padding"), ["var(--space-16) var(--space-16) 28px"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "background"), ["var(--surface-2)"]);
+});
+
 test("readable: the muted words, the chips, the letter on its circle, in every palette", () => {
   for (const selector of [".g-friendly__line", ".g-friendly__played", ".g-friendly__note", ".g-friendly__caption", ".g-friendly__when", ".g-friendly__none"]) {
     assert.deepEqual(valuesOf(CSS, selector, "color"), ["var(--muted)"], selector);
