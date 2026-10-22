@@ -132,7 +132,7 @@ function addEntry(store, found, body) {
 }
 
 /** `PATCH`: the team body's checks (`readTeamBody`), then the revision, the stage, the treasury, and the write with its lines. */
-async function save(store, found, body, onSave) {
+async function save(store, found, body) {
   const name = String(body.name ?? "").trim();
   const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
   if (!name) return refuse(400, "TEAM_NAME_REQUIRED");
@@ -146,7 +146,6 @@ async function save(store, found, body, onSave) {
   // The race prices a sale; after a race change the old squad has no price here.
   const race = found.baseTeamSlug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
   const rows = ledgerRows(before.treasury, classifyTreasuryChange(race, before, roster));
-  if (found.id === "t1") await onSave(body);
   Object.assign(found, { name, baseTeamSlug, logoData: body.logoData ? String(body.logoData) : null, roster: body.roster ?? {}, revision: found.revision + 1, updatedAt: new Date().toISOString() });
   const stamp = Date.now();
   appendLines(store, found.id, rows, (row, index) => stamp + index);
@@ -154,19 +153,18 @@ async function save(store, found, body, onSave) {
 }
 
 /**
- * @param {{teams: object[], readBody: (request: object) => Promise<object>, onSave: (body: object) => Promise<void>}} mock
- *   `teams` is the coach's list, changed in place; `readBody` the mock's JSON reader; `onSave` hears the body of
- *   every save of t1 that was accepted
+ * @param {{teams: object[], readBody: (request: object) => Promise<object>}} mock
+ *   `teams` is the coach's list, changed in place; `readBody` the mock's JSON reader
  * @returns {(request: object, pathname: string) => Promise<{status: number, payload: object}|null>}
  */
-export function treasuryRoutes({ teams, readBody, onSave }) {
+export function treasuryRoutes({ teams, readBody }) {
   const store = { histories: new Map(), lastLine: 0, since: new Date(Date.now() - 30 * DAY).toISOString() };
   seed(store, teams);
   // A route is its method and what follows the team's id; "team" is the team itself.
   const routes = {
     "GET ledger": async (request, found) => history(store, found, new URL(request.url, "http://localhost").searchParams),
     "POST treasury": async (request, found) => addEntry(store, found, await readBody(request)),
-    "PATCH team": async (request, found) => save(store, found, await readBody(request), onSave),
+    "PATCH team": async (request, found) => save(store, found, await readBody(request)),
   };
   return async (request, pathname) => {
     const [, id, tail = "team"] = pathname.match(/^\/api\/teams\/([^/]+)(?:\/(ledger|treasury))?$/) ?? [];

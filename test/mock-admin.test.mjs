@@ -258,3 +258,11 @@ test("mock-api.mjs asks the administration right after the sign-in, and its play
   assert.match(api, /\[answerAuth, answerAdmin, answerRoster,/, "before the roster's mock, which would call another coach's team not found");
   assert.doesNotMatch(api, /"\/api\/admin\//);
 });
+
+test("a team the mock makes is born in the build, as the server's since stage 12, and no save goes to disk", () => {
+  const api = readFileSync(new URL("../scripts/mock-api.mjs", import.meta.url), "utf8");
+  const make = api.slice(api.indexOf("function makeTeam"), api.indexOf("function deleteTeam"));
+  assert.match(make, /stage: "draft"/, "the build's re-roll locks are the server's on the mock too");
+  assert.doesNotMatch(api, /mock-saves|recordSave|writeFile/, "the browser check that read the saves back went in stage 12");
+  assert.doesNotMatch(readFileSync(new URL("../scripts/mock/treasury.mjs", import.meta.url), "utf8"), /onSave/);
+});
