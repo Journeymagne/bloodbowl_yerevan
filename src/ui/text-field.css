@@ -47,21 +47,23 @@
 
 /*
  * A field of several lines (a death's cause), with the line's ring and colours. StatsMngDead.html
- * on a phone: from 64px, 10px 12px, radius 12, 15/1.4, not resized by hand. DeskRosterDeath.html
- * from 901px: from 60px, radius 10, 14/1.4, taller by hand. Two rows fit in either minimum.
+ * on a phone: from 64px of content (84 with its 10px 12px, as this sheet's border-box counts it),
+ * radius 12, not resized by hand; its 15px is 16 here, the field's own size, or iPhone's Safari zooms
+ * the page into the field when it takes the focus (a deviation of 1px, stage 13). DeskRosterDeath.html
+ * from 901px: from 60px of content (80), radius 10, 14/1.4, taller by hand. Two rows fit in either.
  */
 .g-field__input--area {
   display: block;
   height: auto;
-  min-height: 64px;
+  min-height: 84px;
   padding: var(--space-10) var(--space-12);
   border-radius: var(--radius-lg);
-  font: 400 15px/1.4 var(--font-body);
+  font: 400 16px/1.4 var(--font-body);
   resize: none;
 }
 @media (min-width: 901px) {
   .g-field__input--area {
-    min-height: 60px;
+    min-height: 80px;
     border-radius: var(--radius-md);
     font: 400 14px/1.4 var(--font-body);
     resize: vertical;

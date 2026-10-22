@@ -370,7 +370,7 @@ test("a field of several lines keeps a value that starts on a new line; a zero i
   assert.deepEqual(control.childNodes.map((node) => node.tagName), ["TEXTAREA", "SPAN"]);
 });
 
-test("the area's sizes are the prototypes': 64px on a phone, 60 on a desk", () => {
+test("the area's sizes are the prototypes': 64px of content on a phone, 60 on a desk, with their 10px above and below", () => {
   const FILE = "src/ui/text-field.css";
   const AREA = ".g-field__input--area";
   const tokens = tokensOf("grass");
@@ -378,10 +378,17 @@ test("the area's sizes are the prototypes': 64px on a phone, 60 on a desk", () =
   const desk = (property) => inMedia(FILE, "min-width: 901px", AREA, property);
   // Every value the sheet gives the area, in file order: StatsMngDead.html's first, for every width, then DeskRosterDeath.html's from 901px.
   const all = (property) => valuesOf(FILE, AREA, property).map(resolved);
-  assert.deepEqual(all("min-height"), ["64px", "60px"]);
-  assert.deepEqual(desk("min-height"), ["60px"]);
+  // The prototypes' 64 and 60 are content-box (Chrome draws them 84 and 80); this sheet counts the border box (fidelity N5).
+  assert.deepEqual(all("min-height"), ["84px", "80px"]);
+  assert.deepEqual(desk("min-height"), ["80px"]);
+  const [, padY] = all("padding")[0].match(/^(\d+)px/);
+  assert.deepEqual([84 - 2 * padY, 80 - 2 * padY], [64, 60]);
   assert.deepEqual(all("border-radius"), ["12px", "10px"]);
-  assert.deepEqual(valuesOf(FILE, AREA, "font"), ["400 15px/1.4 var(--font-body)", "400 14px/1.4 var(--font-body)"], "the page's font, as the prototypes inherit it");
+  // A phone's 16px (StatsMngDead's 15 + 1): under 16px iPhone's Safari zooms the page into the field it focuses (review of
+  // stage 13). Two rows fit either minimum.
+  assert.deepEqual(valuesOf(FILE, AREA, "font"), ["400 16px/1.4 var(--font-body)", "400 14px/1.4 var(--font-body)"], "the page's font, as the prototypes inherit it");
+  assert.deepEqual(valuesOf(FILE, ".g-field__input", "font"), ["400 16px/1.2 var(--font-body)"], "the one line's 16 too");
+  assert.ok(16 * 1.4 * 2 + 2 * padY <= 84 && 14 * 1.4 * 2 + 2 * padY <= 80);
   assert.deepEqual(all("resize"), ["none", "vertical"]);
   assert.deepEqual(desk("resize"), ["vertical"]);
   assert.deepEqual(all("padding"), ["10px 12px"], "10 12 on both");

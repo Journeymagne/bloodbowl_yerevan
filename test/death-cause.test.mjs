@@ -10,8 +10,8 @@ import { PLAYERS, STYLES, api, aside, coach, died, openRow, renderTeamRoster, se
 const { MARK_TEXT, chosenMark, markSheetMarkup } = await import("../src/screens/team/roster/mark-sheet.mjs");
 
 // Stage 13, Task 9 (decision 16; hand-off 07b; pre-flight L22): the cause of a death is written in a field of two lines,
-// as StatsMngDead.html (a phone: from 64px, 15/1.4, not resized, the help under it) and DeskRosterDeath.html (a desk:
-// from 60px, 14/1.4, taller by hand) draw it. What it holds is counted as before — trimmed, up to the 500 the server
+// as StatsMngDead.html (a phone: from 64px of content, 16/1.4 — its 15 + 1, so Safari does not zoom —, not resized, the help under it) and DeskRosterDeath.html (a desk:
+// from 60px of content, 14/1.4, taller by hand) draw it. What it holds is counted as before — trimmed, up to the 500 the server
 // keeps — and a refusal is said as before. Another reason's words stay one line: the field changes with the reason, and
 // the words go with it.
 
