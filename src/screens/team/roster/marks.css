@@ -168,6 +168,8 @@
   color: var(--muted);
   font: 400 13px/1.4 var(--font-body);
 }
+/* The way to his profile, white in its ring with the words in --ink (StatsInjured.html; a living player's is dark). */
+.g-fallen__rowpanel .g-btn { color: var(--ink); }
 
 /*
  * A player's pair of actions (Stats.html, DeskRoster.html): «Miss a match…», «Back on the roster» or

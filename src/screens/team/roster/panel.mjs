@@ -394,12 +394,14 @@ export function rowPanelMarkup(line, screen) {
 }
 
 /**
- * A way to a player's page in the dark of navigation, its chevron after the words (Stats.html: «Profile and
- * advancement ›»); its address is checked as every link's is (`assertLinkHref`).
+ * A way to a player's page, its chevron after the words: a living player's in the dark of navigation (Stats.html:
+ * «Profile and advancement ›»), a fallen one's white in its ring (`outline`, StatsInjured.html: «Player's profile ›»);
+ * its address is checked as every link's is (`assertLinkHref`).
+ * @param {string} label @param {string} href @param {{outline?: boolean}} [look]
  */
-export function profileLinkMarkup(label, href) {
+export function profileLinkMarkup(label, href, { outline = false } = {}) {
   assertLinkHref(href);
-  return `<a class="g-btn g-btn--dark g-btn--block" href="${escapeHtml(href)}">${escapeHtml(label)}${icon("chevron", 14)}</a>`;
+  return `<a class="g-btn${outline ? "" : " g-btn--dark"} g-btn--block" href="${escapeHtml(href)}">${escapeHtml(label)}${icon("chevron", 14)}</a>`;
 }
 
 /**

@@ -111,7 +111,7 @@ export function undoMarkup(line, reason, { admin = false } = {}) {
  */
 export function fallenRowMarkup(line, screen) {
   const career = t("teamRoster.fallen.careerWhen", { spp: line.earned, when: fallenWhen(line) });
-  const profile = line.id ? profileLinkMarkup(t("teamRoster.fallen.profile"), playerHref(screen.team.id, line.id)) : "";
+  const profile = line.id ? profileLinkMarkup(t("teamRoster.fallen.profile"), playerHref(screen.team.id, line.id), { outline: true }) : "";
   let note = adminMarkup(line, { admin: Boolean(screen.admin) });
   if (!note && line.id) note = noteMarkup("teamRoster.fallen.undoInProfile");
   return `<div class="g-fallen__rowpanel">${causeMarkup(line)}<p class="g-fallen__career">${escapeHtml(career)}</p>${profile}${note}</div>`;

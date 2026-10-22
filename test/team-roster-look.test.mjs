@@ -291,6 +291,7 @@ test("bold words keep a coach's «$&» and «$<» as he wrote them: they are no 
 test("the way to a player's page is checked as every link is: a javascript: address throws", async () => {
   const { profileLinkMarkup } = await import("../src/screens/team/roster/panel.mjs");
   assert.match(profileLinkMarkup("Profile", "#/t/t1/roster/p1"), /^<a class="g-btn g-btn--dark g-btn--block" href="#\/t\/t1\/roster\/p1">Profile<svg/);
+  assert.match(profileLinkMarkup("Profile", "#/t/t1/roster/p1", { outline: true }), /^<a class="g-btn g-btn--block" href="#\/t\/t1\/roster\/p1">Profile<svg/, "a fallen player's");
   assert.throws(() => profileLinkMarkup("Profile", " javascript:alert(1)"), /javascript/);
 });
 

@@ -129,6 +129,12 @@ test("a fallen row: a grey number, grey numbers and «Fallen · cause»; open on
     const profile = row.querySelector("a.g-btn");
     assert.equal(profile.textContent, "Player's profile");
     assert.equal(profile.getAttribute("href"), teamPlayerUrl("t1", "d1"));
+    // StatsInjured.html: a fallen player's way to his profile is white in its ring, the words --ink, the long chevron 14
+    // (the dark button is a living player's; fidelity N8).
+    assert.equal(profile.getAttribute("class"), "g-btn g-btn--block");
+    assert.deepEqual([profile.querySelector("svg path").getAttribute("d"), profile.querySelector("svg").getAttribute("width")], ["M9 5l7 7-7 7", "14"]);
+    assert.deepEqual(valuesOf("src/screens/team/roster/marks.css", ".g-fallen__rowpanel .g-btn", "color"), ["var(--ink)"]);
+    assertReadable("src/screens/team/roster/marks.css", ".g-fallen__rowpanel .g-btn", "color", ["--surface"], 4.5);
     assert.ok(words(row).includes("The mark can be undone in the profile"));
     assert.ok(!row.querySelector("[data-action-key]"), "no counters for the dead");
     assert.ok(!pike.querySelector("[data-action-key]"));
