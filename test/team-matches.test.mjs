@@ -687,10 +687,17 @@ test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut wit
   assertReadable(CSS, ".g-matches__next", "color", ["--surface", "--page"], 4.5);
   // D2: every target a thumb's up to 900px — the card's controls, the rows, the opponent's name.
   const px = (value) => ({ "var(--size-touch)": 44, "var(--size-cta)": 52 })[value] ?? parseInt(value, 10);
-  for (const selector of [".g-matches__tile", ".g-matches__miss", ".g-matches__cta", ".g-matches__records", ".g-matches__friendlies", ".g-matches__row", ".g-matches__later", ".g-matches a.g-match__name"]) {
+  for (const selector of [".g-matches__tile", ".g-matches__miss", ".g-matches__cta", ".g-matches__records", ".g-matches__friendlies", ".g-matches__row", ".g-matches__later"]) {
     const [height] = own(selector, "min-height");
     assert.ok(px(height) >= 44, `${selector} ${height}`);
   }
+  // The opponent's name keeps its lines (match-card.css: 20px/1.1, a 22px line), so a name in two lines pushes the login
+  // under it down rather than run over it; its thumb's 44 is a box drawn over it, 11px above and below (stage 13, review of Task 5).
+  const name = ".g-matches a.g-match__name";
+  for (const property of ["min-height", "height", "margin", "padding"]) assert.deepEqual(own(name, property), [], `${name} ${property}`);
+  assert.deepEqual(own(name, "position"), ["relative"]);
+  assert.deepEqual([own(`${name}::after`, "content"), own(`${name}::after`, "position"), own(`${name}::after`, "inset")], [['""'], ["absolute"], ["-11px 0"]]);
+  assert.deepEqual(valuesOf("src/ui/match-card.css", ".g-match__name", "font"), ["700 20px/1.1 var(--font-display)"], "22 + 2 × 11 = 44");
   // Wrapping: the long lines wrap; nothing is cut or held on one line.
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp/);

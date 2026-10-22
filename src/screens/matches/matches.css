@@ -74,15 +74,20 @@
 .g-matches .g-match__mid { color: var(--muted); }
 .g-matches .g-match__mid--score { color: var(--ink); }
 
-/* The opponent's name leads to his team: a thumb's height over the same line (D2), the room taken from the gap around it. */
+/*
+ * The opponent's name leads to that team. The name keeps its own lines (match-card.css: 20px/1.1), so a name in two
+ * lines pushes the login under it down. The thumb's height (D2) is a box drawn over the name, 11px above and below:
+ * 44 for one line, more for two.
+ */
 .g-matches a.g-match__name {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--size-touch);
-  margin: -11px 0;
+  position: relative;
   color: inherit;
   text-decoration: none;
+}
+.g-matches a.g-match__name::after {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
 }
 
 /* Both CTVs, and the inducements' tile beside them. */

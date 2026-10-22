@@ -78,6 +78,24 @@ const toasts = () => document.querySelectorAll("output").map((node) => node.text
 const words = (selector) => view.querySelectorAll(selector).map((node) => node.textContent.trim());
 const button = (action) => view.querySelector(`[data-game-action="${action}"]`);
 
+/**
+ * A team's name that leads to its team (`link` in `file`) keeps the lines match-card.css gives it — no height, margin or
+ * padding of its own, so a name in two lines pushes the login under it down — and reaches a thumb's 44 through a box drawn
+ * over it (`::after`), its line plus the inset above and below, as wide as the name.
+ */
+function assertNameTarget(file, link) {
+  for (const property of ["min-height", "height", "margin", "padding"]) assert.deepEqual(valuesOf(file, link, property), [], `${link} ${property}`);
+  assert.deepEqual(valuesOf(file, link, "position"), ["relative"], link);
+  const over = `${link}::after`;
+  assert.deepEqual([valuesOf(file, over, "content"), valuesOf(file, over, "position")], [['""'], ["absolute"]], over);
+  const [inset = ""] = valuesOf(file, over, "inset");
+  const [above, across = above] = inset.split(/\s+/);
+  assert.equal(across, "0", `${over}: as wide as the name`);
+  const [, size, leading] = valuesOf("src/ui/match-card.css", ".g-match__name", "font")[0].match(/(\d+)px\/([\d.]+)/);
+  const line = Number(size) * Number(leading);
+  assert.ok(Math.round(line - 2 * parseFloat(above)) >= 44, `${over}: a ${line}px line and ${above} above and below`);
+}
+
 test("a side's coach is sent where the match is: its preparation, its post-match, the summary of a finished one", async () => {
   const side = { home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u2" }, team: { id: "t2" } }, kind: "friendly" };
   assert.equal(gameDestination({ ...side, id: "g", preparationStatus: "not_started", postMatchStatus: "not_started", resultStatus: null }, "u1"), "#/games/g/pre-match");
@@ -299,7 +317,9 @@ test("names wrap, nothing is cut with «…»; the 900/901 breakpoints only; but
   }
   // A thumb's 44px on a phone; the main button the prototypes' 52 (Matches.html), 48 on a desk.
   assert.deepEqual(valuesOf(CSS, ".g-game__back", "min-height"), ["44px"]);
-  assert.deepEqual(valuesOf(CSS, ".g-game a.g-match__name", "min-height"), ["var(--size-touch)"], "a team's name, a link, is a thumb's height");
+  // A team's name, a link, is a thumb's height without taking it from the lines around it: «Silverbrook Rangers» in two
+  // lines at 390px no longer runs under its coach's login (review of Task 5).
+  assertNameTarget(CSS, ".g-game a.g-match__name");
   assert.deepEqual(valuesOf(CSS, ".g-game a.g-match__name", "text-decoration"), ["none"], "as Matches.html's: no underline");
   assertReadable(CSS, ".g-game .g-match__mid", "color", ["--surface"], 3);
   assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn", "min-height"), ["var(--size-touch)"]);

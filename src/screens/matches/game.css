@@ -38,15 +38,20 @@
 .g-game .g-match__mid { color: var(--muted); }
 .g-game .g-match__mid--score { color: var(--ink); }
 
-/* A name leads to its team: a thumb's height over the same line (D2), the room taken from the gap around it, as on the matches page. */
+/*
+ * A name leads to its team, as on the matches page. The name keeps its own lines (match-card.css: 20px/1.1), so a name
+ * in two lines pushes the login under it down. The thumb's height (D2) is a box drawn over the name, 11px above and
+ * below: 44 for one line, more for two.
+ */
 .g-game a.g-match__name {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--size-touch);
-  margin: -11px 0;
+  position: relative;
   color: inherit;
   text-decoration: none;
+}
+.g-game a.g-match__name::after {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
 }
 
 /* What the card says of a score sent: that the round is closed, quiet as Matches.html's friendly note… */
