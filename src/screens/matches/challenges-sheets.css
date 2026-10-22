@@ -18,7 +18,11 @@
   min-width: 0;
 }
 
-/* The field and «Clear» in one box of 48: the box has the grey and the ring, the input inside it none. */
+/*
+ * The field and «Clear» in one box of 48 (ChallengeSendSearch.html): the box has the grey and the ring, the input inside
+ * it none — and the keyboard's ring of the field (base.css) goes round the box too, «Clear» inside it, not round the
+ * input alone and short of «Clear». «Clear» focused keeps its own ring.
+ */
 .g-challenge__search {
   box-sizing: border-box;
   display: flex;
@@ -29,6 +33,10 @@
   background: var(--surface-2);
   box-shadow: var(--ring);
 }
+.g-challenge__search:has(.g-search__input:focus-visible) {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
 .g-challenge__search .g-search {
   flex: 1 1 auto;
   min-width: 0;
@@ -37,6 +45,7 @@
   padding: 0 var(--space-8) 0 calc(var(--space-14) + 18px + var(--space-8));
   background: transparent;
 }
+.g-challenge__search .g-search__input:focus-visible { outline: none; }
 /* «Clear» is the sheet's own button: the browser's cross would be a second one. */
 .g-challenge__search .g-search__input::-webkit-search-cancel-button { display: none; }
 .g-challenge__clear {

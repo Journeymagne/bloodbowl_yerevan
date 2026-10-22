@@ -219,6 +219,13 @@ test("while searching: found and nothing else; nobody found says so; a long logi
   }
 });
 
+test("the search's keyboard ring goes round its box, «Clear» inside it, not round the input alone", () => {
+  assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline"), ["3px solid var(--accent-text)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline-offset"), ["0"]);
+  assert.deepEqual(valuesOf(CSS, ".g-challenge__search .g-search__input:focus-visible", "outline"), ["none"]);
+  assert.deepEqual(valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
+});
+
 test("one team is a line, not a group", () => {
   for (const phone of [true, false]) {
     const fragment = send({ teams: [T1], chosenId: "u7" }, { phone });
