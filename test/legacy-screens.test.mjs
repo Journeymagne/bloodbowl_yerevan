@@ -15,18 +15,8 @@ import { assertReadable as assertReadableIn, read, valuesOf } from "./helpers/co
 const LEGACY = { layers: ["src/styles/legacy-aliases.css"] };
 const assertReadable = (file, selector, property, backgrounds, minimum) => assertReadableIn(file, selector, property, backgrounds, minimum, LEGACY);
 
-test("the edition numeral and the VS between player cards are readable, not a tint of the surface", () => {
+test("the VS between player cards is readable, not a tint of the surface", () => {
   assertReadable("src/styles/site-matchday.css", ".game-versus > strong", "color", ["--surface", "--surface-2"], 3);
-  assertReadable("src/styles/matchday.css", ".matchday-edition", "color", ["--surface-2"], 3);
-});
-
-test("an improved stat on a roster card is text-accent green, not the button fill, on a dark surface too", () => {
-  const selector = ".matchday-player-card .readonly-stat-line .stat-up strong";
-  assertReadable("src/styles/matchday.css", selector, "color", ["--surface", "--surface-2"], 4.5);
-});
-
-test("the stat strip's divider is a 3.0 line, not 2.x taupe", () => {
-  assert.deepEqual(valuesOf("src/styles/pages.css", ".team-stat-grid div", "border-left"), ["1px solid var(--line)"]);
 });
 
 test("the badges of the games list are text colour, not the pale border colour", () => {
@@ -35,20 +25,6 @@ test("the badges of the games list are text colour, not the pale border colour",
   assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
   // The badge's outline is a border and keeps the border colour.
   assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
-});
-
-test("a checked checkbox is filled with the text accent, which a control's outline needs at 3:1", () => {
-  const sheet = "src/styles/controls.css";
-  for (const selector of ['.filter-field input[type="checkbox"]', ".checkbox-field input"]) {
-    // The fill accent is 2.91:1 on dungeon's surface; the text accent is the same colour in every light palette.
-    assertReadable(sheet, selector, "accent-color", ["--surface", "--surface-2", "--page"], 3);
-    assert.deepEqual(valuesOf(sheet, selector, "accent-color"), ["var(--accent-text)"], selector);
-  }
-});
-
-test("the error notice of match preparation and results, and a negative budget, are danger text a light page can read", () => {
-  // A notice box is the --md-wash tint; the budget sits on a panel.
-  assertReadable("src/styles/roster.css", ".danger-text", "color", ["--surface", "--surface-2", "--page", "--accent-tint-soft"], 4.5);
 });
 
 test("a started round or game is accent text on its pill, not a pale green made for a dark page", () => {
@@ -96,8 +72,12 @@ test("the 2.x post-match is gone — its screen, its steps, the checklist layout
 test("the 2.x roster editor is gone — its screen, its parts, and the rules of roster.css only it read (stage 12, Task 15)", () => {
   const gone = ["src/screens/saved-roster.mjs", "src/components/roster-editor", "src/components/roster-editor-shared.mjs", "src/components/roster-notices.mjs"];
   for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
-  // Its table, its stat cells, its steppers and its cards: the 3.0 roster (screens/team/roster) draws none of them.
-  assert.doesNotMatch(read("src/styles/roster.css"), /\.(saved-roster-|stat-table-cell|table-stepper|player-stat-editors|roster-identity-panel)/);
-  // What the 2.x screens that are left still draw stays: the icon buttons a template names by their tone.
-  assert.deepEqual(valuesOf("src/styles/roster.css", ".danger-icon-button", "color"), ["var(--danger)"]);
+  // Its table, its stat cells, its steppers and its cards: the 3.0 roster (screens/team/roster) draws none of them,
+  // and nothing else draws them either — nor its icon buttons, pills, progression panel and checkboxes (the fix wave).
+  const editor = /\.(saved-roster-|stat-table-cell|table-stepper|player-stat-editors|roster-identity-panel|matchday-(editor|player|hero|sidebar|spp)|builder-(form|table|summary|addon)|table-icon-button|(accent|danger)-icon-button|roster-pill|filter-field|checkbox-field|team-stat-grid|danger-text|advancement-|admin-(profile|reset-password|user-management))/;
+  for (const sheet of ["roster.css", "responsive.css", "matchday.css", "controls.css", "pages.css", "season.css", "site-matchday.css"]) {
+    assert.doesNotMatch(read(`src/styles/${sheet}`), editor, sheet);
+  }
+  assert.equal(existsSync(new URL("../src/styles/progression.css", import.meta.url)), false);
+  assert.doesNotMatch(read("src/styles.css"), /styles\/progression\.css/);
 });

@@ -37,42 +37,6 @@
     padding: 22px;
   }
 
-
-  /* Rows that had to stack on a phone. */
-  .builder-addon,
-  .roster-slot-add,
-  .slot-player-topline,
-  .saved-player-grid,
-  .season-action-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .advancement-add-row {
-    grid-template-columns: minmax(140px, 1fr) auto;
-  }
-
-  .mobile-player-checks {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .mobile-skill-editor {
-    grid-template-columns: none;
-  }
-
-  .mobile-advancement-section {
-    grid-template-columns: minmax(100px, 0.52fr) minmax(0, 1fr);
-  }
-
-  .builder-tracker-control .inline-stepper-control {
-    justify-self: auto;
-  }
-
-  .builder-setup-panel .builder-form,
-  .builder-tracker-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-
   /* Grids that fit more than one card. */
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -80,10 +44,6 @@
 
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  }
-
-.summary-actions {
-    grid-template-columns: 1fr 1fr;
   }
 
   .stepper {
@@ -95,16 +55,7 @@
     width: 38px;
   }
 
-
-  /* Tables, rather than the cards that stand in for them. */
-  .builder-available-table-wrap {
-    display: block;
-  }
-
-  .builder-mobile-card-list {
-    display: none;
-  }
-
+  /* Tables. */
   .table-scroll {
     position: static;
     width: auto;
@@ -116,62 +67,12 @@
   .table-scroll::after {
     display: none;
   }
-
 }
 
 /* The wide layout: panels side by side. The SideNav beside the page is src/shell/frame.css's. */
 @media (min-width: 901px) {
-  .saved-roster-top-grid {
-    grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
-  }
-
-  .roster-purchases-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .public-team-overview-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.48fr);
-  }
-
-  .team-rules-panel {
-    grid-template-columns: minmax(160px, 0.5fr) minmax(220px, 0.75fr) minmax(0, 1.4fr);
-  }
-
-  .roster-slots {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .admin-profile-grid {
-    grid-template-columns: minmax(240px, 0.34fr) minmax(0, 1fr);
-  }
-
   .game-versus {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-
-  /* What the narrow layout stacks, side by side again. */
-  .builder-setup-panel .builder-form {
-    grid-template-columns: repeat(3, minmax(140px, 1fr));
-  }
-
-  .builder-tracker-list {
-    grid-template-columns: none;
-  }
-
-  .builder-summary {
-    position: sticky;
-  }
-
-  .summary-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .saved-roster-table-wrap {
-    display: block;
-  }
-
-  .saved-roster-mobile-list {
-    display: none;
   }
 }
 
@@ -180,17 +81,12 @@
  *
  * On a phone a wide table scrolls sideways at its natural width. Saying so
  * needs `.table-scroll table`, which out-specifies the rules each table sets
- * for itself (.compact-roster-table asks for 980px), so there is no wider
- * rule that could hand control back — hence a max-width query, and the
- * tables repeating their own widths underneath it.
+ * for itself, so there is no wider rule that could hand control back — hence
+ * a max-width query.
  */
 @media (max-width: 600px) {
   .table-scroll table {
     width: max-content;
     min-width: 720px;
-  }
-
-  .table-scroll .builder-table {
-    min-width: 980px;
   }
 }

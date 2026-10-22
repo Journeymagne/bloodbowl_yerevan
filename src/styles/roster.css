@@ -1,7 +1,7 @@
 /*
- * What the 2.x screens that are left still take from the roster editors' rules: the tables, the pills, the steppers
- * and the icon buttons of the season's and the administration's 2.x screens. The 2.x roster editor went in stage 12
- * (Task 15), and every rule only it read went with it.
+ * What the 2.x screens that are left still take from the roster editors' rules: the segmented control, the tables
+ * and the steppers. The 2.x roster editor went in stage 12 (Task 15), the season's and the administration's 2.x
+ * screens with it, and every rule only they read went too (the fix wave's sweep).
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
@@ -40,41 +40,6 @@
   color: var(--active-button-text);
 }
 
-.compact-table-panel {
-  padding: 16px;
-}
-
-.builder-table-scroll {
-  margin: 0;
-}
-
-.compact-roster-table {
-  min-width: 980px;
-  font-size: 0.8125rem;
-}
-
-.compact-roster-table th,
-.compact-roster-table td {
-  padding: 8px 10px;
-  vertical-align: middle;
-}
-
-.compact-roster-table th {
-  white-space: nowrap;
-}
-
-.compact-roster-table td {
-  line-height: 1.35;
-}
-
-.compact-roster-table .roster-pill {
-  height: 24px;
-  min-height: 24px;
-  white-space: nowrap;
-  padding: 0 8px;
-  font-size: 0.75rem;
-}
-
 .fit-cell {
   width: 1%;
   white-space: nowrap;
@@ -82,149 +47,6 @@
 
 .center-cell {
   text-align: center;
-}
-
-.saved-team-actions .table-icon-button {
-  width: 40px;
-  min-width: 40px;
-  min-height: 36px;
-}
-
-.table-select {
-  width: 100%;
-  min-height: 30px;
-  padding: 4px 24px 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  appearance: none;
-  background-color: var(--input-bg);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-  color: var(--text);
-  font: inherit;
-  font-weight: 800;
-}
-
-.remove-icon {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin: 0 -2px 0 4px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  opacity: 0.7;
-}
-
-.roster-pill:hover .remove-icon {
-  stroke: var(--danger);
-  opacity: 1;
-}
-
-.table-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.table-actions {
-  justify-content: center;
-}
-
-.favoured-skill-pill {
-  border-color: var(--focus);
-}
-
-.compact-action {
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: 0.8125rem;
-}
-
-.table-icon-button {
-  justify-content: center;
-  width: 34px;
-  min-width: 34px;
-  min-height: 30px;
-  padding: 0;
-}
-
-.button-icon {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.accent-icon-button {
-  border-color: color-mix(in srgb, var(--focus) 50%, var(--button-border));
-  color: var(--focus);
-}
-
-.danger-icon-button {
-  border-color: color-mix(in srgb, var(--danger) 50%, var(--button-border));
-  color: var(--danger);
-}
-
-.table-icon-button:disabled {
-  border-color: var(--button-border);
-  color: var(--button-muted-text);
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.accent-icon-button:not(:disabled):hover {
-  border-color: var(--focus);
-  color: var(--focus);
-}
-
-.danger-icon-button:not(:disabled):hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.table-icon-button[aria-disabled="true"],
-.table-icon-button[aria-disabled="true"]:not(:disabled):hover {
-  border-color: var(--button-border);
-  color: var(--button-muted-text);
-}
-
-.autosave-status {
-  margin: -7px 0 8px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.autosave-status[data-status="saving"] {
-  color: var(--soft);
-}
-
-.autosave-status[data-status="saved"] {
-  color: var(--stat-up-text);
-}
-
-.autosave-status[data-status="error"] {
-  color: var(--danger);
-}
-
-.inline-rule-link {
-  color: var(--soft);
-  text-decoration-color: rgba(240, 200, 74, 0.38);
-  text-underline-offset: 3px;
-}
-
-.inline-rule-link:hover {
-  color: var(--focus);
-  text-decoration-color: var(--focus);
 }
 
 .stepper {
@@ -265,8 +87,4 @@
   border-inline: 1px solid var(--line);
   color: var(--text);
   font-weight: 700;
-}
-
-.danger-text {
-  color: var(--danger);
 }

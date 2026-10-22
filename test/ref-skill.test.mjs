@@ -487,7 +487,7 @@ test("from 901px the split page's columns never wrap, and its panel stays in vie
   // Sticking needs the frame's box not to be one that scrolls: `overflow-x: hidden` makes it one, which never scrolls, so nothing would stick.
   assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), ["clip"]);
   assert.ok(split(REF).wide.includes(".g-main:has(.g-ref)"), "and only where the panel is: from 901px");
-  // Temporary, with the scoped rule above: stage 13 deletes the 2.x `.builder-summary` sticky, and `clip` goes into frame.css for every screen.
+  // Temporary, with the scoped rule above: the 2.x `.builder-summary` sticky went in stage 12; stage 13 puts `clip` into frame.css for every screen.
   assert.equal(valuesOf("src/shell/frame.css", ".g-main", "overflow-x")[0], "hidden", "the frame's other screens stay as they were");
 });
 
