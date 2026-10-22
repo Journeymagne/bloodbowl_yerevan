@@ -383,11 +383,9 @@
 
 /* ---- A desk (DeskChallenges.html's window) ---- */
 @media (min-width: 901px) {
-  /* 760 wide, its top 110 from the window's (the prototype's), its bottom 32 on a short window. */
+  /* 760 wide; its top is sheet.css's 110 from the window's (the prototype's), its bottom 32 on a short window. */
   dialog.g-sheet.g-challenge-send {
     width: min(760px, calc(100% - 32px));
-    max-height: min(86dvh, calc(100dvh - 142px));
-    margin: 110px auto auto;
     border-radius: 20px;
   }
   .g-challenge-send .g-sheet__head {

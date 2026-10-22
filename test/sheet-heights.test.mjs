@@ -112,10 +112,11 @@ test("only the windows whose prototype stands them elsewhere say where; the rest
     "screens/team/roster/sell-sheet.mjs": "120",
     "screens/teams/new-sheet.mjs": "64",
   });
-  // The administration's (stage 12), the post-match's (09b), the match's «Before the match», the team's and the skill's.
+  // The administration's (stage 12), the post-match's (09b), the match's «Before the match», the team's, the skill's and
+  // the friendlies' (09c: DeskChallenges.html's window at 110).
   for (const file of ["screens/admin/coach-sheets.mjs", "screens/admin/coach-new.mjs", "screens/admin/team-sheets.mjs", "screens/admin/season-entries.mjs",
     "screens/admin/result-sheet.mjs", "screens/matches/post-roster.mjs", "screens/matches/post-players.mjs", "screens/matches/before.mjs",
-    "screens/team/manage/money-sheet.mjs", "screens/team/roster/sheets.mjs"]) {
+    "screens/team/manage/money-sheet.mjs", "screens/team/roster/sheets.mjs", "screens/matches/challenges-sheets.mjs"]) {
     assert.ok(file in callers, `${file} draws a sheet`);
     assert.ok(!(file in asked), `${file}: 110, as DeskAdminReset, DeskAdminCoachNew and DeskOverview put theirs`);
   }
@@ -123,11 +124,12 @@ test("only the windows whose prototype stands them elsewhere say where; the rest
 
 test("no screen's stylesheet stands its own window: sheet.css does, but for the advancement's height", () => {
   for (const file of ["src/screens/team/roster/advance.css", "src/screens/teams/new.css", "src/screens/team/roster/player-sheets.css",
-    "src/screens/admin/coach.css", "src/screens/admin/coaches.css"]) {
+    "src/screens/admin/coach.css", "src/screens/admin/coaches.css", "src/screens/matches/challenges-sheets.css"]) {
     assert.ok(!/margin:\s*\d+px auto auto/.test(mediaText(file, "min-width: 901px")), `${file} sets no window's top`);
   }
   for (const [file, selector] of [["src/screens/teams/new.css", "dialog.g-sheet.g-new-sheet"], ["src/screens/team/roster/player-sheets.css", "dialog.g-sheet.g-player-sheet"],
-    ["src/screens/admin/coach.css", "dialog.g-sheet.g-coachreset"], ["src/screens/admin/coaches.css", "dialog.g-sheet.g-coachnew"]]) {
+    ["src/screens/admin/coach.css", "dialog.g-sheet.g-coachreset"], ["src/screens/admin/coaches.css", "dialog.g-sheet.g-coachnew"],
+    ["src/screens/matches/challenges-sheets.css", "dialog.g-sheet.g-challenge-send"]]) {
     assert.deepEqual(inMedia(file, "min-width: 901px", selector, "max-height"), [], `${file}: sheet.css's, for its top`);
   }
   // DeskRosterAdv's window is as tall as the window lets it, 64 over it and 32 under it: its id keeps that over the 86dvh.
