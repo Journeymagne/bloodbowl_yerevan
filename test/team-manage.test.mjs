@@ -563,7 +563,9 @@ test("the phone has the card and no strip, the desk the strip and two columns; t
   const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(valuesOf(sheet, ".g-manage__card", "display").includes("none"), "from 901px the strip says the treasury");
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-manage__card \{ display: none; \}/);
-  assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.g-manage \.g-pagehead__sub \{ display: none; \}/, "on a phone the value is in the card");
+  // On a phone the value is in the card: the head keeps its line off a phone by its prop (stage 13, decision 9).
+  assert.doesNotMatch(css, /\.g-pagehead__sub/);
+  assert.ok(mount(manageMarkup(model("t1", { phone: true }))).querySelector("header.g-pagehead.g-pagehead--phone.g-pagehead--nosub-phone .g-pagehead__sub"));
   assert.ok(valuesOf(sheet, ".g-manage__cols", "grid-template-areas").length > 0);
   assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
   for (const [selector, area] of [[".g-manage__resources", "resources"], [".g-manage__side", "side"], [".g-manage__history", "history"]]) {

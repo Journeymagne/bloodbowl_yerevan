@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
-import { inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { renderPageHead } from "../src/ui/page-head.mjs";
 import { renderStatusChip } from "../src/ui/status-chip.mjs";
 
@@ -41,6 +41,50 @@ test("a page head that is for a phone says so with a class, and one without a ti
   assert.throws(() => renderPageHead({ title: "", sub: "x" }), /title/);
 });
 
+// Stage 13 (decision 9): one band. The reference's and the guest's heads are this one, and theirs name the page with a
+// paragraph: the page's h1 is the article's, the list's or the hero's.
+test("a page head may title its page with a paragraph, when the page's h1 is elsewhere", () => {
+  const fragment = mount(renderPageHead({ title: "Reference", sub: "Gata League", titleTag: "p" }));
+  assert.equal(fragment.querySelector("h1"), null);
+  const title = fragment.querySelector("header.g-pagehead p.g-pagehead__title");
+  assert.equal(title.textContent, "Reference");
+  assert.equal(title.hasAttribute("tabindex"), false, "a paragraph is no place a screen starts from");
+  assert.equal(fragment.querySelector(".g-pagehead__text .g-pagehead__sub").textContent, "Gata League");
+  assertStyled(fragment, "page-head.css");
+  assert.equal(mount(renderPageHead({ title: "Reference", titleTag: "h1" })).querySelector("h1.g-pagehead__title").getAttribute("tabindex"), "-1");
+  for (const titleTag of ["h2", "div", "", null]) {
+    assert.throws(() => renderPageHead({ title: "Reference", titleTag }), /h1 or p/, String(titleTag));
+  }
+});
+
+test("a head whose line is in a card on a phone hides it there", () => {
+  const head = mount(renderPageHead({ title: "Team", sub: "TV 1,000k", phone: true, phoneSub: false })).querySelector("header.g-pagehead");
+  assert.ok(head.classList.contains("g-pagehead--phone"));
+  assert.ok(head.classList.contains("g-pagehead--nosub-phone"));
+  assert.equal(head.querySelector(".g-pagehead__sub").textContent, "TV 1,000k", "a desk still shows it");
+  assert.equal(mount(renderPageHead({ title: "Team", sub: "TV", phone: true })).querySelector(".g-pagehead--nosub-phone"), null);
+  assert.deepEqual(inMedia("src/ui/page-head.css", "max-width: 900px", ".g-pagehead--nosub-phone .g-pagehead__sub", "display"), ["none"]);
+  assert.deepEqual(valuesOf("src/ui/page-head.css", ".g-pagehead--nosub-phone .g-pagehead__sub", "display"), ["none"], "a phone's alone");
+  assert.doesNotMatch(readFileSync(new URL("../src/screens/team/manage/manage.css", import.meta.url), "utf8"), /\.g-pagehead__sub/, "the team's page says it by the prop");
+});
+
+test("a search that is the band's own slot stands at its right, up to 420 wide and 44 tall (DeskRef), before the title gives way", () => {
+  const sheet = "src/ui/page-head.css";
+  assert.deepEqual(inMedia(sheet, "min-width: 901px", ".g-pagehead__meta:has(> .g-search)", "flex"), ["0 1 420px"]);
+  assert.deepEqual(inMedia(sheet, "min-width: 901px", ".g-pagehead__meta:has(> .g-search)", "min-width"), ["0"]);
+  assert.deepEqual(inMedia(sheet, "min-width: 901px", ".g-pagehead:has(> .g-pagehead__meta > .g-search) > .g-pagehead__text", "flex"), ["none"]);
+  assert.deepEqual(inMedia(sheet, "min-width: 901px", ".g-pagehead__meta > .g-search .g-search__input", "height"), ["44px"]);
+  assert.deepEqual(inMedia(sheet, "min-width: 901px", ".g-pagehead__meta > .g-search .g-search__input", "font-size"), ["15px"]);
+  // The field fills the slot at any width: on a phone the slot is the line under the title.
+  assert.deepEqual(valuesOf(sheet, ".g-pagehead__meta > .g-search", "flex"), ["1 1 auto"]);
+  assert.deepEqual(valuesOf(sheet, ".g-pagehead__meta > .g-search", "min-width"), ["0"]);
+});
+
+test("the title and its line read on the card and on the page, in every palette", () => {
+  assertReadable("src/ui/page-head.css", ".g-pagehead__title", "color", ["--page", "--surface"], 4.5);
+  assertReadable("src/ui/page-head.css", ".g-pagehead__sub", "color", ["--page", "--surface"], 4.5);
+});
+
 test("from 901px it is a band on the card colour over a rule, the width of the content (DeskCoach); on a phone it is for a screen reader unless asked", () => {
   const sheet = "src/ui/page-head.css";
   assert.ok(valuesOf(sheet, ".g-pagehead", "background").includes("var(--surface)"));
@@ -57,11 +101,13 @@ test("a band reaches the content's edges by the frame's own figures", () => {
     ["src/ui/page-head.css", ".g-pagehead", `${back} var(--space-24)`, "var(--space-20) var(--view-side)"],
     ["src/screens/coaches/team.css", ".g-opp__head", `${back} 0`, "var(--space-16) var(--view-side) var(--space-20)"],
     ["src/screens/admin/admin.css", ".g-admin__head", `${back} var(--space-24)`, "var(--space-20) var(--view-side)"],
-    ["src/screens/ref/ref.css", ".g-ref .g-ref-head", `${back} var(--space-24)`, "var(--space-20) var(--view-side)"],
-    ["src/screens/home/guest.css", ".g-guest__head", `${back} var(--space-24)`, "var(--space-20) var(--view-side)"],
   ]) {
     assert.deepEqual(inMedia(file, "min-width: 901px", selector, "margin"), [margin], `${selector}'s margin`);
     assert.deepEqual(inMedia(file, "min-width: 901px", selector, "padding"), [padding], `${selector}'s padding`);
+  }
+  // The reference's and the guest's bands are this head (decision 9): no figures of their own.
+  for (const file of ["src/screens/ref/ref.css", "src/screens/home/guest.css"]) {
+    assert.doesNotMatch(mediaText(file, "min-width: 901px"), /var\(--view-(?:top|side)\)/, `${file}: a band of its own`);
   }
   // The builder has a frame of its own (bare: no padding on the view), so its figures are its own: DeskBuilder.html's main.
   const builder = "src/screens/teams/builder.css";

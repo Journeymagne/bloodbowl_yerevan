@@ -4,8 +4,9 @@
  * stage 13.
  *
  * Up to 900px it is one column: the lead and what the league is, the two ways in side by side, the
- * table's card, the reference's card with its four tiles. The league's band is a desktop's (a phone's
- * header already names the league and the season). From 901px the band runs across the top, the lead
+ * table's card, the reference's card with its four tiles. The league's band is the page head
+ * (ui/page-head.mjs), a desktop's: a phone's header already names the league and the season, so a phone
+ * does not draw it, for a screen reader either. From 901px the band runs across the top, the lead
  * stands in a ribbon in the header's colours with the ways in beside it (turned over: the filled button
  * is the header's ink), and the two cards stand side by side, one under the other where they would be
  * narrower than 360px.
@@ -25,22 +26,8 @@
 }
 
 /* The band is the desktop's. */
-.g-guest__head { display: none; }
-
-.g-guest__brand {
-  margin: 0;
-  color: var(--ink);
-  font: 700 32px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-guest__season {
-  margin: 0;
-  color: var(--muted);
-  font: 400 14px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
+@media (max-width: 900px) {
+  .g-guest > .g-pagehead { display: none; }
 }
 
 .g-guest__hero {
@@ -203,23 +190,10 @@
 
 @media (min-width: 901px) {
   /*
-   * DeskGuest.html: the band, then its main's 24 32 40 — the frame's padding, which the band goes out over by the
-   * frame's own figures — with the ribbon and the cards 20 apart in it.
+   * DeskGuest.html: the page head's band, then its main's 24 32 40 — the frame's padding, which the band goes out
+   * over — with the ribbon and the cards 20 apart in it.
    */
   .g-guest { gap: 0; }
-
-  .g-guest__head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
-    padding: var(--space-20) var(--view-side);
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--surface);
-    text-transform: none;
-    letter-spacing: 0;
-  }
 
   /* The lead and the ways in beside it, the ways in under it where the lead would be squeezed below 420px. */
   .g-guest__hero {

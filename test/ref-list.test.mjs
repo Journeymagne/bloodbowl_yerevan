@@ -118,7 +118,7 @@ test("a skill names its category for a screen reader and wears its colour; a tra
   assert.equal(trait.querySelector(".g-sr-only").textContent, "Trait");
   assert.equal(trait.querySelector(".g-ref-row__meta"), null, "a trait with no Active or Passive tag has no type to show");
   assert.equal(view.querySelector('a.g-ref-row[href="#/traits/throw-team-mate"] .g-ref-row__meta').textContent, "Passive");
-  assertStyled(view, "src/screens/ref/ref.css", "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
 });
 
 test("the categories are the skill groups' in their order, each with the skills that carry the tag", () => {
@@ -236,7 +236,7 @@ test("a phone gets the way back up to the reference; the table of contents and t
   renderRefSection("teams");
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("href"), "#/ref");
   assert.equal(view.querySelector("a.g-ref-back").textContent, "Reference");
-  assert.equal(view.querySelector("p.g-ref-head__title").textContent, "Reference");
+  assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
   assert.ok(view.querySelector("nav.g-ref-toc"));
   setRefQuery("dodge");
   renderRefSection("teams");

@@ -4,7 +4,7 @@ import test, { beforeEach } from "node:test";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled } from "./helpers/ui.mjs";
-import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 // The fake API comes first: api-client.mjs picks `fetch` up when it loads.
@@ -43,7 +43,7 @@ test("a guest's front page: what the league is, the way in, the table and the re
   assert.deepEqual(view.querySelectorAll(".g-guest__tile").map((a) => a.getAttribute("href")), ["#/ref/teams", "#/ref/skills", "#/ref", "#/all-gata-changes"]);
   assert.equal(view.querySelector(".g-guest__more").getAttribute("href"), "#/season");
   assertCspSafe(view);
-  assertStyled(view, "src/screens/home/guest.css", "button.css", "list-row.css");
+  assertStyled(view, "src/screens/home/guest.css", "page-head.css", "button.css", "list-row.css");
 });
 
 test("the table is the top five, without the withdrawn, each with its race and points, and says after which round", () => {
@@ -177,19 +177,19 @@ test("the server's answer to a guest may be empty: the page still opens, with th
   assert.equal(view.querySelector("h1").textContent, "A league for Blood Bowl Sevens coaches");
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Table");
   assert.equal(view.querySelector(".g-guest__table .g-guest__note").textContent, "The table fills in once coaches enter the season.");
-  assert.deepEqual(view.querySelectorAll(".g-guest__head p").map((p) => p.textContent), ["Gata League"]);
+  assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League"]);
 });
 
 test("the band over a desktop's page names the league and the season, and the round when a round is played", () => {
   const head = (seasonData) => guestHomeMarkup({ season: loaded(seasonData), data: state.data });
   view.innerHTML = head(season(SIX, [{ roundNumber: 3, status: "completed" }]));
-  assert.deepEqual(view.querySelectorAll(".g-guest__head p").map((p) => p.textContent), ["Gata League", "Season 2 · after round 3"]);
+  assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League", "Season 2 · after round 3"]);
   view.innerHTML = head(season(SIX));
-  assert.deepEqual(view.querySelectorAll(".g-guest__head p").map((p) => p.textContent), ["Gata League", "Season 2"]);
+  assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League", "Season 2"]);
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Table");
   const hostile = { ...season(SIX), season: { name: HOSTILE } };
   view.innerHTML = head(hostile);
-  assert.equal(view.querySelectorAll(".g-guest__head p")[1].textContent, HOSTILE);
+  assert.equal(view.querySelectorAll(".g-pagehead p")[1].textContent, HOSTILE);
   assert.equal(view.querySelector("img"), null);
 });
 
@@ -227,6 +227,23 @@ test("the Skills tile is named as the list it opens, in both languages", () => {
   useLocale("en");
 });
 
+// Stage 13 (decision 9): one band. The page's h1 is the hero's, so the band names the league with a paragraph.
+test("the guest's band is the page head, a desk's alone", () => {
+  view.innerHTML = guestHomeMarkup({ season: loaded(season(SIX, [{ roundNumber: 3, status: "completed" }])), data: state.data });
+  const head = view.querySelector(".g-guest header.g-pagehead");
+  assert.ok(head);
+  assert.equal(head.classList.contains("g-pagehead--phone"), false);
+  assert.equal(head.querySelector("p.g-pagehead__title").textContent, "Gata League");
+  assert.equal(head.querySelector(".g-pagehead__sub").textContent, "Season 2 · after round 3");
+  assert.equal(head.querySelector("h1"), null);
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["A league for Blood Bowl Sevens coaches"]);
+  assert.ok(view.querySelector(".g-guest__hero h1"));
+  assertStyled(head, "page-head.css");
+  // A phone's header already names the league and the season: the band is not drawn there, for a screen reader either.
+  assert.deepEqual(inMedia(SHEET, "max-width: 900px", ".g-guest > .g-pagehead", "display"), ["none"]);
+  assert.doesNotMatch(read(SHEET), /g-guest__(?:head|brand|season)/, "the guest's own band is gone");
+});
+
 test("the whole page is in the language of the visitor", () => {
   useLocale("ru");
   renderGuestHome();
@@ -237,7 +254,7 @@ test("the whole page is in the language of the visitor", () => {
   state.season = loaded(season(SIX, [{ roundNumber: 6, status: "completed" }]));
   renderGuestHome();
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица · после 6 тура");
-  assert.equal(view.querySelectorAll(".g-guest__head p")[1].textContent, "Season 2 · после 6 тура");
+  assert.equal(view.querySelectorAll(".g-pagehead p")[1].textContent, "Season 2 · после 6 тура");
 });
 
 // The sheet.
@@ -252,8 +269,6 @@ test("the sheet sets its own font, border and case; a phone has a column, a desk
   assert.deepEqual(valuesOf(SHEET, ".g-guest__card", "border-radius"), ["var(--radius-2xl)"]);
   const bare = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
   const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)[1];
-  assert.match(bare.replace(wide, ""), /\.g-guest__head\s*\{[^}]*display:\s*none;/, "a phone's header already names the league");
-  assert.match(wide, /\.g-guest__head\s*\{[^}]*display:\s*flex;/);
   assert.match(wide, /\.g-guest__hero\s*\{[^}]*background:\s*var\(--header\);[^}]*color:\s*var\(--header-ink\);/);
   assert.match(wide, /\.g-guest__hero \.g-btn--primary\s*\{[^}]*background:\s*var\(--header-ink\);[^}]*color:\s*var\(--header\);/);
   assert.match(wide, /\.g-guest__hero \.g-btn:not\(\.g-btn--primary\)\s*\{[^}]*border-color:\s*var\(--header-ink\);/);
@@ -275,8 +290,6 @@ test("every colour of the page holds on what it sits on, in every palette", () =
   assertReadable(SHEET, ".g-guest__more", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__tile", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__tile-text", "color", ["--surface"], 4.5);
-  assertReadable(SHEET, ".g-guest__brand", "color", ["--surface"], 4.5);
-  assertReadable(SHEET, ".g-guest__season", "color", ["--surface"], 4.5);
   // The ribbon: the lead and the text in the header's ink on its colour, the filled button turned over.
   assertContrast("--header-ink", ["--header"], 4.5, { what: "the ribbon's ink on --header" });
   assertContrast("--header", ["--header-ink", "--header-muted"], 4.5, { what: "the ribbon's primary button, at rest and under the pointer" });

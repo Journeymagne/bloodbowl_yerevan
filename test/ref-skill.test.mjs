@@ -506,7 +506,7 @@ test("every class the panel draws is styled, and the sheets reach the page", () 
   state.myTeams.items = [TEAM];
   state.activeTeamId = "t1";
   renderReferencePage("skills/evasive");
-  assertStyled(view, REF, ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, REF, "page-head.css", ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
   const styles = read("src/styles.css");
   assert.ok(styles.includes('@import url("screens/ref/ref.css");') && styles.includes('@import url("screens/ref/article.css");'));
 });

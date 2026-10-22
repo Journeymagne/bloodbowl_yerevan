@@ -282,7 +282,7 @@ test("the markup the two bodies draw is styled by the reference's sheets", () =>
   setRoller({ category: "Strength", face: 8, skill: "Mighty Blow" });
   for (const slug of ["leagues", "skill-table"]) {
     renderReferencePage(slug);
-    assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css", "filter-chips.css", "die.css", "button.css");
+    assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css", "filter-chips.css", "die.css", "button.css");
   }
 });
 

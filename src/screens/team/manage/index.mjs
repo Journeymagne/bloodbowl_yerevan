@@ -121,6 +121,8 @@ export function manageMarkup(model) {
     sub: t("treasury.tv", { value: formatMoney(model.worth) }),
     metaHtml: phaseChip(model.phase),
     phone: true,
+    // On a phone the team's value is in the card (TeamManage.html): the head says the title and the phase.
+    phoneSub: false,
   });
   const side = `<div class="g-manage__side">${safeMarkup({ safe: model.safe, entries: model.ledger.entries })}`
     + `${shutOpener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live)}</div>`;
