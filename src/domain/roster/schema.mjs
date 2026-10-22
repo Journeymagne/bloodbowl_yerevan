@@ -160,6 +160,13 @@ export const ABSENCE_CODES = Object.freeze(["miss", "niggling", "lasting", "othe
 export const ABSENCE_NOTE_MAX = 500;
 
 /**
+ * He misses the next match already: marked (`skipNextGame`), or retired for the season (`temporarilyRetired`). The one
+ * copy of the rule (stage 13): players.mjs normalises and views a player by it, absence.mjs hands it on to its readers;
+ * it lives here, beside `normalizeAbsence`, because both of them import this module and absence.mjs imports players.mjs.
+ */
+export const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
+
+/**
  * A stored absence read into `{ code, stat?, note?, pairingId? }`, or `null`.
  *
  * `skipNextGame` stays the source of truth for team value and for who may be

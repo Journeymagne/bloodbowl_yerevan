@@ -193,6 +193,20 @@ test("the team block opens the switcher for a coach, and stays a link for a gues
   }
 });
 
+// Stage 13 (06's hand-off): the switcher's button carries no address, and the renderers ask a link alone for one.
+test("a team that can be switched carries no address: its block is drawn without one, and only a link's address is checked", () => {
+  const model = coach();
+  assert.equal(Object.hasOwn(model.brand, "href"), false, "the model hands out none");
+  const fragment = mount(renderAppHeader(model) + renderSideNav(model, { locale: "en" }));
+  assert.equal(fragment.querySelectorAll("[data-team-switcher]").length, 2);
+  assert.equal(fragment.querySelector(".g-appbar__team[href], .g-sidenav__team[href]"), null);
+  assert.doesNotMatch(renderAppHeader(model) + renderSideNav(model, { locale: "en" }), /undefined/);
+  // A link's address is still checked: a league block that would run script is refused.
+  const unsafe = { ...guest, brand: { ...guest.brand, href: "javascript:alert(1)" } };
+  assert.throws(() => renderAppHeader(unsafe), /javascript/);
+  assert.throws(() => renderSideNav(unsafe, { locale: "en" }), /javascript/);
+});
+
 test("a team block that is a button looks like the link it replaced: no button chrome, and it reads as pressable", () => {
   for (const [file, selector] of [[HEADER_CSS, ".g-appbar__team"], [SIDE_CSS, ".g-sidenav__team"]]) {
     for (const [property, value] of [["font", "inherit"], ["cursor", "pointer"], ["text-align", "left"]]) assert.deepEqual(valuesOf(file, selector, property), [value], `${selector} ${property}`);

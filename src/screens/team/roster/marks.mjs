@@ -50,7 +50,8 @@ const undoneOf = (where, key) => where.fallen.find((line) => line.key === key &&
  * What the screen lends the marks (index.mjs).
  * @typedef {object} Lent
  * @property {() => Now} now the screen as it stands at a press
- * @property {() => void} refused the server's roster asked again, after a refusal of the queue's 422 whose read failed
+ * @property {() => boolean|void} refused the server's roster asked again, after a refusal of the queue's 422 whose read failed;
+ *   whether the refusal was that 422's (the roster's: a page that asks for nothing says nothing)
  * @property {(answer: {team: object, fallen: object[]}) => void} hold a death's or an undo's answer taken: its team, and the fallen to draw (K5)
  * @property {function(): Promise<boolean>} readAgain the roster and the fallen read again; true when the read was taken
  * @property {function(): Promise<void>} [reload] the server's roster in place of the queue's, while no step waits or is on its
@@ -88,10 +89,11 @@ export function markSheetOf(visit, lines, where) {
  * the panel keeps him. A step not taken (he misses the match already, the conflict the screen's lock says) changes
  * nothing but the drawing, which closes a sheet that no longer stands. A refusal while the queue waits for the server's
  * roster after a 422 asks for it again (`refused`), as a counter's step does: else a read that failed would leave
- * every press to say the same rule and nothing more (07a, c088324).
+ * every press to say the same rule and nothing more (07a, c088324). Its words are said until a read has taken the
+ * place of the roster they were said of (`untilRead`, index.mjs's `heardSave`), as the cart's are (07c T5-3).
  *
  * @param {import("./index.mjs").Saving} saving
- * @param {{now: () => Now, refused: () => void}} options
+ * @param {{now: () => Now, refused: () => boolean}} options
  */
 function sendMark({ teamId, visit, memory, draw }, { now, refused }) {
   const { sheet } = visit;
@@ -110,7 +112,7 @@ function sendMark({ teamId, visit, memory, draw }, { now, refused }) {
   }
   draw();
   if (answer.ok) keyed("data-row-key", sheet.key)?.focus();
-  if (answer.refusal) refused();
+  if (answer.refusal) sheet.untilRead = refused();
 }
 
 /**

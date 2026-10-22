@@ -34,10 +34,12 @@
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
+import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
+import { currentMatch } from "../../../shell/current-match.mjs";
 import { readSnapshot } from "./data.mjs";
 import { leaveVisit, rosterMemory, takeWayBack } from "./memory.mjs";
 import { nextSort, stepRule } from "./model.mjs";
@@ -63,10 +65,12 @@ import { adminHandlers } from "./admin-block.mjs";
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
- * language switch); another team's roster, which the team switcher opens from this one, is another page and starts
- * at its top.
+ * language switch); another team's roster, which the team switcher opens from this one, is another page: from its top.
  */
 let shownTeam = null;
+
+/** By team, the taps a visit left in the air (`whenQuiet`): the next visit reads after them, not to miss their rows (07a T11). */
+const tapsLeft = new Map();
 
 /** `listener` on `target` for `type`, and what takes it off; a target that cannot be listened to is none. */
 function listen(target, type, listener) {
@@ -75,8 +79,7 @@ function listen(target, type, listener) {
 }
 
 /**
- * What one visit holds. A new object for every visit, so an answer that comes after the coach left finds its own
- * visit closed.
+ * What one visit holds. A new object for every visit, so an answer that comes after the coach left finds it closed.
  * @typedef {object} Visit
  * @property {boolean} here
  * @property {boolean} drawn
@@ -102,7 +105,8 @@ function listen(target, type, listener) {
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
  *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
  *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c),
- *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` and advancement `{kind: "advance", …}` (stage 07d)
+ *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` and advancement `{kind: "advance", …}` (stage 07d);
+ *   a mark's, the cart's and a sale's refusal that was a 422's carries `untilRead` (`heardSave`)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -126,6 +130,15 @@ function listen(target, type, listener) {
 
 const busy = (status) => status === SAVE_STATUS.SAVING || status === SAVE_STATUS.DIRTY;
 
+/** The queue waits for the server's roster after a 422 (save.mjs): every step is refused in that 422's words until then. */
+const onRefusal = (save) => save.status === SAVE_STATUS.ERROR && save.kind === API_ERROR.INVALID;
+
+/** The team's match as the games last said it, its id and its phase (`currentMatch`): ":" for none. */
+function phaseKeyOf(teamId) {
+  const match = currentMatch(state.games.items ?? [], teamId);
+  return `${match?.game.id ?? ""}:${match?.phase ?? ""}`;
+}
+
 /**
  * The team as read, with the draft to draw; the queue is heard from now on — after each trackRoster or takeServerTeam,
  * which a new session's queue needs (Carry T7). The records are the read's and those the answers to taps have brought
@@ -147,7 +160,8 @@ function holdTeam(saving, { team, events, fallen, admin }, draft, since) {
  * the visit's last read and no tap was in the air while it was made (fix round 2, N1): such a read may hold the tap's
  * row or not, in the records or, after a finish, in the roster — so it is made again once the taps have answered, the
  * counters closed meanwhile, and its caller takes the read that replaces it (N3). A read that fails says why, and
- * opens them.
+ * opens them. A match the games read after the team say has moved since it was sent (`phaseKeyOf`: ended, begun) may
+ * have the team read on its other side: it is read again, at most twice more, then the last read is taken (07a, stage 13).
  * @param {Saving} saving
  * @returns {Promise<{answer: {team: object, events: object[], fallen: object[]}, since: number}|null>} null when there is nothing to take
  */
@@ -155,12 +169,13 @@ async function readWithGames(saving) {
   const { teamId, visit, draw } = saving;
   const ticket = ++visit.reads;
   const current = () => visit.here && ticket === visit.reads;
-  for (;;) {
-    const [since, sent, quiet] = [visit.heard.length, visit.sent, !visit.pending.length];
+  for (let moved = 0; ;) {
+    const [since, sent, quiet, phase] = [visit.heard.length, visit.sent, !visit.pending.length, phaseKeyOf(teamId)];
     const answer = await readSnapshot(teamId);
     if (!current()) return null;
     await loadGames(true);
     if (!current()) return null;
+    if (phaseKeyOf(teamId) !== phase && moved++ < 2) continue;
     if (quiet && !visit.pending.length && visit.sent === sent) {
       visit.answered = ticket;
       if (!answer.error) return { answer, since };
@@ -316,10 +331,12 @@ function takeStep(saving, line, counter, delta, mode) {
  * A step refused while the queue waits for the server's roster after a 422 (save.mjs) — a counter's, a mark's: a read
  * that failed left the screen with no way forward, so the press asks for that roster again (07a, c088324).
  * @param {Saving} saving
+ * @returns {boolean} whether the refusal was that 422's: a sheet that says it says it until the queue no longer waits (`heardSave`)
  */
 function retakeRefused(saving) {
-  const save = saveState(saving.teamId);
-  if (save.status === SAVE_STATUS.ERROR && save.kind === API_ERROR.INVALID && !reading(saving.visit)) void reloadRoster(saving);
+  const refused = onRefusal(saveState(saving.teamId));
+  if (refused && !reading(saving.visit)) void reloadRoster(saving);
+  return refused;
 }
 
 /**
@@ -345,9 +362,8 @@ function settleWaiting(saving, { retry }) {
  *
  * Only when no step waits and none is in the air, and no read is: a step that waits keeps its draft and meets the new
  * revision as the conflict the coach settles; the queue's own saves put their answer in the list and in the queue
- * alike, so they never ask. Heard on every change of the list and of the queue, so a write heard while a request or
- * a read was in the air is followed once it has answered; each revision of the list once, so a read that fails is
- * not made again for it.
+ * alike, so they never ask. Heard on every change of the list and of the queue, so a write heard while a request or a
+ * read was in the air is followed once it has answered; each list revision once, so a failed read is not made again.
  * @param {Saving} saving
  */
 function followList(saving) {
@@ -367,6 +383,8 @@ function followList(saving) {
  * the rules as the server reads them); a take that had to wait asked again unless a save has since landed; a fresh
  * conflict reading the games, since it is often a match's start, which the games then settle R8's way (final review,
  * Minor 3: `onGamesChange` → `settleWaiting`); the steps that wait settled; a write of the strip heard meanwhile followed.
+ * The words of a 422 a sheet says (`untilRead`, market.mjs, marks.mjs) go once the queue no longer waits on it: a read
+ * has taken the place of the roster they were said of (07c T5-3). A throw here is the store's to isolate (roster-store's `notify`).
  * @param {Saving} saving
  */
 function heardSave(saving, now) {
@@ -374,25 +392,21 @@ function heardSave(saving, now) {
   const before = visit.status;
   visit.status = now.status;
   if (!visit.here) return;
-  try {
-    saving.draw();
-    const refused = before && before !== SAVE_STATUS.ERROR && now.status === SAVE_STATUS.ERROR;
-    // A match begun is said by the read it brings about (`reloadRoster`): one toast, not two.
-    if (refused && now.code === "TEAM_IN_MATCH") visit.inMatch = now.refusal;
-    else if (refused) toast(now.refusal, { tone: "error" });
-    let take = refused && now.kind === API_ERROR.INVALID;
-    if (visit.retake && !busy(now.status)) {
-      visit.retake = false;
-      take ||= now.status !== SAVE_STATUS.SAVED;
-    }
-    if (take) void reloadRoster(saving);
-    else if (before && before !== SAVE_STATUS.CONFLICT && now.status === SAVE_STATUS.CONFLICT) void loadGames(true);
-    settleWaiting(saving, { retry: false });
-    followList(saving);
-  } catch (error) {
-    // A listener of the queue that throws would leave its request in the air for good (roster-store's notify).
-    console.error(error);
+  if (visit.sheet?.untilRead && !onRefusal(now)) Object.assign(visit.sheet, { refusal: "", untilRead: false });
+  saving.draw();
+  const refused = before && before !== SAVE_STATUS.ERROR && now.status === SAVE_STATUS.ERROR;
+  // A match begun is said by the read it brings about (`reloadRoster`): one toast, not two.
+  if (refused && now.code === "TEAM_IN_MATCH") visit.inMatch = now.refusal;
+  else if (refused) toast(now.refusal, { tone: "error" });
+  let take = refused && now.kind === API_ERROR.INVALID;
+  if (visit.retake && !busy(now.status)) {
+    visit.retake = false;
+    take ||= now.status !== SAVE_STATUS.SAVED;
   }
+  if (take) void reloadRoster(saving);
+  else if (before && before !== SAVE_STATUS.CONFLICT && now.status === SAVE_STATUS.CONFLICT) void loadGames(true);
+  settleWaiting(saving, { retry: false });
+  followList(saving);
 }
 
 /**
@@ -453,9 +467,7 @@ function pressHandlers({ read, ...saving }) {
     onRefused: (reason) => toast(reason),
     onReload: () => void reloadRoster(saving),
     // An injury whose fate is not known, after a read that failed: «Try again» reads the records (R14).
-    onReread: () => {
-      if (!reading(visit)) void readAgain(saving);
-    },
+    onReread: () => tappingOf(saving).readAgain(),
     // Kept for the team and the match on while the page lives (memory.mjs, R13): a visit elsewhere and back finds it as it was.
     onOutside: (on) => {
       const mode = modeOf(teamId);
@@ -523,6 +535,7 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
   // The team and its fallen, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.
   const read = async () => {
     const ticket = ++visit.reads;
+    if (tapsLeft.has(teamId)) await tapsLeft.get(teamId);
     const since = visit.heard.length;
     const answer = await readSnapshot(teamId);
     if (!visit.here || ticket !== visit.reads) return;
@@ -539,6 +552,7 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.
   onScreenLeave("team-roster", () => {
     visit.here = false;
+    if (visit.pending.length) tapsLeft.set(teamId, whenQuiet(visit).then(() => tapsLeft.delete(teamId)));
     while (offs.length) offs.pop()();
     // A desk's player mode is the roster (M4); a phone's leaves the way back once his profile has been drawn.
     leaveVisit(memory, !playerId || !isPhone() ? "roster" : visit.titled ? "player" : "");

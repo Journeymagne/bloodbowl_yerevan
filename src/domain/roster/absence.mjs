@@ -3,7 +3,7 @@
  * the missed match, and what the injury itself does — the same thing a post-match does with it
  * (`applyInjuryEffects`, which the post-match calls too). Back on the roster ends the missed match only. Pure.
  */
-import { ABSENCE_CODES, normalizeAbsence } from "./schema.mjs";
+import { ABSENCE_CODES, normalizeAbsence, sitsOut } from "./schema.mjs";
 import { storedPlayerId } from "./players.mjs";
 import { PLAYER_STATS } from "./values.mjs";
 
@@ -56,8 +56,8 @@ export function clearAbsence(player) {
   return { ...structuredClone(player), skipNextGame: false, absence: null };
 }
 
-/** He misses the next match already: marked (`skipNextGame`), or retired for the season (`temporarilyRetired`). */
-export const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
+/** He misses the next match already: the schema's rule (schema.mjs), handed on to this module's readers. */
+export { sitsOut };
 /** Why he misses the next match, as the roster reads it (`normalizeAbsence`); null when nothing says. */
 export const absenceOf = (player) => normalizeAbsence(player.absence, sitsOut(player));
 const reasonOf = (player) => JSON.stringify(absenceOf(player));

@@ -90,3 +90,22 @@ test("playerAdjustmentCost works on a raw draft player, not just a view", () => 
   const rawDraftPlayer = { rowIndex: 0, extraSkills: [], statMods: { ma: 1 }, spp: {}, advancements: [] };
   assert.equal(playerAdjustmentCost(linewoman, rawDraftPlayer), 30);
 });
+
+// Stage 13, ruling E-1 (house rules decide): the content lists «Claws + Mighty Blow», and a position's «Mighty Blow (+1)»
+// is the Mighty Blow of that pair — its own page says so, and the reference's skill panel names the pair for it. The
+// Skaven Rat Ogre starts with Mighty Blow (+1) and may take Claws (secondary M): the pair comes together by advancement.
+test("a skill with its figure is the skill of its pair: Rat Ogre's Mighty Blow (+1) and Claws pay the surcharge, and the advancement says so", async () => {
+  const { categorySkills } = await import("../src/domain/roster/progression.mjs");
+  const ratOgre = positionOf("Skaven", "Rat Ogre");
+  assert.ok(ratOgre.skills.includes("Mighty Blow (+1)") && !ratOgre.skills.includes("Mighty Blow"), "the data names it with its figure");
+  assert.equal(eliteComboCost(ratOgre, skills()), 0, "half a pair from the start is no pair");
+  assert.equal(eliteComboCost(ratOgre, skills("Claws")), SURCHARGE, "Claws advanced completes Claws + Mighty Blow");
+  assert.equal(playerAdjustmentCost(ratOgre, skills("Claws")) - playerAdjustmentCost(ratOgre, skills()), 20 + SURCHARGE, "the player's value takes the +15k");
+  // The advancement's Skill Table marks Claws as the skill that brings the pair together, as it does a plain Mighty Blow's.
+  const mutation = categorySkills(ratOgre, skills(), "Mutation", data.skillGroups);
+  assert.equal(mutation.find((skill) => skill.name === "Claws")?.elite, true);
+  assert.ok(mutation.filter((skill) => skill.name !== "Claws").every((skill) => !skill.elite), "nothing else of Mutation completes a pair");
+  // The other way round: a Claws position advancing a Mighty Blow named with its figure.
+  const linewoman = positionOf("Amazon", "Eagle Warrior Linewoman");
+  assert.equal(eliteComboCost(linewoman, skills("Claws", "Mighty Blow (+1)")), SURCHARGE);
+});

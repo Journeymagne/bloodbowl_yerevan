@@ -16,7 +16,9 @@
  *
  * The handler is for a 401 and nothing else. A 403 is a refusal ("not your
  * fixture", "wrong current password"): the server session is alive, so the
- * token stays and the screen that asked explains the refusal itself.
+ * token stays and the screen that asked explains the refusal itself. And a 401
+ * ends only the session whose token its request carried: one sent before the
+ * coach signed in again (or as someone else) speaks of a token already gone.
  */
 import { createApiClient } from "./api.mjs";
 import { reloadForMaintenance } from "./maintenance-reload.mjs";
@@ -81,7 +83,9 @@ export function sessionTokenHolds() {
 
 const apiClient = createApiClient({
   getToken: authToken,
-  onUnauthorized: () => {
+  onUnauthorized: (error, { token } = {}) => {
+    // A request of an older session, answered after a new sign-in stored another token: the new one is alive.
+    if (token !== authToken()) return;
     // The session died under us. Say so once, instead of letting every screen
     // report its own mystery failure — and say whose it was.
     const user = state.auth.currentUser;

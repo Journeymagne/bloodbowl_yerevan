@@ -23,10 +23,11 @@ import { renderCrest } from "./crest.mjs";
  * line under it. A team that can be switched is a button that opens the
  * switcher (shell/team-switcher.mjs), a league that cannot is a link to its
  * front page. The chevron says so to the eye; the hidden words say so to a
- * screen reader.
+ * screen reader. The button has no address (the model gives it none); the
+ * link's is checked.
  */
 function renderTeamLink({ name, sub, href, switchTeam }) {
-  assertLinkHref(href);
+  if (!switchTeam) assertLinkHref(href);
   const chevron = switchTeam ? icon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   const line = sub ? `<span class="g-appbar__sub">${escapeHtml(sub)}</span>` : "";

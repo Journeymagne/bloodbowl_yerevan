@@ -14,17 +14,16 @@
  */
 import { gameSides } from "../../../data/team-record.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
+import { currentMatch } from "../../../data/match-phase.mjs";
 import { SPP_EVENT_COUNTERS, careerCounters, eventTotal, statisticsFromEvents } from "../../../domain/post-match/events.mjs";
 import {
-  ADVANCEMENT_BLOCKED, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights, tiedFavoured,
+  ADVANCEMENT_BLOCKED, advancementCostAt, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights, tiedFavoured,
 } from "../../../domain/roster/progression.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import { playerInjuries } from "../../../domain/roster/edits.mjs";
-import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { playerRemoval } from "../../../domain/roster/transfers.mjs";
 import { normalizeSppCounters, positionKind, selectedRosterPlayers, skillsForPlayer, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS, categoriesForAccess, costToNumber, countToNumber, rowCost, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
-import { currentMatch } from "../../../shell/current-match.mjs";
 
 /** The counters a player's cell shows in full, in the order of the table's columns. */
 export const MAIN_COUNTERS = Object.freeze(["touchdowns", "casualties", "completions", "knockouts", "interceptions", "mvps"]);
@@ -128,7 +127,7 @@ function skillsOf(row, player, advancements) {
 function advancementsOf(player) {
   return player.advancements.map((advancement, rank) => {
     const { type, grants, roll } = advancement, favoured = tiedFavoured(player, advancement);
-    return { type, grants: grants ?? null, via: roll?.via ?? "", rollId: roll?.id ?? "", cost: advancementRanks[rank]?.costs?.[type] ?? 0, ...(favoured ? { favoured } : {}) };
+    return { type, grants: grants ?? null, via: roll?.via ?? "", rollId: roll?.id ?? "", cost: advancementCostAt(rank, type), ...(favoured ? { favoured } : {}) };
   });
 }
 

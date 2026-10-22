@@ -218,6 +218,45 @@ test("a failure after the lines came (the next page, a re-read) is said under th
   assert.equal(text("[data-ledger-more]"), "More");
 });
 
+// 08 T9 (stage 13, decision 22): «Try again» read the first page whatever had failed, so a «More» that failed was tried
+// again as a re-read of the first page, and the page the coach asked for never came.
+test("«Try again» after a failed «More» reads the next page, not the first", async () => {
+  coach();
+  api.reply(pageOf("t-retry-more"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
+  await readLedger("t-retry-more");
+  standPatched("t-retry-more");
+  click("[data-ledger-all]");
+  api.reply(pageOf("t-retry-more", "before=c&limit=20"), 500, { error: { code: "SERVER_ERROR", message: "x" } });
+  click("[data-ledger-more]");
+  await settle();
+  assert.equal(ledgerOf("t-retry-more").errorMore, true, "the read that failed was a «More»");
+  assert.equal(rows().length, 5, "the lines stay");
+  assert.equal(text("[data-ledger-retry]"), "Try again");
+
+  api.reply(pageOf("t-retry-more", "before=c&limit=20"), 200, { entries: lines(5, 20), next: "d", since: null, total: 25 });
+  click("[data-ledger-retry]");
+  await settle();
+  const asked = (query) => api.calls.filter((call) => call.key === pageOf("t-retry-more", query)).length;
+  assert.deepEqual([asked("limit=20"), asked("before=c&limit=20")], [1, 2], "the page after the cursor, asked again; the first page, not");
+  assert.equal(rows().length, 10, "the page is added at the end, as «More» adds it");
+  assert.equal(text("[data-ledger-more]"), "More", "and there is a page after it still");
+  assert.deepEqual([ledgerOf("t-retry-more").error, ledgerOf("t-retry-more").errorMore], ["", false]);
+  api.assertAnswered();
+});
+
+test("«Try again» after a failed first page reads the first page, and a read that starts says no failure of either kind", async () => {
+  coach();
+  api.reply(pageOf("t-retry-first"), 500, { error: { code: "SERVER_ERROR", message: "x" } });
+  await readLedger("t-retry-first");
+  assert.deepEqual([ledgerOf("t-retry-first").error !== "", ledgerOf("t-retry-first").errorMore], [true, false]);
+  const gate = api.hold(pageOf("t-retry-first"));
+  const reading = readLedger("t-retry-first");
+  assert.deepEqual([ledgerOf("t-retry-first").error, ledgerOf("t-retry-first").errorMore, ledgerOf("t-retry-first").loading], ["", false, true]);
+  gate.release({ status: 200, body: { entries: lines(2), next: null, since: null, total: 2 } });
+  await reading;
+  assert.deepEqual([ledgerOf("t-retry-first").entries.length, ledgerOf("t-retry-first").errorMore], [2, false]);
+});
+
 test("a note a coach typed is text", () => {
   markup(held({ entries: [line("l1", { kind: "manual", reason: "other", note: HOSTILE, delta: 5 })], total: 1 }));
   assert.equal(document.querySelectorAll("img").length, 0);

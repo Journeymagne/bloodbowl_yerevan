@@ -497,3 +497,35 @@ test("every rule a new team can be refused over is worded in both languages", ()
     for (const code of codes) assert.equal(typeof dictionary[`validation.${code}`], "string", `${locale} validation.${code}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// One wording of a refusal (stage 13, decision 20; hand-offs 07b and 07c T5-2): the cart, its +, a roster save and a
+// 422's rules all say a code of the domain's in the dictionary's words, `validation.<CODE>`, through one helper.
+// ---------------------------------------------------------------------------
+
+const { API_ERROR, ApiError } = await import("../src/core/api.mjs");
+const OGRE = { code: "POSITION_MAX", params: { position: "Ogre", max: 1 } };
+/** A 422 that names the rules a roster breaks, as the server sends it. */
+const breaks = (violations) => new ApiError(API_ERROR.INVALID, { status: 422, payload: { error: { code: "ROSTER_BREAKS_THE_RULES", params: {} }, violations } });
+
+test("one helper words a refusal for the cart and the save alike", () => {
+  assert.equal(teams.refusalWords(OGRE), "Ogre: at most 1.");
+  assert.equal(teams.refusalWithRules(breaks([OGRE])), "Breaks the rules. Ogre: at most 1.", "a 422's rules in the same words");
+  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+  for (const file of ["hire-sheet", "market", "save"].map((name) => `src/screens/team/roster/${name}.mjs`)) {
+    const source = read(file);
+    assert.match(source, /import \{[^}]*\brefusalWords\b[^}]*\} from "(?:\.\.\/)+data\/teams\.mjs";/, `${file} takes the helper from data/teams.mjs`);
+    assert.doesNotMatch(source, /`validation\.\$\{/, `${file} words no code of its own`);
+  }
+  assert.doesNotMatch(read("src/screens/team/roster/hire-sheet.mjs"), /export function refusalWords/, "the view no longer lends it");
+});
+
+test("rules that are not a list, or a rule without a code, are left out of a refusal's words", () => {
+  for (const violations of [null, undefined, { code: "POSITION_MAX" }, "POSITION_MAX", 7]) {
+    assert.equal(teams.refusalWithRules(breaks(violations)), "Breaks the rules.", JSON.stringify(violations) ?? "undefined");
+  }
+  const mixed = [OGRE, null, "POSITION_MAX", { params: { position: "Troll", max: 1 } }, { code: "" }, { code: 7 }, { ...OGRE, params: { position: "Grom", max: 1 } }];
+  assert.equal(teams.refusalWithRules(breaks(mixed)), "Breaks the rules. Ogre: at most 1. Grom: at most 1.");
+  assert.equal(teams.refusalWithRules(new ApiError(API_ERROR.INVALID, { status: 422, payload: { error: { code: "TEAM_NAME_REQUIRED" }, violations: [OGRE] } })),
+    "Name the team.", "only a roster that breaks the rules lists them");
+});

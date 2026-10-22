@@ -847,6 +847,35 @@ test("a mark or a return refused after a 422 whose read failed reads the roster 
   });
 });
 
+// 07c T5-3 (stage 13), as the cart does it: the words a 422 left in the mark's sheet are of the roster it refused; the
+// read that takes that roster's place takes them too, and the choice stays. A read that fails takes nothing.
+test("an old refusal is gone once a read the server answered takes its place: the mark's", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail("GET /api/teams/t1");
+    stepOfTheRoster();
+    await settle();
+    fireEvent(toggle("p1#0"), "click");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    const refusal = () => markSheet().querySelector(".g-roster__markrefusal");
+    assert.match(refusal().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(markSheet()?.isModal, "the sheet stays");
+    assert.ok(!refusal(), "the words said of the roster before it are gone");
+    assert.equal(markOption("miss").getAttribute("aria-checked"), "true", "the choice stays");
+    assert.equal(patches().length, 1, "nothing marked meanwhile");
+  });
+});
+
 test("a sheet whose match began closes, and the focus goes back to the row", async () => {
   await withoutTimers(async () => {
     coach();

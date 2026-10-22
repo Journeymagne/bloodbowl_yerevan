@@ -37,9 +37,19 @@ export function playerAdvancementLevel(player) {
   return normalizePlayerAdvancements(player.advancements).length;
 }
 
+/**
+ * What an advancement of `type` costs, in SPP, as the player's `index`-th (0 for his first): the league's table by rank
+ * (Experienced to Legend), and 0 off it — past the last rank, or for a type the table does not price. The one lookup of
+ * that table (stage 13): what a player spent, what the next costs, what an undo gives back, what the roster shows.
+ * @param {number} index @param {string} type @returns {number}
+ */
+export function advancementCostAt(index, type) {
+  return advancementRanks[index]?.costs?.[type] ?? 0;
+}
+
 export function playerAdvancementSpent(player) {
   return normalizePlayerAdvancements(player.advancements)
-    .reduce((sum, advancement, index) => sum + (advancementRanks[index]?.costs?.[advancement.type] ?? 0), 0);
+    .reduce((sum, advancement, index) => sum + advancementCostAt(index, advancement.type), 0);
 }
 
 export function playerAvailableSpp(team, player) {
@@ -74,13 +84,14 @@ export const ADVANCEMENT_BLOCKED = Object.freeze({
  */
 export function canTakeAdvancement(team, player, type) {
   const available = playerAvailableSpp(team, player);
-  const rank = advancementRanks[playerAdvancementLevel(player)];
+  const level = playerAdvancementLevel(player);
+  const rank = advancementRanks[level];
 
   if (!rank) {
     return { allowed: false, cost: 0, available, reason: ADVANCEMENT_BLOCKED.MAX_LEVEL, params: {} };
   }
 
-  const cost = rank.costs?.[type];
+  const cost = advancementCostAt(level, type);
   if (!cost) {
     return { allowed: false, cost: 0, available, reason: ADVANCEMENT_BLOCKED.UNKNOWN_TYPE, params: { type } };
   }
@@ -384,7 +395,8 @@ export function advancementCategories(row, type, { instead = false } = {}) {
 /**
  * A category's column of the Skill Table, in its order: whether the player holds each skill already
  * (`heldSkillKeys`, by canonical name), and whether taking it by an advancement would bring an elite
- * combination together (`eliteComboCost` would rise). A skill he holds cannot be taken, so it brings none.
+ * combination together (`eliteComboCost` would rise; it reads names canonically too, so Claws for a Rat Ogre
+ * with «Mighty Blow (+1)» is marked, ruling E-1). A skill he holds cannot be taken, so it brings none.
  *
  * @returns {{name: string, held: boolean, elite: boolean}[]}
  */
@@ -491,5 +503,5 @@ export function undoLastAdvancement(player) {
   const advancements = normalizePlayerAdvancements(player.advancements), index = advancements.length - 1;
   if (index < 0) return { removed: false };
   const { type, grants = null, roll = null } = advancements[index], { favoured } = removeAdvancement(player, index);
-  return { removed: true, index, type, grants, roll, ...(favoured ? { favoured } : {}), cost: advancementRanks[index]?.costs?.[type] ?? 0 };
+  return { removed: true, index, type, grants, roll, ...(favoured ? { favoured } : {}), cost: advancementCostAt(index, type) };
 }

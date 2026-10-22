@@ -414,6 +414,23 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   for (const selector of [".g-career__name", ".g-career__events"]) assert.deepEqual(valuesOf(CAREER, selector, "overflow-wrap"), ["anywhere"], selector);
 });
 
+// Stage 13 (07e's hand-off, N2): a nought's cell carries both classes, and the two rules weigh the same (one class each):
+// the grey wins by its place in the file alone, so it is pinned to stand after the value's rule.
+test("the grey zero wins by its place: after the value rule", () => {
+  const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rulesOf = (selector) => [...css.matchAll(/(^|\})\s*([^{}@]+)\{/g)]
+    .filter((match) => match[2].split(",").map((part) => part.trim()).includes(selector))
+    .map((match) => match.index + match[0].length);
+  const [value, zero] = [rulesOf(".g-career__value"), rulesOf(".g-career__zero")];
+  assert.equal(value.length, 1, "one rule for the value");
+  assert.equal(zero.length, 1, "one rule for the nought");
+  assert.ok(zero[0] > value[0], "the nought's rule stands after the value's");
+  assert.doesNotMatch(css, /@media[^{]*\{[^@]*\.g-career__(value|zero)/, "neither is set again under a width");
+  assert.doesNotMatch(css, /[^\s,{}]\.g-career__(value|zero)|\.g-career__(value|zero)[^\s,{]/, "neither is weighed by another selector");
+  // The markup gives a nought both, so the order is what paints it.
+  assert.deepEqual(valuesOf(CAREER, ".g-career__zero", "color"), ["var(--muted)"]);
+});
+
 test("the rows: an MVP is «MVP», two are «MVP 2»; a match's injury; a negative edit outside a match; GP counts no match on", () => {
   coach();
   const race = human();

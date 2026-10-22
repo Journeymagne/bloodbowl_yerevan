@@ -231,7 +231,7 @@
   "season.roundLabel": "Round",
   "season.touchdownsLabel": "Touchdowns",
   "validation.ROSTER_MIN_PLAYERS": "A Sevens roster usually needs at least {min} players (currently {count}).",
-  "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
+  "validation.ROSTER_MAX_PLAYERS": "A team has at most {max} players (now {count}).",
   "validation.POSITION_MIN": "{position}: minimum is {min}.",
   "validation.POSITION_MAX": "{position}: maximum is {max}.",
   "validation.TREASURY_INVALID": "Treasury must be a nonnegative amount in whole gold pieces.",

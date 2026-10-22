@@ -2142,6 +2142,41 @@ test("a cold start reads the records once, after the games have answered; a team
   api.assertAnswered();
 });
 
+// Stage 13 (07e's hand-off, N1): records newer than the list read it again only while the coach is here — one who left
+// while the records were on their way sends no read of the list.
+test("leaving during the records read sends no list read", async () => {
+  coach();
+  api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+  api.reply(LIST, 200, listAt(5));
+  const records = api.hold(EVENTS);
+  await renderTeamOverview("t1");
+  await turns();
+  assert.equal(sent(EVENTS), 1, "the records are on their way");
+  releaseCurrentScreen();
+  view.innerHTML = "<p>next</p>";
+  records.release();
+  await turns();
+  assert.equal(sent(LIST), 0, "records past the list, answered after the coach left: no read of the list");
+  assert.equal(view.querySelector("p").textContent, "next");
+  api.assertAnswered();
+});
+
+// Stage 13 (07e's hand-off, N3): the server sends whole revisions; a list that holds one as text is not compared.
+test("a list revision as text is not newer than the team's", async () => {
+  for (const listed of ["4", "3"]) {
+    coach();
+    state.myTeams = { ...state.myTeams, items: state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, revision: listed } : team)) };
+    api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+    await renderTeamOverview("t1");
+    await turns();
+    assert.equal(sent(EVENTS), 1, listed);
+    assert.equal(sent(LIST), 0, `records at 5 and a list at "${listed}": no read of the list`);
+    assert.deepEqual(leaderWords(), ROSTER, `"${listed}": the roster's numbers`);
+    releaseCurrentScreen();
+    api.assertAnswered();
+  }
+});
+
 // Review M3, pre-flight L11: the records are taken only with a whole revision, the answer's and the list's alike.
 test("records with no whole revision, or a team in the list with none, leave the roster's numbers and read no list", async () => {
   const unlisted = () => state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, revision: undefined } : team));

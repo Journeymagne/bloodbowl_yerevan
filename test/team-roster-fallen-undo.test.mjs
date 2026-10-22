@@ -212,7 +212,7 @@ test("an undo the rules refuse is said in the sheet, and nothing changes", async
     await settle();
     assert.ok(undoSheet()?.isModal, "the sheet stays");
     assert.equal(refusal().getAttribute("role"), "alert");
-    assert.match(refusal().textContent, /should not exceed 7 players \(currently 8\)/);
+    assert.match(refusal().textContent, /A team has at most 7 players \(now 8\)\./);
     assert.ok(!restoreButton().hasAttribute("aria-busy") && !restoreButton().hasAttribute("disabled"), "no longer busy");
     assert.ok(document.activeElement === restoreButton(), "the focus is where the coach left it, never on the page behind the sheet");
     api.reply(UNDO, 422, { error: { code: "FALLEN_NOT_RESTORABLE", params: {}, message: "x" } });

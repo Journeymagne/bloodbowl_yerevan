@@ -18,11 +18,12 @@ import { toast } from "../../../components/toast.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
+import { refusalWords } from "../../../data/teams.mjs";
 import { sppEdits } from "../../../domain/post-match/events.mjs";
 import { markEdits } from "../../../domain/roster/absence.mjs";
 import { playerEdits } from "../../../domain/roster/edits.mjs";
 import { hireQuote, transferEdits } from "../../../domain/roster/transfers.mjs";
-import { refusalWords } from "./hire-sheet.mjs";
+import { refocusStep } from "../../../ui/stepper.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { hireClosed, sellClosed } from "./panel.mjs";
 import { rosterLineOf } from "./player-save.mjs";
@@ -95,8 +96,9 @@ function openCart({ visit, draw }, { now }, button) {
 /**
  * A + or a − of one line of the cart, in the cart that is open. A + the rules refuse (the position's maximum, fourteen
  * on the roster, as the draft stands now) says why and changes nothing; money refuses none. A refusal of «Buy» goes
- * with the cart it was said of. The press keeps the focus on the card (K14): «+ To the cart» and the stepper take each
- * other's place, and the focus that fell with the one goes to the other's +, never to the sheet's cross.
+ * with the cart it was said of. The press keeps the focus on the card (K14, `refocusStep` with the card for its root):
+ * «+ To the cart» and the stepper take each other's place, and the focus that fell with the one — which the screen's
+ * redraw gives to the sheet's cross (focus.mjs) — goes to the other's +.
  */
 function stepCart({ visit, draw }, { now }, rowIndex, delta) {
   const { sheet } = visit;
@@ -115,7 +117,7 @@ function stepCart({ visit, draw }, { now }, rowIndex, delta) {
   Object.assign(sheet, { cart, refusal: "" });
   draw();
   const card = keyed("data-hire-key", String(rowIndex));
-  if (!card?.contains(document.activeElement)) card?.querySelector('[data-hire-step="1"]')?.focus();
+  if (card) refocusStep(card, { hook: "hire", key: rowIndex });
 }
 
 /**
@@ -124,10 +126,11 @@ function stepCart({ visit, draw }, { now }, rowIndex, delta) {
  * sheet says why). Then one step of the queue (`buyPlayers`) and, in the same turn, the sheet closes, the focus back on
  * the «+», and the coach is told whom he bought and what the treasury holds (K13: the draft is drawn at once, and the
  * save's status says when it still waits). A refusal (another tab's coach, the rules a 422 left the queue on) is said
- * in the sheet, which stays as it was; one of the queue's 422 asks for the server's roster again (`refused`).
+ * in the sheet, which stays as it was; one of the queue's 422 asks for the server's roster again (`refused`), and is
+ * said until the queue no longer waits on it (`untilRead`, index.mjs's `heardSave`: a read has taken that roster's place).
  *
  * @param {import("./index.mjs").Saving} saving
- * @param {{now: () => MarketNow, refused: () => void}} lent
+ * @param {{now: () => MarketNow, refused: () => boolean}} lent
  */
 function buyCart(saving, { now, refused }) {
   const { teamId, visit, draw } = saving;
@@ -145,7 +148,7 @@ function buyCart(saving, { now, refused }) {
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();
-    refused();
+    sheet.untilRead = refused();
     return;
   }
   if (!answer.ok) return;
@@ -190,10 +193,10 @@ function letGo(teamId, race, line) {
  * sheet closes; his row is gone, so the focus goes to the page's title, the panel to the first player (DeskRosterSell),
  * and the coach is told what came back and what the treasury holds (K13). A refusal (another tab's coach, the rules a
  * 422 left the queue on) is said in the sheet, which stays as it was; one of the queue's 422 asks for the server's
- * roster again (`refused`).
+ * roster again (`refused`), and is said until a read has taken that roster's place (`untilRead`), as the cart's is.
  *
  * @param {import("./index.mjs").Saving} saving
- * @param {{now: () => MarketNow, refused: () => void}} lent
+ * @param {{now: () => MarketNow, refused: () => boolean}} lent
  */
 function sellPlayer(saving, { now, refused }) {
   const { teamId, visit, memory, draw } = saving;
@@ -211,7 +214,7 @@ function sellPlayer(saving, { now, refused }) {
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();
-    refused();
+    sheet.untilRead = refused();
     return;
   }
   if (!answer.ok) return;
@@ -235,8 +238,9 @@ const keepOf = (saving, kind) => () => {
  * button lets him go (`sellPlayer`). A press on one that is closed says why and does nothing.
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
- * @param {{now: () => MarketNow, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
- *   press; `refused` asks for the server's roster again after a refusal of the queue's 422 whose read failed (index.mjs)
+ * @param {{now: () => MarketNow, refused: () => boolean}} lent what the screen lends: `now` is the screen as it stands at the
+ *   press; `refused` asks for the server's roster again after a refusal of the queue's 422 whose read failed (index.mjs),
+ *   and says whether the refusal was that 422's
  */
 export function marketHandlers(saving, lent) {
   return {

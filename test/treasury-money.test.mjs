@@ -361,6 +361,42 @@ test("a match that goes live while the sheet is open: the sheet says so at once,
   assert.equal(api.calls.filter((call) => call.key === POST).length, 0);
 });
 
+// 08 N3 (stage 13, decision 22): a match that goes live shuts the button the focus is on, and Chrome drops a focus on a
+// button that turns disabled — to the body, out of the sheet. It goes to the sheet's cross, which every sheet has: a
+// heading takes no focus without a tabindex, and the sheet's own (ui/sheet.mjs) is not the team page's (pre-flight L19).
+test("a sheet whose button a match closes puts the focus on its cross, in the sheet", async () => {
+  coach();
+  openOn("friendly");
+  apply().focus();
+  assert.equal(label(), "Add 20k");
+  api.reply("GET /api/games", 200, { games: [LIVE], currentGames: [] });
+  await invalidateGames();
+  assert.equal(apply().hasAttribute("disabled"), true);
+  assert.ok(document.activeElement === $("[data-sheet-close]"), "the cross of the sheet has the focus");
+  assert.ok($("dialog#treasury-money").matches(":modal"), "and the sheet stays open");
+
+  // A focus the match does not shut stays where it is: the amount field, a reason.
+  const field = $("#money-amount");
+  field.focus();
+  api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  await invalidateGames();
+  assert.equal(label(), "Add 20k");
+  api.reply("GET /api/games", 200, { games: [LIVE], currentGames: [] });
+  await invalidateGames();
+  assert.ok(document.activeElement === field, "the field stays open, and keeps the focus");
+  // A focus outside the sheet is not the sheet's to move.
+  const elsewhere = el(document, "button");
+  document.body.appendChild(elsewhere);
+  api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  await invalidateGames();
+  apply().focus();
+  elsewhere.focus();
+  api.reply("GET /api/games", 200, { games: [LIVE], currentGames: [] });
+  await invalidateGames();
+  assert.ok(document.activeElement === elsewhere);
+  document.body.removeChild(elsewhere);
+});
+
 test("a match that went live while the sheet was open: the button says why and nothing is sent", () => {
   coach();
   sheet.openMoneySheet(host, { teamId: "t1", sign: 1 });

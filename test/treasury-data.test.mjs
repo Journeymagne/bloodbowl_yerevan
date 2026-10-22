@@ -37,7 +37,7 @@ function coach() {
 
 test("the history is read a page at a time, with its count and since when it is kept", async () => {
   coach();
-  assert.deepEqual(treasury.ledgerOf("t1"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+  assert.deepEqual(treasury.ledgerOf("t1"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "", errorMore: false });
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: "c1", since: "2026-10-01T00:00:00Z", total: 21 });
   await treasury.readLedger("t1");
   assert.deepEqual([treasury.ledgerOf("t1").entries.length, treasury.ledgerOf("t1").total, treasury.ledgerOf("t1").loaded], [1, 21, true]);
@@ -325,7 +325,7 @@ test("an answer that is not a page of the history is a failed read, not an empty
   coach();
   // A coach of its own: the cache is kept per coach, and this one has read nothing yet.
   state.auth.currentUser = { id: "u-shape", login: "coach" };
-  const nothing = { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "Unreadable." };
+  const nothing = { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "Unreadable.", errorMore: false };
   const pages = [{}, { entries: null, total: 0 }, { entries: {}, total: 0 }, { entries: [null], total: 1 }, { entries: ["l1"], total: 1 },
     { entries: [], total: "3" }, { entries: [], total: -1 }, { entries: [], total: 1.5 }, { entries: [] },
     { entries: [], total: 0, next: 5 }, { entries: [], total: 0, since: {} }];
@@ -497,7 +497,7 @@ test("a coach is never shown another coach's history on the same page", async ()
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: "c1", since: null, total: 5 });
   await treasury.readLedger("t1");
   state.auth.currentUser = { id: "u2", login: "other" };
-  assert.deepEqual(treasury.ledgerOf("t1"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+  assert.deepEqual(treasury.ledgerOf("t1"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "", errorMore: false });
   await treasury.readLedger("t1", { more: true });
   assert.equal(api.calls.length, 1, "the cursor of the other coach's history is not used");
   state.auth.currentUser = { id: "u1", login: "coach" };
@@ -514,9 +514,9 @@ test("a read whose coach has gone writes nothing, and leaves nothing on its way 
   state.auth.currentUser = { id: "u2", login: "other" };
   gate.release({ status: 200, body: { entries: [ENTRY], next: null, since: null, total: 1 } });
   await reading;
-  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "", errorMore: false });
   state.auth.currentUser = { id: "u1", login: "coach" };
-  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" }, "not written, and no longer loading");
+  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "", errorMore: false }, "not written, and no longer loading");
   // Nothing is on its way: a write that lands sends no read after it.
   api.reply("POST /api/teams/t5/treasury", 201, { team: { ...TEAM, id: "t5", revision: 4 }, entry: ENTRY });
   await treasury.addTreasuryEntry("t5", { delta: 20, reason: "friendly" });
