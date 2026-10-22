@@ -50,12 +50,14 @@ test("no stylesheet styles «My games», its cards, pills and badges, or its cha
   }
 });
 
-test("the keys only «My games» read are gone from both dictionaries; the game page's stay", () => {
+test("the keys only «My games» and the 2.x game page read are gone from both dictionaries; what 3.0 reads stays", () => {
   const GONE_FAMILIES = ["challenges.", "pre.status.", "post.status.", "games.status."];
   const GONE = ["nav.myGames", "nav.myTeams", "games.historyHeading", "games.loading", "games.nextGameHeading", "games.noHistory",
-    "games.noLeaguePoints", "games.noNextGame", "games.vsLabel", "season.byeLabel", "common.close"];
-  const KEPT = ["games.subtitle", "games.friendlyMatch", "games.friendlyRules", "games.loginRequired", "common.refresh",
-    "season.touchdownsLabel", "season.casualtiesHeader"];
+    "games.noLeaguePoints", "games.noNextGame", "games.vsLabel", "season.byeLabel", "common.close",
+    // The game page's, once it went (stage 13, Task 24; test/i18n-orphans.test.mjs keeps any unread key out).
+    "games.subtitle", "games.friendlyRules", "games.loginRequired", "games.roundClosed", "season.touchdownsLabel",
+    "season.casualtiesHeader"];
+  const KEPT = ["games.friendlyMatch", "common.refresh"];
   for (const locale of ["en", "ru"]) {
     const keys = Object.keys(JSON.parse(read(`src/i18n/${locale}.json`)));
     assert.deepEqual(keys.filter((key) => GONE.includes(key) || GONE_FAMILIES.some((family) => key.startsWith(family))), [], locale);
