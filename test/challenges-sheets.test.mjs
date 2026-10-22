@@ -226,6 +226,13 @@ test("the search's keyboard ring goes round its box, «Clear» inside it, not ro
   assert.deepEqual(valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
 });
 
+test("the accept's body: ChallengeAccept.html's 16 to a phone, the window's 24 from 901px, on the edge of its head and foot", () => {
+  assert.deepEqual(valuesOf(CSS, ".g-challenge-accept .g-sheet__body", "gap"), ["var(--space-14)"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-challenge-accept .g-sheet__body", "padding"), ["var(--space-10) var(--space-16) var(--space-12)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-challenge-accept .g-sheet__body", "padding"), ["var(--space-16) var(--space-24) var(--space-12)"]);
+  assert.deepEqual(inMedia("src/ui/sheet.css", "min-width: 901px", ".g-sheet__head", "padding"), ["var(--space-20) var(--space-24) var(--space-16)"], "the window's head, 24 in");
+});
+
 test("one team is a line, not a group", () => {
   for (const phone of [true, false]) {
     const fragment = send({ teams: [T1], chosenId: "u7" }, { phone });

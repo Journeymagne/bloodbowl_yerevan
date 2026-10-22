@@ -273,10 +273,7 @@
 }
 
 /* ---- The accept (ChallengeAccept.html): the challenger's card, the teams to play with, the note ---- */
-.g-challenge-accept .g-sheet__body {
-  gap: var(--space-14);
-  padding: var(--space-10) var(--space-16) var(--space-12);
-}
+.g-challenge-accept .g-sheet__body { gap: var(--space-14); }
 .g-challenge__card {
   box-sizing: border-box;
   display: flex;
@@ -380,6 +377,7 @@
   }
 
   dialog.g-sheet.g-challenge-accept { max-height: 88dvh; }
+  .g-challenge-accept .g-sheet__body { padding: var(--space-10) var(--space-16) var(--space-12); }
   .g-challenge-accept .g-sheet__foot { padding: var(--space-10) var(--space-16) var(--space-22); }
 }
 
@@ -419,6 +417,8 @@
     height: 36px;
     min-height: 36px;
   }
+  /* The accept's window: its body on the edge of its head and foot, 24 in (sheet.css's window), not the phone's 16. */
+  .g-challenge-accept .g-sheet__body { padding: var(--space-16) var(--space-24) var(--space-12); }
 
   /* «Recent:» and the chips: 36 high, the circle of 28 inside, pressed for the one chosen. */
   .g-challenge__recent {
