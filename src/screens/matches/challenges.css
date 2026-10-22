@@ -168,6 +168,21 @@
 }
 .g-friendly__actions .g-btn:not(.g-btn--primary) { color: var(--ink); }
 
+/*
+ * While a write is on its way the page's buttons are closed (aria-disabled, so a focus on one stays) as a disabled
+ * button is drawn (ui/button.css): dimmed, a primary by its grey fill; the «Decline» or «Cancel» pressed is busy.
+ */
+.g-friendly .g-btn[aria-disabled="true"] {
+  cursor: default;
+  opacity: .6;
+}
+.g-friendly .g-btn--primary[aria-disabled="true"] {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  opacity: 1;
+}
+.g-friendly .g-btn[aria-busy="true"] { cursor: progress; }
+
 /* Accepted: the chip and the day at the top, «Ours vs Theirs» across (Oswald 19, «vs» 17), what the match offers under them. */
 .g-friendly__top {
   display: flex;

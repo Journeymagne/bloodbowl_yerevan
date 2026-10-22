@@ -70,14 +70,14 @@ const ANSWERED = { decline: "declined", cancel: "cancelled" };
 /**
  * One visit of the page: the team, the challenges last read (and why a read failed), whether the games are held back
  * (a failure an earlier read left, which the visit's own read has not answered yet), the sheet open with what is typed
- * and chosen in it, the challengers' teams read, what is said, the write on its way, the history open, and the coach
- * the address names.
+ * and chosen in it, the challengers' teams read, what is said, the write on its way (and the challenge a decline or a
+ * cancel answers), the history open, and the coach the address names.
  */
 function createVisit(teamId, presetUserId) {
   return {
     teamId, here: true, payload: null, readError: "", held: Boolean(state.games.error), reading: Promise.resolve(),
     sheet: null, query: "", chosenId: "", teamChoice: teamId, acceptId: "", ownChoice: teamId, senders: new Map(),
-    refusal: "", notice: "", writing: "", historyOpen: false, preset: presetUserId, presetPending: Boolean(presetUserId),
+    refusal: "", notice: "", writing: "", answering: "", historyOpen: false, preset: presetUserId, presetPending: Boolean(presetUserId),
   };
 }
 
@@ -96,7 +96,8 @@ function pageMarkup(visit, phone) {
     payload: visit.payload, readError: visit.readError, games: gamesOf(visit), gamesError: visit.held ? "" : state.games.error,
     teamId: visit.teamId, viewerId: viewerId(), teams: state.myTeams.items, now: new Date(), phone,
   });
-  return challengesMarkup(visit.notice ? { ...model, failures: [...model.failures, visit.notice] } : model, { historyOpen: visit.historyOpen });
+  const page = visit.notice ? { ...model, failures: [...model.failures, visit.notice] } : model;
+  return challengesMarkup(page, { historyOpen: visit.historyOpen, writing: visit.writing, answering: visit.answering });
 }
 
 /** The challenge sheet's model. A coach chosen who became busy (another team chosen, a list read) is let go for good. */
@@ -309,12 +310,12 @@ async function accept(visit) {
 /** «Decline» or «Cancel the challenge»: one request, the list read after it; the card gone, or why not said. */
 async function respond(visit, action, id) {
   if (visit.writing || !ANSWERED[action] || !id) return;
-  Object.assign(visit, { writing: action, notice: "" });
+  Object.assign(visit, { writing: action, answering: id, notice: "" });
   draw(visit);
   const answer = await answerChallenge(id, action);
   if (!visit.here) return;
   await readAfterWrite(visit);
-  visit.writing = "";
+  Object.assign(visit, { writing: "", answering: "" });
   if (!visit.here) return;
   const now = visit.payload?.challenges.find((challenge) => challenge.id === id);
   const done = !answer.error || (answer.lost && now?.status === ANSWERED[action]);

@@ -255,6 +255,32 @@ test("names are text", () => {
   }
 });
 
+test("a write on its way: the decline or cancel pressed is busy, «Challenge», «Accept…» and the others closed and drawn so", () => {
+  const draw = (phone, options) => mount(challengesMarkup(challengesModel({ ...PAGE, phone }), options));
+  const flags = (button) => [button.getAttribute("aria-busy"), button.getAttribute("aria-disabled"), button.hasAttribute("disabled")];
+  for (const phone of [true, false]) {
+    const idle = draw(phone, {});
+    assert.equal(idle.querySelectorAll("[aria-disabled]").length + idle.querySelectorAll("[aria-busy]").length, 0, "nothing on its way: all open");
+    const declining = draw(phone, { writing: "decline", answering: "c1" });
+    assert.deepEqual(flags(declining.querySelector('[data-friendly-answer="decline"]')), ["true", "true", false]);
+    for (const selector of ["[data-friendly-send]", '[data-friendly-accept="c1"]', '[data-friendly-answer="cancel"]']) {
+      assert.deepEqual(flags(declining.querySelector(selector)), [null, "true", false], selector);
+    }
+    // A sheet's write: every button of the page under it is closed, none busy.
+    const sending = draw(phone, { writing: "send" });
+    assert.equal(sending.querySelectorAll("[aria-busy]").length, 0);
+    assert.equal(sending.querySelectorAll('[aria-disabled="true"]').length, 4);
+    assert.ok(sending.querySelector(".g-friendly__item--accepted .g-btn--primary").getAttribute("href"), "a match's link stays a link");
+  }
+  // Not read yet: «Challenge» is disabled, not closed.
+  const unread = mount(challengesMarkup(challengesModel({ ...PAGE, payload: null, phone: true }), { writing: "decline", answering: "c1" }));
+  assert.deepEqual(flags(unread.querySelector("[data-friendly-send]")), [null, null, true]);
+  // Drawn as a disabled button is: dimmed, a primary by its grey fill; the one pressed busy.
+  assert.deepEqual(valuesOf(CSS, '.g-friendly .g-btn[aria-disabled="true"]', "opacity"), [".6"]);
+  assert.deepEqual(valuesOf(CSS, '.g-friendly .g-btn--primary[aria-disabled="true"]', "background"), ["var(--disabled)"]);
+  assert.deepEqual(valuesOf(CSS, '.g-friendly .g-btn[aria-busy="true"]', "cursor"), ["progress"]);
+});
+
 test("styled", () => {
   for (const phone of [true, false]) {
     for (const over of [{}, { payload: null, readError: "No connection", games: [], gamesError: "offline" }, { payload: null }, { payload: { challenges: [], opponents: [] } }]) {

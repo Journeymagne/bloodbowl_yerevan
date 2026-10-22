@@ -488,6 +488,44 @@ test("decline and cancel: one request each; the card goes and the focus is on th
   }
 });
 
+test("a decline or a cancel on its way: its button is busy and keeps the focus, the page's other buttons are closed", async () => {
+  try {
+    for (const [action, id, status] of [["decline", "c1", "declined"], ["cancel", "c2", "cancelled"]]) {
+      await visit();
+      const key = `POST /api/challenges/${id}/${action}`;
+      const answering = api.hold(key);
+      api.reply(key, 200, {});
+      list(changed({ [id]: { status, updatedAt: ago(0) } }));
+      const button = () => view.querySelector(`[data-friendly-answer="${action}"][data-friendly-id="${id}"]`);
+      const pressed = button();
+      pressed.focus();
+      fireEvent(pressed, "click");
+      await settle();
+      assert.ok(button() === pressed, `${action}: the same button, still in the page`);
+      assert.deepEqual([pressed.getAttribute("aria-busy"), pressed.getAttribute("aria-disabled"), pressed.hasAttribute("disabled")], ["true", "true", false],
+        `${action}: busy, and not disabled, which would take the focus from it`);
+      assert.ok(document.activeElement === pressed, `${action}: the focus stays on it`);
+      const others = [...view.querySelectorAll("[data-friendly-send]"), ...view.querySelectorAll("[data-friendly-accept]"), ...view.querySelectorAll("[data-friendly-answer]")]
+        .filter((other) => other !== pressed);
+      assert.equal(others.length, 3);
+      for (const other of others) {
+        assert.deepEqual([other.getAttribute("aria-disabled"), other.getAttribute("aria-busy")], ["true", null], `${action}: «${other.textContent}» closed`);
+      }
+      // A press of another one while it is on its way sends nothing.
+      fireEvent(others.find((other) => other.hasAttribute("data-friendly-answer")), "click");
+      answering.release();
+      await settle();
+      await settle();
+      assert.deepEqual(api.calls.filter((call) => call.key.startsWith("POST")).map((call) => call.key), [key]);
+      assert.ok(button() === null, `${action}: its card is gone`);
+      assert.equal(view.querySelectorAll("[aria-disabled]").length + view.querySelectorAll("[aria-busy]").length, 0, `${action}: done, every button open again`);
+    }
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
 /** Two challenges each way: narek's c5 came before orc_boss's c1, the coach's c6 to rival before his c2 to lilit. */
 const TWO_EACH_WAY = [...CHALLENGES, challenge("c5", NAREK, ME, NAREK.teams[0], { createdAt: ago(2) }), challenge("c6", ME, RIVAL, T1, { createdAt: ago(2) })];
 

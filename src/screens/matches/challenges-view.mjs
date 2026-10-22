@@ -13,6 +13,8 @@
  * - An incoming challenge offers «Accept…» (its sheet) and «Decline»; an outgoing one «Cancel the challenge» («Cancel» on
  *   a desk); an accepted one what its match offers (`matchActions`: «Match preparation», the records and the
  *   post-match, «Confirm the score» or the score sent as a line).
+ * - While a write is on its way (the screen says which), the «Decline» or «Cancel» pressed says it is busy, and
+ *   «Challenge», «Accept…» and the other «Decline» and «Cancel» buttons are closed: a press of one would do nothing.
  * - A section with nothing in it is not drawn; no challenge at all says so. While the challenges are read the page
  *   says so; a read that failed is a danger callout with «Refresh», and «Challenge» stays closed either way: there is
  *   nobody to offer yet.
@@ -35,9 +37,21 @@ const HISTORY_ID = "friendly-history";
 /** «played 2» beside the phone's title; nothing while the games are not read. */
 const playedMarkup = (model) => (model.played ? `<span class="g-friendly__played">${escapeHtml(model.played)}</span>` : "");
 
-/** «Challenge»: it opens the sheet; closed until the challenges are read. */
-function sendMarkup(model, { phone }) {
-  return renderButton({ label: t("friendly.send"), kind: "primary", block: phone, dialog: true, disabled: !model.read, data: { friendlySend: "" } });
+/**
+ * A button of the page that writes or opens a sheet, while a write is on its way and the list is read after it: the
+ * «Decline» or the «Cancel» pressed says it is busy, every other is closed. Both are `aria-disabled`, not `disabled`,
+ * which would take the focus from the button pressed; the screen takes no press of them until the write is done.
+ */
+function heldButton(button, { writing = "", answering = "" }, action = "", id = "") {
+  if (!writing) return renderButton(button);
+  if (action && writing === action && answering === id) return renderButton({ ...button, busy: true });
+  return renderButton(button).replace(/^<button /, '<button aria-disabled="true" ');
+}
+
+/** «Challenge»: it opens the sheet; closed until the challenges are read, and while a write is on its way. */
+function sendMarkup(model, options) {
+  const button = { label: t("friendly.send"), kind: "primary", block: options.phone, dialog: true, disabled: !model.read, data: { friendlySend: "" } };
+  return model.read ? heldButton(button, options) : renderButton(button);
 }
 
 /** The reads that failed, as an alert; the challenges' one offers to read them again. */
@@ -67,16 +81,19 @@ function whoMarkup(row, chip = "") {
 const cardKey = (row) => `data-key="${escapeHtml(row.id)}"`;
 
 /** One challenge sent to the coach: who and with which team, «Accept…» and «Decline». */
-function incomingMarkup(row, { phone }) {
-  const accept = renderButton({ label: t("friendly.accept"), kind: "primary", dialog: true, data: { friendlyAccept: row.id } });
-  const decline = renderButton({ label: t("friendly.decline"), data: { friendlyAnswer: "decline", friendlyId: row.id } });
+function incomingMarkup(row, options) {
+  const { phone } = options;
+  const accept = heldButton({ label: t("friendly.accept"), kind: "primary", dialog: true, data: { friendlyAccept: row.id } }, options);
+  const decline = heldButton({ label: t("friendly.decline"), data: { friendlyAnswer: "decline", friendlyId: row.id } }, options, "decline", row.id);
   return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item" ${cardKey(row)}>${whoMarkup(row)}<div class="g-friendly__actions g-friendly__actions--pair">${accept}${decline}</div></div>`;
 }
 
 /** One challenge the coach sent: whom, «Waiting» on a phone, and the way to take it back. */
-function outgoingMarkup(row, { phone }) {
+function outgoingMarkup(row, options) {
+  const { phone } = options;
   const chip = phone ? renderStatusChip({ label: t("friendly.waitChip"), tone: "wait" }) : "";
-  const cancel = renderButton({ label: phone ? t("friendly.cancel") : t("friendly.cancelDesk"), data: { friendlyAnswer: "cancel", friendlyId: row.id } });
+  const cancel = heldButton({ label: phone ? t("friendly.cancel") : t("friendly.cancelDesk"), data: { friendlyAnswer: "cancel", friendlyId: row.id } },
+    options, "cancel", row.id);
   return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item" ${cardKey(row)}>${whoMarkup(row, chip)}<div class="g-friendly__actions">${cancel}</div></div>`;
 }
 
@@ -157,12 +174,13 @@ function sectionsMarkup(model, options) {
 /**
  * The page in the form of the width: a phone's as Challenges.html orders it, a desk's as DeskChallenges.html.
  * @param {ReturnType<typeof import("./challenges-model.mjs").challengesModel>} model
- * @param {{historyOpen?: boolean}} [options] whether the history is open: the screen's, not the model's
+ * @param {{historyOpen?: boolean, writing?: string, answering?: string}} [options] the screen's, not the model's: whether
+ *   the history is open; the write on its way ("send", "accept", "decline", "cancel") and the challenge it answers
  * @returns {string}
  */
-export function challengesMarkup(model, { historyOpen = false } = {}) {
+export function challengesMarkup(model, { historyOpen = false, writing = "", answering = "" } = {}) {
   const phone = model.phone === true;
-  const options = { phone, historyOpen };
+  const options = { phone, historyOpen, writing, answering };
   if (phone) {
     const head = renderPageHead({ title: t("friendly.title"), metaHtml: playedMarkup(model), phone: true });
     return `<div class="g-friendly g-friendly--phone" data-screen="team-challenges">${head}<p class="g-friendly__note">${escapeHtml(t("friendly.note"))}</p>`
