@@ -26,7 +26,7 @@
  * desk is the same.
  */
 import { t } from "../core/i18n.mjs";
-import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
+import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl } from "../core/routes.mjs";
 
 /**
  * The routes the shell stays out of. The preparation and the post-match (PostResult … PostReview, DeskPostResult …
@@ -99,7 +99,8 @@ const guestKey = (key) => (key === "overview" ? "home" : key);
  * The header's name, its subtitle, and the SideNav's subtitle (`sideSub`), and where the block leads.
  * The header says where the team stands (race, place); the SideNav, with the table a click away
  * and the page's own title beside it, says the race alone: the league and the race together broke
- * onto two lines for almost every race in the column.
+ * onto two lines for almost every race in the column. Only the league's block is a link (`href`); a
+ * coach's opens the team switcher (`switchTeam`) and so leads nowhere of its own, and carries no address.
  */
 function leagueBrand() {
   const sub = t("shell.leagueSub");
@@ -139,10 +140,10 @@ function coachLinks(team, isAdmin) {
 function coachBrand(team, raceTitle, place) {
   if (!team) {
     const sub = t("shell.noTeamHint");
-    return { name: t("shell.noTeam"), sub, sideSub: sub, href: teamsUrl(), switchTeam: true };
+    return { name: t("shell.noTeam"), sub, sideSub: sub, switchTeam: true };
   }
   // A race the data does not know names the league, so the line is never empty under a team.
-  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), href: teamsUrl(), switchTeam: true };
+  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), switchTeam: true };
 }
 
 /** @typedef {{key: string, label: string, href: string, icon: string, current: boolean}} NavItem */
@@ -159,7 +160,8 @@ function navItems(links, currentKey) {
  *   `user` is the signed-in coach or null; `team` is the active team; `raceTitle` and
  *   `place` (the team's place in the season table, null outside it) are the header's subtitle;
  *   `teamsRead` is false while the coach's list of teams has not been read (no team is known)
- * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], drill: boolean}}
+ * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href?: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], drill: boolean}}
+ *   `brand.href` is the league's link alone: a block that switches the team has none
  *   `drill` is true on a player's address and on the team's settings, which a phone draws as screens of their own: the header draws nothing there
  */
 export function shellModel({ route, user, team = null, raceTitle = "", place = null, teamsRead = true }) {

@@ -61,7 +61,8 @@ function kindForStatus(status, payload) {
  * @param {object} deps
  * @param {typeof fetch} deps.fetchFn
  * @param {() => string} deps.getToken
- * @param {(error: ApiError) => void} [deps.onUnauthorized] called once per 401
+ * @param {(error: ApiError, sent: {token: string}) => void} [deps.onUnauthorized] called once per 401, with the
+ *   token the request went out with: the session may have changed while it was on its way
  * @param {(error: ApiError) => void} [deps.onMaintenance] called on 503 MAINTENANCE
  * @param {number} [deps.timeoutMs]
  */
@@ -94,7 +95,7 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
       message: payload?.error?.message || payload?.error || `Request failed with ${response.status}`,
       payload,
     });
-    if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error);
+    if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error, { token });
     if (error.kind === API_ERROR.MAINTENANCE) {
       try {
         onMaintenance?.(error);

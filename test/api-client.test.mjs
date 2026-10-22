@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { installFakeApi } from "./helpers/fake-api.mjs";
 import { API_ERROR, ApiError, createApiClient, errorText } from "../src/core/api.mjs";
 import { setDictionaries } from "../src/core/i18n.mjs";
 
@@ -166,4 +167,69 @@ test("a failing maintenance hook does not replace the maintenance error", async 
       return true;
     },
   );
+});
+
+// Stage 13, decision 23 (07a): a 401 names the token its request went with, so the session can tell whose it was.
+test("a 401 tells the hook the token its request was sent with, not the one stored when it comes back", async () => {
+  let stored = "old";
+  let answer = null;
+  const seen = [];
+  const client = createApiClient({
+    getToken: () => stored,
+    fetchFn: () => new Promise((resolve) => { answer = resolve; }),
+    onUnauthorized: (error, sent) => seen.push([error.kind, sent]),
+  });
+  const request = client.request("/api/teams");
+  stored = "new";
+  answer(jsonResponse(401, { error: "Not authorized." }));
+  await assert.rejects(request, (error) => error.kind === API_ERROR.UNAUTHORIZED);
+  assert.deepEqual(seen, [[API_ERROR.UNAUTHORIZED, { token: "old" }]]);
+});
+
+// The page's own client (src/core/api-client.mjs) over a fake browser: the token is in localStorage, as the page keeps it.
+const fakeApi = installFakeApi();
+const { apiRequest, setOnUnauthorized } = await import("../src/core/api-client.mjs");
+const { state } = await import("../src/core/state.mjs");
+const TOKEN = "gata-league-auth-token";
+const NOT_AUTHORIZED = { error: { code: "NOT_AUTHORIZED", params: {}, message: "Not authorized." } };
+
+test("a 401 for a request sent before a new sign-in leaves the new session signed in", async () => {
+  const ended = [];
+  setOnUnauthorized((user) => ended.push(user.id));
+  fakeApi.reset();
+  fakeApi.items.set(TOKEN, "old");
+  state.auth.currentUser = { id: "u1", login: "first" };
+  fakeApi.reply("GET /api/teams", 401, NOT_AUTHORIZED);
+  const gate = fakeApi.hold("GET /api/teams");
+  const late = apiRequest("/api/teams");
+  // The coach signs in again (or as someone else) while the old request is on its way.
+  fakeApi.items.set(TOKEN, "new");
+  state.auth.currentUser = { id: "u2", login: "second" };
+  gate.release();
+  await assert.rejects(late, (error) => error.kind === API_ERROR.UNAUTHORIZED, "the caller still hears its own refusal");
+  assert.equal(fakeApi.items.get(TOKEN), "new", "the new token stays");
+  assert.equal(state.auth.currentUser?.id, "u2", "the new coach stays signed in");
+  assert.deepEqual(ended, [], "nobody is signed out");
+  assert.equal(fakeApi.calls[0].headers.Authorization, "Bearer old", "the request went as the old session");
+  fakeApi.assertAnswered();
+});
+
+test("a 401 for the current token signs out once, as before", async () => {
+  const ended = [];
+  setOnUnauthorized((user) => ended.push(user.id));
+  fakeApi.reset();
+  fakeApi.items.set(TOKEN, "tok");
+  state.auth.currentUser = { id: "u1", login: "coach" };
+  fakeApi.reply("GET /api/teams", 401, NOT_AUTHORIZED);
+  fakeApi.reply("GET /api/games", 401, NOT_AUTHORIZED);
+  const both = await Promise.allSettled([apiRequest("/api/teams"), apiRequest("/api/games")]);
+  assert.deepEqual(both.map((result) => result.reason?.kind), [API_ERROR.UNAUTHORIZED, API_ERROR.UNAUTHORIZED]);
+  assert.equal(fakeApi.items.has(TOKEN), false, "no token");
+  assert.equal(state.auth.currentUser, null, "no coach");
+  assert.deepEqual(ended, ["u1"], "the app told once, of the coach whose session it was");
+  // A guest's 401 (no one signed in) tells nobody.
+  fakeApi.reply("GET /api/teams", 401, NOT_AUTHORIZED);
+  await assert.rejects(apiRequest("/api/teams"));
+  assert.deepEqual(ended, ["u1"]);
+  fakeApi.assertAnswered();
 });
