@@ -1992,7 +1992,7 @@
   "after.fansRollConceded": "Dedicated Fans · D3 после сдачи",
   "after.fansUp": "Dedicated Fans {from} → {to}",
   "after.fansDown": "Dedicated Fans {from} → {to}",
-  "after.fansSame": "Dedicated Fans не меняются",
+  "after.fansSame": "Dedicated Fans не меняются ({fans})",
   "after.fansWhyWin": "Победа: если D6 не меньше текущих Dedicated Fans ({fans}), их становится на 1 больше, максимум 7.",
   "after.fansWhyLoss": "Поражение: если D6 меньше текущих Dedicated Fans ({fans}), их становится на 1 меньше.",
   "after.fansWhyConceded": "Сдача: Dedicated Fans уменьшаются на D3, но не ниже 1.",

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 
+import { inlineCssImports } from "./lib/inline-css.mjs";
 import { minifyCss } from "./lib/minify-css.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,24 +22,6 @@ async function copyDir(from, to) {
       await fs.copyFile(source, target);
     }
   }
-}
-
-/**
- * Fold src/styles.css' @import lines into one stylesheet.
- *
- * The source is eight files so a person can find things in it; the site should
- * still fetch one. Inlining also keeps the parts covered by the version on the
- * index's link - an @import would ask for styles/roster.css with no ?v= on it
- * and get a day-old copy after a deploy.
- */
-async function inlineCssImports(file) {
-  const source = await fs.readFile(file, "utf8");
-  const parts = [];
-  for (const match of source.matchAll(/@import url\("([^"]+)"\);/g)) {
-    parts.push(await fs.readFile(path.join(path.dirname(file), match[1]), "utf8"));
-  }
-  if (!parts.length) return source;
-  return parts.join(String.fromCharCode(10));
 }
 
 /**

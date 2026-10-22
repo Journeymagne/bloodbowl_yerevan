@@ -1,19 +1,16 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import fs, { readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
+import { inlineCssImports } from "../scripts/lib/inline-css.mjs";
 import { minifyCss } from "../scripts/lib/minify-css.mjs";
 
-const stylesDir = new URL("../src/", import.meta.url);
-
-/** src/styles.css with its @import lines folded in, as the build does it. */
-function bundledSource() {
-  const entry = readFileSync(new URL("styles.css", stylesDir), "utf8");
-  const parts = [...entry.matchAll(/@import url\("([^"]+)"\);/g)].map((match) =>
-    readFileSync(new URL(match[1], stylesDir), "utf8"),
-  );
-  return parts.join("\n");
-}
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const STYLES = path.join(rootDir, "src", "styles.css");
+const read = (file) => readFileSync(path.join(rootDir, file), "utf8");
 
 /** The text inside every calc( … ), balanced, nested calls included. */
 function calcBodies(css) {
@@ -73,8 +70,9 @@ test("the last semicolon in a block goes", () => {
   assert.equal(minifyCss(".a { color: red; } .b { color: blue; }"), ".a{color: red}.b{color: blue}");
 });
 
-test("every calc() in the bundled stylesheet is still valid once minified", () => {
-  const minified = minifyCss(bundledSource());
+test("every calc() in the bundled stylesheet is still valid once minified", async () => {
+  // The bundle the build writes: the same inliner over the same entry (see "the build and the test inline the same stylesheet").
+  const minified = minifyCss(await inlineCssImports(STYLES));
   const bodies = calcBodies(minified).map(withoutNames);
   assert.ok(bodies.length > 10, `expected the bundle to hold calc() calls, found ${bodies.length}`);
   const broken = bodies.filter(
@@ -83,4 +81,45 @@ test("every calc() in the bundled stylesheet is still valid once minified", () =
     (body) => /[^\s(,*/][+-]/.test(body) || /\+\S/.test(body) || /[\w%)]\s-[\d.(]/.test(body),
   );
   assert.deepEqual(broken, []);
+});
+
+test("the build and the test inline the same stylesheet", async () => {
+  const build = read("scripts/build-site.mjs");
+  assert.match(build, /^import \{ inlineCssImports \} from "\.\/lib\/inline-css\.mjs";$/m);
+  assert.match(build, /minifyCss\(await inlineCssImports\(stylesPath\)\)/, "dist/src/styles.css is the inlined entry, minified");
+  assert.doesNotMatch(build, /function inlineCssImports|@import url\\\(/, "no second inliner beside the shared one");
+  // What it gives back: every sheet the entry names, whole, in the entry's order, and no @import left to fetch.
+  const bundle = await inlineCssImports(STYLES);
+  const sheets = [...read("src/styles.css").matchAll(/@import url\("([^"]+)"\);/g)].map(([, sheet]) => sheet);
+  assert.ok(sheets.length > 50, `src/styles.css names ${sheets.length} sheets`);
+  assert.ok(bundle === sheets.map((sheet) => read(`src/${sheet}`)).join("\n"), "the sheets src/styles.css names, whole and in its order");
+  assert.doesNotMatch(bundle.replace(/\/\*[\s\S]*?\*\//g, ""), /@import/);
+});
+
+/** A scratch entry and its sheets, inlined; the directory goes afterwards. */
+async function inlineScratch(files) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inline-css-"));
+  try {
+    for (const [name, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+      fs.writeFileSync(path.join(dir, name), text);
+    }
+    return await inlineCssImports(path.join(dir, "styles.css"));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("the entry's imports are folded in order from beside it; an entry without one comes back as written", async () => {
+  const entry = '/* the sheets */\n@import url("a/one.css");\n@import url("two.css");\n';
+  assert.equal(await inlineScratch({ "styles.css": entry, "a/one.css": ".a{}", "two.css": ".b{}" }), ".a{}\n.b{}");
+  assert.equal(await inlineScratch({ "styles.css": ".c { color: red; }\n" }), ".c { color: red; }\n");
+});
+
+test("a rule beside the imports, an import it does not read, or an @import inside a sheet is refused, not dropped", async () => {
+  const sheets = { "one.css": ".a{}" };
+  await assert.rejects(inlineScratch({ ...sheets, "styles.css": '@import url("one.css");\n.c { color: red; }\n' }), /inline-css: .*styles\.css .*\.c \{ color: red; \}/);
+  await assert.rejects(inlineScratch({ ...sheets, "styles.css": '@import url("one.css");\n@import "two.css";\n' }), /inline-css: .*@import "two\.css";/);
+  await assert.rejects(inlineScratch({ "styles.css": '@import url("one.css");\n', "one.css": '@import url("deep.css");\n.a{}' }), /inline-css: one\.css has an @import of its own/);
+  await assert.rejects(inlineScratch({ "styles.css": '@import url("missing.css");\n' }), /ENOENT/);
 });
