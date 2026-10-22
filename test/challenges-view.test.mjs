@@ -304,6 +304,12 @@ test("styled", () => {
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly__grid", "grid-template-columns"), ["repeat(auto-fit, minmax(320px, 1fr))"]);
 });
 
+test("the prototypes' Oswald titles at Oswald's own line height: the phone's title, a desk's card titles and «Ours vs Theirs»", () => {
+  assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead--phone .g-pagehead__title", "font"), ["700 24px/normal var(--font-display)"], "Challenges.html's 36 high");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly__title", "font"), ["700 24px/normal var(--font-display)"], "DeskChallenges.html's cards of 126 and 130");
+  assert.deepEqual(valuesOf(CSS, ".g-friendly__pair", "font"), ["700 22px/normal var(--font-display)"]);
+});
+
 test("readable: the muted words, the chips, the letter on its circle, in every palette", () => {
   for (const selector of [".g-friendly__line", ".g-friendly__played", ".g-friendly__note", ".g-friendly__caption", ".g-friendly__when", ".g-friendly__none"]) {
     assert.deepEqual(valuesOf(CSS, selector, "color"), ["var(--muted)"], selector);

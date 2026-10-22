@@ -33,7 +33,10 @@
 }
 .g-friendly :where(ul) { list-style: none; }
 
-/* The title and «played 2» on one baseline (Challenges.html): Oswald 24, not the head's 26. The column's gap is the space under them. */
+/*
+ * The title and «played 2» on one baseline (Challenges.html): Oswald 24, not the head's 26, at Oswald's own line height
+ * (the prototype's `normal`, as its card titles and «Ours vs Theirs»). The column's gap is the space under them.
+ */
 .g-friendly .g-pagehead--phone {
   display: flex;
   align-items: baseline;
@@ -41,7 +44,7 @@
   gap: var(--space-10);
   margin: 0;
 }
-.g-friendly .g-pagehead--phone .g-pagehead__title { font: 700 24px/1.1 var(--font-display); }
+.g-friendly .g-pagehead--phone .g-pagehead__title { font: 700 24px/normal var(--font-display); }
 .g-friendly .g-pagehead--phone .g-pagehead__meta { margin-top: 0; }
 .g-friendly__played {
   color: var(--muted);
@@ -212,11 +215,11 @@
   color: var(--muted);
   font: 400 17px/1.1 var(--font-display);
 }
-/* A desk's «Ours vs Theirs» in one line of Oswald 22, wrapping. */
+/* A desk's «Ours vs Theirs» in one line of Oswald 22 at its own line height (DeskChallenges.html's `normal`), wrapping. */
 .g-friendly__pair {
   min-width: 0;
   color: var(--ink);
-  font: 700 22px/1.15 var(--font-display);
+  font: 700 22px/normal var(--font-display);
   overflow-wrap: anywhere;
 }
 .g-friendly__links {
@@ -311,9 +314,10 @@
     gap: var(--space-20);
   }
   .g-friendly__group { padding: 18px var(--space-20); }
+  /* A card's title: Oswald 24 at its own line height, as DeskChallenges.html's (`normal`). */
   .g-friendly__title {
     color: var(--ink);
-    font: 700 24px/1.1 var(--font-display);
+    font: 700 24px/normal var(--font-display);
   }
 
   /* A challenge is a row: the circle and who at the left, the buttons at the right; they go under a long name rather than squeeze it. */
