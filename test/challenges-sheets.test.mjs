@@ -223,7 +223,7 @@ test("the search's keyboard ring goes round its box, «Clear» inside it, not ro
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline"), ["3px solid var(--accent-text)"]);
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline-offset"), ["0"]);
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search .g-search__input:focus-visible", "outline"), ["none"]);
-  assert.deepEqual(valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
+  assert.deepEqual(valuesOf("src/ui/base.css", ":where(:focus-visible)", "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
 });
 
 test("the accept's body: ChallengeAccept.html's 16 to a phone, the window's 24 from 901px, on the edge of its head and foot", () => {

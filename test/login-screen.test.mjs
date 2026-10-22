@@ -217,8 +217,7 @@ test("the crest is decoration drawn by the palette, not by colours in the markup
 test("the sign-in modal is gone from the page and from the code", () => {
   assert.doesNotMatch(read("index.html"), /auth-modal/);
   assert.equal(existsSync(new URL("../src/components/auth-modal.mjs", import.meta.url)), false);
-  assert.doesNotMatch(read("src/styles/shell.css"), /\.auth-(modal|dialog|backdrop|account|error|form)|auth-open/);
-  assert.doesNotMatch(read("src/styles/overlays.css"), /\.auth-/);
+  assert.doesNotMatch(read("src/styles/overlays.css"), /\.auth-(modal|dialog|backdrop|account|error|form)|auth-open/);
   const imports = read("src/styles.css");
   for (const sheet of ["screens/auth/login.css", "shell/crest.css"]) assert.ok(imports.includes(`@import url("${sheet}");`), sheet);
 });

@@ -1,9 +1,39 @@
 /*
- * What every src/ui component shares: the icon box, text for screen readers
- * only, and the keyboard focus ring. Components add their own sheet beside
- * this one and list it in src/styles.css; test/ui-kit.test.mjs fails for a
- * sheet that is not listed.
+ * 3.0's own base: the box model the components are measured in, the body,
+ * controls that take the page's font, links in their text's colour, one focus
+ * ring, less motion when asked. Then what every src/ui component shares: the
+ * icon box and text for screen readers only. Components add their own sheet
+ * beside this one and list it in src/styles.css after it; test/ui-kit.test.mjs
+ * fails for a sheet that is not listed.
+ *
+ * Every 3.0 size was measured under border-box, pseudo-elements included: the
+ * prototypes are content-box, and their figures are already worked out to the
+ * drawn box (a card the prototype makes 56 + 10 × 2 is 76 here).
  */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
 
 /* An icon is a box in a flex row, never a baseline-aligned glyph that shifts the line. */
 .g-icon {
@@ -26,17 +56,36 @@
 }
 
 /*
- * The look of --focus-ring, drawn as an outline so it leaves a box-shadow the
- * component already has (an inset ring, a lift) alone, and in --accent-text:
- * the same colour as --accent in the light palettes, and the one that keeps
- * 3:1 on the dark surfaces, where --accent does not. :where() adds no
- * specificity, so a component that wants another ring sets its own
- * .g-name:focus-visible and wins. Against the 2.x :focus-visible rule in
- * styles/overlays.css the specificity is the same, (0,1,0): this one wins on
- * import order, so the ui/ imports stay after every styles/ import in
- * src/styles.css.
+ * One focus ring, for the keyboard only: the look of --focus-ring, drawn as an
+ * outline so it leaves a box-shadow the component already has (an inset ring,
+ * a lift) alone, and in --accent-text: the same colour as --accent in the light
+ * palettes, and the one that keeps 3:1 on the dark surfaces, where --accent
+ * does not. :where() gives it no specificity, so a component that wants another
+ * ring (.g-tab:focus-visible, a header's --header-ink) sets its own and wins.
+ * The ring follows the element's own corners.
  */
-:where([class^="g-"], [class*=" g-"]):focus-visible {
+:where(:focus-visible) {
   outline: 3px solid var(--accent-text);
   outline-offset: 0;
+}
+
+/* A mouse click on a control that takes focus draws no ring. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/*
+ * Motion is decoration here — a sheet rising, a toast arriving, a row fading.
+ * Somebody who asked their system for less of it gets the end state at once,
+ * and still sees what happened.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

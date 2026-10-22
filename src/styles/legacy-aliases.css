@@ -19,8 +19,6 @@
   --grid-line: transparent;
   --grid-line-soft: transparent;
   --stripe-line: transparent;
-  --body-glow: transparent;
-  --body-gradient: linear-gradient(transparent, transparent);
   --input-bg-soft: var(--field);
   --panel-glass: var(--surface);
   --surface-soft: var(--surface-2);

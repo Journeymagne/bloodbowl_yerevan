@@ -1863,7 +1863,7 @@ test("a desk's row is no link: the round's word is the match's, stretched over t
   assert.deepEqual(["content", "position", "inset"].map((property) => desk(".g-overview__match::after", property)), [['""'], ["absolute"], ["0"]]);
   assert.deepEqual([own(".g-overview__match", "text-decoration"), own(".g-overview__match", "position")], [["none"], []]);
   // base.css's ring, written out on the ::after: the whole row is ringed, as when the row was the link; the word draws none.
-  assert.match(text("src/ui/base.css"), /:focus-visible \{\s*outline: 3px solid var\(--accent-text\);\s*outline-offset: 0;\s*\}/);
+  assert.match(text("src/ui/base.css"), /:where\(:focus-visible\) \{\s*outline: 3px solid var\(--accent-text\);\s*outline-offset: 0;\s*\}/);
   assert.deepEqual([desk(".g-overview__match:focus-visible::after", "outline"), desk(".g-overview__match:focus-visible::after", "outline-offset")], [["3px solid var(--accent-text)"], ["0"]]);
   assert.deepEqual(desk(".g-overview__match:focus-visible", "outline"), ["0"]);
   assert.doesNotMatch(bareOf(LISTS_CSS), /--focus-ring/);

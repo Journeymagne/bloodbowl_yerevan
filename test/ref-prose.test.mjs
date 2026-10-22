@@ -73,12 +73,8 @@ test("a scrolling table wears the page's scrollbar, not the 2.x gold one, and it
   assertContrast("--faint", ["--surface"], 3, { what: "the scrollbar thumb" });
 });
 
-test("a link in an article shows keyboard focus with the ring base.css draws, which .g-prose a does not reach for want of a g- class", () => {
-  const ring = ':where([class^="g-"], [class*=" g-"]):focus-visible';
-  for (const property of ["outline", "outline-offset"]) {
-    assert.deepEqual(valuesOf(SHEET, ".g-prose a:focus-visible", property), valuesOf("src/ui/base.css", ring, property), property);
-    assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", property).length, 1, property);
-  }
-  assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", "outline")[0], "3px solid var(--accent-text)");
+test("a link in an article shows keyboard focus with the ring base.css draws for every element, and draws none of its own", () => {
+  for (const property of ["outline", "outline-offset"]) assert.deepEqual(valuesOf(SHEET, ".g-prose a:focus-visible", property), [], property);
+  assert.deepEqual(valuesOf("src/ui/base.css", ":where(:focus-visible)", "outline"), ["3px solid var(--accent-text)"]);
   assertContrast("--accent-text", ["--surface", "--page"], 3, { what: "the focus ring" });
 });
