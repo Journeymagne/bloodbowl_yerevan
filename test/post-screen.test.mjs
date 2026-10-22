@@ -188,12 +188,14 @@ it("a post-match that cannot be read says why, with «Read again»", async () =>
   api.reset();
   view.innerHTML = "";
   state.auth.currentUser = COACH;
+  state.activeTeamId = "t-home";
   crossingWindow(true);
   api.reply(READ, 404, { error: { code: "GAME_NOT_FOUND", message: "Game not found" } });
   await renderPostMatch("g1", "");
   await flush();
   assert.equal(alertText(), t("after.unread", { reason: t("error.GAME_NOT_FOUND") }));
-  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), gameUrl("g1"));
+  // Back to the team's matches, not to the game, which sends the coach straight back here (stage 13, pre-flight L11).
+  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), teamUrl("t-home", "matches"));
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(polls.ticks.size, 0, "no poll for a post-match not read");
   const retry = view.querySelector("[data-after-retry]");

@@ -7,7 +7,7 @@ import { blocks, read } from "./helpers/contrast.mjs";
 /*
  * Stage 09c moved the challenges to their 3.0 screen (screens/matches/challenges.mjs): 2.x «My games», the last thing
  * `#/t/:id/challenges` drew, goes with its challenges' view, its stylesheet, the rules only it wore and the keys only it
- * read. The 2.x game page (#/games/:id, stage 13) keeps what it draws.
+ * read. The 2.x game page (#/games/:id) went in stage 13, when the address became the 3.0 match page.
  *
  * Stages 09b and 12 removed the other 2.x screens first, so what «My games» shared with them had it as its last reader:
  * season-links.mjs, game-status.mjs, catalog.css (the 2.x card and badge), the challenge dialog's rules, the status pill,
@@ -22,7 +22,7 @@ function stylesheets(dir = "src") {
     entry.isDirectory() ? stylesheets(`${dir}/${entry.name}`) : entry.name.endsWith(".css") ? [`${dir}/${entry.name}`] : []);
 }
 
-test("2.x «My games» is gone — its screen, its challenges' view and its stylesheet; the game page keeps its own", () => {
+test("2.x «My games» is gone — its screen, its challenges' view and its stylesheet; and so is the 2.x game page", () => {
   const gone = [
     "src/screens/games/my-games.mjs",
     "src/components/games/challenges.mjs",
@@ -33,11 +33,10 @@ test("2.x «My games» is gone — its screen, its challenges' view and its styl
     "src/components/game-status.mjs",
     // Its cards were the last 2.x .card, after the saved team's card (stage 12).
     "src/styles/catalog.css",
+    // Stage 13 (Task 5): #/games/:id is the 3.0 match page (screens/matches/game.mjs); the 2.x one went with its panels.
+    "src/screens/games/game.mjs",
   ];
   for (const file of gone) assert.equal(exists(file), false, file);
-  for (const file of ["src/screens/games/game.mjs", "src/components/games/context.mjs"]) {
-    assert.ok(exists(file), file);
-  }
   assert.doesNotMatch(read("src/styles.css"), /styles\/(challenges|catalog)\.css/);
 });
 

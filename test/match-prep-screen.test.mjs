@@ -175,13 +175,15 @@ test("a preparation that cannot be read says why, with the way back", async () =
   api.reset();
   view.innerHTML = "";
   state.auth.currentUser = { id: "u-t1", login: "t1" };
+  state.activeTeamId = "t1";
   crossingWindow(true);
   api.reply(READ, 404, { error: { code: "GAME_NOT_FOUND", message: "Game not found" } });
   await renderPreMatch("g1", "");
   await flush();
   assert.ok(view.querySelector(".g-prep"));
   assert.equal(view.querySelector('[role="alert"] .g-callout__title').textContent, t("error.GAME_NOT_FOUND"));
-  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), gameUrl("g1"));
+  // Back to the team's matches, not to the game, which sends the coach straight back here (stage 13, pre-flight L11).
+  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), teamUrl("t1", "matches"));
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(polls.ticks.size, 0, "no poll for a preparation not read");
   assertStyled(view, "src/screens/matches/prep.css", "callout.css");

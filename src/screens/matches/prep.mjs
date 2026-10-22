@@ -19,27 +19,28 @@
  * The footer's button keeps its place (`data-key="prep-cta"`): «Confirm the preparation» turns into «Start the match»
  * on the same node once both sides have confirmed, and on an address with no step the page follows the step on, so
  * «Confirm the roster» can turn into «Go on without purchases»; a step link («Next: start») opens a page whose button
- * stands where the link stood. So the footer's action is armed only `FOOTER_ARM_MS` after it appears — on the first
- * draw too, and whenever the page moves the focus onto it —: the second click of a double click does nothing, and an
- * Enter held down (its auto-repeat) presses nothing more. A draw that replaces the footer's button or takes it away (a
- * confirmation that leads on, «Change…», a match begun) gives the focus to the button, or to the title when there is
- * none, never to the page's body.
+ * stands where the link stood. So the footer's action is armed only `FOOTER_ARM_MS` after it appears (visit-common.mjs,
+ * as the post-match's) — on the first draw too, and whenever the page moves the focus onto it —: the second click of a
+ * double click does nothing, and an Enter held down (its auto-repeat) presses nothing more. A draw that replaces the
+ * footer's button or takes it away (a confirmation that leads on, «Change…», a match begun) gives the focus to the
+ * button, or to the title when there is none, never to the page's body.
  *
  * The weather is one per match (the owner's M2 answer): a die or the time of year sends the weather as the last read
  * has it with that one change (pre-flight L21), never what the page alone holds — so the opponent's die is not wiped.
  *
- * A poll reads the preparation every six seconds (as 2.x) while the tab is seen, no write is on its way, the effects'
- * form holds nothing unsaved and no dialog is open; another revision is drawn. A read that fails waits longer each time
- * (up to a minute), one refused (403, 404) stops the poll, and so does a match begun: it changes no more here. A match
- * begun elsewhere draws the page read only (prep-model.mjs). Leaving stops the poll and every listener; an answer that
- * comes after draws nothing. A preparation that cannot be read is said with a way to read it again.
+ * A poll (visit-common.mjs's, as the post-match's) reads the preparation every six seconds (as 2.x) while the tab is
+ * seen, no write is on its way, the effects' form holds nothing unsaved and no dialog is open; another revision is
+ * drawn. A read that fails waits longer each time (up to a minute), one refused (403, 404) stops the poll, and so does a
+ * match begun: it changes no more here. A match begun elsewhere draws the page read only (prep-model.mjs). Leaving
+ * stops the poll and every listener; an answer that comes after draws nothing. A preparation that cannot be read is
+ * said with a way to read it again.
  */
 import { toast } from "../../components/toast.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { API_ERROR, errorText } from "../../core/api.mjs";
-import { delegate, drawKeepingFocus, escapeHtml, focusLost, listenerGroup, patch } from "../../core/dom.mjs";
+import { delegate, drawKeepingFocus, escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl, preMatchUrl } from "../../core/routes.mjs";
+import { preMatchUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -51,25 +52,12 @@ import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
+import { placeholderBack } from "./game-model.mjs";
 import { effectsFromForm } from "./prep-effects.mjs";
 import { prepFrameMarkup } from "./prep-frame.mjs";
 import { prepModel } from "./prep-model.mjs";
 import { prepStepMarkup } from "./prep-steps.mjs";
-
-/** How often the open preparation is read again, as 2.x did. */
-const POLL_MS = 6000;
-
-/** The most ticks a poll waits out after reads that failed: a minute between reads at most. */
-const POLL_WAIT_MOST = 9;
-
-/** A poll refused for good: the preparation is not there, or not the coach's. */
-const POLL_STOPS = new Set([403, 404]);
-
-/**
- * How long the footer's button waits after it turns into another action (the Task 11 review, I-1): a double click on
- * «Confirm the preparation» starts nothing, one on «Confirm the roster» buys nothing.
- */
-const FOOTER_ARM_MS = 600;
+import { armFooter, focusGone, startPoll, takeFooter } from "./visit-common.mjs";
 
 /** The times of year the weather may have (the domain's, `applyPreparationAction`); the page shows autumn for any other. */
 const SEASONS = ["Spring", "Summer", "Autumn"];
@@ -81,12 +69,14 @@ const readsAgain = (error) => error?.status === 409 || error?.kind === API_ERROR
 const closed = (element) => element.getAttribute("aria-disabled") === "true";
 
 /**
- * The page while there is no preparation to draw: «‹» back to the game, the title, and what is said under it — that it
- * is being read, or why it could not be.
+ * The page while there is no preparation to draw: «‹» back to the matches (`placeholderBack`: never the game, which
+ * sends a side's coach straight back here), the title, and what is said under it — that it is being read, or why it
+ * could not be.
  */
 function placeholderMarkup(gameId, noticeHtml) {
   const phone = isPhone();
-  const back = `<a class="g-prep__back" href="${escapeHtml(gameUrl(gameId))}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  const href = placeholderBack(gameId, { viewer: state.auth.currentUser, activeTeamId: state.activeTeamId ?? null, games: state.games.items });
+  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("prep.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
   return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;
@@ -94,12 +84,13 @@ function placeholderMarkup(gameId, noticeHtml) {
 
 /**
  * One visit of the page: the game, the step the address names, the preparation last read and the side shown (the
- * viewer's; an administrator picks one), what is on its way, the refusal said, the inducements' category shown.
+ * viewer's; an administrator picks one), what is on its way, the refusal said, the inducements' category shown, the
+ * footer's arming, and the way to stop its poll (`startPoll` keeps the poll's state).
  */
 function createVisit(gameId, requestedStep) {
   return { gameId, requestedStep, path: `/api/games/${encodeURIComponent(gameId)}`, here: true, payload: null, sideName: "home",
-    busy: false, writes: 0, polling: false, dirty: false, error: "", category: "help", timer: 0, release: () => {},
-    pending: null, footerAction: "", footerAfter: 0, failures: 0, wait: 0 };
+    busy: false, writes: 0, dirty: false, error: "", category: "help", stopPoll: () => {}, release: () => {},
+    pending: null, footerAction: "", footerAfter: 0 };
 }
 
 function modelOf(visit) {
@@ -116,27 +107,6 @@ function markupOf(visit, model = modelOf(visit)) {
 /** What the footer's button does when pressed: its action, "" for none (a link on, a closed button, no footer). */
 const footerAction = (footer) => (footer.disabled ? "" : footer.action ?? "");
 
-/** A focus left on nothing, or on a control a draw has just closed (`disabled` takes no press and no key). */
-const focusGone = (active) => focusLost(active) || Boolean(active?.hasAttribute?.("disabled"));
-
-/** The poll stops for good: a match begun changes no more, a preparation refused stays refused. */
-function stopPoll(visit) {
-  clearInterval(visit.timer);
-  visit.timer = 0;
-}
-
-/** Arm the footer's action `FOOTER_ARM_MS` from now: a press before then is the rest of an earlier gesture. */
-const armFooter = (visit) => {
-  visit.footerAfter = Date.now() + FOOTER_ARM_MS;
-};
-
-/** The footer's action as `model` draws it: armed when it appears (none before it, or another one). */
-function takeFooter(visit, model) {
-  const action = footerAction(model.footer);
-  if (action && action !== visit.footerAction) armFooter(visit);
-  visit.footerAction = action;
-}
-
 /**
  * Draw the page again over what is there: the focus stays where the coach put it. A footer's action that appears is
  * armed `FOOTER_ARM_MS` later (`takeFooter`). A focus the page held that the draw left on nothing (the footer's button
@@ -149,9 +119,10 @@ function draw(visit, { refocus = true } = {}) {
   const page = view.ownerDocument ?? globalThis.document;
   const held = view.contains(page.activeElement);
   const model = modelOf(visit);
-  takeFooter(visit, model);
+  takeFooter(visit, footerAction(model.footer));
   patch(view, markupOf(visit, model));
-  if (visit.payload.preparation.status === "in_progress") stopPoll(visit);
+  // A match begun changes no more here: its poll stops for good.
+  if (visit.payload.preparation.status === "in_progress") visit.stopPoll();
   for (const target of [".g-prep__cta", "h1"]) {
     if (!refocus || !held || !focusGone(page.activeElement)) return;
     const next = view.querySelector(target);
@@ -349,36 +320,19 @@ function wire(visit) {
 /** Whether the poll may read now: the page is seen, nothing is on its way or unsaved, no dialog is open. */
 function mayPoll(visit) {
   const page = globalThis.document;
-  return visit.here && !visit.busy && !visit.polling && !visit.dirty && !page?.hidden && !page?.querySelector?.("dialog[open]");
+  return visit.here && !visit.busy && !visit.dirty && !page?.hidden && !page?.querySelector?.("dialog[open]");
 }
 
 /**
- * The preparation read again by the timer: another revision is drawn, unless a write went out since it was asked for. A
- * read that fails waits out more ticks each time (1, 3, 7, then 9: up to a minute), a read that answers none; a refusal
- * for good (403, 404) stops the poll.
+ * The preparation read again by the poll (`startPoll`, which waits out the reads that failed and stops on a refusal for
+ * good): another revision is drawn, unless a write went out since it was asked for.
  */
-async function poll(visit) {
-  if (visit.wait > 0) {
-    visit.wait -= 1;
-    return;
-  }
-  if (!mayPoll(visit)) return;
-  visit.polling = true;
+async function pollRead(visit) {
   const writes = visit.writes;
-  try {
-    const next = await apiRequest(`${visit.path}/preparation`);
-    visit.failures = 0;
-    if (visit.here && !visit.busy && !visit.dirty && visit.writes === writes && next.preparation.revision !== visit.payload.preparation.revision) {
-      visit.payload = next;
-      draw(visit);
-    }
-  } catch (error) {
-    // A read that finds no answer keeps what is drawn; a later one tries again.
-    if (POLL_STOPS.has(error?.status)) stopPoll(visit);
-    visit.failures += 1;
-    visit.wait = Math.min(2 ** visit.failures - 1, POLL_WAIT_MOST);
-  } finally {
-    visit.polling = false;
+  const next = await apiRequest(`${visit.path}/preparation`);
+  if (visit.here && !visit.busy && !visit.dirty && visit.writes === writes && next.preparation.revision !== visit.payload.preparation.revision) {
+    visit.payload = next;
+    draw(visit);
   }
 }
 
@@ -422,11 +376,11 @@ async function openVisit(visit) {
   visit.sideName = payload.viewerSide === "away" ? "away" : "home";
   const model = modelOf(visit);
   // Armed on the first draw too (the re-review's F-1): a double click on «Next: start» lands on «Start the match».
-  takeFooter(visit, model);
+  takeFooter(visit, footerAction(model.footer));
   view.innerHTML = markupOf(visit, model);
   view.querySelector("h1")?.focus();
   visit.release = wire(visit);
-  if (payload.preparation.status !== "in_progress") visit.timer = setInterval(() => void poll(visit), POLL_MS);
+  if (payload.preparation.status !== "in_progress") visit.stopPoll = startPoll(visit, { read: pollRead, mayPoll });
 }
 
 /**
@@ -448,7 +402,7 @@ export async function renderPreMatch(gameId, requestedStep = "") {
   const visit = createVisit(gameId, requestedStep);
   onScreenLeave("pre-match", () => {
     visit.here = false;
-    clearInterval(visit.timer);
+    visit.stopPoll();
     visit.release();
   });
   await openVisit(visit);
