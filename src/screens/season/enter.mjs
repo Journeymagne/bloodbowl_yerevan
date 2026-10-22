@@ -17,8 +17,9 @@ import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 
 /**
- * The call as a banner: «Enter the season» for `enter`, the other team named for `taken`; nothing for no call.
- * @param {{kind: "enter"}|{kind: "taken", other: string}|null} call `seasonCallFor`'s
+ * The call as a banner: «Enter the season» for `enter`, the other team named for `taken`; nothing for no call. A team in
+ * its build is told an administrator moves it into the season; one already in it (made before stage 12) is not.
+ * @param {{kind: "enter", draft?: boolean}|{kind: "taken", other: string}|null} call `seasonCallFor`'s
  * @param {boolean} [busy] the entry is on its way: the button says so (aria-busy)
  */
 export function enterCallMarkup(call, busy = false) {
@@ -26,7 +27,7 @@ export function enterCallMarkup(call, busy = false) {
   const title = t("teamOverview.notInSeason");
   if (call.kind === "taken") return renderCallout({ title, sub: t("teamOverview.enterTaken", { other: call.other }) });
   const button = renderButton({ label: t("teamOverview.enter"), busy, dialog: true, data: { seasonEnter: true } });
-  return renderCallout({ title, sub: t("teamOverview.enterNote"), actionHtml: button });
+  return renderCallout({ title, sub: call.draft ? t("teamOverview.enterNote") : "", actionHtml: button });
 }
 
 /**
@@ -40,11 +41,15 @@ export function enterCallMarkup(call, busy = false) {
 export function seasonEnterVisit({ root, teamId, here, draw }) {
   const visit = { busy: false, asking: false };
   const press = async () => {
-    if (visit.busy || visit.asking || seasonCallFor(teamId, state.season.data, state.myTeams.items)?.kind !== "enter") return;
+    const call = seasonCallFor(teamId, state.season.data, state.myTeams.items);
+    if (visit.busy || visit.asking) return;
+    // The call is no longer «enter» (the entry went in from another page meanwhile): the page is drawn as it is now.
+    if (call?.kind !== "enter") return drawKeepingFocus(root, draw, "h1");
     const team = state.myTeams.items.find((item) => item.id === teamId)?.name ?? "";
     const season = state.season.data?.season?.name ?? "";
+    const message = t(call.draft ? "teamOverview.enterConfirm" : "teamOverview.enterConfirmActive", { team, season });
     visit.asking = true;
-    const yes = await confirmAction({ message: t("teamOverview.enterConfirm", { team, season }), confirmLabel: t("teamOverview.enter") }).finally(() => {
+    const yes = await confirmAction({ message, confirmLabel: t("teamOverview.enter") }).finally(() => {
       visit.asking = false;
     });
     if (!yes || !here()) return;

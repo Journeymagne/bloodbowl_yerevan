@@ -33,13 +33,14 @@ const entered = (seasonData, teamId) => (seasonData?.entries ?? []).some((entry)
  * @param {string} teamId
  * @param {object|null} seasonData `/api/season`'s answer
  * @param {{id: string, name: string}[]} [myTeams] the coach's teams
- * @returns {{kind: "enter"}|{kind: "taken", other: string}|null}
+ * @returns {{kind: "enter", draft: boolean}|{kind: "taken", other: string}|null} `draft`: the team is in its build, and
+ *   once entered waits for an administrator to move it into the season; one made before stage 12 is in it already
  */
 export function seasonCallFor(teamId, seasonData, myTeams = []) {
   if (!seasonData) return null;
   if (entered(seasonData, teamId)) return null;
   const mine = seasonData.myEntry;
-  if (!mine?.team) return { kind: "enter" };
+  if (!mine?.team) return { kind: "enter", draft: myTeams.find((team) => team.id === teamId)?.stage === "draft" };
   if (mine.team.id === teamId) return null;
   const listed = myTeams.find((team) => team.id === mine.team.id);
   return { kind: "taken", other: listed?.name || mine.team.name || "" };

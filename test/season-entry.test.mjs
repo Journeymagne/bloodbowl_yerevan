@@ -116,7 +116,8 @@ const it = (name, body) => test(name, () => withoutTimers(body));
 // ---------------------------------------------------------------------------
 
 it("the call: enter for a team outside the season, taken when another of the coach's teams plays it, nothing in it or unread", () => {
-  assert.deepEqual(seasonCallFor("t4", OUTSIDE, TEAMS), { kind: "enter" });
+  assert.deepEqual(seasonCallFor("t4", OUTSIDE, TEAMS), { kind: "enter", draft: true });
+  assert.deepEqual(seasonCallFor("t5", OUTSIDE, TEAMS), { kind: "enter", draft: false }, "a team made before stage 12 is in the season already");
   assert.deepEqual(seasonCallFor("t4", TAKEN, TEAMS), { kind: "taken", other: "Old Guard" });
   assert.equal(seasonCallFor("t4", ENTERED, TEAMS), null, "the team is in the season");
   assert.equal(seasonCallFor("t4", null, TEAMS), null, "the season is not read: nothing is said it could contradict");
@@ -125,7 +126,7 @@ it("the call: enter for a team outside the season, taken when another of the coa
   assert.deepEqual(seasonCallFor("t4", TAKEN, []), { kind: "taken", other: "Old Guard" });
   // A withdrawn entry is outside the season: the team may be entered again (the server takes the same entry back).
   const withdrawn = { ...OUTSIDE, historicalEntries: [{ ...OURS, withdrawnAt: "2026-10-10T10:00:00Z" }] };
-  assert.deepEqual(seasonCallFor("t4", withdrawn, TEAMS), { kind: "enter" });
+  assert.deepEqual(seasonCallFor("t4", withdrawn, TEAMS), { kind: "enter", draft: true });
 });
 
 it("a team outside the season is entered with one press and a question", async () => {
@@ -165,6 +166,26 @@ it("a team outside the season is entered with one press and a question", async (
   assert.equal(lastToast(), t("teamOverview.entered", { team: "Fresh Meat" }));
   assert.equal(document.activeElement, view.querySelector("h1"), "the button went with the call: the focus on the title");
   api.assertAnswered();
+});
+
+it("an active team (made before stage 12) is not told an administrator moves it into the season: it is in it already", async () => {
+  await visit("t5");
+  assert.equal(call().querySelector(".g-callout__sub"), null, "no note under the call");
+  answer = false;
+  await press(button());
+  assert.deepEqual(asked, [t("teamOverview.enterConfirmActive", { team: "Old Guard", season: "Mock Season" })]);
+  assert.equal(asked[0], "Enter «Old Guard» in Mock Season?");
+  assert.deepEqual(posts(), []);
+});
+
+it("a stale «Enter the season» (the entry went in from another page) draws the page as it is, sending nothing", async () => {
+  await visit("t4");
+  state.season.data = ENTERED;
+  answer = true;
+  await press(button());
+  assert.deepEqual(asked, [], "nothing asked");
+  assert.deepEqual(posts(), []);
+  assert.equal(button(), null, "the call is gone");
 });
 
 it("«Matches» has the same call, on a phone and on a desk", async () => {
@@ -281,7 +302,7 @@ it("one entry at a time, whoever asks", async () => {
 
 it("names are text", () => {
   const hostile = [{ ...TEAMS[0], name: HOSTILE }, { ...TEAMS[1], name: HOSTILE }];
-  for (const markup of [enterCallMarkup({ kind: "enter" }), enterCallMarkup({ kind: "taken", other: HOSTILE }), enterCallMarkup({ kind: "enter" }, true)]) {
+  for (const markup of [enterCallMarkup({ kind: "enter", draft: true }), enterCallMarkup({ kind: "taken", other: HOSTILE }), enterCallMarkup({ kind: "enter", draft: true }, true)]) {
     const fragment = mount(markup);
     assert.equal(fragment.querySelector("img"), null);
     assertCspSafe(fragment);
@@ -291,7 +312,7 @@ it("names are text", () => {
 });
 
 it("styled: the call and its button are the components'", () => {
-  assertStyled(mount(enterCallMarkup({ kind: "enter" })), "callout.css", "button.css");
+  assertStyled(mount(enterCallMarkup({ kind: "enter", draft: true })), "callout.css", "button.css");
   assertStyled(mount(enterCallMarkup({ kind: "taken", other: "Old Guard" })), "callout.css");
   // The button is the component's outline one: 44px on both widths (D2: a desk's target is at least 24px, a phone's 44px).
   assert.match(text("src/ui/button.css"), /\.g-btn \{[^}]*min-height: var\(--size-touch\)/);
@@ -306,6 +327,7 @@ it("every key in both dictionaries, in the words of the plan", () => {
     "teamOverview.enterConfirm": ["Enter «{team}» in {season}? An administrator can move the team into the season.",
       "Заявить «{team}» в {season}? Перевести команду в сезон может администратор."],
     "teamOverview.enterNote": ["An administrator can move the team into the season.", "Перевести команду в сезон может администратор."],
+    "teamOverview.enterConfirmActive": ["Enter «{team}» in {season}?", "Заявить «{team}» в {season}?"],
     "teamOverview.enterTaken": ["«{other}» plays this season: one team per coach in a season.", "В этом сезоне играет «{other}»: одна команда тренера на сезон."],
   };
   for (const [key, words] of Object.entries(WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
