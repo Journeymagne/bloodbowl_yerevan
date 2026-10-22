@@ -35,3 +35,11 @@ test("a challenge names the challenging team's race", db, () => withApiDatabase(
     assert.deepEqual(challenge.team, { id: pack, name: "Pack", baseTeamSlug: "teams/skaven" });
   }
 }));
+
+test("a coach's own id in capitals is still his own: CHALLENGE_SELF, and nothing is written", db, () => withApiDatabase(async ({ client }) => {
+  const lion = await seedCoach(client, "lion");
+  const lions = await seedTeam(client, lion.id, { name: "Lions" });
+  const answer = await callApi("POST", "/api/challenges", { token: lion.token, body: { opponentId: lion.id.toUpperCase(), teamId: lions } });
+  assert.deepEqual([answer.status, answer.body.error?.code], [400, "CHALLENGE_SELF"]);
+  assert.equal((await client.query("SELECT count(*)::int AS n FROM friendly_challenges")).rows[0].n, 0);
+}));

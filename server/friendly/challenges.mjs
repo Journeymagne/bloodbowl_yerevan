@@ -39,7 +39,7 @@ async function ownedTeam(client, teamId, userId) {
 }
 
 export async function createChallenge(userId, body) {
-  const recipientId = challengeId(body?.opponentId);
+  const recipientId = challengeId(body?.opponentId).toLowerCase();
   if (recipientId === userId) throw httpError(400, "CHALLENGE_SELF");
   const client = await pool.connect();
   try {
