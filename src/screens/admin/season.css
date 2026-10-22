@@ -100,7 +100,10 @@
   color: var(--on-accent);
 }
 .g-adminseason__btn--danger { color: var(--danger); }
-/* Closed (it says why on a press) the way the prototype draws «Generate round 8» while a pair is left: the grey fill. */
+/*
+ * Closed (it says why on a press) the way the prototype draws «Generate round 8» while a pair is left: the grey fill, in
+ * a light palette; ui/button.css draws it closed in a dark one (the owner's answer 3).
+ */
 .g-adminseason__btn--go[aria-disabled="true"] {
   background: var(--disabled);
   box-shadow: none;

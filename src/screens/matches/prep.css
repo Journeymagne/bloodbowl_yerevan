@@ -195,6 +195,7 @@
   text-transform: none;
   cursor: pointer;
 }
+/* Closed: the prototypes' grey fill in a light palette; ui/button.css draws it closed in a dark one (the owner's answer 3). */
 .g-prep__cta:disabled { background: var(--disabled); cursor: default; }
 
 .g-prep__hint { color: var(--muted); font: 400 12px/1.35 var(--font-body); letter-spacing: 0; text-align: center; }

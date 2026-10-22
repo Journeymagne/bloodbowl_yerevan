@@ -3,12 +3,14 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { PALETTES, assertContrast, assertReadable, colourOf, contrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { PALETTES, assertContrast, assertReadable, blocks, colourOf, contrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { BUTTON_KINDS, renderButton, renderIconButton } from "../src/ui/button.mjs";
 import { wireRadioGroups } from "../src/ui/choice.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../src/ui/segmented-control.mjs";
 import { renderToggle, wireToggles } from "../src/ui/toggle.mjs";
+import { prepCtaMarkup } from "../src/screens/matches/prep-frame.mjs";
+import { footButton } from "../src/screens/team/roster/sheets.mjs";
 
 const MODES = [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }];
 
@@ -114,14 +116,47 @@ test("a closed danger button is drawn as a closed primary is: the grey fill at f
 // more grey button (M2: «almost no different from a plain grey one»). There it is drawn as closed: no fill, a dashed
 // ring of --line-strong, the label --muted. The mode is data-mode on <html>, or the system's dark when theme-boot.js did
 // not run (tokens.css's own fallback); a light palette keeps the prototypes' grey fill under the white label.
+/** A selector's weight as one number (ids, then classes, attributes and pseudo-classes): `:not(x)` weighs what x does. */
+const weight = (selector) => (selector.match(/#[\w-]+/g) ?? []).length * 100
+  + (selector.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)(?!not\()[\w-]+/g) ?? []).length;
+
+/*
+ * Every way a main button is closed, and the screens' own light rules for it (the grey fill): the dark palettes' rule in
+ * button.css outweighs each, so a closed main button is the dashed outline in the dark wherever it is drawn (review of
+ * stage 13: the preparation's «Start the match» waiting for the opponent, the roster's «Mark» closed by the match).
+ */
+const CLOSED_WAYS = [
+  [".g-btn--primary:disabled", "src/ui/button.css", ".g-btn--primary:disabled"],
+  [".g-btn--danger:disabled", "src/ui/button.css", ".g-btn--danger:disabled"],
+  ['.g-btn--primary[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/team/roster/roster.css", '.g-btn--primary.g-roster__closed[aria-disabled="true"]:hover'],
+  ['.g-btn--danger[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/team/roster/roster.css", ".g-btn--danger.g-roster__closed"],
+  ['.g-btn--primary[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/matches/challenges.css", '.g-friendly .g-btn--primary[aria-disabled="true"]'],
+  ['.g-btn--primary[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/admin/coaches.css", '.g-coachnew .g-sheet__foot .g-btn--primary[aria-disabled="true"]'],
+  ['.g-btn--primary[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/admin/season.css", '.g-resultsheet__save[aria-disabled="true"]'],
+  [".g-prep__cta:disabled", "src/screens/matches/prep.css", ".g-prep__cta:disabled"],
+  ['.g-adminseason__btn--go[aria-disabled="true"]:not([aria-busy="true"])', "src/screens/admin/season.css", '.g-adminseason__btn--go[aria-disabled="true"]'],
+];
+
 test("a closed main button in a dark palette is an outline, not a grey fill; its label reads 4.5:1", () => {
   const css = "src/ui/button.css";
-  const closed = { background: ["transparent"], border: ["1.5px dashed var(--line-strong)"], color: ["var(--muted)"] };
-  for (const kind of ["primary", "danger"]) {
+  const closed = { background: ["transparent"], border: ["1.5px dashed var(--line-strong)"], color: ["var(--muted)"], opacity: ["1"], "box-shadow": ["none"] };
+  for (const [way, sheet, light] of CLOSED_WAYS) {
     for (const [property, value] of Object.entries(closed)) {
-      assert.deepEqual(valuesOf(css, `:root[data-mode="dark"] .g-btn--${kind}:disabled`, property), value, `${kind}, data-mode dark: ${property}`);
-      assert.deepEqual(inMedia(css, "prefers-color-scheme: dark", `:root:not([data-mode]) .g-btn--${kind}:disabled`, property), value, `${kind}, the system's dark: ${property}`);
+      assert.deepEqual(valuesOf(css, `:root[data-mode="dark"] ${way}`, property), value, `${way}, data-mode dark: ${property}`);
+      assert.deepEqual(inMedia(css, "prefers-color-scheme: dark", `:root:not([data-mode]) ${way}`, property), value, `${way}, the system's dark: ${property}`);
     }
+    // The light palettes keep the prototypes' grey fill from the screen's own rule, which the dark rule outweighs.
+    assert.deepEqual(valuesOf(sheet, light, "background"), ["var(--disabled)"], `${sheet} ${light}`);
+    assert.ok(weight(`:root[data-mode="dark"] ${way}`) > weight(light), `${light} (${weight(light)}) would win over the dark rule`);
+    assert.ok(weight(`:root:not([data-mode]) ${way}`) > weight(light), `${light}: the system's dark`);
+  }
+  // Every rule of a stylesheet that paints a main button the grey fill is one of those, so none is left out.
+  const sheets = readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css")).map((name) => `src/${name.split("\\").join("/")}`);
+  const painted = sheets.flatMap((sheet) => blocks(readFileSync(new URL(`../${sheet}`, import.meta.url), "utf8"))
+    .filter(({ body }) => /(^|;|\s)background(-color)?:\s*var\(--disabled\)/.test(body))
+    .flatMap(({ selectors }) => selectors.filter((selector) => /g-btn--(primary|danger)|g-prep__cta|g-adminseason__btn--go|g-resultsheet__save/.test(selector)).map((selector) => `${sheet} ${selector}`)));
+  assert.deepEqual(painted.sort(), [...new Set(CLOSED_WAYS.map(([, sheet, light]) => `${sheet} ${light}`)), "src/screens/team/roster/roster.css .g-btn--primary.g-roster__closed"].sort());
+  for (const kind of ["primary", "danger"]) {
     // The light look is the rule without a mode: the prototypes' grey fill, the label of its kind.
     assert.deepEqual(valuesOf(css, `.g-btn--${kind}:disabled`, "background"), ["var(--disabled)"], kind);
   }
@@ -133,6 +168,11 @@ test("a closed main button in a dark palette is an outline, not a grey fill; its
   const bodies = [...bare.matchAll(/:root(?:\[data-mode="dark"\]|:not\(\[data-mode\]\)) \.g-btn--primary:disabled,\s*:root[^{]+\{([^}]*)\}/g)].map(([, body]) => body.replace(/\s+/g, " ").trim());
   assert.equal(bodies.length, 2, "one block for data-mode dark, one for the system's dark");
   assert.equal(bodies[0], bodies[1]);
+  // The buttons themselves: the roster's closed foot button and the preparation's footer waiting for the opponent.
+  const roster = mount(footButton({ label: "Mark", kind: "primary", data: { markSave: "" }, reason: HOSTILE })).querySelector("button");
+  assert.deepEqual([roster.getAttribute("class").split(" "), roster.getAttribute("aria-disabled"), roster.getAttribute("aria-busy")], [["g-btn", "g-btn--primary", "g-roster__closed"], "true", null]);
+  const cta = mount(prepCtaMarkup({ kind: "action", action: "start", label: "Start the match", disabled: true })).querySelector("button");
+  assert.ok(cta.classList.contains("g-prep__cta") && cta.hasAttribute("disabled"));
 });
 
 // The 06 handoff: no call ever asked for a red-ringed button with red words; «Log out» is danger-quiet (M1, 6).
