@@ -9,18 +9,15 @@
  *
  * Where Player.html gives no line height, the font's own (`normal`) is the prototype's: Oswald's 1.48, Golos' 1.2.
  * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h1,
- * h2, p, dl, dt, dd, a, .view's padding) outlive this sheet until stage 13. A long name, skill or injury wraps; nothing
- * is cut with «…».
+ * h2, p, dl, dt, dd, a) outlive this sheet until stage 13. A long name, skill or injury wraps; nothing is cut with «…».
  */
 @media (max-width: 900px) {
-  /* The page reaches the screen's edges, as the prototype's head does: the view's own padding gives way to it. */
+  /* The page reaches the screen's edges, as the prototype's head does: the frame's padding gives way to it. */
   .g-frame #app-view:has(> .g-profile) {
     display: flex;
     flex-direction: column;
     padding: 0;
   }
-  /* What .g-main's overflow-x: hidden would do without making it a scroll box, which would hold the head's sticking (K3). */
-  .g-main:has(.g-profile) { overflow-x: clip; }
 
   .g-profile {
     box-sizing: border-box;

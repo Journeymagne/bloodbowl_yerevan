@@ -293,14 +293,12 @@
  * team page with the card), so every rule is up to 900px. Where Builder.html gives no line height, the font's own.
  */
 @media (max-width: 900px) {
-  /* The screen reaches the view's edges, as the head does: the view's own padding gives way to it. */
+  /* The screen reaches the view's edges, as the head does: the frame's padding gives way to it. */
   .g-frame #app-view:has(> .g-team-settings-screen) {
     display: flex;
     flex-direction: column;
     padding: 0;
   }
-  /* What .g-main's overflow-x: hidden would do without making it a scroll box, which would hold the head's sticking (K3). */
-  .g-main:has(.g-team-settings-screen) { overflow-x: clip; }
 
   .g-team-settings-screen {
     box-sizing: border-box;

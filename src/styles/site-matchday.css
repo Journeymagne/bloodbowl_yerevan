@@ -1,13 +1,5 @@
 /* The builder's Matchday language is shared by every screen and all six palettes. */
 body { background: var(--bg); font-size: .9375rem; }
-.view { padding: 26px 20px 40px; }
-.view > * { max-width: 1320px; margin-inline: auto; }
-.view::after {
-  background:
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 80px 100%,
-    linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) 0 0 / 100% 80px,
-    linear-gradient(180deg, var(--md-wash), transparent 320px);
-}
 .page-head h1, .page-head h2 { font-family: var(--display-font); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
 .view > .page-head {
   display: grid;
@@ -40,9 +32,6 @@ body { background: var(--bg); font-size: .9375rem; }
 .game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--muted); }
 .game-versus h2 { overflow-wrap: anywhere; }
 .empty-state, .loading { background: var(--panel); border: 1px dashed var(--line-bright); padding: 30px; font-size: .85rem; }
-@media (min-width: 901px) {
-  .view { padding: 28px 28px 44px; }
-}
 @media (max-width: 900px) {
   .view > .page-head { grid-template-columns: 48px minmax(0, 1fr); gap: 18px; padding: 22px; }
   .view > .page-head > .toolbar { grid-column: 1 / -1; justify-content: flex-start; }
@@ -50,7 +39,6 @@ body { background: var(--bg); font-size: .9375rem; }
 }
 @media (max-width: 600px) {
   body { min-width: 0; }
-  .view { padding: 20px 16px 32px; }
   .view > .page-head { min-height: 0; padding: 20px 16px; gap: 14px; margin-bottom: 26px; }
   .view > .page-head h1 { font-size: 2.3rem; }
   .site-page-kicker { font-size: .52rem; letter-spacing: .7px; margin-bottom: 7px; }

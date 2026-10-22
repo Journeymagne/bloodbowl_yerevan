@@ -13,6 +13,7 @@ import { t } from "../../core/i18n.mjs";
 import { refUrl } from "../../core/routes.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
+import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { askSearchFocus, setRefQuery } from "./memory.mjs";
 
@@ -33,18 +34,21 @@ export function refSearchField(id, query = "") {
 }
 
 /**
- * The title, the league's name and the search. The index owns the page's one `h1`; on every other
- * screen the article or the list has it, and the title here is a paragraph.
+ * The title, the league's name and the search: the page head, the band of every reference screen on a
+ * desk (DeskRef.html). The index owns the page's one `h1` and is the one whose head a phone shows too
+ * (Ref.html); on every other screen the article or the list has the `h1`, the title here is a
+ * paragraph, and a phone shows no head (RefSkills.html: the way back is the link at the top).
  *
  * @param {{isIndex?: boolean, query?: string}} [props] `query`: what the field already holds
  */
 export function refHeadMarkup({ isIndex = false, query = "" } = {}) {
-  const tag = isIndex ? "h1" : "p";
-  const field = refSearchField("ref-query", query);
-  return `<header class="g-ref-head">`
-    + `<${tag} class="g-ref-head__title">${escapeHtml(t("shell.tab.ref"))}</${tag}>`
-    + `<p class="g-ref-head__sub">${escapeHtml(`${t("shell.league")} · ${t("shell.leagueSub")}`)}</p>`
-    + `${field}</header>`;
+  return renderPageHead({
+    title: t("shell.tab.ref"),
+    sub: `${t("shell.league")} · ${t("shell.leagueSub")}`,
+    metaHtml: refSearchField("ref-query", query),
+    phone: isIndex,
+    titleTag: isIndex ? "h1" : "p",
+  });
 }
 
 function tocLink(item, currentKey) {

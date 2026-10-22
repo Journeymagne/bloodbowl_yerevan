@@ -355,8 +355,12 @@ test("the prototypes' measures: the band, the switch, the card, the grid", () =>
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__switch .g-seg__item", "min-height"), ["48px"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__switch .g-seg__item", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", '.g-admin__switch .g-seg__item[aria-current="page"]', "background"), ["var(--accent)"]);
-  // The band of DeskAdminUser.html: 20 32 on the card colour over a rule, the path under the title.
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "padding"), ["var(--space-20) 32px"]);
+  // The band of DeskAdminUser.html: 20 32 on the card colour over a rule, the path under the title; its 32 is the frame's.
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "padding"), ["var(--space-20) var(--view-side)"]);
+  // DeskAdmin*.html's main pads 24 32 40, which the frame gives (stage 13): the switch, the tabs and the content add none.
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__switch", "margin"), ["0 0 var(--space-20)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__main", "padding"), []);
+  assert.deepEqual(inMedia("src/screens/admin/season.css", "min-width: 901px", ".g-adminseason__tabs", "margin"), ["0 0 var(--space-20)"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-admin__card", "box-shadow"), ["var(--ring)"]);
   assert.deepEqual(valuesOf(CSS, ".g-admin__card", "border-radius"), ["var(--radius-2xl)"]);
@@ -384,10 +388,10 @@ test("D2: a thumb's switch 44 and more, a desk's 24 and more; the path's links t
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__crumbs a", "margin"), ["calc(9.8px - var(--size-touch) / 2) 0"]);
 });
 
-test("a phone's administration is white: the 2.x wash is off under its screens and its refusal, not under the team's roster", () => {
-  const rule = "#app-view:has(> .g-admin__head, > .g-adminseason, .g-admin__refusal)::after";
-  assert.deepEqual(inMedia(CSS, "max-width: 900px", rule, "display"), ["none"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", rule, "display"), [], "a desk's page is the desk's grey");
+// AdminMobile.html is white. The 2.x view's wash went with the view at stage 13, and with it the rule that took it away here.
+test("no stylesheet draws a wash under the view", () => {
+  assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /#app-view[^{}]*::after/, "nothing to take away");
+  assert.doesNotMatch(text("index.html"), /class="[^"]*\bview\b/, "the 2.x view is gone");
 });
 
 test("a card's title stands at the prototypes' line height: `normal`, 36px for Oswald 24", () => {

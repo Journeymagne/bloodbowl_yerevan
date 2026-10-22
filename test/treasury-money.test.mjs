@@ -347,7 +347,7 @@ test("a refusal that comes after the coach went to another team says whose it wa
   });
   const [said] = toasts();
   assert.ok(said.text.startsWith("Wardens: "), said.text);
-  assert.match(said.tone, /toast-error/);
+  assert.match(said.tone, /g-toast--error/);
 });
 
 test("a match that goes live while the sheet is open: the sheet says so at once, before any press (final Minor 2)", async () => {
@@ -430,7 +430,7 @@ test("a sheet closed while its entry is on its way and then refused: the refusal
   assert.equal($("dialog"), null);
   const [shown] = toasts();
   assert.equal(shown.text, `${en["error.ROSTER_BREAKS_THE_RULES"]} ${en["validation.TREASURY_INVALID"]}`);
-  assert.match(shown.tone, /toast-error/);
+  assert.match(shown.tone, /g-toast--error/);
 });
 
 test("a host takes the sheet with it: at the end of the body, closing what is open in it, and a screen left while an entry is on its way gets a toast", async () => {
@@ -454,7 +454,7 @@ test("a host takes the sheet with it: at the end of the body, closing what is op
     await settle();
   });
   assert.equal(dialog.open, false, "nothing is drawn into a host that has gone");
-  assert.match(toasts()[0].tone, /toast-error/);
+  assert.match(toasts()[0].tone, /g-toast--error/);
   unwire();
 });
 

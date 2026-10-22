@@ -20,6 +20,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderRankedRow } from "../../ui/list-row.mjs";
+import { renderPageHead } from "../../ui/page-head.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 
 /** How many teams the box shows; the full table is one link away. */
@@ -49,11 +50,13 @@ export function guestTable(seasonData, data, limit = TABLE_LIMIT) {
 
 const renderRank = (rank) => `<span class="g-guest__rank">${escapeHtml(rank)}</span>`;
 
-/** The league's name over the season's, for a desktop; a phone's header already says both. */
+/**
+ * The league's name over the season's: the page head, a desktop's band (DeskGuest.html); a phone's header already
+ * says both. The page's `h1` is the hero's lead, so the band names the league with a paragraph.
+ */
 function headMarkup(seasonName, round) {
   const line = round === null || !seasonName ? seasonName : t("guestHome.season", { season: seasonName, round });
-  return `<header class="g-guest__head"><p class="g-guest__brand">${escapeHtml(t("shell.league"))}</p>`
-    + `${line ? `<p class="g-guest__season">${escapeHtml(line)}</p>` : ""}</header>`;
+  return renderPageHead({ title: t("shell.league"), sub: line, titleTag: "p" });
 }
 
 function heroMarkup() {

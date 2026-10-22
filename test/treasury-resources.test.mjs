@@ -165,7 +165,7 @@ test("a refused step is heard, not sent", async () => {
   });
   const [heard] = toasts();
   assert.equal(heard.text, "Starting rerolls are bought only while the team is being built");
-  assert.match(heard.tone, /toast-error/);
+  assert.match(heard.tone, /g-toast--error/);
   assert.equal(api.calls.length, 0);
 });
 
@@ -313,7 +313,7 @@ test("a refusal of the save is said; the stage's reads the coach's list again, a
   });
   const [said] = toasts();
   assert.equal(said.text, en["error.STAGE_PURCHASE_LOCKED"]);
-  assert.match(said.tone, /toast-error/);
+  assert.match(said.tone, /g-toast--error/);
   assert.equal(state.myTeams.items[0].roster.cheerleaders, 1, "nothing changed");
   assert.equal(api.calls.filter((call) => call.key === "GET /api/teams").length, 1, "the stage the list held may be old: read once more");
 
@@ -324,7 +324,7 @@ test("a refusal of the save is said; the stage's reads the coach's list again, a
     click(plus("cheerleaders"));
     await settle();
   });
-  assert.match(toasts()[0].tone, /toast-error/);
+  assert.match(toasts()[0].tone, /g-toast--error/);
   assert.equal(api.calls.some((call) => call.key === "GET /api/teams"), false, "a refusal is an answer: nothing to find out");
 });
 
@@ -423,7 +423,7 @@ test("a press the page did not draw for the team is not judged: a stray switch i
   });
   // The step of a counter that is no row throws; the press says so instead of leaving an unhandled rejection to fail the run.
   assert.equal(toasts().length, 1);
-  assert.match(toasts()[0].tone, /toast-error/);
+  assert.match(toasts()[0].tone, /g-toast--error/);
   assert.equal(api.calls.length, 0);
 });
 

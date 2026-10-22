@@ -239,9 +239,9 @@
 }
 
 @media (max-width: 900px) {
-  /* CoachProfile.html's page is grey to its edges, 16 in: it takes back the view's padding of a phone (site-matchday.css). */
+  /* CoachProfile.html's page is grey to its edges, 16 16 28 in: it takes back the frame's padding by its own figures. */
   .g-coach--phone {
-    margin: calc(-1 * var(--space-20)) calc(-1 * var(--space-16)) -32px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom));
     padding: var(--space-16) var(--space-16) 28px;
     background: var(--surface-2);
   }
@@ -249,10 +249,10 @@
 
 /* ---- A desk (DeskCoachProfile.html): the row of the coach and his buttons, then two cards side by side ---- */
 @media (min-width: 901px) {
-  /* 32 from the edges, as the prototype's (the view pads 28). */
+  /* 32 from the edges, as the prototype's main: the frame's 32. */
   .g-coach--desk {
     gap: var(--space-20);
-    padding: 0 var(--space-4);
+    padding: 0;
   }
   .g-coach__id {
     flex-wrap: wrap;

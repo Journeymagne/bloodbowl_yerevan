@@ -474,7 +474,7 @@ test("an edit that waited for the network is given up when a match begins, and t
     assert.equal(bodyOf("p3#0").querySelector(".g-num__n").textContent, "12", "drawn at once");
     await matchBegins(team({ revision: 5 }));
     assert.equal(toasts().at(-1), DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.deepEqual(toasts().filter((said) => said.startsWith("A match has begun")), [DROPPED], "no SPP, marks or market waited");
     assert.equal(bodyOf("p3#0").querySelector(".g-num__n").textContent, "3", "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);

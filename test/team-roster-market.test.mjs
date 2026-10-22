@@ -1257,7 +1257,7 @@ test("a hire and a sale that waited for the network are given up when a match be
     assert.equal(namesIn(tables()[0]).length, 4, "the new Lineman is drawn at once");
     await matchBegins(rich({ revision: 5 }));
     assert.equal(toasts().at(-1), MARKET_DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.deepEqual(warnings(), [MARKET_DROPPED], "neither SPP nor marks waited");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);
@@ -1298,7 +1298,7 @@ test("SPP, a mark and a hire given up together: each in its own words, SPP first
     await matchBegins(rich({ revision: 5 }));
     assert.deepEqual(warnings(), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
     assert.deepEqual(toasts().slice(-3), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
-    for (const output of document.querySelectorAll("output").slice(-3)) assert.match(output.className, /toast-error/);
+    for (const output of document.querySelectorAll("output").slice(-3)) assert.match(output.className, /g-toast--error/);
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(patches().length, tried, "the tries before the network went, and none in the match");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");

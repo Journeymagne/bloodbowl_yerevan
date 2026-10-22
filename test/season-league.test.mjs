@@ -397,12 +397,12 @@ test("every key in both dictionaries", () => {
   for (const gone of ["season.tab.standings", "season.tab.fixture"]) assert.equal(en[gone], undefined, gone);
 });
 
-test("up to 900px the league's, an opponent's and the matches' pages are white, as their prototypes: the 2.x view's wash is off for them alone", () => {
-  assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), ["none"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), [], "a desk's page is the desk's grey");
-  assert.match(text("src/styles/site-matchday.css"), /\.view::after \{[^}]*var\(--md-wash\)/, "the 2.x pages keep it until stage 13");
-  // The matches' page is matches/index.mjs's .g-matches, a child of the view as the others are.
-  assert.match(text("src/screens/matches/index.mjs"), /<div class="g-matches">/);
+// League.html, OppTeam.html and Matches.html are white: the 2.x view's wash went with the view at stage 13, and with it the
+// rule that took it away under these pages.
+test("no stylesheet draws a wash under the view", () => {
+  assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /#app-view[^{}]*::after/, "nothing to take away");
+  assert.doesNotMatch(text("src/styles/site-matchday.css"), /\.view::after/, "the 2.x wash is gone");
+  assert.doesNotMatch(text("index.html"), /class="[^"]*\bview\b/, "the 2.x view is gone");
 });
 
 test("the table's rule at the card's head: balanced lines from the left, no word left alone at the right (DeskSeason.html)", () => {

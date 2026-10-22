@@ -635,7 +635,7 @@ test("a refusal names the rule, and the roster is read again", async () => {
       fireEvent(plus("touchdowns"), "click");
       await settle();
       assert.match(toasts().at(-1), /Ann/);
-      assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+      assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
       assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1").length, 1);
       assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1);
       assert.equal(countOf("touchdowns"), "0", "the server's roster");
@@ -2387,7 +2387,7 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.deepEqual([valuesOf(sheet, ".g-roster__aside", "padding"), valuesOf(sheet, ".g-roster__aside", "border-radius")], [["var(--space-20)"], ["var(--radius-2xl)"]]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "font"), ["700 26px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "text-transform"), ["none"]);
-  // Stats.html's and StatsMngDead.html's open row: its words 16px from the screen's edge, which is the view's padding
+  // Stats.html's and StatsMngDead.html's open row: its words 16px from the screen's edge, which is the frame's padding
   // here, so the panel pads none of its own; its band is the screen's width, carried over that padding (roster-table.css).
   for (const [file, selector] of [[sheet, ".g-roster__rowpanel"], ["src/screens/team/roster/marks.css", ".g-fallen__rowpanel"]]) {
     assert.deepEqual(valuesOf(file, selector, "padding"), ["var(--space-4) 0 var(--space-14)"], selector);
@@ -2397,9 +2397,9 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   const open = ".g-rtable__player.is-expanded > tr >";
   const lastShown = ":nth-last-child(1 of :not(.g-rtable__c--desk))";
   assert.deepEqual(valuesOf(table, ".g-rtable__player.is-expanded", "box-shadow"), []);
-  assert.deepEqual(valuesOf(table, `${open} :first-child`, "box-shadow"), ["-20px 0 var(--surface-2)"]);
-  assert.deepEqual(valuesOf(table, `${open} ${lastShown}`, "box-shadow"), ["20px 0 var(--surface-2)"]);
-  assert.deepEqual(valuesOf(table, `${open} :first-child${lastShown}`, "box-shadow"), ["-20px 0 var(--surface-2), 20px 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} :first-child`, "box-shadow"), ["calc(-1 * var(--view-side)) 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} ${lastShown}`, "box-shadow"), ["var(--view-side) 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} :first-child${lastShown}`, "box-shadow"), ["calc(-1 * var(--view-side)) 0 var(--surface-2), var(--view-side) 0 var(--surface-2)"]);
   for (const file of [sheet, "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css"]) {
     const breakpoints = [...text(file).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
     assert.ok(breakpoints.length > 0, file);

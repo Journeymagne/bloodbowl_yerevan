@@ -25,7 +25,7 @@ const undos = () => api.calls.filter(({ key }) => key === UNDO);
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
 const teamReads = () => api.calls.filter(({ key }) => key === TEAM_READ).length;
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
-const lastToastIsError = () => /toast-error/.test(document.querySelectorAll("output").at(-1).className);
+const lastToastIsError = () => /g-toast--error/.test(document.querySelectorAll("output").at(-1).className);
 const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
 /** «Undo the mark»: the desk panel's by default. */
 const undoButton = (root = aside()) => root.querySelector("[data-roster-undo]");

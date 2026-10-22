@@ -478,11 +478,6 @@
 }
 .g-manage__fix:hover:not([aria-disabled="true"]) { text-decoration: underline; }
 
-/* On a phone the team's value is in the card: the head says the title and the phase. */
-@media (max-width: 900px) {
-  .g-manage .g-pagehead__sub { display: none; }
-}
-
 @media (min-width: 901px) {
   .g-manage .g-pagehead { margin-bottom: var(--space-8); }
 

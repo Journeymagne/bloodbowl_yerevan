@@ -121,7 +121,7 @@ test("an address that is not a page is not echoed: the article says only that it
 
 test("not found keeps the reference around it: the head, the table of contents, nothing lit", () => {
   renderReferencePage("no-such-page");
-  assert.ok(view.querySelector(".g-ref--article .g-ref-head"));
+  assert.ok(view.querySelector(".g-ref--article header.g-pagehead"));
   assert.equal(view.querySelectorAll(".g-ref-toc__link").length, refGroups(referenceData("en")).flatMap((group) => group.items).length);
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]'), null);
   assert.equal(view.querySelector(".g-article__kicker"), null, "there is no group to name");
@@ -132,7 +132,7 @@ test("not found keeps the reference around it: the head, the table of contents, 
 test("an article is the page's one h1; the band above it keeps its title as a paragraph", () => {
   renderReferencePage("weather");
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Weather"]);
-  assert.equal(view.querySelector(".g-ref-head__title").tagName, "P");
+  assert.equal(view.querySelector(".g-pagehead__title").tagName, "P");
   assert.ok(view.querySelector(".g-ref--article .g-ref__body .g-ref-toc"));
   assert.ok(view.querySelector(".g-ref__main article.g-article"));
 });
@@ -326,11 +326,11 @@ test("the dictionary has the kicker and the pager's name in both languages", () 
 
 test("the markup an article draws is styled by the reference's sheets", () => {
   renderReferencePage("casualties");
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
   renderOverviewArticle("code-of-conduct");
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
   renderLegal();
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
 });
 
 test("the router draws these screens, and the 2.x detail, legal and not-found screens are gone from src", () => {

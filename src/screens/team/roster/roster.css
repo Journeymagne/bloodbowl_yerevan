@@ -511,13 +511,6 @@
 
 @media (min-width: 901px) {
   /*
-   * The frame's `overflow-x: hidden` makes .g-main a box that scrolls (though it never does), and a sticky
-   * panel would stick to it and so never stick. Cut off with `clip` it is no box, and the panel sticks to
-   * the window, as the reference's and the builder's do (ref.css, builder.css). Stage 13 makes it global.
-   */
-  .g-main:has(.g-roster) { overflow-x: clip; }
-
-  /*
    * The column and the panel 20px apart. The panel is DeskRoster.html's 380px (340 and its padding) where the page
    * has room, a third of the content, and never under 340px, where a match's tile still holds «− 12+1 +» between two
    * 24px buttons (action-stepper.css): at 901 to about 1400px the table scrolls in its frame beside it.

@@ -484,11 +484,9 @@ test("from 901px the split page's columns never wrap, and its panel stays in vie
   assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__body", "flex-flow"), []);
   assert.ok(split(REF).wide.includes(".g-ref--split .g-ref__body"), "the columns are the desktop's");
   assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
-  // Sticking needs the frame's box not to be one that scrolls: `overflow-x: hidden` makes it one, which never scrolls, so nothing would stick.
-  assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), ["clip"]);
-  assert.ok(split(REF).wide.includes(".g-main:has(.g-ref)"), "and only where the panel is: from 901px");
-  // Temporary, with the scoped rule above: the 2.x `.builder-summary` sticky went in stage 12; stage 13 puts `clip` into frame.css for every screen.
-  assert.equal(valuesOf("src/shell/frame.css", ".g-main", "overflow-x")[0], "hidden", "the frame's other screens stay as they were");
+  // Sticking needs the frame's box not to be one that scrolls: the frame clips sideways for every screen (stage 13), so no rule of the reference's own does it.
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), []);
 });
 
 test("a panel taller than the window scrolls in itself, so that its foot (who in the team has the skill) is not out of reach while it is stuck", () => {
@@ -508,7 +506,7 @@ test("every class the panel draws is styled, and the sheets reach the page", () 
   state.myTeams.items = [TEAM];
   state.activeTeamId = "t1";
   renderReferencePage("skills/evasive");
-  assertStyled(view, REF, ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, REF, "page-head.css", ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
   const styles = read("src/styles.css");
   assert.ok(styles.includes('@import url("screens/ref/ref.css");') && styles.includes('@import url("screens/ref/article.css");'));
 });

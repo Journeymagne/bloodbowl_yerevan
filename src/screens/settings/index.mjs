@@ -11,7 +11,7 @@
  */
 import { refusalText } from "../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
-import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
+import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { requestLocale } from "../../core/locale-request.mjs";
 import { authUrl, routeFromHash } from "../../core/routes.mjs";
@@ -22,7 +22,6 @@ import { setThemeChoice, themeChoice } from "../../core/theme.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
-import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { saveTheme } from "../../data/preferences.mjs";
 import { mergeCurrentUser, signOut } from "../../data/session.mjs";
@@ -391,8 +390,6 @@ export function renderSettings() {
   }
   screen.open = true;
   screen.telegramError = "";
-  setActiveNav("settings");
-  setViewSection("settings");
   draw();
   releaseSheet = wirePasswordSheet(view, { onInput: typedPassword, onToggleShow: toggleShowPasswords, onSubmit: submitPassword, onClose: closePassword });
   onScreenLeave("settings", () => {
