@@ -284,11 +284,13 @@ test("CHALLENGE_ALREADY_SENT from another device: the sheet says it, the list is
     fireEvent(row("u2"), "click");
     api.reply("POST /api/challenges", 409, refusal("CHALLENGE_ALREADY_SENT"));
     list([...CHALLENGES, challenge("c9", ME, RIVAL, T1, { createdAt: ago(0) })]);
+    cta().focus();
     click("[data-friendly-challenge]");
     await settle();
     await settle();
     assert.ok(sendSheet()?.isModal);
     assert.equal(view.querySelector("#friendly-send .g-challenge__refusal").textContent, t("error.CHALLENGE_ALREADY_SENT"));
+    assert.ok(document.activeElement === view.querySelector("#friendly-search"), "the button under the focus is closed: the focus goes to the search");
     assert.equal(sent("GET /api/challenges").length, 2);
     assert.equal(row("u2").getAttribute("aria-disabled"), "true");
     assert.equal(row("u2").getAttribute("aria-checked"), "false");

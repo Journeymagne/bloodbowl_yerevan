@@ -17,8 +17,9 @@
  * opens no sheet: what the page offers is what the write's answer and the list read after it say:
  * - «Challenge <login>» (`POST /api/challenges {opponentId, teamId}`): sent — the list read, the sheet closed, the
  *   coach told «Challenge sent: …», the focus on «Challenge». Refused — the server's words in the sheet, the list read,
- *   the sheet open (`CHALLENGE_ALREADY_SENT` from another device makes the coach busy). Lost (no answer came) — the list
- *   read: the challenge waiting there is sent, otherwise the sheet says no answer came. Never sent again by itself.
+ *   the sheet open (`CHALLENGE_ALREADY_SENT` from another device makes the coach busy, and the button under the focus
+ *   closed: the focus goes to the search). Lost (no answer came) — the list read: the challenge waiting there is sent,
+ *   otherwise the sheet says no answer came. Never sent again by itself.
  * - «Accept and go to the preparation» (`POST …/:id/accept {teamId}`): the games read again and the address is the new
  *   match's preparation. A challenge no longer waiting (`CHALLENGE_CLOSED`, or `CHALLENGE_NOT_FOUND`: its pair was
  *   deleted) — the server's words on the page, the list read, the sheet closed; another refusal — the words in the
@@ -146,6 +147,16 @@ const mayOpen = (visit) => !visit.sheet && !visit.writing;
 function focusTarget(visit) {
   if (visit.sheet === SEND_SHEET) return "#friendly-search";
   return visit.sheet === ACCEPT_SHEET ? `#${ACCEPT_SHEET} [role="radio"][aria-checked="true"]` : "h1";
+}
+
+/**
+ * A focus a draw left on nothing — its node gone (a card answered, the callout of a read that failed) — or closed under
+ * it (`disabled`, which a browser drops to the body) goes where the keyboard goes on from: the sheet's first control, or
+ * the title.
+ */
+function refocus(visit) {
+  const active = (view.ownerDocument ?? globalThis.document).activeElement;
+  if (focusLost(active) || (view.contains(active) && active.hasAttribute?.("disabled"))) view.querySelector(focusTarget(visit))?.focus();
 }
 
 /** The button that opens `sheet`: «Challenge», or the challenge's «Accept…»; null once it is gone. */
@@ -296,6 +307,8 @@ async function send(visit) {
   }
   say(visit, SEND_SHEET, answer.lost ? lostWords(visit) : answer.error);
   draw(visit);
+  // A coach the refusal made busy is let go: «Challenge …» under the focus is closed.
+  refocus(visit);
 }
 
 /** The friendly an accept made: the games read again (the frame's card, «Matches»), and its preparation, for one still here. */
@@ -344,7 +357,7 @@ async function respond(visit, action, id) {
   if (!done) visit.notice = answer.lost ? lostWords(visit) : answer.error;
   draw(visit);
   // The card pressed is gone: the focus it held goes to the title.
-  if (focusLost((view.ownerDocument ?? globalThis.document).activeElement)) view.querySelector("h1")?.focus();
+  refocus(visit);
   if (done) announce(action === "decline" ? t("friendly.declined") : t("friendly.cancelled"));
 }
 
