@@ -229,6 +229,7 @@
   "administration.teamsNote": "Команду с историей в сезоне или товарищескими матчами удалить нельзя.",
   "administration.noTeams": "Команд пока нет",
   "administration.block.self": "Недоступно: это ваша учётная запись",
+  "administration.block.server": "Недоступно: этого администратора хранят настройки сервера",
   "administration.block.season": "Недоступно: есть история в сезоне",
   "administration.block.friendly": "Недоступно: есть товарищеские матчи",
   "administration.deleteCoach": "Удалить тренера",

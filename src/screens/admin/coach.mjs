@@ -49,7 +49,7 @@ import { closeCoachSheets, openReset, openTeamNew } from "./coach-sheets.mjs";
 import { adminHeadMarkup, adminRefusalMarkup, avatarMarkup, crumbsMarkup, isAdminViewer } from "./frame.mjs";
 
 /** Why a delete is closed, in the order the server tells it (`deleteBlock`): one's own, a season history, friendlies. */
-export const DELETE_BLOCKS = Object.freeze(["self", "season", "friendly"]);
+export const DELETE_BLOCKS = Object.freeze(["self", "server", "season", "friendly"]);
 
 /** The switch «Administrator», as `wireToggles` reports it. */
 const ADMIN_KEY = "acoach-admin";

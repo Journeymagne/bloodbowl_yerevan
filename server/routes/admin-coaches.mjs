@@ -85,11 +85,13 @@ export async function readCoachList(db) {
 }
 
 /**
- * Why a coach's account cannot be deleted, in the order the page says it: it is the admin's own, a team
- * has a season history, the coach plays friendlies; null when it can be.
+ * Why a coach's account cannot be deleted, in the order the page says it: it is the admin's own, it is the
+ * administrator the server's settings keep (`isEnvAdmin`: every start writes it back), a team has a season
+ * history, the coach plays friendlies; null when it can be.
  */
 function coachDeleteBlock(row, viewer) {
   if (row.id === viewer.id) return "self";
+  if (isEnvAdmin(row)) return "server";
   if (row.season_history) return "season";
   if (row.friendly_history) return "friendly";
   return null;

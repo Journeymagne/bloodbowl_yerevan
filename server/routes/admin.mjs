@@ -204,12 +204,16 @@ async function handleAdminPasswordResetRoute(request, response, url) {
  * be added to them any more: an entry would take its pairings with the user (CASCADE), and its team is held
  * by RESTRICT — a 500 nobody can act on, which this 409 answers before the DELETE.
  *
- * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE, USER_IN_FRIENDLY_GAMES or USER_IN_SEASON
+ * The administrator the server's settings keep is not deleted by another admin either (`ADMIN_PROFILE_FROM_ENV`):
+ * every start writes it back, its teams and history gone.
+ *
+ * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE, ADMIN_PROFILE_FROM_ENV, USER_IN_FRIENDLY_GAMES or USER_IN_SEASON
  */
 async function deleteUser(client, userId, admin) {
-  const { rows: [target] } = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
+  const { rows: [target] } = await client.query("SELECT id, login_key FROM users WHERE id = $1", [userId]);
   if (!target) throw httpError(404, "USER_NOT_FOUND");
   if (target.id === admin.id) throw httpError(409, "SELF_ADMIN_DELETE");
+  if (isEnvAdmin(target)) throw httpError(409, "ADMIN_PROFILE_FROM_ENV");
   if (await userHasFriendlyGames(client, target.id)) throw httpError(409, "USER_IN_FRIENDLY_GAMES");
   await client.query("SELECT 1 FROM saved_teams WHERE user_id = $1 ORDER BY id FOR UPDATE", [target.id]);
   if (await userHasSeasonHistory(client, target.id)) throw httpError(409, "USER_IN_SEASON");

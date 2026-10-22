@@ -189,6 +189,11 @@ test("the list counts each coach's draft teams and names the server's admin", db
   assert.equal(status, 200);
   const rows = Object.fromEntries(body.users.map((user) => [user.id, [user.savedTeamCount, user.draftTeamCount, user.managedByServer]]));
   assert.deepEqual(rows, { [server.id]: [0, 0, true], [deputy.id]: [0, 0, false], [coach.id]: [3, 2, false] });
+  // Another admin does not delete the server's: its page says why, and the delete is refused (every start writes it back).
+  assert.equal((await coachPage(deputy.token, server.id)).user.deleteBlock, "server");
+  const refused = await callApi("DELETE", `/api/admin/users/${server.id}`, { token: deputy.token });
+  assert.deepEqual([refused.status, refused.body.error?.code], [409, "ADMIN_PROFILE_FROM_ENV"]);
+  assert.equal((await client.query("SELECT count(*)::int AS n FROM users WHERE id = $1", [server.id])).rows[0].n, 1, "still there");
 }));
 
 test("an admin's team for a coach is a draft", db, () => withApiDatabase(async ({ client }) => {

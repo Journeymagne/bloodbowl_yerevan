@@ -124,8 +124,9 @@ test("the model: the coach's lines, the account's form, the teams with their lin
   const own = adminCoachModel({ user: { ...ADMIN, deleteBlock: undefined }, teams: [], viewer: ADMIN });
   assert.deepEqual([own.self, own.canReset, own.resetWhy, own.deleteBlock], [true, false, t("administration.ownPassword"), "self"]);
   // The server's admin: no reset, the server's words.
-  const env = adminCoachModel({ user: { ...ORC_BOSS, isAdmin: true, managedByServer: true, deleteBlock: null }, teams: [], viewer: ADMIN });
-  assert.deepEqual([env.envAdmin, env.canReset, env.resetWhy], [true, false, t("error.ADMIN_PASSWORD_FROM_ENV")]);
+  const env = adminCoachModel({ user: { ...ORC_BOSS, isAdmin: true, managedByServer: true, deleteBlock: "server" }, teams: [], viewer: ADMIN });
+  assert.deepEqual([env.envAdmin, env.canReset, env.resetWhy, env.deleteBlock], [true, false, t("error.ADMIN_PASSWORD_FROM_ENV"), "server"],
+    "nor deleted by another admin: the server's settings keep it");
   // A team in the season that is still in its build says both; one with past matches and no friendly says the matches.
   const lines = adminCoachModel({ user: ORC_BOSS, viewer: ADMIN, teams: [
     { id: "a", name: "A", baseTeamSlug: "teams/human", stage: "draft", inActiveSeason: true, matches: 0, friendlies: 0 },
@@ -133,7 +134,7 @@ test("the model: the coach's lines, the account's form, the teams with their lin
     { id: "c", name: "C", baseTeamSlug: "teams/nowhere", stage: "active", inActiveSeason: false, matches: 0, friendlies: 0 },
   ] }).teams.map((team) => team.line);
   assert.deepEqual(lines, ["Human · in the build · in the season", "Orc · matches: 4", ""]);
-  assert.deepEqual(DELETE_BLOCKS, ["self", "season", "friendly"]);
+  assert.deepEqual(DELETE_BLOCKS, ["self", "server", "season", "friendly"]);
   assert.ok(Object.isFrozen(DELETE_BLOCKS));
 });
 

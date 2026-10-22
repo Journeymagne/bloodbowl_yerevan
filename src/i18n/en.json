@@ -229,6 +229,7 @@
   "administration.teamsNote": "A team with a season history or friendly matches cannot be deleted.",
   "administration.noTeams": "No teams yet",
   "administration.block.self": "Not available: this is your own account",
+  "administration.block.server": "Not available: this administrator is kept by the server's settings",
   "administration.block.season": "Not available: there is a season history",
   "administration.block.friendly": "Not available: there are friendly matches",
   "administration.deleteCoach": "Delete the coach",
