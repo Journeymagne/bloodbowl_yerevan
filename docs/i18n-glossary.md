@@ -521,6 +521,7 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 9. **«набор» (12).** The administration says "build" / "in the build". The team's stage chip says
    "Draft" (06). Russian says «набор» in both places. A round that has not started is something else:
    "draft" / «черновик» (`adminSeason.roundDraft`).
-10. **09c.** Its five rows were read from `rd/09c-challenges` (70d729e) before it was merged. Check them
-    against the dictionaries once it is in.
+10. **09c.** Its five rows were read from `rd/09c-challenges` (70d729e) before it was merged, and checked
+    against the merged dictionaries at the merge of stage 13's wave 1: each says what `en.json` and
+    `ru.json` say.
 11. **13.** The `gamePage.*` keys come with stage 13's match page (`#/games/:id`).
