@@ -11,7 +11,6 @@
 @import url("styles/legacy-aliases.css");
 @import url("styles/shell.css");
 @import url("styles/pages.css");
-@import url("styles/catalog.css");
 @import url("styles/roster.css");
 @import url("styles/season.css");
 @import url("styles/responsive.css");
@@ -19,7 +18,6 @@
 @import url("styles/controls.css");
 @import url("styles/matchday.css");
 @import url("styles/pre-match.css");
-@import url("styles/challenges.css");
 @import url("styles/site-matchday.css");
 @import url("ui/base.css");
 @import url("ui/button.css");
@@ -92,6 +90,8 @@
 @import url("screens/matches/post.css");
 @import url("screens/matches/post-players.css");
 @import url("screens/matches/post-money.css");
+@import url("screens/matches/challenges.css");
+@import url("screens/matches/challenges-sheets.css");
 @import url("screens/admin/admin.css");
 @import url("screens/admin/coaches.css");
 @import url("screens/admin/coach.css");

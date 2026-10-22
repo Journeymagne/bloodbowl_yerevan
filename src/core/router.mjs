@@ -36,7 +36,7 @@ import { renderRefSection } from "../screens/ref/list.mjs";
 import { renderTeams } from "../screens/teams/index.mjs";
 import { renderNewTeam } from "../screens/teams/new.mjs";
 import { renderSeasonRoute } from "../screens/season/league.mjs";
-import { renderMyGames } from "../screens/games/my-games.mjs";
+import { renderTeamChallenges } from "../screens/matches/challenges.mjs";
 import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
@@ -78,7 +78,7 @@ const screens = {
   teamRoster: ({ teamId }) => renderTeamRoster(teamId),
   teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),
   teamMatches: ({ teamId }) => renderTeamMatches(teamId),
-  teamChallenges: () => renderMyGames(),
+  teamChallenges: ({ teamId, userId }) => renderTeamChallenges(teamId, userId),
   coach: ({ userId }) => renderCoachProfile(userId),
   coachTeam: ({ userId, teamId }) => renderCoachTeam(userId, teamId),
   ref: () => renderRef(),

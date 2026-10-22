@@ -3,13 +3,14 @@
  * what a game is — whether its result is in, whether it belongs to the round
  * players may still play, whether that round is over for them.
  *
- * Moved out of screens/games/my-games.mjs so that the screens (my games, a
- * single game) and the frame (the SideNav's match card, shell/current-match.mjs)
- * ask the same questions of the same list. `loadGames` fills `state.games`;
- * app.js warms it on sign-in. A screen that has changed a game (a start, a
- * result, a challenge, a deleted team) calls `invalidateGames`, which reads
- * the list again; whoever draws from it listens with `onGamesChange` (the shell
- * does, so the match card follows what the screens do).
+ * Moved out of 2.x «My games» (gone since stage 09c) so that the screens (a
+ * team's matches and challenges, a single game) and the frame (the SideNav's
+ * match card, shell/current-match.mjs) ask the same questions of the same
+ * list. `loadGames` fills `state.games`; app.js warms it on sign-in. A screen
+ * that has changed a game (a start, a result, a challenge, a deleted team)
+ * calls `invalidateGames`, which reads the list again; whoever draws from it
+ * listens with `onGamesChange` (the shell does, so the match card follows what
+ * the screens do).
  */
 import { errorText } from "../core/api.mjs";
 import { apiRequest } from "../core/api-client.mjs";

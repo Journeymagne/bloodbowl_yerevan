@@ -15,7 +15,7 @@
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatDay } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { adminCoachUrl, playerTeamUrl, teamUrl } from "../../core/routes.mjs";
+import { adminCoachUrl, challengeUrl, playerTeamUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -86,7 +86,8 @@ function sinceOf(createdAt) {
  * @param {object|null} input.seasonData `/api/season`; null while it is not read
  * @param {object[]} input.games the looking coach's games
  * @param {string} input.viewerId the looking coach
- * @param {string|null} [input.activeTeamId] his active team, which challenges
+ * @param {string|null} [input.activeTeamId] his active team, which challenges; the challenge opens with this coach chosen,
+ *   and a coach with no team has none (the server would refuse him: there is no team of his to play)
  * @param {boolean} [input.admin] an admin looks
  */
 export function coachModel({ user, teams, seasonData, games = [], viewerId, activeTeamId = null, admin = false }) {
@@ -105,7 +106,7 @@ export function coachModel({ user, teams, seasonData, games = [], viewerId, acti
       href: mine ? teamUrl(team.id) : playerTeamUrl(user.id, team.id), draft: team.stage === "draft",
     })),
     meetings: mine ? [] : meetingsOf(Array.isArray(games) ? games : [], user.id),
-    challengeHref: !mine && activeTeamId ? teamUrl(activeTeamId, "challenges") : "",
+    challengeHref: !mine && activeTeamId && teams.length > 0 ? challengeUrl(activeTeamId, user.id) : "",
     adminHref: admin ? adminCoachUrl(user) : "",
   };
 }

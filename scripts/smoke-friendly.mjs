@@ -7,7 +7,7 @@ import { hashPassword } from "../server/auth/session.mjs";
 const base = process.env.SMOKE_BASE_URL || "http://localhost:3003";
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname)
   || !["localhost", "127.0.0.1", "postgres"].includes(new URL(databaseUrl).hostname)) throw new Error("This check requires a local site and database.");
-const tokens = {}, users = {}, teams = {}, challengeIds = [], gameIds = [];
+const tokens = {}, users = {}, teams = {}, slugs = {}, challengeIds = [], gameIds = [];
 let outsiderId, gameId, payload, seasonBefore;
 const stamp = randomUUID();
 
@@ -29,7 +29,7 @@ async function createFixtures() {
     assert.equal(login.status, 200); tokens[side] = login.data.token; users[side] = login.data.user.id;
     const name = side === "home" ? "Yerevan Lions" : "Drunken Rune Guard";
     const source = (await pool.query("SELECT * FROM saved_teams WHERE user_id=$1 AND name=$2", [users[side], name])).rows[0];
-    assert.ok(source, "Run npm run preview:seed first.");
+    assert.ok(source, "Run npm run preview:seed first."); slugs[side] = source.base_team_slug;
     teams[side] = (await pool.query("INSERT INTO saved_teams(user_id,name,base_team_slug,roster) VALUES($1,$2,$3,$4) RETURNING id",
       [users[side], `Friendly smoke ${side} ${stamp}`, source.base_team_slug, JSON.stringify({ ...source.roster, treasury: 150 })])).rows[0].id;
   }
@@ -51,6 +51,10 @@ async function verifyChallenges() {
   await error("home", "/api/challenges", { opponentId: outsiderId, teamId: teams.home }, "CHALLENGE_OPPONENT_UNAVAILABLE", 404);
   await error("home", "/api/challenges", { opponentId: "bad-id", teamId: teams.home }, "CHALLENGE_SELECTION_REQUIRED", 400);
   const id = await invite(), path = `/api/challenges/${id}`;
+  const listed = (await request("home", "/api/challenges")).data;
+  const away = listed.opponents.find(coach => coach.id === users.away)?.teams.find(team => team.id === teams.away);
+  assert.ok(away?.baseTeamSlug && away.baseTeamSlug === slugs.away, "The challenge list names the opponent's teams with their races.");
+  assert.equal(listed.challenges.find(c => c.id === id).team.baseTeamSlug, slugs.home);
   await error("home", "/api/challenges", { opponentId: users.away, teamId: teams.home }, "CHALLENGE_ALREADY_SENT");
   for (const side of ["home", "away"]) assert.equal((await request(side, "/api/challenges")).data.challenges.find(c => c.id === id).status, "pending");
   assert.ok(!(await request("outsider", "/api/challenges")).data.challenges.some(c => c.id === id));
@@ -121,7 +125,7 @@ async function verifyResults() {
   await assert.rejects(pool.query("UPDATE season_pairings SET home_points=6 WHERE id=$1", [gameId]), { code: "23514" });
   assert.equal((await request("home", `${path}/preparation`)).data.fixture.closed, true);
   assert.deepEqual((await request(null, "/api/season")).data, seasonBefore, "Friendly games must not affect the league table or schedule.");
-  console.log("Friendly API smoke passed: challenge permissions, decline/cancel, concurrent and repeat acceptance, shared checklist/start, treasury, result agreement, zero LP and unchanged season.");
+  console.log("Friendly API smoke passed: challenge permissions, opponents with their teams and the challenging team's race, decline/cancel, concurrent and repeat acceptance, shared checklist/start, treasury, result agreement, zero LP and unchanged season.");
 }
 
 try { await createFixtures(); await verifyChallenges(); await prepareAndStart(); await verifyResults(); }

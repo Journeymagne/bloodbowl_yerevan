@@ -42,10 +42,6 @@
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 
-  .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  }
-
   .stepper {
     width: auto;
     grid-template-columns: 38px 44px 38px;

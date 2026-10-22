@@ -24,10 +24,11 @@
  * It keeps one user and the coach's teams in memory (a team made or deleted
  * stays so until the mock restarts), and answers just enough of the API for the shell
  * (sign-in, settings, the SideNav's match card, the header's place), the teams
- * list, a team's overview, a new team, the saved roster, my-games (with its
- * challenges), game and player-profile screens; the administration's are
- * scripts/mock/admin.mjs's (MOCK_ADMIN=1). Not a substitute for `npm run smoke`,
- * which exercises the real server.
+ * list, a team's overview, a new team, the saved roster, the friendly challenge
+ * page (its routes have a module of their own under scripts/mock/), game and
+ * player-profile screens; the administration's are scripts/mock/admin.mjs's
+ * (MOCK_ADMIN=1). Not a substitute for `npm run smoke`, which exercises the
+ * real server.
  *
  * What it answers, where it is not obvious (the real server is the reference):
  *   GET   /api/auth/me           the coach as `accountUser` (server/routes/account.mjs)
@@ -89,7 +90,7 @@
  *   GET   /api/season            scripts/mock/season.mjs (and the league's other coaches' pages; t1's place is what the table makes).
  *   GET/PATCH /api/games/:id/post-match, POST …/finish, …/post-match/rolls  scripts/mock/post.mjs (g2's post-match and its cases).
  * Errors are the server's `errorPayload`: `{error: {code, params, message}}`.
- * MOCK_EMPTY=1 leaves no team, game or challenge; the season still has the rival.
+ * MOCK_EMPTY=1 leaves no team, game or challenge, nor anybody to challenge; the season still has the rival.
  * Its ids are `t1`, `g1`, not UUIDs: the server would refuse `t1` as an active team (400), the mock takes it.
  */
 import http from "node:http";
@@ -100,6 +101,7 @@ import { fileURLToPath } from "node:url";
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
 import { answerAdmin } from "./mock/admin.mjs";
+import { answerChallenges } from "./mock/challenges.mjs";
 import { answerMatches } from "./mock/matches.mjs";
 import { answerPost } from "./mock/post.mjs";
 import { answerSeason } from "./mock/season.mjs";
@@ -359,27 +361,6 @@ const games = empty ? [] : [
   }),
 ];
 
-// GET /api/challenges (server/friendly/challenges.mjs listChallenges): the
-// coach's own challenges (senders and recipients as id and login only), their
-// teams in the slim shape, and who may be challenged. One of each kind, so
-// my-games shows both columns and the history.
-const challenge = (id, sender, recipient, senderTeam, status, gameId = null) => ({
-  id, sender: coach(sender), recipient: coach(recipient), team: { id: senderTeam.id, name: senderTeam.name },
-  status, gameId, createdAt: team.createdAt, updatedAt: team.updatedAt,
-});
-const challenges = {
-  challenges: empty ? [] : [
-    challenge("c1", rival, user, rivals[0], "pending"),
-    challenge("c2", user, rival, team, "pending"),
-    challenge("c3", rival, user, rivals[0], "accepted", "g1"),
-  ],
-  // The teams the coach has now, made and deleted since the mock started included.
-  get teams() {
-    return teams.map(({ id, name, baseTeamSlug, createdAt, updatedAt }) => ({ id, name, baseTeamSlug, logoData: null, roster: {}, createdAt, updatedAt }));
-  },
-  opponents: [coach(rival)],
-};
-
 /** A body that is no JSON object: the 400 `readJson` (server/http/responses.mjs) gives it. */
 async function readBody(request) {
   const chunks = [];
@@ -399,7 +380,7 @@ async function readBody(request) {
 const reply = (payload, status = 200) => ({ status, payload });
 const refuse = (status, code, params = {}) => reply(errorPayload(code, params), status);
 /** What an answerer is given besides the request: the lists it reads and the helpers it replies with. */
-const mock = { teams, games, user, rival, readBody, reply, refuse };
+const mock = { teams, games, user, rival, pairingOf, empty, readBody, reply, refuse };
 
 /** A team's history, an entry by hand and the save of any team (scripts/mock/treasury.mjs); it gives t1, t4 and t5 their fixtures too. */
 const answerTreasury = treasuryRoutes({ teams, readBody });
@@ -473,9 +454,8 @@ async function answerTeams(request, pathname) {
 const isCurrent = (game) => game.roundStatus === "started" && game.resultStatus !== "confirmed";
 const withoutMvps = ({ homeMvps, awayMvps, ...game }) => game; // only the list carries MVPs, as on the server (`server/routes/games.mjs`)
 
-/** Challenges and matches. */
+/** The matches. */
 function answerLeague(request, pathname) {
-  if (pathname === "/api/challenges" && request.method === "GET") return reply(challenges);
   if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent).map(withoutMvps) : [] });
   if (pathname.startsWith("/api/games/")) {
     const game = games.find((item) => item.id === pathname.split("/")[3]);
@@ -500,7 +480,7 @@ function answerPeople(request, pathname) {
 
 async function answerApi(request, pathname) {
   // The administration first: the roster's mock would call another coach's team, which an admin opens, not found.
-  for (const answer of [answerAuth, answerAdmin, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
+  for (const answer of [answerAuth, answerAdmin, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerChallenges, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }

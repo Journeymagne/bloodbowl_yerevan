@@ -1,6 +1,7 @@
 /*
- * The 2.x pages' panels, tables and notices, the game page and the games list.
- * (The 2.x season screen's tabs, entries and rounds went with it in stage 12.)
+ * The 2.x pages' panels, tables and notices, and the game page.
+ * (The 2.x season screen's tabs, entries and rounds went with it in stage 12; the games list's pill and cards with
+ * «My games» in stage 09c.)
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
@@ -56,50 +57,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(239, 224, 183, 0.08);
-}
-
-.season-status-pill {
-  display: inline-grid;
-  min-height: 24px;
-  place-items: center;
-  padding: 0 9px;
-  border: 1px solid var(--button-border);
-  border-radius: 999px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  font-size: 0.75rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.season-status-pill[data-status="started"] {
-  border-color: rgba(138, 160, 75, 0.68);
-  color: var(--accent-text);
-}
-
-.season-card {
-  display: grid;
-  gap: 14px;
-}
-
-.season-card h2,
-.season-card h3,
-.season-card p {
-  margin: 0;
-}
-
-.games-grid {
-  margin-top: 14px;
-}
-
-.game-card {
-  display: grid;
-  gap: 8px;
-}
-
-.game-card h3,
-.game-card p {
-  margin: 0;
 }
 
 .game-versus {

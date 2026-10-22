@@ -1,0 +1,521 @@
+/*
+ * The sheets of a team's friendlies (screens/matches/challenges-sheets.mjs): the challenge — ChallengeSend.html and
+ * ChallengeSendSearch.html up to 900px, DeskChallenges.html's window of 760px from 901px — and the accept,
+ * ChallengeAccept.html (a desk's is sheet.css's window of 480px). Values from those prototypes; font, border,
+ * background, text-transform, letter-spacing and font-weight are set on purpose (the 2.x globals live until stage 13).
+ * Colours are tokens: a coach's circle is the header's (the prototypes' own colours have none), a selected segment is
+ * the segmented control's (--seg-on, --shadow-thumb). Long logins and team names wrap; nothing is cut with «…» (the
+ * prototypes cut the coaches' teams and the segments). A thumb's targets are 44 high up to 900px (D2): the
+ * prototypes' 36 and 38 are a desk's.
+ */
+
+/* ---- The challenge: the search over the list, the note of a coach the address named, the refusal ---- */
+.g-challenge__top {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/*
+ * The field and «Clear» in one box of 48 (ChallengeSendSearch.html): the box has the grey and the ring, the input inside
+ * it none — and the keyboard's ring of the field (base.css) goes round the box too, «Clear» inside it, not round the
+ * input alone and short of «Clear». «Clear» focused keeps its own ring.
+ */
+.g-challenge__search {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--space-6) 0 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+}
+.g-challenge__search:has(.g-search__input:focus-visible) {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+.g-challenge__search .g-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.g-challenge__search .g-search__input {
+  padding: 0 var(--space-8) 0 calc(var(--space-14) + 18px + var(--space-8));
+  background: transparent;
+}
+.g-challenge__search .g-search__input:focus-visible { outline: none; }
+/* «Clear» is the sheet's own button: the browser's cross would be a second one. */
+.g-challenge__search .g-search__input::-webkit-search-cancel-button { display: none; }
+.g-challenge__clear {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.g-challenge__note {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__refusal {
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-lg);
+  background: var(--danger-tint);
+  color: var(--on-danger-tint);
+  font: 400 13px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* A caption over what follows it, as the page's: 700 12, spaced, in capitals, at Golos' own height (the prototypes give none). */
+.g-challenge__caption {
+  color: var(--muted);
+  font: 700 12px/1.2 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.g-challenge__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* A phone's group: the recent opponents and the others 16 apart, each caption 8 over its rows, the rows 6 apart. */
+.g-challenge__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+.g-challenge__group .g-challenge__block { gap: var(--space-6); }
+.g-challenge__group .g-challenge__caption { margin-bottom: 2px; }
+
+.g-challenge__nobody {
+  margin: 0;
+  padding: 18px var(--space-12);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+  text-align: center;
+}
+
+/* ---- A coach to choose: 60 high, his circle of 36, his login over his teams, the radio or «Challenge sent» ---- */
+.g-challenge__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-width: 0;
+  min-height: 60px;
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 15px/1.25 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-challenge__row[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+.g-challenge__row[aria-disabled="true"] { cursor: default; }
+
+.g-challenge__letter {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 700 17px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-challenge__id {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-challenge__login {
+  color: var(--ink);
+  font: 700 15px/1.25 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__line {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 2px var(--control-border);
+}
+.g-challenge__row[aria-checked="true"] .g-challenge__radio { box-shadow: inset 0 0 0 6px var(--accent); }
+/* «Challenge sent»: it keeps to its words, the login beside it wraps. */
+.g-challenge__busy {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-lg);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 700 12px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ---- The team to challenge with: segments two to a row on the grey track; one team is a line ---- */
+.g-challenge__with {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.g-challenge__label {
+  color: var(--muted);
+  font: 600 13px/1.3 var(--font-body);
+}
+.g-challenge__single {
+  margin: 0;
+  color: var(--muted);
+  font: 600 13px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__teams {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-3);
+}
+/* 9px is the segment's own number, as the segmented control's. */
+.g-challenge__team {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-challenge__team[aria-checked="true"] {
+  background: var(--seg-on);
+  box-shadow: var(--shadow-thumb);
+  font-weight: 700;
+}
+
+.g-challenge__summary {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* A phone's foot (ChallengeSend.html): the team, the summary, «Challenge rival» of 52 — it grows for a long login. */
+.g-challenge-send .g-sheet__foot {
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-16) var(--space-16);
+}
+.g-challenge-send .g-sheet__foot .g-btn--primary {
+  height: auto;
+  min-height: 52px;
+  padding: var(--space-6) var(--space-16);
+  overflow-wrap: anywhere;
+}
+
+/* ---- The accept (ChallengeAccept.html): the challenger's card, the teams to play with, the note ---- */
+.g-challenge-accept .g-sheet__body { gap: var(--space-14); }
+.g-challenge__card {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-2xl);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+}
+.g-challenge__card .g-challenge__letter {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+.g-challenge__title {
+  color: var(--ink);
+  font: 700 16px/1.2 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__own {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+/* A team to play: 56 high, its name over its race, value and season, both in the middle as the prototype's. */
+.g-challenge__option {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.25 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-challenge__option[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  font-weight: 700;
+}
+.g-challenge__optname {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+/* The prototype dims the line by opacity, which drops it under 4.5:1: --muted holds it. */
+.g-challenge__optline {
+  max-width: 100%;
+  color: var(--muted);
+  font: 500 11px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-challenge__any {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+}
+.g-challenge-accept .g-sheet__foot .g-btn--primary {
+  height: auto;
+  min-height: 48px;
+  padding: var(--space-6) var(--space-16);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+/* ---- A phone ---- */
+@media (max-width: 900px) {
+  /* ChallengeSend.html's sheet is 92% of the screen whatever is in it; the search stays, the list under it scrolls. */
+  dialog.g-sheet.g-challenge-send {
+    height: 92dvh;
+    max-height: 92dvh;
+  }
+  .g-challenge-send .g-sheet__panel { height: 100%; }
+  .g-challenge-send .g-sheet__body {
+    gap: 0;
+    padding: 0;
+  }
+  .g-challenge-send .g-challenge__top { padding: var(--space-8) var(--space-16) var(--space-10); }
+  /* On a screen too short for the list's 160 the body scrolls as a whole: the search, the note and the list. */
+  .g-challenge__list {
+    flex: 1 1 auto;
+    min-height: 160px;
+    padding: var(--space-4) var(--space-16) var(--space-14);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  dialog.g-sheet.g-challenge-accept { max-height: 88dvh; }
+  .g-challenge-accept .g-sheet__body { padding: var(--space-10) var(--space-16) var(--space-12); }
+  .g-challenge-accept .g-sheet__foot { padding: var(--space-10) var(--space-16) var(--space-22); }
+}
+
+/* ---- A desk (DeskChallenges.html's window) ---- */
+@media (min-width: 901px) {
+  /* 760 wide, its top 110 from the window's (the prototype's), its bottom 32 on a short window. */
+  dialog.g-sheet.g-challenge-send {
+    width: min(760px, calc(100% - 32px));
+    max-height: min(86dvh, calc(100dvh - 142px));
+    margin: 110px auto auto;
+    border-radius: 20px;
+  }
+  .g-challenge-send .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-challenge-send .g-sheet__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .g-challenge-send .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-challenge-send .g-sheet__sub { line-height: 1.2; }
+  .g-challenge-send .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-challenge-send .g-sheet__body {
+    gap: var(--space-14);
+    padding: var(--space-16) var(--space-24);
+  }
+  .g-challenge__clear {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+  /* The accept's window: its body on the edge of its head and foot, 24 in (sheet.css's window), not the phone's 16. */
+  .g-challenge-accept .g-sheet__body { padding: var(--space-16) var(--space-24) var(--space-12); }
+
+  /* «Recent:» and the chips: 36 high, the circle of 28 inside, pressed for the one chosen. */
+  .g-challenge__recent {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .g-challenge__recentlabel {
+    color: var(--muted);
+    font: 600 13px/1.3 var(--font-body);
+  }
+  .g-challenge__chip {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    max-width: 100%;
+    min-height: 36px;
+    margin: 0;
+    padding: var(--space-4) var(--space-12) var(--space-4) var(--space-4);
+    border: 0;
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--ring);
+    color: var(--ink);
+    font: 600 14px/1.2 var(--font-body);
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  .g-challenge__chip[aria-pressed="true"] {
+    background: var(--accent-tint-soft);
+    box-shadow: var(--ring-selected);
+  }
+  .g-challenge__chip[aria-disabled="true"] { cursor: default; }
+  .g-challenge__chip .g-challenge__letter {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .g-challenge__chiplogin { min-width: 0; }
+
+  /* The others in two columns, 300 high at most and 2 round, so a row's ring is not cut, scrolling. */
+  .g-challenge__group {
+    box-sizing: content-box;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: var(--space-6);
+    max-height: 300px;
+    padding: 2px;
+    overflow-y: auto;
+  }
+
+  /* «Challenging with» and the segments in one row, the segments up to 420 wide, 38 high. */
+  .g-challenge__with {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+  }
+  .g-challenge__label { flex: none; }
+  .g-challenge__teams { flex: 0 1 420px; }
+  .g-challenge__team { min-height: 38px; }
+
+  /* The foot: the summary at the left, «Cancel» and «Challenge rival» of 48 at the right; a long login wraps the button at 45%. */
+  .g-challenge-send .g-sheet__foot {
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24) var(--space-20);
+  }
+  .g-challenge-send .g-challenge__summary {
+    flex: 1 1 auto;
+    align-self: center;
+    min-width: 0;
+    font-size: 13px;
+  }
+  .g-challenge-send .g-sheet__foot .g-btn {
+    flex: none;
+    min-height: 48px;
+    padding: 0 var(--space-16);
+    border: 0;
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink);
+    font: 700 15px/1.2 var(--font-body);
+  }
+  .g-challenge-send .g-sheet__foot .g-btn--primary {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 45%;
+    min-height: 48px;
+    padding: var(--space-6) var(--space-20);
+    box-shadow: none;
+    color: var(--on-accent);
+  }
+}

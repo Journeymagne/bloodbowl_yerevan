@@ -122,6 +122,12 @@ export function postMatchUrl(gameOrId, step = "") {
   return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
 }
 
+/** The challenges of a team, with a coach to challenge when one is named (stage 09c: the coach's profile opens the challenge with him chosen). */
+export function challengeUrl(teamOrId, userOrId = "") {
+  const user = segment(userOrId);
+  return `${teamUrl(teamOrId, "challenges")}${user ? `/${user}` : ""}`;
+}
+
 /** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
 export function seasonTabUrl(tab) {
   return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
@@ -185,7 +191,7 @@ const ID_ROUTES = [
   [/^t\/([^/]+)\/roster$/, "teamRoster", "teamId"],
   [/^t\/([^/]+)\/roster\/([^/]+)$/, "teamPlayer", "teamId", "playerId"],
   [/^t\/([^/]+)\/matches$/, "teamMatches", "teamId"],
-  [/^t\/([^/]+)\/challenges$/, "teamChallenges", "teamId"],
+  [/^t\/([^/]+)\/challenges(?:\/([^/]+))?$/, "teamChallenges", "teamId", "userId"],
   [/^coaches\/([^/]+)$/, "coach", "userId"],
   [/^coaches\/([^/]+)\/teams\/([^/]+)$/, "coachTeam", "userId", "teamId"],
   [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],

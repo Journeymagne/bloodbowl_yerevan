@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   adminTeamEditUrl,
   authUrl,
+  challengeUrl,
   gameUrl,
   matchRoute,
   navRouteForPage,
@@ -171,11 +172,26 @@ test("the 3.0 screens match by name and carry their ids", () => {
   assert.deepEqual(matchRoute("t/t1"), { name: "team", params: { teamId: "t1" } });
   assert.deepEqual(matchRoute("t/t1/team"), { name: "teamManage", params: { teamId: "t1" } });
   assert.deepEqual(matchRoute("t/t1/roster/p1"), { name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } });
-  assert.deepEqual(matchRoute("t/t1/challenges"), { name: "teamChallenges", params: { teamId: "t1" } });
+  assert.deepEqual(matchRoute("t/t1/challenges"), { name: "teamChallenges", params: { teamId: "t1", userId: "" } });
   assert.deepEqual(matchRoute("coaches/u1/teams/t1"), { name: "coachTeam", params: { userId: "u1", teamId: "t1" } });
   assert.deepEqual(matchRoute("ref/skills"), { name: "refSection", params: { section: "skills" } });
   for (const name of ["login", "register", "settings", "teams", "ref"]) assert.deepEqual(matchRoute(name), { name, params: {} });
   assert.deepEqual([...TEAM_ROUTES].sort(), ["team", "teamChallenges", "teamManage", "teamMatches", "teamPlayer", "teamRoster", "teamSettings"]);
+});
+
+// Stage 09c (decision 19): the coach's profile opens the challenge with him chosen, by the address and no `?`.
+test("the address names a coach to challenge, or none", () => {
+  assert.deepEqual(matchRoute("t/t1/challenges"), { name: "teamChallenges", params: { teamId: "t1", userId: "" } });
+  assert.deepEqual(matchRoute("t/t1/challenges/u2"), { name: "teamChallenges", params: { teamId: "t1", userId: "u2" } });
+  assert.deepEqual(matchRoute(routeFromHash("#/t/t1/challenges/u%202")), { name: "teamChallenges", params: { teamId: "t1", userId: "u 2" } });
+  assert.notEqual(matchRoute("t/t1/challenges/u2/x").name, "teamChallenges", "a segment too many is not the challenges");
+  assert.equal(challengeUrl("t1", "u 2"), "#/t/t1/challenges/u%202");
+  assert.equal(challengeUrl({ id: "t 1" }, { id: "u2" }), "#/t/t%201/challenges/u2");
+  assert.equal(challengeUrl("t1"), "#/t/t1/challenges");
+  assert.equal(challengeUrl("t1", ""), teamUrl("t1", "challenges"), "no coach named is the team's challenges");
+  assert.deepEqual(resolveRedirect("t/t1/challenges/u2", { ...guest, hash: "#/t/t1/challenges/u2" }), { target: "#/login", returnTo: "#/t/t1/challenges/u2" });
+  assert.deepEqual(resolveRedirect("login", { ...coach, returnTo: "#/t/t1/challenges/u2" }), { target: "#/t/t1/challenges/u2", returnTo: "" }, "signing in leads back to him");
+  assert.equal(target("t/t1/challenges/u2", coach), null, "a coach is drawn it");
 });
 
 // Stage 07d, owner's second review (decision 56): the settings are a screen of their own on a phone, a card on a desk.

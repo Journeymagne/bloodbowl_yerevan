@@ -3,7 +3,7 @@
  * season's results and what comes later in it (Matches.html, MatchesLive.html, MatchesPrePlus.html). A desk's is the
  * season's (DeskSeason.html, DeskSeasonLive.html, DeskSeasonPrePlus.html): the board paging through the team's matches,
  * its bubbles opening «Before the match», and under it the table with the calendar at its right (stage 10). It
- * replaces 2.x's «My games» on this address; that screen draws the challenges alone until stage 09c (decision 3).
+ * replaces 2.x's «My games» on this address; the challenges have a screen of their own (challenges.mjs, stage 09c).
  *
  * `matchesModel` (model.mjs) says what the page says; the card is card.mjs's, the lists lists.mjs's. One form for each
  * width, as the overview (decision 1): the model is told whether the screen is a phone's each time it is drawn, and the

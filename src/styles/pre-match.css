@@ -1,9 +1,8 @@
-/* The 2.x game page's preparation and post-match panels (#/games/:id, until stage 13) and the games list's badges. */
+/* The 2.x game page's preparation and post-match panels (#/games/:id, until stage 13). */
 .pre-section-head h2 { font: 800 2rem/1.2 var(--display-font); text-transform: uppercase; margin: 0; }
 .pre-section-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
 .pre-section-head .primary-button { min-height: 44px; }
 .pre-two-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.pre-badge { display: inline-block; padding: 5px 7px; border: 1px solid var(--line-bright); font-size: .62rem; color: var(--muted); }
 .pre-game-reminder { color: var(--muted); padding: 18px 0; border-top: 1px solid var(--line); font-size: .73rem; line-height: 1.7; }
 .pre-game-panel { margin: 0 0 26px; padding: 24px; border: 2px solid var(--line-bright); background: var(--panel-2); }
 .pre-game-panel > p { font-size: .8rem; line-height: 1.7; }

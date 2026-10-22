@@ -1,7 +1,7 @@
 /*
  * A screen's own furniture, as the 2.x screens and shared components still use it: the backdrop of the
- * view, the page heading and its toolbar (components/page-chrome.mjs), the team stat grid, roster pills
- * and muted text.
+ * view and the page heading and its toolbar (components/page-chrome.mjs). The team stat grid and roster pills
+ * went with stage 12, the muted text with «My games» in stage 09c.
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
@@ -87,10 +87,6 @@
 }
 
 .full-width { width: 100%; }
-
-.muted-text {
-  color: var(--muted);
-}
 
 .grid {
   display: grid;
