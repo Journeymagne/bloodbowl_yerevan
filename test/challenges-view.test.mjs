@@ -89,7 +89,7 @@ test("a phone's page in the prototype's order: the title with played, the note, 
   assert.deepEqual(all(screen, "h2"), ["Incoming · 1", "Outgoing · 1", "Accepted", "Challenge history · 2"]);
 
   const incoming = screen.querySelector('.g-friendly__section[aria-labelledby="friendly-incoming-title"] .g-friendly__item');
-  assert.deepEqual([words(incoming.querySelector(".g-friendly__letter")), words(incoming.querySelector(".g-friendly__login")), words(incoming.querySelector(".g-friendly__line"))],
+  assert.deepEqual([words(incoming.querySelector(".g-coach-letter--44")), words(incoming.querySelector(".g-friendly__login")), words(incoming.querySelector(".g-friendly__line"))],
     ["O", "orc_boss", "Grimtusk Raiders · Orc · challenge yesterday"]);
   const accept = incoming.querySelector("[data-friendly-accept]");
   assert.deepEqual([words(accept), accept.getAttribute("data-friendly-accept"), accept.getAttribute("aria-haspopup")], ["Accept…", "c1", "dialog"]);
@@ -285,7 +285,7 @@ test("a write on its way: the decline or cancel pressed is busy, «Challenge», 
 test("styled", () => {
   for (const phone of [true, false]) {
     for (const over of [{}, { payload: null, readError: "No connection", games: [], gamesError: "offline" }, { payload: null }, { payload: { challenges: [], opponents: [] } }]) {
-      assertStyled(page(over, { phone, historyOpen: true }), CSS, "page-head.css", "button.css", "status-chip.css", "callout.css");
+      assertStyled(page(over, { phone, historyOpen: true }), CSS, "page-head.css", "button.css", "status-chip.css", "callout.css", "coach-letter.css");
     }
   }
   // The order of the stage's sheets, not the end of the file: a stage merged later appends its sheets after them.
@@ -339,8 +339,8 @@ test("readable: the muted words, the chips, the letter on its circle, in every p
   assertContrast("--on-warn-tint", ["--warn-tint"], 4.5);
   assertContrast("--ink-2", ["--surface-3"], 4.5);
   assertContrast("--header-ink", ["--header"], 4.5);
-  assert.deepEqual(valuesOf(CSS, ".g-friendly__letter", "background"), ["var(--header)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-friendly__letter", "color"), ["var(--header-ink)"]);
+  // The coach's circle is the kit's (ui/coach-letter.mjs): Challenges.html's 44, the letter 22, on --header.
+  assert.deepEqual([valuesOf("src/ui/coach-letter.css", ".g-coach-letter--44", "width"), valuesOf("src/ui/coach-letter.css", ".g-coach-letter--44", "font-size")], [["44px"], ["22px"]]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly__link", "color"), ["var(--accent-text)"]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly__pastlink", "color"), ["var(--accent-text)"]);
   assertContrast("--accent-text", ["--surface"], 4.5);

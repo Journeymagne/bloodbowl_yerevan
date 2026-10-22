@@ -149,39 +149,6 @@
   min-width: 0;
 }
 
-/* ---- A coach's letter in its circle ---- */
-.g-admin__avatar {
-  box-sizing: border-box;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font-family: var(--font-display);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.g-admin__avatar--36 {
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-}
-.g-admin__avatar--40 {
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-}
-.g-admin__avatar--64 {
-  width: 64px;
-  height: 64px;
-  font-size: 32px;
-}
-
 /* A rule, a reason, a hint under a card's controls. */
 .g-admin__note {
   margin: 0;

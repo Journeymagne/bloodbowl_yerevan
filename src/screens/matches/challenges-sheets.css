@@ -143,20 +143,7 @@
 }
 .g-challenge__row[aria-disabled="true"] { cursor: default; }
 
-.g-challenge__letter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font: 700 17px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
+.g-challenge__letter { font-size: 17px; } /* ChallengeSend's row: the kit's circle of 36 (ui/coach-letter.css), its letter 17. */
 .g-challenge__id {
   display: flex;
   flex: 1 1 auto;
@@ -284,11 +271,6 @@
   border-radius: var(--radius-2xl);
   background: var(--surface-2);
   box-shadow: var(--ring);
-}
-.g-challenge__card .g-challenge__letter {
-  width: 44px;
-  height: 44px;
-  font-size: 22px;
 }
 .g-challenge__title {
   color: var(--ink);

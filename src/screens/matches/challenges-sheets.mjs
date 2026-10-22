@@ -29,6 +29,7 @@
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { renderButton } from "../../ui/button.mjs";
+import { renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { renderSheet } from "../../ui/sheet.mjs";
@@ -44,8 +45,8 @@ const paragraph = (className, words) => (words ? `<p class="${className}">${esca
 /** What the server said when it refused, as an alert; nothing when it did not. */
 const refusalMarkup = (refusal) => (refusal ? `<p class="g-challenge__refusal" role="alert">${escapeHtml(refusal)}</p>` : "");
 
-/** A coach's first letter in his circle: a decoration, his login says who he is. */
-const letterMarkup = (initial) => `<span class="g-challenge__letter" aria-hidden="true">${escapeHtml(initial)}</span>`;
+/** A coach's first letter in his circle (ui/coach-letter.mjs), ChallengeSend's 36 with its 17px letter: a decoration, his login says who he is. */
+const letterMarkup = (initial) => renderCoachLetter({ initial, size: 36, className: "g-challenge__letter" });
 
 /** «Challenge sent»: a coach the chosen team already has a challenge waiting with. */
 const busyMarkup = () => `<span class="g-challenge__busy">${escapeHtml(t("friendly.busy"))}</span>`;
@@ -157,7 +158,7 @@ export function sendSheetMarkup(model, { phone = false, refusal = "", busy = fal
 /** The challenger (ChallengeAccept.html's card): his letter, «orc_boss · Grimtusk Raiders», the race and what was read of his team. */
 function challengerMarkup(model) {
   const line = model.line ? `<span class="g-challenge__line">${escapeHtml(model.line)}</span>` : "";
-  return `<div class="g-challenge__card">${letterMarkup(model.initial)}<span class="g-challenge__id"><b class="g-challenge__title">${escapeHtml(model.title)}</b>${line}</span></div>`;
+  return `<div class="g-challenge__card">${renderCoachLetter({ initial: model.initial, size: 44 })}<span class="g-challenge__id"><b class="g-challenge__title">${escapeHtml(model.title)}</b>${line}</span></div>`;
 }
 
 /** The coach's teams to play with, one radio group: each its name over its race, value and season. */

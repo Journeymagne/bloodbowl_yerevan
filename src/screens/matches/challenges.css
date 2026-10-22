@@ -124,20 +124,6 @@
   gap: var(--space-12);
   min-width: 0;
 }
-.g-friendly__letter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font: 700 22px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
 .g-friendly__id {
   display: flex;
   flex: 1 1 auto;

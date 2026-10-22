@@ -10,9 +10,10 @@ import { expandCollections } from "../src/data/reference.mjs";
 const api = installFakeApi();
 const { readChallenges, sendChallenge, answerChallenge } = await import("../src/data/challenges.mjs");
 const {
-  HISTORY_KINDS, acceptModel, busyRecipients, challengesModel, coachInitial, dayWord, friendliesPlayed, matchOpponents,
+  HISTORY_KINDS, acceptModel, busyRecipients, challengesModel, dayWord, friendliesPlayed, matchOpponents,
   recentOpponents, sendModel, teamsLine,
 } = await import("../src/screens/matches/challenges-model.mjs");
+const { coachInitial } = await import("../src/ui/coach-letter.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { initLocale, t } = await import("../src/core/i18n.mjs");
 const { formatDay, formatMoney } = await import("../src/core/format.mjs");

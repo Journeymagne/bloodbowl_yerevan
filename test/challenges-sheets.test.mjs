@@ -285,7 +285,7 @@ test("the accept sheet: the challenger, the coach's teams as one radio group, th
     assert.ok(dialog.matches(".g-sheet.g-challenge-accept"));
     assert.equal(words(dialog.querySelector("h2.g-sheet__title")), "Accept the challenge");
     const card = dialog.querySelector(".g-sheet__body .g-challenge__card");
-    assert.deepEqual([words(card.querySelector(".g-challenge__letter")), words(card.querySelector(".g-challenge__title")), words(card.querySelector(".g-challenge__line"))],
+    assert.deepEqual([words(card.querySelector(".g-coach-letter--44")), words(card.querySelector(".g-challenge__title")), words(card.querySelector(".g-challenge__line"))],
       ["O", "orc_boss · Grimtusk Raiders", model.line]);
     assert.match(model.line, /^Orc · TV [\d,.]+k · Telegram @orc_boss$/);
     assert.equal(words(dialog.querySelector(".g-challenge__caption")), "Which team do you play");
@@ -334,7 +334,7 @@ test("names are text", () => {
 });
 
 test("styled", () => {
-  const SHEETS = [CSS, "sheet.css", "button.css", "search-field.css"];
+  const SHEETS = [CSS, "sheet.css", "button.css", "search-field.css", "coach-letter.css"];
   for (const phone of [true, false]) {
     for (const over of [{ chosenId: "u7" }, { query: "raid" }, { query: "zzz" }, { teams: [T1] }, { presetId: "zz" },
       { payload: { challenges: [challenge("c3", ME, THALION, T1, TODAY("11"))], opponents: OPPONENTS } }]) {
@@ -378,8 +378,9 @@ test("readable: the muted words, the chip, the refusal, on what they sit in ever
   assertContrast("--on-warn-tint", ["--warn-tint"], 4.5);
   assert.deepEqual([valuesOf(CSS, ".g-challenge__refusal", "background"), valuesOf(CSS, ".g-challenge__refusal", "color")], [["var(--danger-tint)"], ["var(--on-danger-tint)"]]);
   assertContrast("--on-danger-tint", ["--danger-tint"], 4.5);
-  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "background"), ["var(--header)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "color"), ["var(--header-ink)"]);
+  // The coach's circle is the kit's (ui/coach-letter.mjs) on --header; ChallengeSend's row keeps its 17px letter.
+  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "font-size"), ["17px"]);
+  assert.deepEqual(valuesOf("src/ui/coach-letter.css", ".g-coach-letter", "background"), ["var(--header)"]);
   assertContrast("--header-ink", ["--header"], 4.5);
   assertContrast("--ink", ["--seg-on", "--surface-3", "--accent-tint-soft"], 4.5);
 });

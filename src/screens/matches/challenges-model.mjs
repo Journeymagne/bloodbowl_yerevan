@@ -40,6 +40,7 @@ import { gameUrl } from "../../core/routes.mjs";
 import { gameOutcome, gameSides, teamValue } from "../../data/team-record.mjs";
 import { raceTeamOf, raceTitleOf } from "../../data/teams.mjs";
 import { currentMatch, matchActions } from "../../shell/current-match.mjs";
+import { coachInitial } from "../../ui/coach-letter.mjs";
 
 /** What the history says came of a challenge; each is the key `friendly.status.<kind>`. */
 export const HISTORY_KINDS = ["declined", "cancelled", "played"];
@@ -79,11 +80,6 @@ export function dayWord(moment, now = new Date()) {
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   return day.toDateString() === yesterday.toDateString() ? t("friendly.yesterday") : formatDay(day);
-}
-
-/** The first letter of a login, a capital, for the coach's circle; "?" for a login with none. */
-export function coachInitial(login) {
-  return Array.from(String(login ?? "").trim())[0]?.toUpperCase() ?? "?";
 }
 
 /** A coach's teams by name: «Grimtusk Raiders · Iron Teeth»; "" for a coach sent without them (a server before stage 09c). */

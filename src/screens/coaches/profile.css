@@ -37,20 +37,6 @@
   gap: var(--space-14);
   min-width: 0;
 }
-.g-coach__letter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font: 700 32px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
 .g-coach__who {
   display: flex;
   flex-direction: column;

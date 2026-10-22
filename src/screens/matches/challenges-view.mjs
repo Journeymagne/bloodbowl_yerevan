@@ -26,6 +26,7 @@ import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
@@ -70,7 +71,7 @@ function stateMarkup(model) {
 
 /** The coach's letter in its circle, his login, the line under it, and on a phone the chip at the right. */
 function whoMarkup(row, chip = "") {
-  return `<div class="g-friendly__who"><span class="g-friendly__letter" aria-hidden="true">${escapeHtml(row.initial)}</span>`
+  return `<div class="g-friendly__who">${renderCoachLetter({ initial: row.initial, size: 44 })}`
     + `<span class="g-friendly__id"><b class="g-friendly__login">${escapeHtml(row.login)}</b><span class="g-friendly__line">${escapeHtml(row.line)}</span></span>${chip}</div>`;
 }
 

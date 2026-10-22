@@ -289,7 +289,7 @@ test("names are text", async () => {
 test("styled", async () => {
   for (const phone of [true, false]) {
     await visit({ user: { id: "u1", login: "admin", isAdmin: true } }, { phone });
-    assertStyled(view, CSS, "page-head.css", "button.css", "src/shell/team-switcher.css", "status-chip.css");
+    assertStyled(view, CSS, "page-head.css", "button.css", "src/shell/team-switcher.css", "status-chip.css", "coach-letter.css");
   }
   // The order of the stage's own sheets, not the end of the file: a stage merged later appends its sheets after them.
   const styles = text("src/styles.css");

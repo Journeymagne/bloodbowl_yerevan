@@ -150,7 +150,7 @@ test("a coach's page: the head, the account, the teams with their lines and thei
   assert.equal(view.querySelector(".g-admin__crumbs a").getAttribute("href"), "#/administration");
   assert.equal(view.querySelector('.g-admin__switch a[aria-current="page"]').getAttribute("href"), "#/administration", "a coach is the coaches' section");
   // The coach: the letter in its circle of 64, the login, since when and the last sign-in.
-  assert.equal(view.querySelector(".g-acoach__id .g-admin__avatar--64").textContent, "O");
+  assert.equal(view.querySelector(".g-acoach__id .g-coach-letter--64").textContent, "O");
   assert.equal(view.querySelector(".g-acoach__login").textContent, "orc_boss");
   assert.equal(view.querySelector(".g-acoach__line").textContent,
     `In the league since ${formatDay(ORC_BOSS.createdAt, { year: true })} · last sign-in ${dayOf(LAST_LOGIN)}`);
@@ -712,7 +712,7 @@ test("styled; no inline style or handler", async () => {
   for (const phone of [true, false]) {
     await visit({}, { phone });
     assertCspSafe(view);
-    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "button.css", "text-field.css", "toggle.css", "callout.css");
+    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "button.css", "text-field.css", "toggle.css", "callout.css", "coach-letter.css");
     click("[data-acoach-team-new]");
     assertCspSafe(sheet(TEAM_NEW_SHEET_ID));
     assertStyled(sheet(TEAM_NEW_SHEET_ID), CSS, COACHES_CSS, ADMIN_CSS, "sheet.css", "button.css", "text-field.css", "callout.css");
