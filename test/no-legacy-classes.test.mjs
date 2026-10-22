@@ -72,6 +72,54 @@ test("the 2.x page chrome and the modules nothing imports are gone, and no modul
   }
 });
 
+// What test/legacy-screens.test.mjs kept out until it went with 2.x's stylesheets (Task 23; review of stage 13): the 2.x
+// post-match, its screen and parts, the checklist layout, the admin's manual result of the game page, the game page's
+// panels, the roster editor and its parts, the 2.x season and administration screens. A merge of a branch from before
+// 3.0 that brings one back fails here, whatever else stays green.
+test("the 2.x screens and parts are gone and stay gone", () => {
+  const gone = [
+    "src/screens/games", "src/screens/games/post-match.mjs", "src/screens/games/game.mjs",
+    ...["steps", "players", "review", "shared", "finance", "game-panel"].map((name) => `src/components/post-match/${name}.mjs`),
+    "src/components/pre-match", "src/components/games", "src/components/games/checklist-layout.mjs", "src/components/games/result-fields.mjs",
+    "src/screens/saved-roster.mjs", "src/components/roster-editor", "src/components/roster-editor-shared.mjs", "src/components/roster-notices.mjs",
+    "src/screens/season/index.mjs", "src/screens/season/registration.mjs", "src/screens/season/admin.mjs", "src/screens/season/schedule.mjs",
+    "src/screens/administration", "src/components/dialog.mjs", "src/components/page-chrome.mjs",
+    "src/styles/post-match.css", "src/styles/result-form.css", "src/styles/legacy-aliases.css", "src/styles/roster.css", "src/styles/pre-match.css",
+  ];
+  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
+  // Of src/styles/ only the tokens are left; of src/components/ only the 3.0 toasts and live region.
+  assert.deepEqual(readdirSync(new URL("../src/styles/", import.meta.url)), ["tokens.css"]);
+  assert.deepEqual(readdirSync(new URL("../src/components/", import.meta.url)).sort(), ["live-region.mjs", "toast.mjs"]);
+});
+
+/** The relative modules a source imports — `from "…"`, `import "…"`, `import("…")` — as paths from the repository's root. */
+function importsOf(file) {
+  const base = file.split("/").slice(0, -1);
+  return [...read(file).matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["'](\.{1,2}\/[^"'?]+)["']/g)].map(([, specifier]) => {
+    const parts = [...base];
+    for (const part of specifier.split("/")) {
+      if (part === "..") parts.pop();
+      else if (part !== ".") parts.push(part);
+    }
+    return parts.join("/");
+  });
+}
+
+// check-dead-code counts every exported function as a root, so a module nothing imports passes it (review of stage 13):
+// this does not. A page loads src/app.js and src/theme-boot.js (index.html); every other module is imported by one.
+test("every module under src/ is imported by a module of src/, server/ or scripts/; index.html loads the two others", () => {
+  const under = (dir) => readdirSync(new URL(`../${dir}/`, import.meta.url), { recursive: true })
+    .map((name) => `${dir}/${name.split("\\").join("/")}`)
+    .filter((file) => /\.m?js$/.test(file));
+  const imported = new Set(["src", "server", "scripts"].flatMap(under).flatMap(importsOf));
+  const loaded = [...read("index.html").matchAll(/<script[^>]*\ssrc="(src\/[^"?]+)/g)].map(([, file]) => file).sort();
+  assert.deepEqual(loaded, ["src/app.js", "src/theme-boot.js"]);
+  const orphans = under("src").filter((file) => !imported.has(file) && !loaded.includes(file));
+  assert.deepEqual(orphans, [], `nothing imports ${orphans.join(", ")}`);
+  // The finder sees the three ways in.
+  assert.deepEqual(importsOf("src/app.js").filter((file) => file.endsWith("core/router.mjs")), ["src/core/router.mjs"]);
+});
+
 // The app's own last word, when the site's data cannot be read: 3.0's callout, not the 2.x empty state.
 test("a page whose data could not be read says so in a 3.0 callout", async () => {
   const api = installFakeApi();
