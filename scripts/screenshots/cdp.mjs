@@ -27,6 +27,10 @@ const SHUTDOWN_GRACE_MS = 3_000;
 // cannot allocate.
 const MAX_FULL_PAGE_HEIGHT = 16_000;
 
+// The last seven draw in software, in one pass, in sRGB, with grey-antialiased
+// text: two series of the same tree then come out pixel for pixel the same, so
+// `npm run screens:diff` sees changes of the page and not of the GPU's raster
+// (dither bands and rounded edges that differed from run to run).
 const CHROME_FLAGS = [
   "--headless=new",
   "--remote-debugging-port=0",
@@ -34,6 +38,13 @@ const CHROME_FLAGS = [
   "--no-default-browser-check",
   "--hide-scrollbars",
   "--force-device-scale-factor=1",
+  "--disable-gpu",
+  "--run-all-compositor-stages-before-draw",
+  "--disable-partial-raster",
+  "--force-color-profile=srgb",
+  "--disable-checker-imaging",
+  "--disable-threaded-animation",
+  "--disable-lcd-text",
 ];
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
