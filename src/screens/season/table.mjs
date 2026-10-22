@@ -184,10 +184,28 @@ export function tableCardMarkup({ titleId, bodyHtml }) {
     + `<span class="g-season__rule">${escapeHtml(tablePointsText())}</span></div>${bodyHtml}</div></section>`;
 }
 
-/** The zone's line, its dot before it: «Playoff zone: places 1–4»; nothing without a zone. */
-function zoneNoteMarkup(places) {
+/** Ranks as runs: [1, 3, 4, 5] → «1, 3–5». */
+function rankRuns(ranks) {
+  const runs = [];
+  for (const rank of ranks) {
+    const last = runs.at(-1);
+    if (last && rank === last[1] + 1) last[1] = rank;
+    else runs.push([rank, rank]);
+  }
+  return runs.map(([first, end]) => (first === end ? String(first) : `${first}–${end}`)).join(", ");
+}
+
+/**
+ * The zone's line, its dot before it: «Playoff zone: places 1–4»; nothing without a zone. The places named are the
+ * ranks the table colours (`rows`): a team withdrawn inside the zone keeps its rank and is no place of it, so the zone
+ * reaches one rank further, and the line says so («places 1, 3–5») rather than a range the rows contradict.
+ */
+function zoneNoteMarkup(places, rows) {
   if (!places) return "";
-  const words = places === 1 ? t("league.zoneOne") : t("league.zone", { places });
+  const ranks = rows ? [...new Set(rows.filter((row) => row.zonePlace != null && row.zonePlace <= places).map((row) => Number(row.rank)))].sort((one, other) => one - other) : [];
+  let words;
+  if (!ranks.length || ranks.every((rank, at) => rank === at + 1)) words = places === 1 ? t("league.zoneOne", { rank: 1 }) : t("league.zone", { places });
+  else words = ranks.length === 1 ? t("league.zoneOne", { rank: ranks[0] }) : t("league.zoneRanks", { ranks: rankRuns(ranks) });
   return `<p class="g-table__zone">${escapeHtml(words)}</p>`;
 }
 
@@ -196,13 +214,14 @@ function zoneNoteMarkup(places) {
  * phone the points, the order and what a tap does, on a desk the order and what a click does (its card says the
  * points at its head). A guest is told nothing about rows that lead nowhere for him.
  *
- * @param {{phone: boolean, signedIn?: boolean, playoffPlaces?: number|null}} props
+ * @param {{phone: boolean, signedIn?: boolean, playoffPlaces?: number|null, rows?: import("../../data/season-table.mjs").TableRow[]|null}} props
+ *   `rows`: the table the note is under, whose coloured ranks the zone's line names
  */
-export function tableNotesMarkup({ phone, signedIn = true, playoffPlaces = null }) {
+export function tableNotesMarkup({ phone, signedIn = true, playoffPlaces = null, rows = null }) {
   const lines = phone
     ? [tablePointsText(), t("league.order"), signedIn ? t("league.taps") : ""]
     : [t("league.order"), t(signedIn ? "league.clicks" : "league.clicksGuest")];
-  return `<div class="g-table__notes">${zoneNoteMarkup(playoffPlaces)}`
+  return `<div class="g-table__notes">${zoneNoteMarkup(playoffPlaces, rows)}`
     + `${lines.filter(Boolean).map((line) => `<p class="g-table__note">${escapeHtml(line)}</p>`).join("")}</div>`;
 }
 

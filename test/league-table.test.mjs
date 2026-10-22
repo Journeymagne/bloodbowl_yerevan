@@ -236,6 +236,11 @@ test("the playoff zone: the first N rows not withdrawn, the line under the Nth; 
     assert.equal(zone({ phone, playoffPlaces: null }), null);
     assert.equal(zone({ phone }), null);
     assert.equal(zone({ phone, signedIn: false, playoffPlaces: 4 }).textContent, "Playoff zone: places 1–4", "a guest is told the zone too");
+    // Under the table it names the ranks the rows colour: a withdrawn second keeps its rank and is no place of the zone.
+    assert.equal(zone({ phone, playoffPlaces: 3, rows }).textContent, "Playoff zone: places 1, 3–4");
+    assert.equal(zone({ phone, playoffPlaces: 1, rows }).textContent, "Playoff zone: place 1", "the first is in the season: as before");
+    assert.equal(zone({ phone, playoffPlaces: 3, rows: tableOf(6) }).textContent, "Playoff zone: places 1–3", "nobody withdrawn: the range as before");
+    assert.equal(zone({ phone, playoffPlaces: 1, rows: tableOf(6, { withdrawn: 1 }) }).textContent, "Playoff zone: place 2");
   }
   const mini = (window, playoffPlaces) => mount(miniTableMarkup({ rows: window, viewerId: "u1", href: "#/t/k1/matches", playoffPlaces }));
   const many = tableOf(9);

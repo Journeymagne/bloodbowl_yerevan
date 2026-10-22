@@ -81,7 +81,7 @@ function deskMarkup(model) {
   const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, teamId: model.teamId, labelledBy: "matches-table",
     playoffPlaces });
   const season = model.inSeason
-    ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false, playoffPlaces }) })}`
+    ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false, playoffPlaces, rows: model.table }) })}`
       + `${calendar ? `<aside class="g-season__aside">${calendar}</aside>` : ""}</div>`
     : `${seasonCallMarkup(model)}${calendar}`;
   return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}${season}</div>`;

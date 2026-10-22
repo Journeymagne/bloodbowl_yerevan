@@ -118,7 +118,7 @@ function tableMarkup(model) {
   if (!model.read) return model.failure ? "" : `<p class="g-league__loading" role="status">${escapeHtml(t("season.loading"))}</p>`;
   const { rows, phone, viewerId, signedIn, playoffPlaces } = model;
   const table = leagueTableMarkup({ rows, phone, viewerId, signedIn, labelledBy: "league-title", playoffPlaces });
-  return rows.length ? `${table}${tableNotesMarkup({ phone, signedIn, playoffPlaces })}` : table;
+  return rows.length ? `${table}${tableNotesMarkup({ phone, signedIn, playoffPlaces, rows })}` : table;
 }
 
 const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed" role="alert">${renderCallout({ tone: "danger", title: model.failure })}</div>` : "");
