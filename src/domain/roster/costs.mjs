@@ -84,6 +84,8 @@ export function playerCurrentCost(row, player, includeAdjustments = true) {
   return costToNumber(rowCost(row)) + (includeAdjustments ? playerAdjustmentCost(row, player) : 0);
 }
 
+// No screen reads this since the 2.x roster editor went (stage 12): it stays because the pinned roster-cases
+// baseline describes every case with it (test/helpers/roster-cases.mjs).
 export function syncMedicalStaffForTeam(team, draft) {
   if (!hasBribery(team)) {
     draft.bribes = 0;

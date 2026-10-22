@@ -3,7 +3,7 @@
  *
  * `loadMyTeams` moved here from the 2.x My Teams screen, because the session
  * (data/session.mjs) now brings the list in together with `/me` and may not
- * import a screen; the teams screen and saved-roster.mjs reload it from here. A
+ * import a screen; the teams screen and the roster's saves reload it from here. A
  * list that loaded settles the active team again: the active one may have
  * been deleted elsewhere.
  *

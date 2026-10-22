@@ -7,8 +7,9 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 
 /*
  * The game page 2.x after stage 09a (Task 12, spec 3.0 §9.6): a coach has no quick score any more — a match is played
- * through its preparation and post-match — while the administrator's manual result, the confirmation of a score the
- * opponent sent before 3.0 and the preparation's panel stay as they were.
+ * through its preparation and post-match — while the confirmation of a score the opponent sent before 3.0 and the
+ * preparation's panel stay as they were. The administrator's manual result left it with stage 12: it is the
+ * administration's season now (#/administration/season, a pair's «Result…»).
  */
 
 const api = installFakeApi();
@@ -19,11 +20,6 @@ Object.getPrototypeOf(appView).insertAdjacentHTML ??= function insertAdjacentHTM
   assert.equal(position, "afterbegin");
   const first = this.firstChild;
   for (const node of [...parseHtml(document, markup).childNodes]) this.insertBefore(node, first);
-};
-// What a browser's FormData reads of a form here: each named field and its value. The fake document has no FormData.
-globalThis.FormData = class {
-  constructor(form) { this.entries = form.querySelectorAll("input[name]").map((input) => [input.getAttribute("name"), input.value]); }
-  [Symbol.iterator]() { return this.entries[Symbol.iterator](); }
 };
 globalThis.location = { hash: "#/games/g1", replace() {} };
 const { renderGamePage } = await import("../src/screens/games/game.mjs");
@@ -84,31 +80,19 @@ test("a coach's game page has no score form: nothing to propose a result with", 
   api.assertAnswered();
 });
 
-test("the admin keeps the manual result", async () => {
+test("the game page has no admin's result form: the administration's season has the result", async () => {
+  for (const shown of [game(SENT), game({ ...SENT, resultStatus: "confirmed", homeTouchdowns: 3, awayTouchdowns: 0, homeCasualties: 2, awayCasualties: 2 }), game()]) {
+    await visit(shown, ADMIN);
+    assert.ok(view.querySelector(".game-page"), "the page is drawn");
+    assert.equal(view.querySelector("[data-admin-game-result]"), null);
+    assert.equal(view.querySelector("form"), null, "no form at all");
+    assert.ok(!view.querySelector('input[type="number"]'));
+    for (const control of view.querySelectorAll("button, a")) assert.notEqual(control.getAttribute("type"), "submit");
+  }
+  // A score the opponent sent is still confirmed or rejected by the admin here, as by a coach.
   await visit(game(SENT), ADMIN);
-  const form = view.querySelector("form[data-admin-game-result]");
-  assert.ok(form, "the administrator's form");
-  assert.equal(view.querySelectorAll("form").length, 1, "the administrator's only");
-  // The score is not in yet, so the fields hold the score sent.
-  const values = Object.fromEntries(form.querySelectorAll("input[name]").map((input) => [input.getAttribute("name"), input.value]));
-  assert.deepEqual(values, { homeTouchdowns: "2", homeCasualties: "1", awayTouchdowns: "1", awayCasualties: "0" });
-  assert.equal(form.querySelector('button[type="submit"]').textContent.trim(), t("games.adminSaveResultAction"));
-  // A score already confirmed is what the fields hold, not the one sent.
-  const confirmed = game({ ...SENT, resultStatus: "confirmed", homeTouchdowns: 3, awayTouchdowns: 0, homeCasualties: 2, awayCasualties: 2 });
-  await visit(confirmed, ADMIN);
-  const held = view.querySelector("form[data-admin-game-result]").querySelectorAll("input[name]").map((input) => input.value);
-  assert.deepEqual(held, ["3", "2", "0", "2"]);
-  // Saved: the fields go to PATCH /api/games/g1, the list is read again and the page drawn anew.
-  await visit(game(SENT), ADMIN);
-  const fields = view.querySelector("form[data-admin-game-result]");
-  fields.querySelector('input[name="awayTouchdowns"]').value = "2";
-  api.reply("PATCH /api/games/g1", 200, { game: game() });
-  fireEvent(fields, "submit");
-  await flush();
-  assert.deepEqual(sent("PATCH /api/games/g1").map((call) => call.body), [{ homeTouchdowns: "2", homeCasualties: "1", awayTouchdowns: "2", awayCasualties: "0" }]);
-  assert.equal(sent("GET /api/games").length, 1, "the games are read again");
-  assert.equal(sent("GET /api/games/g1").length, 2, "the page is drawn anew");
-  assert.deepEqual(sent("POST /api/games/g1/propose"), []);
+  assert.ok(view.querySelector("[data-game-confirm]"));
+  assert.deepEqual(sent("PATCH /api/games/g1"), []);
   api.assertAnswered();
 });
 
@@ -135,9 +119,8 @@ test("the preparation panel still leads to the preparation", async () => {
   const link = view.querySelector(`.pre-game-panel a[href="${preMatchUrl(shown)}"]`);
   assert.ok(link, "the panel's link to the preparation");
   assert.equal(link.textContent.trim(), t("pre.prepareAction"));
-  // The administrator has it too, above the manual result.
+  // The administrator has it too.
   await visit(shown, ADMIN);
   assert.ok(view.querySelector(`.pre-game-panel a[href="${preMatchUrl(shown)}"]`));
-  assert.ok(view.querySelector("form[data-admin-game-result]"));
   api.assertAnswered();
 });

@@ -52,7 +52,8 @@
  * Under the board stand two columns (decision 51): the leaders and the recent
  * matches at the left, who can advance at the right and under them, since stage
  * 10, a few rows of the league's table (decision 15 of its plan: the top six, the
- * team below them last with its place, `tableWindow`) and the way to the whole of
+ * team below them last with its place, `tableWindow`; since stage 12 the playoff
+ * zone the admin set, by each team's place in the whole table) and the way to the whole of
  * it; a column with nothing in it is not drawn, and the other has the row. A
  * phone has no table (Team.html) and shows the left column alone
  * (Team.html's order: the figures, the card, the board, the leaders, the
@@ -87,14 +88,15 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl, playerTeamUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { pageUrl, playerTeamUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
-import { seasonTable, tableWindow } from "../../data/season-table.mjs";
+import { playoffPlacesOf, seasonTable, tableWindow } from "../../data/season-table.mjs";
 import { recentResults, seasonDifference, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
+import { seasonCallFor } from "../../data/season-entry.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch } from "../../shell/current-match.mjs";
@@ -106,6 +108,7 @@ import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { bandBoard, bandBoardMarkup, bandItems, bandVisit, previewFor } from "../matches/band.mjs";
 import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
+import { enterCallMarkup, seasonEnterVisit } from "../season/enter.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { miniTableMarkup } from "../season/table.mjs";
 import { rosterLines } from "./roster/model.mjs";
@@ -211,9 +214,11 @@ function readyPlayers(draft, raceTeam) {
  * @param {object[]|null} [input.matchEvents] the records as last read, of any moment: what a match on counts
  * @param {object|null} [input.data] the reference, for «Before the match»
  * @param {string} [input.viewerId] the coach who looks: the team's row of the table is his own, marked
+ * @param {object[]} [input.myTeams] the coach's teams: the call to enter the season names the one that plays it
+ * @param {boolean} [input.entering] the entry into the season is on its way (the call's button is busy)
  */
 export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
-  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "" }) {
+  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "", myTeams = [], entering = false }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -233,6 +238,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
     table: standing && !phone ? tableWindow(seasonTable(seasonData), team.id) : [],
+    playoffPlaces: playoffPlacesOf(seasonData),
     viewerId,
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, phone, band, matchEvents, data }) : null,
     ready: readyPlayers(draft, raceTeam),
@@ -240,6 +246,8 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
+    seasonCall: seasonCallFor(team.id, seasonData, myTeams),
+    entering,
   };
 }
 
@@ -248,7 +256,8 @@ const failedLine = (title) => renderCallout({ tone: "danger", title });
 
 /**
  * Where the board stands: the board; the words for each read that failed, when it could not be drawn (the table, and the
- * games for a team in the table or while the table is not there to say); the call to enter the season; or nothing yet.
+ * games for a team in the table or while the table is not there to say); the call to enter the season, with its button
+ * (stage 12) or the coach's other team that plays it; or nothing yet.
  */
 function boardSlot(model) {
   if (model.board) return bandBoardMarkup(model.board);
@@ -257,7 +266,7 @@ function boardSlot(model) {
   if (model.gamesError && (model.inSeason || !model.seasonRead)) failures.push(failedLine(t("teamOverview.gamesFailed", { reason: model.gamesError })));
   if (failures.length) return `<div class="g-overview__failed" role="alert">${failures.join("")}</div>`;
   if (!model.seasonRead) return "";
-  return renderCallout({ title: t("teamOverview.notInSeason"), sub: t("teamOverview.notInSeasonSub"), href: seasonTabUrl("registration") });
+  return enterCallMarkup(model.seasonCall, model.entering);
 }
 
 /**
@@ -311,7 +320,8 @@ const column = (className, markup) => (markup ? `<div class="${className}">${mar
 function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
-  const aside = readyListMarkup(model.ready, teamId) + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches") });
+  const aside = readyListMarkup(model.ready, teamId)
+    + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches"), playoffPlaces: model.playoffPlaces });
   return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
 
@@ -364,7 +374,7 @@ const pastList = (records, team) => Boolean(records) && Number.isInteger(team?.r
  * @param {{events: object[], revision: number}|null} records as the visit last read them
  * @param {{key: string|null, opponent: object|null}} band the board's part of the visit
  */
-function markupOf(teamId, held, records, band) {
+function markupOf(teamId, held, records, band, entry) {
   const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
@@ -382,6 +392,8 @@ function markupOf(teamId, held, records, band) {
     matchEvents: records?.events ?? null,
     data: state.data,
     viewerId: state.auth.currentUser?.id ?? "",
+    myTeams: state.myTeams.items,
+    entering: entry.busy,
   }));
 }
 
@@ -406,14 +418,19 @@ export async function renderTeamOverview(teamId) {
   const records = { last: null, reading: false, again: false, armed: false };
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held, records.last, band);
+    const markup = markupOf(teamId, held, records.last, band, entry);
     if (markup) patch(view, markup);
   };
+  // «Enter the season» on the call (stage 12): one question, one entry on its way.
+  const entry = seasonEnterVisit({ root: view, teamId, here: () => here, draw });
   // The board's part: the match shown, the opponent read for the match on, «Before the match» (stage 09a).
   const gamesNow = () => (state.games.loaded && !held.games ? state.games.items : null);
   const band = bandVisit({ teamId, root: view, draw, read: () => ({ team: listed(teamId), games: gamesNow(), seasonData: state.season.data, data: state.data }) });
+  // A team in its build that has no match in the coach's games has no records to read. Since stage 12 every new team
+  // starts in its build and may play (a friendly, or a round that paired it) before the admin moves it into the season.
+  const plays = () => (gamesNow() ?? []).some((game) => game.home?.team?.id === teamId || game.away?.team?.id === teamId);
   const readLeaders = async () => {
-    if (!here || listed(teamId)?.stage === "draft") return;
+    if (!here || (listed(teamId)?.stage === "draft" && !plays())) return;
     if (records.reading) {
       records.again = true;
       return;
@@ -444,13 +461,14 @@ export async function renderTeamOverview(teamId) {
     onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireRefSearch(view, { onQuery: goSearch }),
     () => band.release(),
+    entry.off,
   ];
   onScreenLeave("team-overview", () => {
     here = false;
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
-  const first = markupOf(teamId, held, records.last, band);
+  const first = markupOf(teamId, held, records.last, band, entry);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();

@@ -23,7 +23,7 @@ function stored(item) {
   return { team, before: draft, after: structuredClone(draft) };
 }
 
-/** What the league editor does on a hire (components/roster-editor/hire-panel.mjs). */
+/** A hire as the roster records one: the position's price on the player (`purchaseRefund`), the treasury paying it. */
 function hire(team, draft) {
   const row = rowsForTeam(team)[0], cost = costToNumber(rowCost(row));
   const player = createPlayer(row, 0, draft.players.length, { purchased: true, purchaseRefund: cost });

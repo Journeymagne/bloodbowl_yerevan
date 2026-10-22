@@ -11,7 +11,6 @@ const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
 globalThis.location = { hash: "#/teams", replace() {} };
 const { renderTeams, teamsMarkup } = await import("../src/screens/teams/index.mjs");
-const { deleteSavedTeam, wireTeamDeleteButtons } = await import("../src/components/team-delete.mjs");
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { initLocale } = await import("../src/core/i18n.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -55,7 +54,6 @@ function coach({ active = "t1", items = TEAMS, loaded = true, error = "" } = {})
   state.data = { teams: [{ slug: "teams/human", title: "Human" }, { slug: "teams/orc", title: "Orc" }] };
   state.season = { data: SEASON, loaded: true, loading: false, error: "" };
   state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
-  state.admin = { users: [], loaded: true, loading: false, error: "", editingTeams: new Map() };
   // The screen reads the list again on entry (a list that loaded); unless a test says otherwise, it gets the list it has.
   api.reply("GET /api/teams", 200, { teams: items });
 }
@@ -495,90 +493,4 @@ test("the screen is drawn from rows; nothing in a row is trusted as markup", () 
   const markup = teamsMarkup({ rows: [{ id: "x1", name: HOSTILE, initials: "X", line: HOSTILE, current: true, draft: false, inSeason: false }] });
   assert.ok(!markup.includes("<img"));
   assert.equal(teamsMarkup({ rows: [] }).includes("<li"), false);
-});
-
-// The helpers the 2.x screens still use (the roster editor's delete, the admin's user page).
-const confirmWith = (answer) => {
-  const asked = [];
-  globalThis.confirm = (message) => { asked.push(message); return answer; };
-  return asked;
-};
-const ADMIN = { id: "a1", login: "admin", isAdmin: true, preferences: {} };
-
-test("an admin deleting another coach's team goes to the admin endpoint, and the admin's lists are read again", async () => {
-  coach();
-  state.auth.currentUser = ADMIN;
-  state.admin.editingTeams.set("t9", { draft: true });
-  state.admin.editingTeams.set("t8", { draft: true });
-  api.reply("DELETE /api/admin/teams/t9", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [] });
-  api.reply("GET /api/games", 200, { games: [] });
-  const asked = confirmWith(true);
-  assert.equal(await deleteSavedTeam("t9", { ownerId: "u2", teamName: "Gone" }), true);
-  assert.equal(asked.length, 1);
-  assert.match(asked[0], /"Gone"\?$/);
-  assert.equal(api.calls[0].key, "DELETE /api/admin/teams/t9");
-  assert.equal(api.calls.some((call) => call.key === "DELETE /api/teams/t9"), false);
-  assert.equal(state.admin.loaded, false, "the admin screens read their users again");
-  assert.deepEqual([...state.admin.editingTeams.keys()], ["t8"], "the deleted team is no longer being edited");
-});
-
-test("a coach's own team, or an admin's own, goes to the coach's endpoint; an endpoint given wins", async () => {
-  coach();
-  state.auth.currentUser = ADMIN;
-  confirmWith(true);
-  api.reply("DELETE /api/teams/t7", 200, { ok: true });
-  api.reply("DELETE /api/custom/t6", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [] });
-  api.reply("GET /api/games", 200, { games: [] });
-  assert.equal(await deleteSavedTeam("t7", { ownerId: ADMIN.id }), true);
-  assert.equal(await deleteSavedTeam("t6", { ownerId: "u2", endpoint: "/api/custom/t6" }), true);
-  assert.deepEqual(api.calls.filter((call) => call.key.startsWith("DELETE")).map((call) => call.key), ["DELETE /api/teams/t7", "DELETE /api/custom/t6"]);
-  coach();
-  state.auth.currentUser = { id: "u1", login: "coach", isAdmin: false, preferences: {} };
-  api.reply("DELETE /api/teams/t5", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [] });
-  api.reply("GET /api/games", 200, { games: [] });
-  assert.equal(await deleteSavedTeam("t5", { ownerId: "u2" }), true, "a coach is not an admin: the owner given changes nothing");
-  assert.equal(api.calls[0].key, "DELETE /api/teams/t5");
-});
-
-test("a delete the coach declines, or the server refuses, deletes nothing and resets nothing", async () => {
-  coach();
-  state.admin.editingTeams.set("t9", { draft: true });
-  assert.equal(await deleteSavedTeam(""), false);
-  confirmWith(false);
-  assert.equal(await deleteSavedTeam("t9"), false);
-  assert.equal(api.calls.length, 0);
-  confirmWith(true);
-  api.reply("DELETE /api/teams/t9", 409, refusal("TEAM_IN_FRIENDLY_GAMES"));
-  await withoutTimers(async () => {
-    assert.equal(await deleteSavedTeam("t9"), false);
-  });
-  assert.match(toasts().at(-1), /friendly/);
-  assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/, "said as an error");
-  assert.equal(state.admin.loaded, true);
-  assert.ok(state.admin.editingTeams.has("t9"));
-});
-
-test("the 2.x delete buttons carry their owner, name and endpoint to the delete, and the screen is told once it is done", async () => {
-  coach();
-  state.auth.currentUser = ADMIN;
-  view.innerHTML = '<button type="button" data-delete-team="t9" data-delete-team-owner="u2" data-delete-team-name="Gone" data-delete-team-endpoint="/api/admin/teams/t9"></button>';
-  api.reply("DELETE /api/admin/teams/t9", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [] });
-  api.reply("GET /api/games", 200, { games: [] });
-  const asked = confirmWith(true);
-  const after = [];
-  wireTeamDeleteButtons((button) => after.push(button.dataset.deleteTeam));
-  fireEvent(view.querySelector("[data-delete-team]"), "click");
-  await settle();
-  await settle();
-  assert.match(asked[0], /"Gone"\?$/);
-  assert.deepEqual(after, ["t9"]);
-  assert.equal(api.calls[0].key, "DELETE /api/admin/teams/t9");
-  confirmWith(false);
-  fireEvent(view.querySelector("[data-delete-team]"), "click");
-  await settle();
-  assert.deepEqual(after, ["t9"], "a delete that was not confirmed is not followed");
 });

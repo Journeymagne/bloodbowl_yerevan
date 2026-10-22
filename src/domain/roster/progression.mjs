@@ -46,11 +46,12 @@ export function playerAvailableSpp(team, player) {
   return playerSppTotal(team, player) - playerAdvancementSpent(player);
 }
 
+// No screen reads this or rosterTotalSpp since the 2.x roster editor went (stage 12): they stay because the pinned
+// roster-cases baseline describes every case with them (test/helpers/roster-cases.mjs).
 export function playerLevelRank(player) {
   const level = playerAdvancementLevel(player);
   return level > 0 ? advancementRanks[level - 1]?.rank ?? "Legend" : "Rookie";
 }
-
 
 export function rosterTotalSpp(team, draft) {
   return selectedRosterPlayers(team, draft).reduce((sum, player) => sum + playerSppTotal(team, player), 0);

@@ -18,15 +18,9 @@
 @import url("styles/overlays.css");
 @import url("styles/controls.css");
 @import url("styles/matchday.css");
-@import url("styles/progression.css");
 @import url("styles/pre-match.css");
 @import url("styles/challenges.css");
 @import url("styles/site-matchday.css");
-@import url("styles/season-results.css");
-@import url("styles/season-entries.css");
-@import url("styles/saved-teams.css");
-@import url("styles/result-form.css");
-@import url("styles/administration.css");
 @import url("ui/base.css");
 @import url("ui/button.css");
 @import url("ui/segmented-control.css");
@@ -98,3 +92,8 @@
 @import url("screens/matches/post.css");
 @import url("screens/matches/post-players.css");
 @import url("screens/matches/post-money.css");
+@import url("screens/admin/admin.css");
+@import url("screens/admin/coaches.css");
+@import url("screens/admin/coach.css");
+@import url("screens/admin/season.css");
+@import url("screens/admin/team.css");

@@ -6,14 +6,15 @@ import { errorPayload } from "../server/http/errors.mjs";
 import { computeSeasonStandings } from "../server/season/scoring.mjs";
 import { seasonTable } from "../src/data/season-table.mjs";
 import { rolledDice } from "../src/domain/roster/dice.mjs";
-import { matchPoints } from "../src/domain/league-rules.mjs";
+import { matchPoints, technicalPoints } from "../src/domain/league-rules.mjs";
 import { answerMatches } from "../scripts/mock/matches.mjs";
 import { answerSeason } from "../scripts/mock/season.mjs";
 import { publicTeamRoll } from "../server/routes/players.mjs";
 
 /*
- * The mock API's season (scripts/mock/season.mjs, stage 10 Task 11): a season of ten entries with its rounds, the
- * league's other coaches and their public teams. The lists are the ones scripts/mock-api.mjs hands its answerers;
+ * The mock API's season (scripts/mock/season.mjs, stage 10 Task 11; stage 12 Task 18 added a team in the build, a
+ * technical result and the playoff places): a season of eleven entries with its rounds, the league's other coaches and
+ * their public teams. The lists are the ones scripts/mock-api.mjs hands its answerers;
  * the games are the ones it holds (g1–g6), the coach's team t1 at home in g1 and g4, away in g5.
  */
 
@@ -74,12 +75,12 @@ function rowsOf(payload) {
 
 const rowOf = (payload, teamId) => payload.standings.find((row) => row.team.id === teamId);
 
-test("the season: ten entries, rounds 1 and 2 over and 3 on, the coach's and the first rival's rows as before", async () => {
+test("the season: eleven entries, rounds 1 and 2 over and 3 on, the coach's and the first rival's rows as before", async () => {
   const { status, payload } = await ask("/api/season");
   assert.equal(status, 200);
   assert.equal(payload.season.name, "Mock Season");
-  assert.equal(payload.standings.length, 10);
-  assert.equal(payload.entries.length, 9);
+  assert.equal(payload.standings.length, 11);
+  assert.equal(payload.entries.length, 10);
   assert.equal(payload.historicalEntries.length, 1, "one entry withdrawn");
   assert.equal(payload.historicalEntries[0].user.id, "u4");
   assert.deepEqual(payload.rounds.map(({ roundNumber, status: state }) => [roundNumber, state]), [[1, "completed"], [2, "completed"], [3, "started"]]);
@@ -91,9 +92,11 @@ test("the season: ten entries, rounds 1 and 2 over and 3 on, the coach's and the
   const t1 = seasonTable(payload).find((row) => row.team.id === "t1");
   assert.deepEqual([t1.wins, t1.draws, t1.losses, t1.touchdowns, t1.conceded], [1, 0, 1, 2, 3]);
   assert.deepEqual(t1.form, ["w", "l"]);
-  // The coach's three teams in the season and the rivals of the list; the coaches of the league besides.
-  assert.deepEqual(payload.standings.map((row) => row.team.id).sort(), ["l1", "l2", "n1", "n2", "rt1", "rt2", "rt3", "t1", "t2", "t3"]);
-  assert.deepEqual([...new Set(payload.standings.map((row) => row.user.id))].sort(), ["u1", "u2", "u3", "u4"]);
+  // The coach's three teams in the season and the rivals of the list; the coaches of the league besides, the newest with
+  // a team in the build that has played nothing yet.
+  assert.deepEqual(payload.standings.map((row) => row.team.id).sort(), ["l1", "l2", "mb1", "n1", "n2", "rt1", "rt2", "rt3", "t1", "t2", "t3"]);
+  assert.deepEqual([...new Set(payload.standings.map((row) => row.user.id))].sort(), ["u1", "u2", "u3", "u4", "u8"]);
+  assert.equal(rowOf(payload, "mb1").games, 0);
   // Round 3's pairings are g1–g3 as the games have them; round 2 and round 3 have a bye each.
   const [first, second, third] = payload.rounds;
   assert.deepEqual(third.pairings.filter((pairing) => /^g/.test(pairing.id)).map(({ id }) => id), ["g1", "g2", "g3"]);
@@ -104,11 +107,13 @@ test("the season: ten entries, rounds 1 and 2 over and 3 on, the coach's and the
   assert.deepEqual(second.pairings.find(({ id }) => id === "g5").homePoints, 4);
   // t2 and t3 entered late: no pairing in rounds 1 and 2, so their overviews read as their games say.
   for (const id of ["e-t2", "e-t3"]) assert.ok(![...first.pairings, ...second.pairings].some((pairing) => pairing.homeEntryId === id || pairing.awayEntryId === id), id);
-  // Every score is the league's points.
-  for (const pairing of [...first.pairings, ...second.pairings].filter((item) => item.awayEntryId)) {
+  // Every score is the league's points: a played one's by the score, the technical one's by its reason.
+  for (const pairing of [...first.pairings, ...second.pairings].filter((item) => item.awayEntryId && item.resultType === "played")) {
     assert.equal(pairing.homePoints, matchPoints({ touchdownsFor: pairing.homeTouchdowns, touchdownsAgainst: pairing.awayTouchdowns, casualtiesFor: pairing.homeCasualties }), pairing.id);
     assert.equal(pairing.awayPoints, matchPoints({ touchdownsFor: pairing.awayTouchdowns, touchdownsAgainst: pairing.homeTouchdowns, casualtiesFor: pairing.awayCasualties }), pairing.id);
   }
+  const [decided] = [...first.pairings, ...second.pairings].filter((item) => item.resultType === "technical");
+  assert.deepEqual([decided.homePoints, decided.awayPoints], [technicalPoints({ won: false, reason: "no_team" }), technicalPoints({ won: true, reason: "no_team" })]);
 });
 
 test("the table is the server's own: its standings are computeSeasonStandings over the pairings sent", async () => {
@@ -125,7 +130,7 @@ test("the table is the server's own: its standings are computeSeasonStandings ov
 
 test("MOCK_EMPTY: the season has the league's entries and none of the coach's", async () => {
   const { payload } = await ask("/api/season", freshMock({ empty: true }));
-  assert.equal(payload.standings.length, 7);
+  assert.equal(payload.standings.length, 8);
   assert.ok(!payload.standings.some((row) => row.user.id === "u1"));
   assert.ok(!payload.rounds.flatMap((round) => round.pairings).some(({ id }) => /^g/.test(id)), "no pairing of the coach's games");
   assert.equal(rowOf(payload, "rt1").rank, 1);

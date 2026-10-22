@@ -15,7 +15,6 @@ import {
   refUrl,
   resolveRedirect,
   routeFromHash,
-  savedRosterUrl,
   seasonTabUrl,
   settingsUrl,
   teamPlayerUrl,
@@ -59,7 +58,6 @@ test("a missing id gives an empty segment rather than the string 'undefined'", (
 
 test("the remaining link shapes are what the screens expect", () => {
   assert.equal(pageUrl({ slug: "teams/amazon" }), "#/teams/amazon");
-  assert.equal(savedRosterUrl("t1"), "#/t/t1/roster");
   assert.equal(seasonTabUrl(""), "#/season", "the default tab is the bare hash, not a trailing slash");
   assert.equal(seasonTabUrl("standings"), "#/season/standings");
 });
@@ -68,7 +66,6 @@ test("3.0 links are built from ids, encoded, and the 2.x builders point at them"
   assert.equal(teamUrl("t1"), "#/t/t1");
   assert.equal(teamUrl({ id: "t 1" }, "roster"), "#/t/t%201/roster");
   assert.equal(teamPlayerUrl("t1", { id: "p/1" }), "#/t/t1/roster/p%2F1");
-  assert.equal(savedRosterUrl("t1"), "#/t/t1/roster");
   assert.equal(playerUrl("u1"), "#/coaches/u1");
   assert.equal(playerTeamUrl("u1", "t1"), "#/coaches/u1/teams/t1");
   assert.deepEqual([teamsUrl(), newTeamUrl(), authUrl(), authUrl("register"), settingsUrl()],
@@ -156,6 +153,17 @@ test("an admin roster URL with an extra segment is not the editor", () => {
   // The pattern is anchored; without that, a trailing segment would still
   // match and the editor would open the wrong team.
   assert.notEqual(matchRoute("administration/users/u1/teams/t1/edit/extra").name, "adminTeamEdit");
+});
+
+// Stage 12, Task 14: a player of the team an admin edits is the roster's player screen in the admin's mode.
+test("a player of a team the admin edits is its own route, with the owner, the team and the player", () => {
+  assert.deepEqual(matchRoute("administration/users/u/teams/t/edit/p"), {
+    name: "adminTeamPlayer",
+    params: { ownerId: "u", teamId: "t", playerId: "p" },
+  });
+  assert.notEqual(matchRoute("administration/users/u/teams/t/edit/p/extra").name, "adminTeamPlayer");
+  assert.equal(target("administration/users/u/teams/t/edit/p", guest), "#/login");
+  assert.equal(target("administration/users/u/teams/t/edit/p", coach), null);
 });
 
 test("the 3.0 screens match by name and carry their ids", () => {
@@ -267,7 +275,7 @@ test("a guest may open the public pages, and every coach page asks for a session
   }
   for (const route of ["t/t1", "t/t1/team", "t/t1/settings", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u1",
     "coaches/u1/teams/t1", "games/g1", "games/g1/pre-match", "games/g1/post-match/2", "administration", "administration/users/u1",
-    "administration/users/u1/teams/t1/edit"]) {
+    "administration/users/u1/teams/t1/edit", "administration/users/u1/teams/t1/edit/p1"]) {
     assert.equal(target(route, guest), "#/login", route);
   }
 });

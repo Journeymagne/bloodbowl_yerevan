@@ -61,7 +61,7 @@ test("a body that is no JSON, or JSON whose root is no object, is a 400 for the 
     ["POST", "/api/teams", coach], ["PATCH", `/api/teams/${id}`, coach], ["POST", `/api/teams/${id}/treasury`, coach],
     ["POST", `/api/teams/${id}/players/p0/death`, coach], ["POST", `/api/teams/${id}/players/p0/rolls`, coach], ["POST", `/api/teams/${id}/events`, coach],
     ["PATCH", `/api/admin/users/${coach.id}`, boss], ["POST", `/api/admin/users/${coach.id}/teams`, boss], ["PATCH", `/api/admin/teams/${id}`, boss],
-    ["POST", "/api/season/commit", coach], ["POST", "/api/season/admin/create-team", boss], ["POST", "/api/challenges", coach],
+    ["POST", "/api/season/commit", coach], ["POST", "/api/admin/coaches", boss], ["POST", "/api/challenges", coach],
     ["PATCH", `/api/games/${game}/preparation`, coach], ["PATCH", `/api/games/${game}/post-match`, coach], ["POST", `/api/games/${game}/propose`, coach],
   ];
   const before = await teamRow(client, id);

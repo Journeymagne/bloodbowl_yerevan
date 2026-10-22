@@ -1,5 +1,6 @@
 /**
- * Match results: proposing one, answering it, and an admin editing it.
+ * Match results: proposing one, answering it, an admin editing it, and an admin changing a technical
+ * result's reason (stage 12).
  *
  * Lifted out of server.mjs by step 4.9.
  *
@@ -9,11 +10,17 @@
  * status not. Moved here unchanged; 14.1 and 14.2 fix it.
  */
 import { pool } from "../db/pool.mjs";
+import { withTransaction } from "../db/transaction.mjs";
 import { httpError } from "../http/responses.mjs";
 import { storedGameResultComplete } from "../api/serializers.mjs";
 import { nullableInteger, scoreLeagueResult } from "./scoring.mjs";
 import { loadUserGameRows } from "./store.mjs";
 import { validateSeasonEntry } from "./rounds.mjs";
+import { TECHNICAL_REASONS, technicalPoints } from "../../src/domain/league-rules.mjs";
+import { SIDES } from "../../src/domain/match/rules.mjs";
+
+/** How a result came about (`result_type`): played, or decided without being played (stage 12). */
+const RESULT_TYPES = ["played", "technical"];
 
 async function assertResultOutsidePostMatch(pairingId, client = pool) {
   const row = (await client.query('SELECT pairing_id FROM match_post_games WHERE pairing_id=$1', [pairingId])).rows[0];
@@ -115,8 +122,17 @@ export function ensurePlayerCanSubmitGame(game) {
 }
 
 /**
+ * The admin's result, or a coach's agreed one (`respondToGameProposal`), written to a pairing, and an admin's
+ * change of its teams.
+ *
+ * The body's `mode` is "played" (the default, as 2.x sends it: the score, each value left out kept as the
+ * pairing has it) or "technical" (stage 12: `winner` and `technicalReason`, `nextResult`). The result's type
+ * and reason are written with the score: a played result takes a technical one's reason away.
+ *
  * @param {import("pg").PoolClient} [client] run inside a caller's transaction;
  *   defaults to the pool, which is a transaction of one statement at a time.
+ * @throws 400 FIELD_INVALID {field: "mode"|"winner"|"technicalReason"} for a technical result without both
+ *   sides, a winner or one of TECHNICAL_REASONS; what the score's checks refuse
  */
 export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "", client = pool) {
   const current = await client.query(
@@ -149,23 +165,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
 
   if (!isAdmin && ![pairing.home_user_id,pairing.away_user_id].includes(userId)) throw httpError(403, "FIXTURE_NOT_YOURS");
 
-  const homeTouchdowns = nullableInteger(body.homeTouchdowns, "Home touchdowns");
-  const awayTouchdowns = nullableInteger(body.awayTouchdowns, "Away touchdowns");
-  const homeCasualties = nullableInteger(body.homeCasualties, "Home casualties");
-  const awayCasualties = nullableInteger(body.awayCasualties, "Away casualties");
-  const nextHomeTouchdowns = homeTouchdowns === undefined ? pairing.home_touchdowns : homeTouchdowns;
-  const nextAwayTouchdowns = awayTouchdowns === undefined ? pairing.away_touchdowns : awayTouchdowns;
-  const nextHomeCasualties = homeCasualties === undefined ? pairing.home_casualties : homeCasualties;
-  const nextAwayCasualties = awayCasualties === undefined ? pairing.away_casualties : awayCasualties;
-  const score = scoreLeagueResult({
-    homeTouchdowns: nextHomeTouchdowns,
-    awayTouchdowns: nextAwayTouchdowns,
-    homeCasualties: nextHomeCasualties,
-    awayCasualties: nextAwayCasualties,
-    hasHome: friendly || Boolean(homeEntryId),
-    hasAway: friendly || Boolean(awayEntryId),
-    kind: pairing.match_kind,
-  });
+  const score = nextResult(pairing, body, friendly, { hasHome: friendly || Boolean(homeEntryId), hasAway: friendly || Boolean(awayEntryId) });
   const resultComplete = [
     score.homeTouchdowns,
     score.awayTouchdowns,
@@ -176,15 +176,10 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
 
   const result = await client.query(
     `UPDATE season_pairings
-     SET home_entry_id = $2,
-         away_entry_id = $3,
-         home_touchdowns = $4,
-         away_touchdowns = $5,
-         home_casualties = $6,
-         away_casualties = $7,
-         result_type = 'played',
-         home_points = $8,
-         away_points = $9,
+     SET home_entry_id = $2, away_entry_id = $3,
+         home_touchdowns = $4, away_touchdowns = $5, home_casualties = $6, away_casualties = $7,
+         result_type = $11, technical_reason = $12,
+         home_points = $8, away_points = $9,
          result_status = $10,
          confirmed_at = CASE WHEN $10 = 'confirmed' THEN now() ELSE NULL END,
          updated_at = now()
@@ -201,7 +196,90 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
       score.homePoints,
       score.awayPoints,
       resultStatus,
+      score.resultType,
+      score.technicalReason,
     ],
   );
   return result.rows[0];
+}
+
+/**
+ * The result a write leaves on the pairing (`scoreLeagueResult`): a played one from the body's score, a value
+ * left out kept as the pairing has it; a technical one from its winner and reason, only where both sides play.
+ *
+ * @param {object} pairing the pairing's row as `match_pairing_context` gives it
+ * @param {object} body the request's
+ * @param {boolean} friendly a friendly gives no points
+ * @param {{hasHome: boolean, hasAway: boolean}} sides who plays, the teams the write leaves
+ */
+function nextResult(pairing, body, friendly, sides) {
+  const kind = friendly ? "friendly" : "league";
+  // A change of the teams alone (no mode, no score) keeps a technical result technical: its winner (the side
+  // with more touchdowns) and its reason, scored with the sides the write leaves — not a played 2–0 without a reason.
+  const scoreSent = ["homeTouchdowns", "awayTouchdowns", "homeCasualties", "awayCasualties"].some((field) => Object.hasOwn(body, field));
+  if (body.mode === undefined && !scoreSent && pairing.result_type === "technical") {
+    if (!sides.hasHome || !sides.hasAway) throw httpError(400, "FIELD_INVALID", { field: "mode" });
+    const winner = Number(pairing.away_touchdowns) > Number(pairing.home_touchdowns) ? "away" : "home";
+    return scoreLeagueResult({ ...sides, kind, resultType: "technical", winner, technicalReason: pairing.technical_reason ?? "other" });
+  }
+  const mode = body.mode ?? "played";
+  if (!RESULT_TYPES.includes(mode)) throw httpError(400, "FIELD_INVALID", { field: "mode" });
+  if (mode === "technical") {
+    if (!sides.hasHome || !sides.hasAway) throw httpError(400, "FIELD_INVALID", { field: "mode" });
+    if (!SIDES.includes(body.winner)) throw httpError(400, "FIELD_INVALID", { field: "winner" });
+    if (!TECHNICAL_REASONS.includes(body.technicalReason)) throw httpError(400, "FIELD_INVALID", { field: "technicalReason" });
+    return scoreLeagueResult({ ...sides, kind, resultType: "technical", winner: body.winner, technicalReason: body.technicalReason });
+  }
+  const value = (field, column, label) => {
+    const sent = nullableInteger(body[field], label);
+    return sent === undefined ? pairing[column] : sent;
+  };
+  return scoreLeagueResult({
+    homeTouchdowns: value("homeTouchdowns", "home_touchdowns", "Home touchdowns"),
+    awayTouchdowns: value("awayTouchdowns", "away_touchdowns", "Away touchdowns"),
+    homeCasualties: value("homeCasualties", "home_casualties", "Home casualties"),
+    awayCasualties: value("awayCasualties", "away_casualties", "Away casualties"),
+    ...sides,
+    kind,
+  });
+}
+
+/**
+ * The reason of a confirmed technical result, changed by the admin (stage 12): the reason and the points it
+ * gives (`technicalPoints`; the winner is the side with more touchdowns), and nothing else — the score, the
+ * status, its confirmation stay as they are, so a result the post-match wrote is changed too. A finished
+ * post-match keeps everything it settled (the score, the SPP, the money) but its result's reason, which is set
+ * to the new one: its page counts its points from it, and would show the old ones beside the table's new. While
+ * its post-match is open the reason is not changed: the finish writes the reason the post-match holds over it.
+ *
+ * @param {string} seasonId the active season's
+ * @param {string} pairingId a league pairing of that season
+ * @param {unknown} reason the body's `technicalReason`
+ * @returns {Promise<void>}
+ * @throws 400 FIELD_INVALID {field: "technicalReason"}; 404 PAIRING_NOT_FOUND; 409 RESULT_NOT_TECHNICAL for a
+ *   result that is not a confirmed technical one; 409 POST_RESULT_LOCKED while its post-match is open
+ */
+export async function setTechnicalReason(seasonId, pairingId, reason) {
+  if (!TECHNICAL_REASONS.includes(reason)) throw httpError(400, "FIELD_INVALID", { field: "technicalReason" });
+  await withTransaction(async (client) => {
+    const pairing = (await client.query(
+      `SELECT p.* FROM season_pairings p JOIN season_rounds r ON r.id = p.round_id
+       WHERE p.id = $1 AND r.season_id = $2 FOR UPDATE OF p`,
+      [pairingId, seasonId],
+    )).rows[0];
+    if (!pairing) throw httpError(404, "PAIRING_NOT_FOUND");
+    if (pairing.result_status !== "confirmed" || pairing.result_type !== "technical") throw httpError(409, "RESULT_NOT_TECHNICAL");
+    const post = (await client.query("SELECT state->>'status' AS status FROM match_post_games WHERE pairing_id = $1", [pairingId])).rows[0];
+    if (post && post.status !== "completed") throw httpError(409, "POST_RESULT_LOCKED");
+    const homeWon = Number(pairing.home_touchdowns) > Number(pairing.away_touchdowns);
+    await client.query(
+      "UPDATE season_pairings SET technical_reason = $2, home_points = $3, away_points = $4, updated_at = now() WHERE id = $1",
+      [pairingId, reason, technicalPoints({ won: homeWon, reason }), technicalPoints({ won: !homeWon, reason })],
+    );
+    await client.query(
+      `UPDATE match_post_games SET state = jsonb_set(state, '{result,reason}', to_jsonb($2::text)), updated_at = now()
+       WHERE pairing_id = $1 AND state->>'status' = 'completed' AND jsonb_typeof(state->'result') = 'object'`,
+      [pairingId, reason],
+    );
+  });
 }

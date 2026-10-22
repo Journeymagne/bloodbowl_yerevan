@@ -26,10 +26,7 @@
  * desk is the same.
  */
 import { t } from "../core/i18n.mjs";
-import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
-
-/** The admin screens have no builder in core/routes.mjs; this is the one link to them. */
-const ADMINISTRATION_URL = "#/administration";
+import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
 
 /**
  * The routes the shell stays out of. The preparation and the post-match (PostResult … PostReview, DeskPostResult …
@@ -38,7 +35,7 @@ const ADMINISTRATION_URL = "#/administration";
 const BARE_ROUTES = new Set(["login", "register", "teamNew", "preMatch", "postMatch"]);
 
 /** The routes a phone draws as a screen of its own, under its own head: the header draws nothing there. */
-const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings"]);
+const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings", "adminTeamPlayer"]);
 
 /**
  * Which tab and which side item own a route: `[tab, side item]`. A route that
@@ -69,6 +66,8 @@ const OWNERS = {
   administration: ["settings", "administration"],
   adminUserProfile: ["settings", "administration"],
   adminTeamEdit: ["settings", "administration"],
+  adminSeason: ["settings", "administration"],
+  adminTeamPlayer: ["settings", "administration"],
 };
 
 /** The route names the model has an answer for; test/shell-navigation.test.mjs holds them against the router's. */
@@ -123,7 +122,7 @@ function guestLinks() {
 }
 
 function coachLinks(team, isAdmin) {
-  const admin = isAdmin ? [["administration", ADMINISTRATION_URL]] : [];
+  const admin = isAdmin ? [["administration", adminUrl()]] : [];
   if (!team) return { tabs: [["overview", "#/"], ...leagueTabs()], side: [["overview", "#/"], ...leagueSide(), ...admin] };
   return {
     tabs: [

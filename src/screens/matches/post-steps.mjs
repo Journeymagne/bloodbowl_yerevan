@@ -13,14 +13,20 @@
  * The income: the Dedicated Fans die (a D3 for the side that conceded, none at a draw), the technical win's D3, the
  * income line by line as the domain counts it over the draft, and the two switches. The step's button sends it all.
  *
- * Dice and the modes are radio groups (the master plan's 05–13 rule): one `role="radiogroup"` with its name, a
- * `role="radio"` per face, the chosen one checked and the only one in the tab order (none chosen: the first). What
- * cannot be written is drawn closed (`aria-disabled`, a stepper `disabled`).
+ * A technical result says why (stage 12, decisions 1, 3): under the winner, as the winner stands under the modes, «Why
+ * technical» — the opponent could not field a team (2 more to the winner, content: "+2 points if the opponent could not
+ * field a team") or another reason. Until one is picked the button is closed and says so; the reason goes with the score
+ * (`resultAction`), the points for you are the post-match's own (`postPoints`), and another mode sends none.
+ *
+ * Dice, the modes and the reasons are radio groups (the master plan's 05–13 rule): one `role="radiogroup"` with its
+ * name, a `role="radio"` per face, the chosen one checked and the only one in the tab order (none chosen: the first).
+ * What cannot be written is drawn closed (`aria-disabled`, a stepper `disabled`).
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { postMatchUrl } from "../../core/routes.mjs";
+import { TECHNICAL_REASONS, seasonPoints } from "../../domain/league-rules.mjs";
 import { otherSide } from "../../domain/match/rules.mjs";
 import { PAINTING_BONUS, nextDedicatedFans, postIncome } from "../../domain/post-match/finance.mjs";
 import { RESULT_MODES, postOutcome } from "../../domain/post-match/rules.mjs";
@@ -88,39 +94,52 @@ export const actionFooter = (action, label, hint = "", more = {}) => ({ kind: "a
 
 /**
  * The score's draft as the page starts it: the score sent, else what each side's records add up to (zeros for a side
- * with none), the mode played; nothing changed, nothing unlocked.
- * @returns {{mode: string, winner: string, own: {touchdowns: number, casualties: number}, other: {touchdowns: number, casualties: number}, changed: boolean, unlocked: boolean}}
+ * with none), the mode played; nothing changed, nothing unlocked. The reason of a technical result is the one sent —
+ * none ("") for a score sent before stage 12, or not technical: the step asks for it.
+ * @returns {{mode: string, winner: string, reason: string, own: {touchdowns: number, casualties: number}, other: {touchdowns: number, casualties: number}, changed: boolean, unlocked: boolean}}
  */
 export function resultDraft(model) {
   const { post, sideName } = model;
   const rival = otherSide(sideName);
   if (post.result) {
     const { mode, winner } = post.result;
-    return { mode, winner, own: { ...post.result[sideName] }, other: { ...post.result[rival] }, changed: false, unlocked: false };
+    return { mode, winner, reason: post.result.reason ?? "", own: { ...post.result[sideName] }, other: { ...post.result[rival] }, changed: false, unlocked: false };
   }
   const records = (name) => {
     const read = sideRecords(post[name]);
     return { touchdowns: read?.touchdowns ?? 0, casualties: read?.casualties ?? 0 };
   };
-  return { mode: "played", winner: "", own: records(sideName), other: records(rival), changed: false, unlocked: false };
+  return { mode: "played", winner: "", reason: "", own: records(sideName), other: records(rival), changed: false, unlocked: false };
 }
 
-/** The score the draft stands for, as the domain writes it (`setResult`): a technical one 2–0 to its winner, CAS 0; a winner only when not played (ours until the coach picks). */
+/**
+ * The score the draft stands for, as the domain writes it (`setResult`): a technical one 2–0 to its winner, CAS 0, with
+ * its reason ("" until one is picked; a friendly's is «another», none being asked — it gives no points); a winner only
+ * when not played (ours until the coach picks).
+ */
 function draftScore(model, draft) {
   const own = model.sideName, rival = otherSide(own);
   const mode = RESULT_MODES.includes(draft.mode) ? draft.mode : "played";
   const winner = mode === "played" ? "" : [own, rival].includes(draft.winner) ? draft.winner : own;
   if (mode === "technical") {
     const side = (name) => ({ touchdowns: name === winner ? 2 : 0, casualties: 0 });
-    return { mode, winner, [own]: side(own), [rival]: side(rival) };
+    const reason = model.kind === "friendly" ? "other" : TECHNICAL_REASONS.includes(draft.reason) ? draft.reason : "";
+    return { mode, winner, reason, [own]: side(own), [rival]: side(rival) };
   }
   return { mode, winner, [own]: { touchdowns: draft.own.touchdowns, casualties: draft.own.casualties }, [rival]: { touchdowns: draft.other.touchdowns, casualties: draft.other.casualties } };
 }
 
-/** The action «Send the score» writes: the draft's score as the domain takes it. */
+/** The action «Send the score» writes: the draft's score as the domain takes it — a technical one with its reason, another mode with none. */
 export function resultAction(model, draft) {
   const score = draftScore(model, draft);
-  return { type: "result", mode: score.mode, winner: score.winner, home: score.home, away: score.away };
+  const reason = score.mode === "technical" ? { reason: score.reason } : {};
+  return { type: "result", mode: score.mode, winner: score.winner, ...reason, home: score.home, away: score.away };
+}
+
+/** Why the draft's score cannot be sent, "" when it can: a concession's score the domain refuses, a technical result with no reason picked. */
+function resultRefusal(score) {
+  if (concededRefused(score)) return t("after.concededScore");
+  return score.mode === "technical" && !score.reason ? t("after.reasonFirst") : "";
 }
 
 /** A concession's score the domain refuses (pre-flight L14): the winner under 2 TD, or the loser with any. */
@@ -188,7 +207,23 @@ export function mismatchMarkup(model, post, { ownOnly = false } = {}) {
     + `<span class="g-after__alerttext">${escapeHtml(`${parts.join("; ")}. ${t("after.mismatchTail")}`)}</span></div>`;
 }
 
-/** «How the match ended» (a 2×2 radio group, `data-after-mode`), who won when it was not played, and what the modes mean. */
+/**
+ * «Why technical» (stage 12): a radio group of `TECHNICAL_REASONS` (`data-after-reason`), the one picked checked, the
+ * first in the tab order while none is; «The opponent could not field a team» says the league's 2 more under it.
+ */
+function reasonsMarkup(score, locked) {
+  const name = t("after.reasonLabel");
+  const entry = TECHNICAL_REASONS.includes(score.reason) ? score.reason : TECHNICAL_REASONS[0];
+  const items = TECHNICAL_REASONS.map((reason) => {
+    const on = reason === score.reason;
+    const sub = reason === "no_team" ? `<span class="g-after__reasonsub">${escapeHtml(t("after.reasonBonus", { points: seasonPoints.noTeamBonus }))}</span>` : "";
+    return `<button type="button" class="g-after__reason" role="radio" aria-checked="${on}" tabindex="${reason === entry ? 0 : -1}"${locked ? ' aria-disabled="true"' : ""} data-reason="${reason}">`
+      + `<span class="g-after__reasonl">${escapeHtml(t(`after.reason.${reason}`))}</span>${sub}</button>`;
+  }).join("");
+  return `${labelMarkup(name)}<div class="g-after__reasons" role="radiogroup" aria-label="${escapeHtml(name)}" data-after-reason>${items}</div>`;
+}
+
+/** «How the match ended» (a 2×2 radio group, `data-after-mode`), who won when it was not played, why when technical, and what the modes mean. */
 function modeCard(model, score, locked) {
   const items = RESULT_MODES.map((mode) => {
     const on = mode === score.mode;
@@ -199,7 +234,9 @@ function modeCard(model, score, locked) {
   const winner = score.mode === "played" ? ""
     : renderSegmentedControl({ label: t("after.winner"), selected: score.winner, data: { segGroup: "after-winner" },
       items: ["home", "away"].map((value) => ({ value, label: model.post[value].team.name, disabled: locked })) });
-  const technical = score.mode === "technical" ? noteMarkup(t("after.technicalNote")) : "";
+  // A friendly gives no points: why it was technical changes nothing, so it is not asked (its reason is «another»).
+  const reasons = model.kind === "friendly" ? "" : reasonsMarkup(score, locked);
+  const technical = score.mode === "technical" ? `${reasons}${noteMarkup(t("after.technicalNote"))}` : "";
   return `<div class="g-after__card">${labelMarkup(t("after.howEnded"))}${group}${winner ? `${labelMarkup(t("after.winner"))}${winner}` : ""}`
     + `${technical}${noteMarkup(t("after.modeNote"))}</div>`;
 }
@@ -208,7 +245,7 @@ function modeCard(model, score, locked) {
 function resultFooter(model, draft, score) {
   const { post, sideName } = model;
   if (post.result?.official || model.completed || model.confirmed) return nextLink(model, "fans");
-  const refused = concededRefused(score) ? t("after.concededScore") : "";
+  const refused = resultRefusal(score);
   if (model.agreed && !draft.unlocked) return nextLink(model, "fans", { quiet: { action: "unlock-result", label: t("after.change") } });
   if (model.agreed) return actionFooter("result", t("after.send"), refused || (draft.changed ? "" : t("after.changeFirst")));
   if (!post.result) return actionFooter("result", t("after.send"), refused);

@@ -50,7 +50,7 @@ export function canonicalLeagueName(value = "") {
   return leagueAccessDisplayByKey.get(ruleLookupKey(value)) ?? "";
 }
 
-export function canonicalSpecialRuleName(value = "") {
+function canonicalSpecialRuleName(value = "") {
   const clean = String(value).replace(/\bFavored\b/g, "Favoured").trim();
   const key = ruleLookupKey(clean);
   if (key.startsWith("favouredof")) {

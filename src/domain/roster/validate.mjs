@@ -7,7 +7,7 @@
  * strings that used to live in rosterWarnings() in src/app.js — the one place
  * in the app that bypassed the translation layer.
  */
-import { rosterSizeLimits, sppCounterDefinitions } from "../league-rules.mjs";
+import { combinedRerollsMaximum, rosterSizeLimits, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, rosterMax, rowsForTeam } from "./values.mjs";
 import { storedPlayerId } from "./players.mjs";
 import { isMoneyAmount } from "../money.mjs";
@@ -22,6 +22,7 @@ export const VALIDATION_CODES = Object.freeze({
   SPP_OUT_OF_RANGE: "SPP_OUT_OF_RANGE",
   DUPLICATE_PLAYER_ID: "DUPLICATE_PLAYER_ID",
   SPP_EDIT_TOO_LARGE: "SPP_EDIT_TOO_LARGE",
+  REROLLS_MAX: "REROLLS_MAX",
 });
 
 /** The most one SPP counter of a player may hold. */
@@ -49,12 +50,31 @@ export function positionMinimum(qty) {
 }
 
 /**
+ * Starting and Team Re-rolls of a draft together, as `combinedRerollsMaximum` counts them. The draft is a normalised one
+ * (`normalizeDraft`), where the first builder's `rerolls` is read as `startingRerolls`. A counter below zero counts as
+ * none: −4 Starting Re-rolls do not make room for 12 Team Re-rolls.
+ *
+ * @param {object} draft
+ * @returns {number}
+ */
+export function combinedRerolls(draft) {
+  return Math.max(0, countToNumber(draft?.startingRerolls)) + Math.max(0, countToNumber(draft?.teamRerolls));
+}
+
+/**
+ * REROLLS_MAX — Starting and Team Re-rolls together over `combinedRerollsMaximum` (stage 12, decision 27): every write
+ * refuses it (server/domain/roster.mjs, BLOCKING_CODES), as it refuses more than 14 players.
+ *
  * @returns {{code: string, params: object}[]} empty when the roster is legal
  */
 export function validateRoster(team, draft, costs) {
   const violations = [];
   if (!isMoneyAmount(draft.treasury ?? 0)) violations.push({ code: VALIDATION_CODES.TREASURY_INVALID, params: {} });
   if (!isMoneyAmount(draft.coachesSafe ?? 0)) violations.push({ code: VALIDATION_CODES.SAFE_INVALID, params: {} });
+  const rerolls = combinedRerolls(draft);
+  if (rerolls > combinedRerollsMaximum) {
+    violations.push({ code: VALIDATION_CODES.REROLLS_MAX, params: { max: combinedRerollsMaximum, count: rerolls } });
+  }
 
   if (costs.playersCount < rosterSizeLimits.min) {
     violations.push({ code: VALIDATION_CODES.ROSTER_MIN_PLAYERS, params: { min: rosterSizeLimits.min, count: costs.playersCount } });

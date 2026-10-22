@@ -19,7 +19,16 @@
  * match-events table that starts with rows, and fallen players 015 carried over
  * that are not the ones its rule finds. What rehearsal:transitions seeded is marked
  * in the report and not counted among the open states (`renderReport`'s `seed`).
+ *
+ * Two lists are for a person to read before the window and decide nothing (stage 12):
+ * the technical results, with their reason (none before 017, read as "other"), and
+ * the rosters over eight Starting and Team Re-rolls together, which every write
+ * refuses until they are put right.
  */
+import { combinedRerollsMaximum } from "../../src/domain/league-rules.mjs";
+import { normalizeDraft } from "../../src/domain/roster/schema.mjs";
+import { combinedRerolls } from "../../src/domain/roster/validate.mjs";
+
 const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kind }));
 
 // The migration log grows by one row per migration; compareSnapshots checks it by name.
@@ -190,6 +199,39 @@ async function fallenCheck(client) {
   return Object.fromEntries(ids.map((id) => [id, { carried: carried[id] ?? 0, expected: expected[id] ?? 0 }]));
 }
 
+// "2–0", or null when a side has no number (a friendly has no points).
+const pair = (home, away) => (home === null || away === null ? null : `${home}–${away}`);
+
+// Every technical result (stage 12, decision 4): until 017 none carried a reason, and one without reads as "other",
+// 2 points. The owner names the ones where the opponent could not field a team; the admin sets that reason after the
+// move and the points are counted again. A friendly has no season, round or points.
+async function technicalResults(client) {
+  const reason = (await columnExists(client, "season_pairings", "technical_reason")) ? "p.technical_reason" : "NULL::text";
+  const { rows } = await client.query(`
+    SELECT p.id, s.name AS season, r.round_number AS round, home_team.name AS home, away_team.name AS away,
+           p.home_touchdowns, p.away_touchdowns, p.home_points, p.away_points, ${reason} AS reason
+      FROM season_pairings p
+      LEFT JOIN season_rounds r ON r.id = p.round_id
+      LEFT JOIN seasons s ON s.id = r.season_id
+      LEFT JOIN season_entries he ON he.id = p.home_entry_id
+      LEFT JOIN season_entries ae ON ae.id = p.away_entry_id
+      LEFT JOIN saved_teams home_team ON home_team.id = COALESCE(he.saved_team_id, p.friendly_home_team_id)
+      LEFT JOIN saved_teams away_team ON away_team.id = COALESCE(ae.saved_team_id, p.friendly_away_team_id)
+     WHERE p.result_type = 'technical'
+     ORDER BY s.created_at, r.round_number, p.table_number, p.id`);
+  return rows.map((row) => ({ id: row.id, season: row.season, round: row.round, home: row.home, away: row.away,
+    score: pair(row.home_touchdowns, row.away_touchdowns), points: pair(row.home_points, row.away_points), reason: row.reason }));
+}
+
+// The rosters over `combinedRerollsMaximum` Starting and Team Re-rolls together, read as the server reads them
+// (`normalizeDraft`: the first builder's `rerolls` is Starting Re-rolls when there is no `startingRerolls`). Every write
+// refuses such a roster until it is put right (REROLLS_MAX, stage 12), so the report names them before the window.
+async function overRerolls(client) {
+  const { rows } = await client.query("SELECT id, name, roster FROM saved_teams ORDER BY name, id");
+  return rows.map((row) => ({ id: row.id, name: row.name, count: combinedRerolls(normalizeDraft(row.roster ?? {})) }))
+    .filter((team) => team.count > combinedRerollsMaximum);
+}
+
 async function collect(client) {
   const tables = await baseTables(client);
   const teams = {};
@@ -214,6 +256,8 @@ async function collect(client) {
       : null,
     fallen,
     fallenCheck: fallenExists ? await fallenCheck(client) : null,
+    technical: await technicalResults(client),
+    overRerolls: await overRerolls(client),
   };
 }
 
@@ -369,6 +413,21 @@ function openStatesLines(open, seed) {
   ];
 }
 
+// A list only the report reads: "none", or a line a row, what rehearsal:transitions seeded marked. A snapshot taken
+// before the list existed says so rather than "none".
+function listLines(rows, seededIds, line) {
+  if (!rows) return ["- (not in this snapshot)"];
+  if (!rows.length) return ["- none"];
+  return rows.map((row) => `- ${line(row)}${seededIds.has(row.id) ? ` — ${SEEDED}` : ""}`);
+}
+
+// Where, who, the score, the points and the reason of a technical result; without a reason it counts as "other".
+function technicalLine(row) {
+  const where = Number.isInteger(row.round) ? `${row.season}, round ${row.round}` : "friendly";
+  const points = row.points ? `points ${row.points}` : "no points";
+  return `${where}: ${row.home ?? "—"} — ${row.away ?? "bye"}, ${row.score ?? "no score"}, ${points}, reason: ${row.reason ?? "none — read as other"} (${row.id})`;
+}
+
 function stageLines(stages, seed) {
   if (!stages) return ["- (no stage column yet)"];
   const teams = new Set(seed?.teamIds ?? []);
@@ -378,7 +437,8 @@ function stageLines(stages, seed) {
 /**
  * @param migrate what rehearsal:migrate recorded ({ applied, ms, runs }, see migrate-record.mjs), or null when it did not run
  * @param seed the rows rehearsal:transitions seeded ({ pairingIds, challengeIds, teamIds }, `seededRows`), or null:
- *   marked in the stages and left out of the open states the day's inventory counts
+ *   marked in the stages, the technical results and the rosters over eight re-rolls, and left out of the open states
+ *   the day's inventory counts
  */
 export function renderReport(before, after, comparison, migrate = null, seed = null) {
   const { problems, notes } = comparison;
@@ -405,6 +465,14 @@ export function renderReport(before, after, comparison, migrate = null, seed = n
     "## Open states",
     "",
     ...openStatesLines(after.open, seed),
+    "",
+    "## Technical results",
+    "",
+    ...listLines(after.technical, new Set(seed?.pairingIds ?? []), technicalLine),
+    "",
+    `## Rosters over ${combinedRerollsMaximum} re-rolls`,
+    "",
+    ...listLines(after.overRerolls, new Set(seed?.teamIds ?? []), (team) => `${team.name} (${team.id}): ${team.count}`),
     "",
     `Before: ${before.takenAt}, ${before.migrations.length} migrations. After: ${after.migrations.length} migrations.`,
   ];

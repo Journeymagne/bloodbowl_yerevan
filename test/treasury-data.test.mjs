@@ -111,8 +111,10 @@ test("a refused or conflicting save is said; a roster save keeps the columns and
   api.reply("POST /api/teams/t1/treasury", 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "TREASURY_INVALID", params: {} }] });
   assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: -100, reason: "fine" }), { refusal: "Breaks the rules. Treasury below zero." });
   api.reply("PATCH /api/teams/t1", 422, { error: { code: "STAGE_PURCHASE_LOCKED", params: { key: "startingRerolls", stage: "active" }, message: "x" } });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t0", name: "Other" }, TEAM] }); // the stage's refusal reads the list again
   assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, startingRerolls: 2 }), { refusal: "Locked by the stage." });
-  const body = api.calls.at(-1).body;
+  await settle();
+  const body = api.calls.findLast((call) => call.key === "PATCH /api/teams/t1").body;
   assert.deepEqual([body.name, body.baseTeamSlug, body.logoData, body.revision, body.roster.logoData, body.roster.teamSlug], ["Wardens", "teams/human", TEAM.logoData, 3, undefined, "teams/human"]);
 });
 
@@ -126,6 +128,39 @@ test("while the team plays a match an entry and a roster save are refused in the
   assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, cheerleaders: 2 }), { refusal: "Playing a match." });
   assert.deepEqual([state.myTeams.items[1], treasury.isWriting("t1")], [TEAM, false]);
   assert.deepEqual(api.calls.map((call) => call.key), ["POST /api/teams/t1/treasury", "PATCH /api/teams/t1"], "each sent once, nothing read again");
+});
+
+// Stage 12 (decision 26, the hand-off of 08): the stage the list holds may be old — an admin moved the team into the
+// season since it was read. The refusal is the server's, and the list is read again so the page draws the stage it has.
+test("a purchase the stage refuses reads the coach's teams again and says the server's words", async () => {
+  coach();
+  state.myTeams.items[1].stage = "draft";
+  const locked = { error: { code: "STAGE_PURCHASE_LOCKED", params: { key: "startingRerolls", stage: "active" }, message: "x" } };
+  api.reply("PATCH /api/teams/t1", 422, locked);
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t0", name: "Other" }, { ...TEAM, revision: 4, stage: "active" }] });
+  // The active team's preference a read of the list may write is not this test's.
+  const sent = () => api.calls.map((call) => call.key).filter((key) => key !== "PATCH /api/auth/preferences");
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, startingRerolls: 1 }), { refusal: "Locked by the stage." });
+  await settle();
+  assert.deepEqual(sent(), ["PATCH /api/teams/t1", "GET /api/teams"], "sent once, then the list read; nothing was written, so no history");
+  assert.deepEqual([state.myTeams.items[1].stage, state.myTeams.items[1].revision, treasury.isWriting("t1")], ["active", 4, false]);
+
+  api.calls.length = 0;
+  const words = (error) => `Refused: ${error.code}.`;
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, startingRerolls: 1 }, {}, { words }), { refusal: "Refused: STAGE_PURCHASE_LOCKED." }, "the writer's words");
+  await settle();
+  assert.deepEqual(sent(), ["PATCH /api/teams/t1", "GET /api/teams"]);
+
+  // A coach who has gone by the time the refusal comes: nothing is read for them.
+  api.calls.length = 0;
+  const gate = api.hold("PATCH /api/teams/t1");
+  const saving = treasury.saveTeamRoster("t1", { ...TEAM.roster, startingRerolls: 1 });
+  await waitHeld(gate);
+  state.auth.currentUser = { id: "u2", login: "other" };
+  gate.release({ status: 422, body: locked });
+  assert.deepEqual(await saving, { refusal: "Locked by the stage." });
+  await settle();
+  assert.deepEqual(sent(), ["PATCH /api/teams/t1"]);
 });
 
 test("another tab's coach: nothing is written", async () => {
@@ -381,7 +416,9 @@ test("an answer that never came says the entry may have been written; a refusal 
   api.reply("PATCH /api/teams/t1", 502, {});
   assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster), unknown);
   api.reply("PATCH /api/teams/t1", 422, { error: { code: "STAGE_PURCHASE_LOCKED", params: {}, message: "x" } });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t0", name: "Other" }, TEAM] });
   assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster), { refusal: "Locked by the stage." });
+  await settle();
 });
 
 test("a 409 on a roster save is marked as changed too, and takes the team as it is", async () => {

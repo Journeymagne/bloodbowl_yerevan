@@ -11,11 +11,14 @@
  * «Skills» — in place of the one line «Career: N SPP»: career.mjs's block, which the caller draws (`careerHtml`) — the
  * phone's on his own page and the roster's player page, the desk's in the desk's panel. The first two read it once his
  * profile is drawn, the panel only while its list is open. A record with no id keeps the one line: no read could name him.
+ *
+ * On the admin's visit (stage 12, pre-flight L10) a death a post-match recorded is undone here too, the undo saying what
+ * it keeps; a record the roster cannot read says, in the admin's words, that no undo gives the player back. A player's
+ * profile is in the administration then (source.mjs).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatDay } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { teamPlayerUrl } from "../../../core/routes.mjs";
 import { raceTitleOf } from "../../../data/teams.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
@@ -26,6 +29,7 @@ import { undoable } from "./model.mjs";
 import { markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
 import { closedMarkup } from "./player-access.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
+import { playerHref } from "./source.mjs";
 
 /**
  * His name as his row, the desk's panel and his own page head it: a record may name nobody (a snapshot with no player
@@ -64,12 +68,17 @@ const noteMarkup = (key) => `<p class="g-fallen__note">${escapeHtml(t(key))}</p>
 
 /**
  * That the league's administrator corrects a death the screen does not undo: one a post-match recorded, or a record the
- * roster cannot read (K11); "" for one a coach marked.
+ * roster cannot read (K11); "" for one a coach marked. The admin's visit (`admin`) undoes the first, and is told of the
+ * second that no undo gives the player back.
  */
-function adminMarkup(line) {
+function adminMarkup(line, { admin = false } = {}) {
+  if (admin) return line.bare ? noteMarkup("adminTeam.fallen.bare") : "";
   if (line.fallen.fromMatch) return noteMarkup("teamRoster.fallen.fromMatch");
   return line.bare ? noteMarkup("teamRoster.fallen.bare") : "";
 }
+
+/** What the admin is told of an undo of a death a post-match recorded (stage 12): back with the advancements, the match's rolls kept used (09b). */
+const fromMatchUndone = (line, admin) => admin && line.fallen.fromMatch;
 
 /**
  * Where a death a coach marked is undone (decision 17, K20): «Undo the mark», which opens the sheet that asks first —
@@ -79,16 +88,17 @@ function adminMarkup(line) {
  *
  * @param {import("./model.mjs").FallenLine} line
  * @param {string} reason why no undo can be sent just now (`markClosed` with `direct`), "" when one can
+ * @param {{admin?: boolean}} [options] `admin` is the admin's visit (stage 12): a death a post-match recorded is undone too
  * @returns {string}
  */
-export function undoMarkup(line, reason) {
-  if (!undoable(line)) return adminMarkup(line);
+export function undoMarkup(line, reason, { admin = false } = {}) {
+  if (!undoable(line, { admin })) return adminMarkup(line, { admin });
   const label = t("teamRoster.fallen.undo");
   const data = { key: "roster-undo", rosterUndo: line.key };
   const button = reason
     ? closedMarkup({ className: "g-btn g-btn--block", label, reason, data })
     : `<button type="button" class="g-btn g-btn--block" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`;
-  return `${button}${noteMarkup("teamRoster.fallen.undoHint")}`;
+  return `${button}${noteMarkup(fromMatchUndone(line, admin) ? "adminTeam.fallen.fromMatch" : "teamRoster.fallen.undoHint")}`;
 }
 
 /**
@@ -101,8 +111,8 @@ export function undoMarkup(line, reason) {
  */
 export function fallenRowMarkup(line, screen) {
   const career = t("teamRoster.fallen.careerWhen", { spp: line.earned, when: fallenWhen(line) });
-  const profile = line.id ? profileLinkMarkup(t("teamRoster.fallen.profile"), teamPlayerUrl(screen.team.id, line.id)) : "";
-  let note = adminMarkup(line);
+  const profile = line.id ? profileLinkMarkup(t("teamRoster.fallen.profile"), playerHref(screen.team.id, line.id)) : "";
+  let note = adminMarkup(line, { admin: Boolean(screen.admin) });
   if (!note && line.id) note = noteMarkup("teamRoster.fallen.undoInProfile");
   return `<div class="g-fallen__rowpanel">${causeMarkup(line)}<p class="g-fallen__career">${escapeHtml(career)}</p>${profile}${note}</div>`;
 }
@@ -154,10 +164,11 @@ export function fallenWho(line, baseTeamSlug) {
  */
 export function fallenPanelMarkup(line, screen, { careerHtml = "" } = {}) {
   const who = fallenWho(line, screen.team.baseTeamSlug);
-  const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
+  const admin = Boolean(screen.admin);
+  const reason = undoable(line, { admin }) ? markClosed(line, screen, { direct: true }) : "";
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true })}`
     + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(fallenName(line))}</h2><p class="g-roster__pline">${escapeHtml(who)}</p></div></div>`
-    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), short: true, careerHtml });
+    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason, { admin }), short: true, careerHtml });
 }
 
 /**
@@ -172,16 +183,20 @@ export function fallenPanelMarkup(line, screen, { careerHtml = "" } = {}) {
  * @param {boolean} [props.busy] the undo is on its way
  * @param {string} [props.refusal] why the last press was refused (another tab's coach, the rules), "" for none
  * @param {string} [props.reason] why no undo can be sent just now (`markClosed` with `direct`), "" when one can
+ * @param {boolean} [props.admin] the admin's visit (stage 12): the quiet line is what an undo of a death a post-match
+ *   recorded keeps, for one; none for a death a coach marked
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-undo")` opens it
  */
-export function undoSheetMarkup({ line, mode, busy = false, refusal = "", reason = "" }) {
+export function undoSheetMarkup({ line, mode, busy = false, refusal = "", reason = "", admin = false }) {
   const prep = mode.kind === "prep" ? `<p class="g-fallen__undoprep">${escapeHtml(prepResetWords())}</p>` : "";
   const refused = refusal ? `<p class="g-roster__markrefusal" role="alert">${escapeHtml(refusal)}</p>` : "";
+  let quiet = admin ? "" : t("teamRoster.fallen.fromMatch");
+  if (fromMatchUndone(line, admin)) quiet = t("adminTeam.fallen.fromMatch");
   return renderSheet({
     id: UNDO_SHEET,
     title: t("teamRoster.fallen.undoTitle"),
     bodyHtml: `<p class="g-fallen__undotext">${escapeHtml(t("teamRoster.fallen.undoBody", { name: line.name }))}</p>`
-      + `<p class="g-fallen__undoprep">${escapeHtml(t("teamRoster.fallen.fromMatch"))}</p>${prep}${refused}`,
+      + `${quiet ? `<p class="g-fallen__undoprep">${escapeHtml(quiet)}</p>` : ""}${prep}${refused}`,
     footStartHtml: renderButton({ label: t("teamRoster.fallen.keep"), data: { undoKeep: true } }),
     footHtml: footButton({ label: t("teamRoster.fallen.restore"), kind: "primary", data: { undoSend: true }, busy, reason }),
   });

@@ -2,6 +2,7 @@ import { normalizeDraft } from '../roster/schema.mjs';
 import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
 import { choiceRoll } from '../roster/progression.mjs';
+import { TECHNICAL_REASONS } from '../league-rules.mjs';
 import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
 import { statisticsFromEvents, sameValues } from './events.mjs';
@@ -28,11 +29,20 @@ export function createPostMatch(gameId, sources, snapshots, data, official = nul
   return state;
 }
 
+// A technical result carries its reason (stage 12): one of TECHNICAL_REASONS, the other kind when none is sent
+// (the steps ask for it; a post-match begun before 12 held none). Another mode carries none.
+function sentReason(action) {
+  const reason = action.reason ?? 'other';
+  if (!TECHNICAL_REASONS.includes(reason)) throw postError('POST_VALUE');
+  return { reason };
+}
+
 function setResult(state, name, action, data) {
   if (state.result?.official) throw postError('POST_RESULT_LOCKED');
   const mode = action.mode || 'played';
   if (!RESULT_MODES.includes(mode)) throw postError('POST_VALUE');
-  const result = { mode, winner: mode === 'played' ? '' : action.winner, accepted: { home: false, away: false },
+  const result = { mode, winner: mode === 'played' ? '' : action.winner, ...(mode === 'technical' ? sentReason(action) : {}),
+    accepted: { home: false, away: false },
     ...Object.fromEntries(SIDES.map(key => [key, { touchdowns: postCount(action[key]?.touchdowns), casualties: postCount(action[key]?.casualties) }])) };
   if (mode === 'technical' && SIDES.includes(result.winner)) {
     SIDES.forEach(key => { result[key] = { touchdowns: key === result.winner ? 2 : 0, casualties: 0 }; });

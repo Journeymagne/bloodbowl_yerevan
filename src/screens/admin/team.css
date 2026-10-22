@@ -1,0 +1,214 @@
+/*
+ * The admin's block on a team's roster (stage 12; screens/team/roster/admin-block.mjs, admin-identity.mjs, and the sheet
+ * of screens/admin/team-sheets.mjs): over the roster and across its width, on both widths, DeskAdminTeamEdit.html's
+ * yellow banner and its band of cards in the administration's grid (admin.css) — «Treasury», «Staff», «Fallen, added
+ * afterwards», and the team's name and logo (the owner's answer: the admin changes them, never the race).
+ *
+ * The prototype's values: the banner 14px 16px on --warn-tint, radius 14, its words 15px 700 and 13px, «Back to the
+ * coach» 40px with the control's ring; fields 48px (text-field.css) and the main button 48px, radius 12, 15px 700; the
+ * other buttons 40px on a desk and 44px on a phone (D2). The cards and the fields that have no prototype (the staff, the
+ * fallen added afterwards, the name and logo) take the treasury card's look. Font, border, background, text-transform,
+ * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are
+ * tokens; long lines wrap, and nothing is cut.
+ */
+.g-adminteam {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  /*
+   * The roster under the block, as under the prototype's band: its gap of 20 — of which the roster's own column gap
+   * (frame.css, 16 between its parts) already gives 16.
+   */
+  margin: 0 0 calc(var(--space-20) - var(--space-16));
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/*
+ * The prototype's grid of cards from 901px; a card never stands wider than the page (one under the other then). Up to
+ * 900px admin.css's one column holds, a tablet's too.
+ */
+@media (min-width: 901px) {
+  .g-adminteam .g-admin__grid { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+}
+
+/* ---- The banner: whose team, what a change does, the way back; a match on under it ---- */
+.g-adminteam__banner {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-adminteam__bannertext {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.g-adminteam__bannertitle { font: 700 15px/1.35 var(--font-body); }
+.g-adminteam__bannersub { font: 400 13px/1.4 var(--font-body); }
+.g-adminteam__back {
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+}
+.g-adminteam__match {
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* «Save the fix» and «Save the name»: the cards' main button, as the prototype's. */
+.g-adminteam__treasury .g-btn--primary,
+.g-adminteam__identity .g-btn--primary {
+  height: 48px;
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The logo's line: its frame, its name and sizes, then its buttons, which go under them where they do not fit. */
+.g-adminteam__logo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-10) var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-adminteam__picture {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+  color: var(--muted);
+}
+.g-adminteam__picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-adminteam__logotext {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.g-adminteam__logoname {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-adminteam__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.g-adminteam__btn {
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-lg);
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* «Staff»: the Team page's counters (resource-counter.css), one under the other; the card's edge ends the last. */
+.g-adminteam__counters {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-adminteam__staff .g-resource:last-child { border-bottom: 0; }
+.g-adminteam__staff .g-resource__text { overflow-wrap: anywhere; }
+
+/* «+ Add a fallen player afterwards»: as wide as its words, which wrap. */
+.g-adminteam__fallen .g-adminteam__btn {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* The sheet of a fallen player added afterwards: its fields one under the other, the refusal under them. */
+.g-adminteam__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  min-width: 0;
+}
+/* A native choice and the day keep the browser's own arrow and calendar inside the field's look (text-field.css). */
+.g-adminteam__control {
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+.g-adminteam__refusal {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: 600 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- A phone: one column (admin.css), every target 44px ---- */
+@media (max-width: 900px) {
+  .g-adminteam {
+    gap: 18px;
+    /* 18 to the roster, the roster's own 16 of it. */
+    margin-bottom: calc(18px - var(--space-16));
+  }
+  .g-adminteam__btn { min-height: 44px; }
+}
+
+/* ---- A desk: the prototype's 40px ---- */
+@media (min-width: 901px) {
+  .g-adminteam__btn { min-height: 40px; }
+}

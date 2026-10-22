@@ -90,6 +90,26 @@ export function adminTeamEditUrl(userOrId, teamOrId) {
   return `#/administration/users/${segment(userOrId)}/teams/${segment(teamOrId)}/edit`;
 }
 
+/** The administration's coaches (stage 12, decision 7): where the SideNav's item and the section switch lead. */
+export function adminUrl() {
+  return "#/administration";
+}
+
+/** One coach as the administration sees the account: the login, the rights, the teams. */
+export function adminCoachUrl(userOrId) {
+  return `${adminUrl()}/users/${segment(userOrId)}`;
+}
+
+/** The season as the administration runs it: its rounds and pairs, or (`"entries"`) the teams in it. */
+export function adminSeasonUrl(tab = "") {
+  return `${adminUrl()}/season${tab === "entries" ? "/entries" : ""}`;
+}
+
+/** A player of the team an admin edits: the roster's player screen in the admin's mode. */
+export function adminTeamPlayerUrl(userOrId, teamOrId, playerOrId) {
+  return `${adminTeamEditUrl(userOrId, teamOrId)}/${segment(playerOrId)}`;
+}
+
 export function gameUrl(gameOrId) {
   return `#/games/${segment(gameOrId)}`;
 }
@@ -100,11 +120,6 @@ export function preMatchUrl(gameOrId, step = "") {
 
 export function postMatchUrl(gameOrId, step = "") {
   return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
-}
-
-/** The 2.x saved-roster editor, which the team's roster tab draws until stage 07. */
-export function savedRosterUrl(teamOrId) {
-  return teamUrl(teamOrId, "roster");
 }
 
 /** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
@@ -175,6 +190,9 @@ const ID_ROUTES = [
   [/^coaches\/([^/]+)\/teams\/([^/]+)$/, "coachTeam", "userId", "teamId"],
   [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],
   [/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/, "postMatch", "gameId", "step"],
+  [/^administration\/season(?:\/(entries))?$/, "adminSeason", "tab"],
+  // A player of the team an admin edits (stage 12): the roster's player screen in the admin's mode.
+  [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit\/([^/]+)$/, "adminTeamPlayer", "ownerId", "teamId", "playerId"],
   [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/, "adminTeamEdit", "ownerId", "teamId"],
 ];
 
@@ -248,6 +266,8 @@ const SIGNED_IN_ROUTES = new Set([
   "administration",
   "adminUserProfile",
   "adminTeamEdit",
+  "adminSeason",
+  "adminTeamPlayer",
 ]);
 
 /**
@@ -269,6 +289,10 @@ const OLD_ADDRESSES = [
   [/^players\/([^/]+)\/teams\/([^/]+)$/, ([, userId, teamId]) => playerTeamUrl(userId, teamId)],
   [/^(?:ref\/)?pages$/, () => refUrl()],
   [/^(skills|traits|rules|cheatsheets|inducements|star-players)$/, ([, name]) => refUrl(name)],
+  // The 2.x season screen's administration tab: the administration's season since stage 12 (a guest signs in from there, rule 4).
+  [/^season\/administration$/, () => adminSeasonUrl()],
+  // Its registration tab: a coach enters a team from the team's own pages since stage 12; the address is the league's page.
+  [/^season\/registration$/, () => seasonTabUrl()],
   // In 2.x #/teams was the team rules list, and a guest's old link still means that.
   [/^teams$/, (match, { signedIn }) => (signedIn ? null : refUrl("teams"))],
 ];

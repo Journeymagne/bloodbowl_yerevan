@@ -16,6 +16,12 @@
  * desk's page band holds the search (stage 07d, search.mjs): it narrows the three tables, and a line over them says how
  * many it finds.
  *
+ * The administration draws the same roster for any team (stage 12, decision 23; source.mjs): its band is «Coach's team»
+ * with the path to it under the title (DeskAdminTeamEdit.html), and in the coach's treasury strip's place, on both
+ * widths, stands the admin's block (admin-block.mjs): the banner naming the coach, then the cards of the treasury, the
+ * staff, a fallen player added afterwards and the team's name and logo (admin-identity.mjs; the owner's answer) — over the
+ * roster and across its width, as the prototype stands them over its page.
+ *
  * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
  * match», each saying why under his name; and «Fallen», the dead, whose row and panel are fallen-view.mjs's. One sort
  * orders the three, one choice picks the row that is open or the player in the panel among them all, and the labels
@@ -25,7 +31,7 @@
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { postMatchUrl, preMatchUrl, teamUrl } from "../../../core/routes.mjs";
+import { adminCoachUrl, adminUrl, postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
@@ -51,6 +57,10 @@ import { foundMarkup, lineMatches, queryWords, searchFieldMarkup } from "./searc
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
+import { rosterHref } from "./source.mjs";
+import { identityMarkup } from "./admin-identity.mjs";
+import { adminBlockMarkup, adminSheetMarkup } from "./admin-block.mjs";
+import { crumbsMarkup } from "../../admin/frame.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
 export const ASIDE_ID = "roster-aside";
@@ -94,7 +104,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   |{kind: "edit", key: string, form: {number: string, name: string, captain: boolean}, seed: string, refusal: string, reason: string}
  *   |{kind: "advance", key: string, type: string, category: string, skill: string, step: string, refusal: string, taken: object|null, reason?: string}
  *   |{kind: "unadvance", key: string, index: number, confirmed: string, refusal: string, reason?: string}
- *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, seed: string, refusal: string, reason: string}|null} sheet
+ *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, seed: string, refusal: string, reason: string}
+ *   |{kind: "adminFallen", key: string, form: ReturnType<import("../../admin/team-sheets.mjs").fallenFormOf>, busy: boolean, refusal: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
  *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
  *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
@@ -105,7 +116,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   and why it is closed; or his advancement (stage 07d, advance.mjs) with what is chosen, its step, what was taken, and
  *   why «Take» is closed; or the undo of his last advancement (stage 07d) with the advancement it confirms (its place and
  *   how it was shown), the last refusal, and why «Undo advancement» is closed; or his fix by hand (stage 07d, fix.mjs)
- *   with its form, what it was seeded from, the last refusal of «Save», and why it is closed
+ *   with its form, what it was seeded from, the last refusal of «Save», and why it is closed; or the admin's fallen player
+ *   added afterwards (stage 12, admin-block.mjs) with its form, whether it is on its way, and the last refusal of «Add»
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -116,6 +128,10 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   them (stage 07d); a read on its way keeps the list read before it
  * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player as the visit read it, by his stored id (career.mjs)
  * @property {boolean} careerOpen its list is open
+ * @property {{ownerId: string}|null} admin the admin's visit (stage 12, source.mjs), null for the coach's
+ * @property {object|null} owner the team's coach as the admin's read names it (`{id, login}`), null before it or on a coach's visit
+ * @property {boolean} inMatch the admin's read says the team plays a match now (false on a coach's visit)
+ * @property {object[]} matches the team's confirmed matches as the admin's read lists them (none on a coach's visit)
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */
@@ -406,18 +422,20 @@ function layoutMarkup(screen) {
   // The search's live region stands first on a desk, with no query too: a screen reader hears its first words.
   const found = screen.phone ? "" : foundMarkup(query, active.length + skipping.length + fallen.length);
   const caption = active.length || skipping.length || fallen.length ? captionMarkup(screen) : "";
-  const main = `${found}${gone}${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
-  return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
+  // The admin's visit has no strip of the coach's (stage 12): the admin's own block stands over the roster, across its width.
+  const block = screen.admin ? adminBlockMarkup(screen, identityMarkup(screen)) : "";
+  const main = `${found}${gone}${noticesMarkup(screen)}${screen.admin ? "" : stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
+  return `${block}<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
 }
 
 /**
  * An address whose player the roster holds nowhere — neither among those who play nor among the fallen (decision 1): he
  * is no longer on the roster, and the way back to it. A phone says it under his page's head (profile.mjs); a desk over
- * the table it draws in his place (final review M5).
+ * the table it draws in his place (final review M5). The way back is the visit's (source.mjs): an admin's stays in the administration.
  * @param {string} teamId
  */
 export function goneMarkup(teamId) {
-  return renderCallout({ title: t("teamPlayer.gone"), actionHtml: calloutLink(teamUrl(teamId, "roster"), t("teamRoster.fallen.toRoster")) });
+  return renderCallout({ title: t("teamPlayer.gone"), actionHtml: calloutLink(rosterHref(teamId), t("teamRoster.fallen.toRoster")) });
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */
@@ -438,16 +456,18 @@ function bodyMarkup(screen) {
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
  * too; how an advancement gave it, and what a site roll's dice showed as the visit read them (stage 07d) — an injury's, a
  * missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit, advancement, the undo of his
- * last one or his fix by hand (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
+ * last one or his fix by hand (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands);
+ * the admin's fallen player added afterwards (stage 12), no one's of the roster either.
  */
 export function sheetMarkup(screen) {
   const { sheet } = screen;
+  if (sheet?.kind === "adminFallen") return adminSheetMarkup(screen);
   if (sheet?.kind === "hire") return hireSheetMarkup({ race: screen.race, quote: sheet.quote, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;
   if (!line) return "";
   if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });
   if (sheet.kind === "mark") return markSheetMarkup({ line, choice: sheet.choice, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
-  if (sheet.kind === "undo") return undoSheetMarkup({ line, mode: screen.mode, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
+  if (sheet.kind === "undo") return undoSheetMarkup({ line, mode: screen.mode, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason, admin: Boolean(screen.admin) });
   if (sheet.kind === "sell") {
     return sellSheetMarkup({ line, race: screen.race, treasury: screen.draft.treasury, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   }
@@ -458,11 +478,27 @@ export function sheetMarkup(screen) {
   return skillSheetMarkup({ data: screen.data, line, name: sheet.name, advancementHtml: rollBlockMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
 }
 
+/**
+ * The band of the admin's visit (DeskAdminTeamEdit.html): «Coach's team», the desk's search at its right as the coach's,
+ * and under the title the path — «Administration → orc_boss → Grimtusk Raiders» — whose parts are known once the admin's
+ * read has answered. A phone draws it as a title too (the administration's frame, frame.mjs): the shell's header there
+ * names the admin's own team, not this one.
+ * @param {RosterScreen} screen @param {string} metaHtml markup of `searchFieldMarkup()`, "" on a phone
+ */
+function adminBandMarkup({ owner, team, phone }, metaHtml) {
+  const parts = [{ label: t("administration.title"), href: adminUrl() }];
+  if (owner?.id) parts.push({ label: String(owner.login ?? ""), href: adminCoachUrl(owner) });
+  if (team) parts.push({ label: team.name });
+  return `<div class="g-admin__head">${renderPageHead({ title: t("adminTeam.title"), metaHtml, phone })}${crumbsMarkup(parts)}</div>`;
+}
+
 /** @param {RosterScreen} screen */
 export function rosterMarkup(screen) {
   const drawn = !screen.loading && !screen.error && screen.race;
   // A desk's search at the right of the band (DeskRoster.html); a phone's band is for a screen reader, and has none.
   const metaHtml = screen.phone ? "" : searchFieldMarkup(screen.memory.query);
-  const head = renderPageHead({ title: t("shell.tab.roster"), sub: drawn ? t("teamRoster.counts", rosterCounts(screen.lines)) : "", metaHtml });
+  const head = screen.admin
+    ? adminBandMarkup(screen, metaHtml)
+    : renderPageHead({ title: t("shell.tab.roster"), sub: drawn ? t("teamRoster.counts", rosterCounts(screen.lines)) : "", metaHtml });
   return `<div class="g-roster" data-screen="team-roster">${head}${bodyMarkup(screen)}${sheetMarkup(screen)}</div>`;
 }

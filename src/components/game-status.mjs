@@ -1,10 +1,9 @@
 /**
  * A game/pairing result status, translated for display.
  *
- * Mechanically moved out of src/app.js. Used by the games screens (still in
- * app.js — task 6.8) and by screens/season/schedule.mjs's pairing table,
- * which is why this tiny wrapper gets its own module rather than living in
- * either.
+ * Mechanically moved out of src/app.js. Used by the games screens (the game
+ * page and «My games»); the 2.x season schedule that read it too went with
+ * stage 12.
  */
 import { t } from "../core/i18n.mjs";
 

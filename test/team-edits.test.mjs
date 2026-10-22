@@ -171,11 +171,13 @@ test("the race's words are gone from both dictionaries", () => {
   const gone = [
     "teamSettings.refusal.RACE_SAME", "teamSettings.refusal.RACE_UNKNOWN", "teamSettings.refusal.RACE_IN_SEASON",
     "teamSettings.raceOpen", "teamSettings.raceDrops", "teamSettings.raceStaff", "teamSettings.racePreparing", "teamSettings.raceChange",
+    // The 2.x editor's season lock went with the editor (stage 12): nobody changes a race (the owner's answer).
+    "roster.raceLockedInSeason",
   ];
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
     for (const key of gone) assert.equal(key in words, false, `${locale}: ${key}`);
-    // What stays: the read-only row's label, TeamNew's «Choose a race», the 2.x editor's season lock.
-    for (const key of ["teamSettings.race", "newTeam.needRace", "roster.raceLockedInSeason"]) assert.ok(words[key], `${locale}: ${key}`);
+    // What stays: the read-only row's label, TeamNew's «Choose a race».
+    for (const key of ["teamSettings.race", "newTeam.needRace"]) assert.ok(words[key], `${locale}: ${key}`);
   }
 });

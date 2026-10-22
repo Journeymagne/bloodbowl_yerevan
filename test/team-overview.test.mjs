@@ -571,7 +571,9 @@ test("a team outside the season: two tiles, and a way to enter it instead of a b
   assert.equal(model.tiles.length, 2);
   assert.equal(model.board, null);
   const fragment = mount(overviewMarkup(model));
-  assert.equal(fragment.querySelector("a.g-callout").getAttribute("href"), "#/season/registration");
+  // The call carries its own button since stage 12 (decision 22): no link to a 2.x season screen.
+  assert.equal(fragment.querySelector("a.g-callout"), null);
+  assert.equal(fragment.querySelector(".g-callout [data-season-enter]").textContent.trim(), "Enter the season");
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Draft");
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.deepEqual(fragment.querySelectorAll(".g-kpi__k").map((label) => label.textContent), ["Team value", "Treasury"]);
@@ -801,6 +803,19 @@ test("a team below the sixth stands last in it with its place", () => {
     ["1", "Rival Team", false], ["2", "Rival Raiders", false], ["3", "Rival Wardens", false], ["4", "Fourth Wall", false], ["5", "Fifth Column", false], ["8", "Ashgrove Wardens", true]]);
 });
 
+test("the overview's table draws the playoff zone the admin set by the place in the whole table: the team eighth, last in the window, is outside a zone of six", () => {
+  const zone = (seasonData) => {
+    const rows = mount(overviewMarkup(overviewModel(input("t1", { seasonData, viewerId: "u1" })))).querySelectorAll(".g-minitable__row");
+    const ranks = (modifier) => rows.filter((row) => row.getAttribute("class").includes(`g-minitable__row--${modifier}`)).map((row) => row.querySelector(".g-minitable__rank").textContent);
+    return { zone: ranks("zone"), end: ranks("zoneend") };
+  };
+  const places = (league, playoffPlaces) => ({ ...league, season: { ...league.season, playoffPlaces } });
+  assert.deepEqual(zone(places(LEAGUE_LAST, 6)), { zone: ["1", "2", "3", "4", "5"], end: [] }, "the sixth place is not in the window: no line for it (pre-flight L16)");
+  assert.deepEqual(zone(places(LEAGUE_LAST, 3)), { zone: ["1", "2", "3"], end: ["3"] });
+  assert.deepEqual(zone(places(LEAGUE, 2)), { zone: ["1", "2"], end: ["2"] }, "the team's own row in the zone");
+  assert.deepEqual(zone(LEAGUE), { zone: [], end: [] }, "no playoff places set: no zone");
+});
+
 test("the coach's other team in the table leads to its overview, unmarked: the overview marks its own team's row (DeskOverview.html)", () => {
   const both = { ...LEAGUE, standings: LEAGUE.standings.map((row) => (row.team.id === "r2" ? { ...row, user: { id: "u1", login: "coach" } } : row)) };
   const rows = mount(overviewMarkup(overviewModel(input("t1", { seasonData: both, viewerId: "u1" })))).querySelectorAll(".g-minitable__row");
@@ -983,7 +998,7 @@ test("a table that failed to load says so where the board would stand; the team'
   assert.equal(model.tiles.length, 2, "no place without a table");
   const fragment = mount(overviewMarkup(model));
   assert.deepEqual(fragment.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent), ["The league table did not load: No connection"]);
-  assert.equal(fragment.querySelector("a.g-callout"), null, "a team in the season is not told it is not entered");
+  assert.equal(fragment.querySelector("[data-season-enter]"), null, "a team in the season is not told it is not entered");
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.ok(fragment.querySelector(".g-overview__leaders"), "the leaders come from the team itself");
 });
@@ -1007,7 +1022,7 @@ test("a table read again that failed leaves the table the page had: nothing is s
 
 test("a team outside the season whose games failed still offers to enter it", () => {
   const fragment = mount(overviewMarkup(overviewModel({ ...input("t4"), games: [], gamesError: "No connection" })));
-  assert.ok(fragment.querySelector("a.g-callout"));
+  assert.ok(fragment.querySelector(".g-callout [data-season-enter]"));
   assert.equal(fragment.querySelector(".g-overview__failed"), null);
 });
 
@@ -1017,7 +1032,7 @@ test("before the table and the games are read nothing is said that they may cont
   assert.equal(model.board, null);
   assert.equal(model.seasonLine, "");
   const fragment = mount(overviewMarkup(model));
-  assert.equal(fragment.querySelector("a.g-callout"), null, "a team in the season is not told it is not entered");
+  assert.equal(fragment.querySelector("[data-season-enter]"), null, "a team in the season is not told it is not entered");
   assert.equal(fragment.querySelector(".g-overview__failed"), null);
   const read = overviewModel(input("t1", { games: null }));
   assert.equal(read.tiles[1].value, "3", "the table is in, the record is not");
@@ -1282,7 +1297,7 @@ test("it draws at once from what the page has, takes the title for the focus, an
   assert.ok(view.querySelector(".g-pagehead h1"), "drawn before anything is awaited");
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(view.querySelectorAll(".g-kpi").length, 2);
-  assert.equal(view.querySelector("a.g-callout"), null);
+  assert.equal(view.querySelector("[data-season-enter]"), null);
   seasonHold.release();
   await drawing;
   assert.equal(view.querySelectorAll(".g-kpi").length, 5);
@@ -1410,7 +1425,7 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   assertCspSafe(fragment);
   assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
-  assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css");
+  assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css", "button.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
   assertCspSafe(phone);
   assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
@@ -2088,7 +2103,7 @@ test("a list read again after the coach left draws nothing", async () => {
 
 // Review M2: one read of the records for the start of a visit, once the games have answered — a games answer on its
 // way when the page is drawn (app.js's at sign-in, or the overview's own after a failure) asks for no second one.
-test("a cold start reads the records once, after the games have answered; a team in its build reads none", async () => {
+test("a cold start reads the records once, after the games have answered; a team in its build reads none until it plays", async () => {
   coach({ games: [], gamesLoaded: false });
   api.reply("GET /api/games", 200, { games: GAMES, currentGames: [] });
   const games = api.hold("GET /api/games");
@@ -2110,6 +2125,19 @@ test("a cold start reads the records once, after the games have answered; a team
   await turns();
   assert.ok(view.querySelector(".g-pagehead h1"));
   assert.equal(sent("GET /api/teams/t4/events"), 0);
+  releaseCurrentScreen();
+  api.assertAnswered();
+  // Since stage 12 every new team starts in its build and may play before it is moved into the season: a friendly of
+  // Fresh Meat on, its records are read as any team's.
+  const friendly = game("gt4", { kind: "friendly", season: null, roundStatus: null, roundNumber: 0, preparationStatus: "in_progress",
+    home: side("t4", "Fresh Meat", "teams/orc"), away: RIVAL });
+  coach({ games: [...GAMES, friendly] });
+  state.activeTeamId = "t4";
+  api.reply("GET /api/teams/t4/events", 200, { events: [], revision: 1 });
+  await renderTeamOverview("t4");
+  await notifyGames([...GAMES, friendly]);
+  await turns();
+  assert.ok(sent("GET /api/teams/t4/events") >= 1, "a build that plays reads its records");
   releaseCurrentScreen();
   api.assertAnswered();
 });

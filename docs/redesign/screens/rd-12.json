@@ -1,0 +1,307 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "A1",
+      "url": "http://localhost:5184/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A2",
+      "url": "http://localhost:5184/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  const LOGIN = 'newbie_coach';",
+        "  await press('[data-coach-new]', 700);",
+        "  await type('#coach-new-login', LOGIN);",
+        "  await type('#coach-new-telegram', '@newbie');",
+        "  await type('#coach-new-team', 'Mudfoot Boyz');",
+        "  await press('[data-coach-race=\"teams/orc\"]', 400);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "U1",
+      "url": "http://localhost:5184/#/administration/users/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "U2",
+      "url": "http://localhost:5184/#/administration/users/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-acoach-reset]', 600);",
+        "  await press('dialog.app-dialog button[value=\"confirm\"]', 1200);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "U3",
+      "url": "http://localhost:5184/#/administration/users/u1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T1",
+      "url": "http://localhost:5184/#/administration/users/u2/teams/rt1/edit",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T2",
+      "url": "http://localhost:5184/#/administration/users/u2/teams/rt1/edit",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-admin-fallen]', 800);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "S1",
+      "url": "http://localhost:5184/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S2",
+      "url": "http://localhost:5184/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-season-result=\"p3-4\"]', 700);",
+        "  await press('dialog[open] [data-seg-group=\"result-mode\"] [data-seg-value=\"technical\"]', 500);",
+        "  await press('dialog[open] [data-option-value=\"no_team\"]', 500);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "S3",
+      "url": "http://localhost:5184/#/administration/season/entries",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "L1",
+      "url": "http://localhost:5184/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "O1",
+      "url": "http://localhost:5184/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "P1",
+      "url": "http://localhost:5184/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-after-mode] [data-mode=\"technical\"]', 700);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "E1",
+      "url": "http://localhost:5184/#/t/t5",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "N1",
+      "url": "http://localhost:5185/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:5184/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5184/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A3",
+      "url": "http://localhost:5184/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  const answer = await fetch('/api/admin/users', { headers: { Authorization: 'Bearer mock' } });",
+        "  const held = (await answer.json()).users.map((user) => user.login);",
+        "  const LOGIN = held.includes('mudfoot_coach') ? 'mudfoot_coach2' : 'mudfoot_coach';",
+        "  await press('[data-coach-new]', 700);",
+        "  await type('#coach-new-login', LOGIN);",
+        "  await type('#coach-new-telegram', '@newbie');",
+        "  await type('#coach-new-team', 'Mudfoot Boyz');",
+        "  await press('[data-coach-race=\"teams/orc\"]', 400);",
+        "  await press('[data-coach-create]', 1500);",
+        "  await wait(400);",
+        "})()"
+      ]
+    }
+  ]
+}

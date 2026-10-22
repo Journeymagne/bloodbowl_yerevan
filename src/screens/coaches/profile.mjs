@@ -7,15 +7,15 @@
  * and the looking coach's own games (`/api/games`), whose confirmed matches against this coach's teams are «Your
  * meetings», newest first. A team's line is the table's when it has a row there, «friendlies» otherwise; a row leads to
  * the opponent's page (one's own to its overview). One's own profile has no Telegram to press, no meetings and no
- * challenge; a contact the forms would refuse is text. An admin has the way to the 2.x panels of the coach, which lived
- * at this address, until stage 12 moves them. A guest never gets here (the address is a signed-in one, rule 4).
+ * challenge; a contact the forms would refuse is text. An admin has the way to the coach's page in the administration
+ * (stage 12, `adminCoachUrl`). A guest never gets here (the address is a signed-in one, rule 4).
  *
  * The letter's circle is the header's colour: the prototype's maroon has no token. Long names wrap; nothing is cut.
  */
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatDay } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { playerTeamUrl, teamUrl } from "../../core/routes.mjs";
+import { adminCoachUrl, playerTeamUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -106,7 +106,7 @@ export function coachModel({ user, teams, seasonData, games = [], viewerId, acti
     })),
     meetings: mine ? [] : meetingsOf(Array.isArray(games) ? games : [], user.id),
     challengeHref: !mine && activeTeamId ? teamUrl(activeTeamId, "challenges") : "",
-    adminHref: admin ? `#/administration/users/${encodeURIComponent(user.id)}` : "",
+    adminHref: admin ? adminCoachUrl(user) : "",
   };
 }
 
@@ -150,7 +150,7 @@ function meetingsMarkup(model, heading) {
   return `<section class="g-coach__meetings g-coach__card" aria-labelledby="coach-meetings">${heading("coach-meetings", t("coach.meetings"))}${body}</section>`;
 }
 
-/** The way to the coach's 2.x panels, an admin's only. */
+/** The way to the coach's page in the administration, an admin's only. */
 const adminMarkup = (model) => (model.adminHref ? link(model.adminHref, "g-coach__admin", escapeHtml(t("coach.admin"))) : "");
 
 /**

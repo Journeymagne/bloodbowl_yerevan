@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { addedMigrations, columnHashSql, compareSnapshots, exitCodeFor, renderReport, takeSnapshot, verdict } from "../scripts/rehearsal/snapshot.mjs";
+import { scratchSkip, withScratchDatabase } from "./helpers/scratch-db.mjs";
 
 // One hash per column; the real ones are md5s of the whole column (see columnHashSql).
 function columns(overrides = {}) {
@@ -216,6 +217,7 @@ function fakeDatabase({ failOn } = {}) {
       if (sql.includes("count(*)")) return { rows: [{ n: 4 }] };
       if (sql.includes("FROM schema_migrations")) return { rows: [{ name: "001_baseline.sql" }] };
       if (sql.includes("information_schema.columns")) return { rows: [] };
+      if (sql.includes("result_type = 'technical'") || sql.includes("SELECT id, name, roster FROM saved_teams")) return { rows: [] };
       return { rows: [{ hash: "x" }] };
     },
   };
@@ -227,6 +229,7 @@ test("the snapshot is one read-only repeatable-read transaction, with a hash for
   assert.equal(client.statements[0], "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
   assert.equal(client.statements.at(-1), "COMMIT");
   assert.deepEqual(taken.columns, { users: { id: 'hash of "id"', login: 'hash of "login"' } });
+  assert.deepEqual([taken.technical, taken.overRerolls], [[], []]);
   assert.deepEqual(Object.keys(taken.tables), ["schema_migrations", "sessions", "users"]);
   assert.equal(taken.fallenCheck, null); // no team_fallen_players yet, so nothing to check
 });
@@ -310,4 +313,117 @@ test("the report says when the time adds up several migrate runs", () => {
   const record = { ...run, runs: [run, { at: "2026-11-01T10:06:00.000Z", applied: [], ms: 5 }] };
   assert.match(renderReport(snapshot(), after, compareSnapshots(snapshot(), after), record),
     /^Migrations: 2 applied in 900 ms over 2 runs \(009_team_stage\.sql, 010_team_ledger\.sql\)$/m);
+});
+
+// Stage 12, decision 4 and 27: the report lists the technical results (until 017 none carried a reason, and one without reads as
+// "other", 2 points — the owner names the ones where the opponent could not field a team) and the rosters over eight Starting and
+// Team Re-rolls together (every write refuses them until they are put right). Both are for a person to read before the window.
+test("the report lists the technical results and the rosters over eight re-rolls, and they decide nothing", () => {
+  const technical = [
+    { id: "p9", season: "Season 1", round: 3, home: "Ashgrove Wardens", away: "Silverbrook Rangers", score: "2–0", points: "2–0", reason: null },
+    { id: "p12", season: "Season 1", round: 5, home: "Silverbrook Rangers", away: "Ashgrove Wardens", score: "0–2", points: "0–4", reason: "no_team" },
+    { id: "f3", season: null, round: null, home: "Ashgrove Wardens", away: "Silverbrook Rangers", score: "2–0", points: null, reason: "other" },
+  ];
+  const overRerolls = [{ id: "t2", name: "Silverbrook Rangers", count: 9 }];
+  const plain = migrated({ technical: [], overRerolls: [] });
+  const listed = migrated({ technical, overRerolls });
+  const report = renderReport(snapshot(), listed, compareSnapshots(snapshot(), listed));
+  assert.match(report, /^## Technical results\n\n- Season 1, round 3: Ashgrove Wardens — Silverbrook Rangers, 2–0, points 2–0, reason: none — read as other \(p9\)\n- Season 1, round 5: Silverbrook Rangers — Ashgrove Wardens, 0–2, points 0–4, reason: no_team \(p12\)\n- friendly: Ashgrove Wardens — Silverbrook Rangers, 2–0, no points, reason: other \(f3\)\n$/m);
+  assert.match(report, /^## Rosters over 8 re-rolls\n\n- Silverbrook Rangers \(t2\): 9\n$/m);
+  const none = renderReport(snapshot(), plain, compareSnapshots(snapshot(), plain));
+  assert.match(none, /^## Technical results\n\n- none\n$/m);
+  assert.match(none, /^## Rosters over 8 re-rolls\n\n- none\n$/m);
+  // They decide nothing: the problems, the headline and the exit code are the ones without them.
+  assert.deepEqual(compareSnapshots(snapshot(), listed), compareSnapshots(snapshot(), plain));
+  assert.deepEqual(verdict(snapshot(), listed, compareSnapshots(snapshot(), listed)), { strong: "OK", rest: " — no existing data changed" });
+  assert.equal(exitCodeFor(snapshot(), listed, compareSnapshots(snapshot(), listed)), 0);
+  const broken = { ...listed, tables: { ...listed.tables, users: 11 } };
+  assert.equal(exitCodeFor(snapshot(), broken, compareSnapshots(snapshot(), broken)), 1);
+  // Before them, a "before" taken without the lists is compared as usual.
+  assert.deepEqual(compareSnapshots(plain, listed).problems, []);
+});
+
+test("what rehearsal:transitions seeded is marked in both lists, and a snapshot taken without them says so", () => {
+  const listed = migrated({
+    technical: [{ id: "p9", season: "Season 1", round: 3, home: "Seed Live Home", away: "Seed Live Away", score: "2–0", points: "2–0", reason: null }],
+    overRerolls: [{ id: "t9", name: "Seed Live Home", count: 10 }],
+  });
+  const seed = { pairingIds: ["p9"], challengeIds: [], teamIds: ["t9"] };
+  const report = renderReport(snapshot(), listed, compareSnapshots(snapshot(), listed), null, seed);
+  assert.match(report, /^- Season 1, round 3: .* \(p9\) — seeded by rehearsal:transitions$/m);
+  assert.match(report, /^- Seed Live Home \(t9\): 10 — seeded by rehearsal:transitions$/m);
+  const old = renderReport(snapshot(), migrated(), compareSnapshots(snapshot(), migrated()));
+  assert.match(old, /^## Technical results\n\n- \(not in this snapshot\)\n$/m);
+  assert.match(old, /^## Rosters over 8 re-rolls\n\n- \(not in this snapshot\)\n$/m);
+});
+
+test("the snapshot reads the technical results with their reason when the column is there, and the rosters over eight as the server reads them", async () => {
+  const client = fakeDatabase();
+  const query = client.query;
+  const rows = {
+    technical: [{ id: "p9", season: "Season 1", round: 3, home: "A", away: "B", home_touchdowns: 2, away_touchdowns: 0, home_points: 2, away_points: 0, reason: null },
+      { id: "p10", season: null, round: null, home: "B", away: "A", home_touchdowns: null, away_touchdowns: null, home_points: null, away_points: null, reason: null }],
+    rosters: [{ id: "t1", name: "A", roster: { startingRerolls: 5, teamRerolls: 4 } }, { id: "t2", name: "B", roster: { rerolls: 6, teamRerolls: "3" } },
+      { id: "t3", name: "C", roster: { startingRerolls: 4, teamRerolls: 4 } }, { id: "t4", name: "D", roster: { rerolls: 9, startingRerolls: 0 } },
+      { id: "t5", name: "E", roster: {} }],
+  };
+  client.query = async (sql, params) => {
+    const answer = await query(sql, params);
+    if (sql.includes("result_type = 'technical'")) return { rows: rows.technical };
+    if (sql.includes("SELECT id, name, roster FROM saved_teams")) return { rows: rows.rosters };
+    return answer;
+  };
+  const taken = await takeSnapshot(client);
+  assert.deepEqual(taken.technical, [
+    { id: "p9", season: "Season 1", round: 3, home: "A", away: "B", score: "2–0", points: "2–0", reason: null },
+    { id: "p10", season: null, round: null, home: "B", away: "A", score: null, points: null, reason: null },
+  ]);
+  // `rerolls` is the first builder's Starting Re-rolls, read only when `startingRerolls` is not there (normalizeDraft).
+  assert.deepEqual(taken.overRerolls, [{ id: "t1", name: "A", count: 9 }, { id: "t2", name: "B", count: 9 }]);
+  const technicalSql = client.statements.find((sql) => sql.includes("result_type = 'technical'"));
+  assert.match(technicalSql, /NULL::text AS reason/, "no technical_reason column (the fake has none): no reason");
+  assert.equal(client.statements.at(-1), "COMMIT");
+});
+
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+
+/** A schema-008 season: three coaches, a played pairing, a technical one, a technical friendly; teams with 2.x and 3.0 re-rolls. */
+async function seedTechnical(client) {
+  for (const n of [1, 2, 3]) {
+    await client.query("INSERT INTO users (id, login, login_key, telegram, password_hash) VALUES ($1, $2, $2, '@c', 'x')", [uuid(n), `coach-${n}`]);
+  }
+  const teams = [[11, 1, "Alpha", { startingRerolls: 5, teamRerolls: 4 }], [12, 2, "Beta", { rerolls: 6, teamRerolls: 3 }],
+    [13, 3, "Gamma", { startingRerolls: 4, teamRerolls: 4 }], [14, 1, "Delta", { rerolls: 2 }]];
+  for (const [n, user, name, roster] of teams) {
+    await client.query("INSERT INTO saved_teams (id, user_id, name, base_team_slug, roster) VALUES ($1, $2, $3, 'teams/human', $4)",
+      [uuid(n), uuid(user), name, JSON.stringify({ treasury: 10, players: [], ...roster })]);
+  }
+  await client.query("INSERT INTO seasons (id, name) VALUES ($1, 'Season 1')", [uuid(21)]);
+  for (const [n, user, team] of [[31, 1, 11], [32, 2, 12], [33, 3, 13]]) {
+    await client.query("INSERT INTO season_entries (id, season_id, user_id, saved_team_id) VALUES ($1, $2, $3, $4)", [uuid(n), uuid(21), uuid(user), uuid(team)]);
+  }
+  await client.query("INSERT INTO season_rounds (id, season_id, round_number, status) VALUES ($1, $2, 1, 'completed'), ($3, $2, 2, 'started')",
+    [uuid(41), uuid(21), uuid(42)]);
+  const pairing = "INSERT INTO season_pairings (id, round_id, table_number, home_entry_id, away_entry_id, home_touchdowns, away_touchdowns, home_casualties, away_casualties, result_type, home_points, away_points, result_status) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, $8, $9, $10, 'confirmed')";
+  await client.query(pairing, [uuid(51), uuid(41), 1, uuid(31), uuid(32), 1, 1, "played", 1, 1]);
+  await client.query(pairing, [uuid(52), uuid(42), 1, uuid(33), uuid(31), 0, 2, "technical", 0, 2]);
+  await client.query(`INSERT INTO season_pairings (id, match_kind, table_number, friendly_home_user_id, friendly_away_user_id, friendly_home_team_id,
+    friendly_away_team_id, home_touchdowns, away_touchdowns, result_type, result_status) VALUES ($1, 'friendly', 1, $2, $3, $4, $5, 2, 0, 'technical', 'confirmed')`,
+  [uuid(53), uuid(2), uuid(3), uuid(12), uuid(13)]);
+}
+
+test("on a schema-008 database the snapshot lists its technical results, without a reason, and the rosters over eight, a 2.x one among them", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seedTechnical(client);
+    const taken = await takeSnapshot(client);
+    assert.deepEqual(taken.technical, [
+      { id: uuid(52), season: "Season 1", round: 2, home: "Gamma", away: "Alpha", score: "0–2", points: "0–2", reason: null },
+      { id: uuid(53), season: null, round: null, home: "Beta", away: "Gamma", score: "2–0", points: null, reason: null },
+    ]);
+    assert.deepEqual(taken.overRerolls, [{ id: uuid(11), name: "Alpha", count: 9 }, { id: uuid(12), name: "Beta", count: 9 }]);
+    // 017 (stage 12) adds the column; here by hand, so the read is tested on both sides of it.
+    await client.query("ALTER TABLE season_pairings ADD COLUMN technical_reason TEXT");
+    await client.query("UPDATE season_pairings SET technical_reason = 'no_team' WHERE id = $1", [uuid(52)]);
+    assert.deepEqual((await takeSnapshot(client)).technical.map((row) => row.reason), ["no_team", null]);
+  }, { through: "008_withdraw_season_entries.sql" });
 });

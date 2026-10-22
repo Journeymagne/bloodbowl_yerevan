@@ -6,10 +6,10 @@ import { loadSeasonBundle } from "../server/season/store.mjs";
 import { generateSwissRound } from "../server/season/rounds.mjs";
 import { computeSeasonStandings } from "../server/season/scoring.mjs";
 import { handleSeasonRoutes } from "../server/routes/season.mjs";
-import { pairingEntry } from "../src/screens/season/season-links.mjs";
 import { leagueTableMarkup } from "../src/screens/season/table.mjs";
 import { seasonTable } from "../src/data/season-table.mjs";
-import { renderSeasonRounds } from "../src/screens/season/schedule.mjs";
+import { seasonRoundsModel } from "../src/screens/admin/season-rounds.mjs";
+import { resultSheetModel } from "../src/screens/admin/result-sheet.mjs";
 import { state } from "../src/core/state.mjs";
 import { setDictionaries } from "../src/core/i18n.mjs";
 
@@ -66,7 +66,7 @@ test("withdrawn entries remain in standings and match labels but leave registrat
     assert.deepEqual(publicData.historicalEntries.map(item => item.id), [removedId]);
     assert.equal(publicData.standings.length, 3);
     assert.equal(publicData.standings.find(item => item.entryId === removedId).games, 1);
-    assert.equal(pairingEntry(publicData, removedId).team.name, removedId + " Team");
+    assert.equal(publicData.historicalEntries.find((item) => item.id === removedId).team.name, removedId + " Team", "a withdrawn entry still names its team");
     assert.ok(!Object.hasOwn(publicData.historicalEntries[0].user, "telegram"));
     const personal = await loadSeasonBundle({ id: removedId + "-coach" });
     assert.equal(personal.myEntry, null);
@@ -100,7 +100,7 @@ for (const firstRound of [true, false]) {
   });
 }
 
-test("historical participants render in results and only their existing selector, not new pairings", async () => {
+test("a withdrawn entry stays in the table with the server's place and leads nowhere; in the admin's pair it keeps only the side it holds", async () => {
   state.data = { teams: [] };
   setDictionaries({ en: JSON.parse(await readFile(new URL("../src/i18n/en.json", import.meta.url), "utf8")) });
   await fixture(async () => {
@@ -111,11 +111,12 @@ test("historical participants render in results and only their existing selector
     assert.doesNotMatch(withdrawnRow, /g-table__link/, "a withdrawn entry leads nowhere");
     assert.equal(seasonTable(data).find((row) => row.entryId === removedId).rank, data.standings.find((row) => row.entryId === removedId).rank,
       "the server's place is kept");
-    assert.match(renderSeasonRounds(data), new RegExp(removedId + " Team"));
-    const html = renderSeasonRounds(data, true);
-    const selectors = [...html.matchAll(/<select[^>]*data-(home|away)[^>]*>([\s\S]*?)<\/select>/g)];
-    assert.equal(selectors.length, 2);
-    assert.match(selectors.find(item => item[1] === "home")[2], new RegExp('value="' + removedId + '" selected'));
-    assert.doesNotMatch(selectors.find(item => item[1] === "away")[2], new RegExp(removedId));
+    // The 2.x schedule's selectors are the administration's pair sheet since stage 12: the side it holds, and no other.
+    const { past } = seasonRoundsModel({ seasonData: data, awaiting: [] });
+    const line = past.flatMap((round) => round.lines).find((item) => item.id === "played");
+    assert.equal(line.home.team, removedId + " Team", "the played match still names the withdrawn team");
+    const sheet = resultSheetModel(line, { entries: [...data.entries, ...data.historicalEntries], phase: "draft" });
+    assert.ok(sheet.home.some((item) => item.id === removedId), "the side it holds keeps it");
+    assert.ok(!sheet.away.some((item) => item.id === removedId), "a new side is never a withdrawn entry");
   });
 });

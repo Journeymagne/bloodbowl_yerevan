@@ -1,0 +1,420 @@
+/*
+ * «Coaches» (screens/admin/coaches.mjs) and the window «Coach with a team» (coach-new.mjs): DeskAdminUsers.html and
+ * DeskAdminCoachNew.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). The frame — the head, the switch,
+ * the card, the coach's letter, the note — is admin.css's. Font, border, background, text-transform, letter-spacing
+ * and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens.
+ * Logins, contacts and names wrap; nothing is cut with «…»; only the admin's chip keeps to one line.
+ */
+
+/* ---- The search and «+ Coach with a team» ---- */
+.g-coaches__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.g-coaches__new {
+  display: flex;
+  margin-left: auto;
+}
+
+/*
+ * DeskAdminUsers' field of 44 on the card, ringed, its words 15px; AdminMobile's on the second surface, without a ring
+ * or a magnifier, 14 in. A phone's words stay the shared field's 16px (AdminMobile draws 15): smaller, iPhone's Safari
+ * zooms the page into the field when it takes the focus.
+ */
+.g-coaches .g-search__input {
+  height: 44px;
+  border-radius: var(--radius-lg);
+  font: 400 16px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-coaches--desk .g-search__input {
+  background: var(--surface);
+  box-shadow: var(--ring);
+  font-size: 15px;
+}
+.g-coaches--phone .g-search__input {
+  padding: 0 var(--space-14);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+.g-coaches--phone .g-search > .g-icon { display: none; }
+
+/* «+ Coach with a team»: 48 high, 12 round, 15px bold (the primary of a desk, the ringed one of a phone). */
+.g-coaches .g-btn {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-coaches .g-btn--primary {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--on-accent);
+}
+.g-coaches__add { display: flex; }
+.g-coaches .g-btn--block { width: 100%; }
+
+/* The list the search patches: a desk's card, a phone's rows. */
+.g-coaches__list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---- A desk's table (DeskAdminUsers) ---- */
+.g-coaches__card { gap: 0; }
+
+.g-coaches__table,
+.g-coaches__rows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-coaches__head,
+.g-coaches__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 90px minmax(0, 1.4fr) 120px;
+  gap: var(--space-12);
+}
+
+/* The rule under the head is the prototype's #C9D3CE, a tone over the rows' lines. */
+.g-coaches__head {
+  padding: 0 0 var(--space-8);
+  border-bottom: 1px solid var(--control-border);
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.g-coaches__row {
+  align-items: center;
+  min-height: 60px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font: 400 15px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The coach: his letter, the login, «admin». */
+.g-coaches__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.g-coaches__login {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* DeskAdminUsers' chip: 26 high, 12px, a dot of 7. */
+.g-coaches__who .g-status {
+  height: 26px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.g-coaches__who .g-status::before {
+  width: 7px;
+  height: 7px;
+}
+
+.g-coaches__tg {
+  min-width: 0;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.g-coaches__edited {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.g-coaches__count { font-variant-numeric: tabular-nums; }
+.g-coaches__go {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* «Open»: 36 on a desk (D2: the prototype's, 24 and more), 44 to a thumb; 12 round 10, in the button's ring. */
+.g-coaches__open {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* Nobody found, or nobody yet. */
+.g-coaches__none {
+  margin: 0;
+  padding: var(--space-16) 0;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- A phone (AdminMobile) ---- */
+/* The round under way: the warning's tint in the card's ring, its two lines 10 apart (L21). */
+.g-coaches__round {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: var(--space-14) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--warn-tint);
+  box-shadow: var(--ring);
+  color: var(--ink);
+}
+.g-coaches__round--done { background: var(--surface); }
+.g-coaches__roundtitle {
+  font: 700 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-coaches__roundnote {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A coach: his letter, the login over his Telegram and teams, a chevron; the whole row a link of 60. */
+.g-coaches__item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 60px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+.g-coaches__item > .g-icon {
+  flex: none;
+  color: var(--faint);
+}
+.g-coaches__itemtext {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-coaches__itemlogin {
+  font: 700 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-coaches__itemline {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- «Coach with a team» (DeskAdminCoachNew) ---- */
+.g-coachnew .g-sheet__body { gap: var(--space-14); }
+
+/*
+ * Empty, the window's alert takes no room, yet stays on the page: a live region a reader has not met before it speaks
+ * is not heard. The body's gap after it is taken back.
+ */
+.g-coachnew__alert:empty { margin-bottom: calc(-1 * var(--space-14)); }
+
+/* Login and Telegram side by side, the team's name under them. */
+.g-coachnew__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+/* «Race» in capitals over the races (L21). */
+.g-coachnew__label {
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.g-coachnew__races {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.g-coachnew__race {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-coachnew__race[aria-disabled="true"] { cursor: default; }
+.g-coachnew__race[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  font-weight: 700;
+}
+
+/* «Enter the current season now»: a row of 56 over its rule, 15px, the caption 12px. */
+.g-coachnew .g-toggle {
+  min-height: 56px;
+  padding: 0;
+}
+.g-coachnew .g-toggle__label {
+  font-size: 15px;
+  font-weight: 600;
+}
+.g-coachnew .g-toggle__caption { font-size: 12px; }
+
+/* «Cancel» and «Create», «Open the coach» and «Done»: 48 high, 12 round, 15px bold, 8 apart. */
+.g-coachnew .g-sheet__foot { gap: var(--space-8); }
+.g-coachnew .g-sheet__foot .g-btn {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 15px/1.2 var(--font-body);
+}
+.g-coachnew .g-sheet__foot .g-btn--primary {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--on-accent);
+}
+/* Closed while the form wants something, or while it is sent: drawn by its fill, as a disabled primary (ui/button.css). */
+.g-coachnew .g-sheet__foot .g-btn--primary[aria-disabled="true"] {
+  background: var(--disabled);
+  cursor: default;
+}
+
+/* The password once (DeskAdminReset's box): monospace 22 on the second surface, «Copy» at its right. */
+.g-coachnew__secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+.g-coachnew__password {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 22px/1.3 ui-monospace, Menlo, monospace;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.g-coachnew__secret .g-btn {
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-body);
+}
+.g-coachnew__copied {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-body);
+}
+/* Empty, it stays on the page as the alert does (a status a reader has not met is not heard); the gap before it is taken back. */
+.g-coachnew__copied:empty { margin-top: calc(-1 * var(--space-14)); }
+
+/* ---- Up to 900px ---- */
+@media (max-width: 900px) {
+  .g-coachnew__fields { grid-template-columns: minmax(0, 1fr); }
+  .g-coachnew__races { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g-coachnew .g-sheet__foot .g-btn { width: 100%; }
+}
+
+/* ---- From 901px ---- */
+@media (min-width: 901px) {
+  .g-coaches__tools .g-search {
+    width: 320px;
+    max-width: 100%;
+  }
+
+  .g-coaches__open { min-height: 36px; }
+
+  /* A window of 720, 110 from the top, 20 round (DeskAdminCoachNew), over sheet.css's 640 of a wide one. */
+  dialog.g-sheet.g-coachnew {
+    width: min(720px, calc(100% - 32px));
+    max-height: min(86dvh, calc(100dvh - 142px));
+    margin: 110px auto auto;
+    border-radius: 20px;
+  }
+  .g-coachnew .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-coachnew .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-coachnew .g-sheet__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .g-coachnew .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-coachnew .g-sheet__body { padding: var(--space-16) var(--space-24); }
+  .g-coachnew .g-sheet__foot { padding: var(--space-12) var(--space-24) var(--space-20); }
+  .g-coachnew__secret .g-btn { min-height: 40px; }
+}

@@ -57,6 +57,7 @@ import { playerHeadMarkup } from "../roster/profile.mjs";
 import { onSaveState, saveState, takeAnswerTeam } from "../roster/save.mjs";
 import { PHONE, isPhone } from "../roster/screen.mjs";
 import { sheetIdOf, skillSheetMarkup } from "../roster/sheets.mjs";
+import { openRosterAs } from "../roster/source.mjs";
 
 /**
  * One visit of the page: a new object for every visit, so an answer that comes after the coach left finds its own
@@ -414,12 +415,14 @@ function wirePlayer(page, retry) {
  * (stage 07d); on a phone every state of the address is a screen of its own, under the player's head with «‹ Roster»
  * (owner, 2026-10-19). A fallen player's is drawn at once with the wait (the coach's list read first, when it is marked
  * to be read again), then his profile, its name taking the focus; again when the games change or are read again, when
- * the roster's queue moves, when the width crosses 900px, and on every press, as a patch.
+ * the roster's queue moves, when the width crosses 900px, and on every press, as a patch. It is the coach's visit (stage
+ * 12, source.mjs): its undo and its way back are the coach's, whoever's visit of the team came before.
  * @param {string} teamId
  * @param {string} playerId his stored id, as the address carries it
  * @returns {Promise<void>}
  */
 export async function renderTeamPlayer(teamId, playerId) {
+  openRosterAs(teamId);
   const listed = state.myTeams.loaded;
   if (listed && onRoster(teamOf(teamId), playerId)) return renderTeamRoster(teamId, { playerId });
   /** @type {Visit} */

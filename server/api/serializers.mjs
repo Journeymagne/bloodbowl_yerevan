@@ -10,6 +10,7 @@
  * Moved out by step 4.9 so that route modules can import them without importing
  * the server itself.
  */
+import { countToNumber } from "../../src/domain/roster/values.mjs";
 
 export function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -33,12 +34,23 @@ export function publicUser(row) {
   };
 }
 
+/**
+ * A coach as the administration reads him. What only the admin's queries select comes only from them — a
+ * row without the column (a coach's public page, an edit's answer) has no such field, never a guess:
+ * `draftTeamCount` (his teams still being built), `lastLoginAt` (his newest live session, or null),
+ * `managedByServer` (the account the env file keeps) and `deleteBlock` (why it cannot be deleted, or null).
+ */
 export function publicAdminUser(row) {
   if (!row) return null;
+  const only = (column, field, read = (value) => value) => (row[column] === undefined ? {} : { [field]: read(row[column]) });
   return {
     ...publicUser(row),
     savedTeamCount: Number(row.saved_team_count ?? 0),
     lastTeamUpdatedAt: row.last_team_updated_at ?? null,
+    ...only("draft_team_count", "draftTeamCount", Number),
+    ...only("last_login_at", "lastLoginAt"),
+    ...only("managed_by_server", "managedByServer", Boolean),
+    ...only("delete_block", "deleteBlock"),
   };
 }
 
@@ -139,6 +151,8 @@ export function publicSeason(row) {
     name: row.name,
     status: row.status,
     currentRound: row.current_round,
+    // How many places of the table go on to the playoff (stage 12, 017): the admin's setting, null for no zone.
+    playoffPlaces: row.playoff_places ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -198,6 +212,9 @@ export function publicSeasonPairing(row) {
     awayCasualties: row.away_casualties ?? null,
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
+    // How the result came about, and a technical one's reason (stage 12; none before it, read as "other").
+    resultType: row.result_type ?? "played",
+    technicalReason: row.technical_reason ?? null,
     resultStatus,
     preparationStatus: row.preparation_status ?? "not_started",
     postMatchStatus: row.post_match_status ?? "not_started",
@@ -217,6 +234,10 @@ export function publicAdminSavedTeamSlim(row) {
   if (!row) return null;
   return {
     ...publicSavedTeamSlim(row),
+    // Where the team is in its life and what its treasury holds (stage 12): the admin's season names a team in
+    // the draft by what it has spent. The roster itself stays out of the list.
+    stage: row.stage,
+    treasury: countToNumber(row.treasury),
     owner: {
       id: row.user_id,
       login: row.user_login,

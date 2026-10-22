@@ -1,56 +1,10 @@
 /**
- * Formatting a season entry/pairing for display: a coach + team label, a
- * link to the team's rules page or public profile, and the home/away
- * pairing numbers.
+ * A pairing's touchdowns and casualties as the 2.x «My games» cards write them: «2 / 1».
  *
- * Mechanically moved out of src/app.js. Shared across screens/season/
- * {registration,fixture,schedule,standings}.mjs — registration's entries
- * table, the fixture card, and the schedule's pairing rows all format the
- * same shapes.
+ * What is left of the 2.x season screen's formatting (stage 12 removed the screen, its entries and its schedule, and
+ * the labels and links they drew). Its last reader is screens/games/my-games.mjs, which stage 09c removes; this file
+ * goes with it.
  */
-import { escapeHtml } from "../../core/dom.mjs";
-import { t } from "../../core/i18n.mjs";
-import { state } from "../../core/state.mjs";
-import { pageUrl } from "../../core/routes.mjs";
-import { renderPlayerLink, renderPublicTeamLink } from "../../components/content-links.mjs";
-
-export function seasonEntryLabel(entry) {
-  if (!entry) return "-";
-  return `${entry.user.login} · ${entry.team.name}`;
-}
-
-export function seasonTeamRulesLink(entry) {
-  const team = state.data.teams.find((item) => item.slug === entry?.team?.baseTeamSlug);
-  return team
-    ? `<a class="inline-rule-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>`
-    : escapeHtml(entry?.team?.baseTeamSlug || "-");
-}
-
-export function seasonTeamProfileLink(entry) {
-  return entry ? renderPublicTeamLink(entry.user, entry.team) : `<span class="muted-text">-</span>`;
-}
-
-export function pairingEntry(data, entryId) {
-  return [...(data.entries ?? []), ...(data.historicalEntries ?? [])].find((entry) => entry.id === entryId) ?? null;
-}
-
-export function pairingTeamCell(data, entryId) {
-  const entry = pairingEntry(data, entryId);
-  if (!entry) return `<span class="muted-text">${t("season.emptySlotLabel")}</span>`;
-  return `
-    <span class="season-pairing-team">
-      <strong>${seasonTeamProfileLink(entry)}</strong>
-      <span>${renderPlayerLink(entry.user)} · ${seasonTeamRulesLink(entry)}</span>
-    </span>
-  `;
-}
-
-export function pairingLeaguePoints(pairing) {
-  const home = pairing.homePoints ?? "-";
-  const away = pairing.awayPoints ?? "-";
-  return `${home} / ${away}`;
-}
-
 export function pairingTouchdowns(pairing) {
   const home = pairing.homeTouchdowns ?? "-";
   const away = pairing.awayTouchdowns ?? "-";

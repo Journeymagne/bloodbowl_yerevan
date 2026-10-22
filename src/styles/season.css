@@ -1,11 +1,12 @@
 /*
- * The season: standings, fixtures, rounds, games, and the notices around them.
+ * The 2.x pages' panels, tables and notices, the game page and the games list.
+ * (The 2.x season screen's tabs, entries and rounds went with it in stage 12.)
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
  * that were already neighbours, so the cascade is exactly what it was.
  */
-.content-panel, .side-panel { min-width: 0; border: 1px solid var(--line); border-top: 2px solid var(--line-bright); border-radius: var(--radius); background: var(--panel); }
+.content-panel { min-width: 0; border: 1px solid var(--line); border-top: 2px solid var(--line-bright); border-radius: var(--radius); background: var(--panel); }
 .content-panel { padding: 24px; }
 .content-panel h2,
 .content-panel h3 {
@@ -38,12 +39,12 @@
   padding-left: 4px;
 }
 
-.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .table-icon-button)) {
+.content-panel a:where(:not(.primary-button, .filter-button)) {
   color: var(--focus);
   text-decoration: none;
 }
 
-.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .table-icon-button)):hover {
+.content-panel a:where(:not(.primary-button, .filter-button)):hover {
   text-decoration: underline;
 }
 
@@ -55,93 +56,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(239, 224, 183, 0.08);
-}
-
-.season-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-}
-
-.season-tab {
-  display: inline-flex;
-  flex: 1 1 140px;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  border: 1px solid var(--button-border);
-  border-radius: 6px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.season-tab:hover {
-  border-color: var(--line-bright);
-  background: var(--button-bg-hover);
-}
-
-.season-tab.active {
-  border-color: var(--active-button-border);
-  background: var(--active-button-bg);
-  color: var(--active-button-text);
-}
-
-.season-overview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
-.season-registration-layout {
-  display: grid;
-  gap: 18px;
-}
-
-.season-registration-top {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
-  gap: 18px;
-  align-items: stretch;
-}
-
-.season-registered-panel {
-  min-width: 0;
-}
-
-.season-rounds {
-  display: grid;
-  gap: 18px;
-}
-
-.season-round-header {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.season-round-header > div:first-child {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.season-round-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: stretch;
-  gap: 8px;
 }
 
 .season-status-pill {
@@ -163,11 +77,6 @@
   color: var(--accent-text);
 }
 
-.season-admin-stack {
-  display: grid;
-  gap: 18px;
-}
-
 .season-card {
   display: grid;
   gap: 14px;
@@ -177,96 +86,6 @@
 .season-card h3,
 .season-card p {
   margin: 0;
-}
-
-.season-committed-team {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-}
-
-.season-committed-team img {
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
-  margin: 0;
-}
-
-.season-action-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  align-items: end;
-}
-
-.season-admin-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-
-.season-coach-entry-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 14px;
-  align-items: end;
-}
-
-.season-admin-block {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.season-score-input {
-  width: 76px;
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--input-bg);
-  color: var(--text);
-  font: inherit;
-  font-weight: 800;
-  text-align: center;
-}
-
-.season-pairing-team {
-  display: grid;
-  gap: 3px;
-  min-width: 180px;
-}
-
-.season-pairing-team span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.season-td-pair {
-  display: grid;
-  gap: 6px;
-}
-
-.fixture-result-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  align-items: end;
-}
-
-.fixture-result-form > strong {
-  grid-column: 1 / -1;
-}
-
-.admin-profile-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
 }
 
 .games-grid {
@@ -323,42 +142,6 @@
   gap: 10px;
 }
 
-.admin-user-management-form {
-  display: grid;
-  gap: 12px;
-}
-
-.admin-user-management-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.admin-reset-password-result:not([hidden]) {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.admin-reset-password-result p {
-  margin: 0;
-}
-
-.admin-reset-password-value {
-  display: flex;
-  gap: 10px;
-}
-
-.admin-reset-password-value input {
-  min-width: 0;
-  flex: 1;
-  font-family: var(--label-font);
-}
-
 .danger-action {
   border-color: var(--danger);
   color: var(--danger);
@@ -385,14 +168,6 @@
   opacity: 0.48;
 }
 
-.public-roster-table {
-  min-width: 980px;
-}
-
-.legal-panel {
-  max-width: 900px;
-}
-
 .notice-box { margin-bottom: 22px; padding: 16px; border: 1px solid var(--line); border-left: 3px solid var(--line-bright); border-radius: var(--radius); background: var(--md-wash); }
 .notice-box strong {
   display: block;
@@ -402,61 +177,6 @@
 
 .notice-box p {
   margin: 0;
-}
-
-.side-panel {
-  align-self: start;
-  padding: 16px;
-}
-
-.side-panel h2,
-.side-panel > h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-}
-
-.stat-list:not(.summary-stat-grid) {
-  display: grid;
-  margin: 0;
-}
-
-.stat-list:not(.summary-stat-grid) dt {
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.stat-list:not(.summary-stat-grid) dt:first-child {
-  margin-top: 0;
-}
-
-.stat-list:not(.summary-stat-grid) dd {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 4px 0 0;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.kv {
-  display: grid;
-  gap: 10px;
-}
-
-.kv div {
-  display: grid;
-  gap: 3px;
-}
-
-.kv span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.kv strong {
-  font-size: 0.875rem;
 }
 
 .table-scroll {

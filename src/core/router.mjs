@@ -34,7 +34,6 @@ import { renderLegal, renderOverviewArticle, renderReferencePage } from "../scre
 import { renderRef } from "../screens/ref/index.mjs";
 import { renderRefSection } from "../screens/ref/list.mjs";
 import { renderTeams } from "../screens/teams/index.mjs";
-import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderNewTeam } from "../screens/teams/new.mjs";
 import { renderSeasonRoute } from "../screens/season/league.mjs";
 import { renderMyGames } from "../screens/games/my-games.mjs";
@@ -42,8 +41,10 @@ import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
 import { renderPostMatch } from "../screens/matches/post.mjs";
-import { renderAdministration } from "../screens/administration/users.mjs";
-import { renderAdminUserProfile } from "../screens/administration/user.mjs";
+import { renderAdminCoaches } from "../screens/admin/coaches.mjs";
+import { renderAdminCoach } from "../screens/admin/coach.mjs";
+import { renderAdminSeason } from "../screens/admin/season.mjs";
+import { renderAdminTeam } from "../screens/admin/team.mjs";
 import { renderCoachProfile } from "../screens/coaches/profile.mjs";
 import { renderCoachTeam } from "../screens/coaches/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
@@ -86,9 +87,11 @@ const screens = {
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
   postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
   season: ({ tab }) => renderSeasonRoute(tab),
-  adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
-  adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
-  administration: () => renderAdministration(),
+  adminTeamEdit: ({ ownerId, teamId }) => renderAdminTeam({ ownerId, teamId }),
+  adminTeamPlayer: ({ ownerId, teamId, playerId }) => renderAdminTeam({ ownerId, teamId, playerId }),
+  adminUserProfile: ({ userId }) => renderAdminCoach(userId),
+  administration: () => renderAdminCoaches(),
+  adminSeason: ({ tab }) => renderAdminSeason(tab),
   legal: () => renderLegal(),
   page: ({ slug }) => renderReferencePage(slug),
 };

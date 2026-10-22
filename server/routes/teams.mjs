@@ -12,7 +12,7 @@ import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster, normalizeDraft, rosterRefusal, teamBySlug } from "../domain/roster.mjs";
-import { MAX_SPP_EDIT_STEPS, VALIDATION_CODES, playerViolations } from "../../src/domain/roster/validate.mjs";
+import { MAX_SPP_EDIT_STEPS, VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
 import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
@@ -57,9 +57,11 @@ export async function handleTeamRoutes(request, response, url) {
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
     refuseSiteRolls(roster);
+    // Born in `draft` (stage 12, decision 26): the build goes on on the team's pages, Start Re-rolls included, and an
+    // admin moves it to `active`. The create is not held to the stage — what the build bought is the draft's to keep.
     const result = await pool.query(
-      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster, stage)
+       VALUES ($1, $2, $3, $4, $5, 'draft')
        RETURNING id`,
       [user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
@@ -244,14 +246,4 @@ export async function readTeamBody(request) {
   const blocking = blockingViolations(violations);
   if (blocking.length) throw rosterRefusal(blocking);
   return { body, name, baseTeamSlug, logoData, roster };
-}
-
-/**
- * Refuse a roster a path stores as sent, without reading it through `readTeamBody`, when a player in
- * it breaks what every roster write is held to (`playerViolations`): an SPP counter outside 0…999, or
- * an id two players share. The 422 `readTeamBody` gives for them. Call it before anything is written.
- */
-export function refuseRosterPlayers(roster) {
-  const violations = playerViolations(roster);
-  if (violations.length) throw rosterRefusal(violations);
 }

@@ -26,7 +26,6 @@
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { teamPlayerUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
@@ -40,6 +39,7 @@ import { renderSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderStatStrip } from "../../../ui/stat-strip.mjs";
 import { counterSlots, stepRule } from "./model.mjs";
 import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed } from "./player-access.mjs";
+import { playerHref } from "./source.mjs";
 
 /**
  * Words with some of their values in bold (DeskRoster.html: «Next match: **Plays**», «Primary: **General**»):
@@ -56,8 +56,8 @@ export function boldWords(key, params, bold, boldClass = "") {
   return bold.reduce((out, name, index) => out.replace(`\u0001${index}\u0001`, () => `${open}${escapeHtml(params[name])}</b>`), html);
 }
 
-/** The player's page, or "" for one with no stored id. */
-const profileUrl = (line, screen) => (line.id ? teamPlayerUrl(screen.team.id, line.id) : "");
+/** The player's page, or "" for one with no stored id: on an admin's visit his page in the administration (source.mjs). */
+const profileUrl = (line, screen) => (line.id ? playerHref(screen.team.id, line.id) : "");
 
 /** The match on, in the words a line about it uses: «round 3», or «friendly» for a match that has no round. */
 export function matchWords(mode) {

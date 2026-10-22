@@ -16,7 +16,6 @@
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { teamUrl } from "../../../core/routes.mjs";
 import { raceTitleOf } from "../../../data/teams.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { icon } from "../../../ui/icons.mjs";
@@ -29,19 +28,21 @@ import { undoable } from "./model.mjs";
 import { injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
 import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed } from "./player-access.mjs";
 import { failedMarkup, goneMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
+import { rosterHref } from "./source.mjs";
 
 /**
  * The player's dark head (Player.html's block, owner's answer 1): «‹ Roster» on top, where the prototype has the team
  * switcher, then his number, his name — the page's `h1` — the line under it and the pencil. With no name yet (the wait,
  * a read that failed, an id the roster does not hold) only the way back, and the page's `h1` for a screen reader: a
- * page has one `h1` in every state. The fallen player's page wears it too (screens/team/player).
+ * page has one `h1` in every state. The fallen player's page wears it too (screens/team/player). «‹ Roster» is the
+ * visit's way back (source.mjs): on an admin's visit, the administration's edit of the team.
  *
  * @param {{teamId: string, badgeHtml?: string, name?: string, who?: string, editHtml?: string}} props
  *   `badgeHtml` and `editHtml` are markup of `renderPlayerBadge()` and of the pencil's own render
  * @returns {string}
  */
 export function playerHeadMarkup({ teamId, badgeHtml = "", name = "", who = "", editHtml = "" }) {
-  const back = `<div class="g-profile__backrow"><a class="g-profile__back" href="${escapeHtml(teamUrl(teamId, "roster"))}" `
+  const back = `<div class="g-profile__backrow"><a class="g-profile__back" href="${escapeHtml(rosterHref(teamId))}" `
     + `aria-label="${escapeHtml(t("teamPlayer.backLabel"))}">${icon("back", 16)}<span>${escapeHtml(t("teamPlayer.back"))}</span></a></div>`;
   if (!name) return `<header class="g-profile__head">${back}<h1 class="g-sr-only" tabindex="-1">${escapeHtml(t("teamPlayer.title"))}</h1></header>`;
   const badge = badgeHtml ? `<div class="g-profile__badge">${badgeHtml}</div>` : "";
@@ -133,9 +134,11 @@ function profileMarkup(line, screen) {
  */
 function fallenMarkup(line, screen) {
   const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
-  const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
+  // An admin's visit undoes a death a match recorded too (stage 12, pre-flight L10).
+  const admin = Boolean(screen.admin);
+  const reason = undoable(line, { admin }) ? markClosed(line, screen, { direct: true }) : "";
   const careerHtml = line.id ? careerMarkup({ line, race: screen.race, career: screen.careers.get(line.id) ?? null, open: screen.careerOpen, heading: "h3" }) : "";
-  const body = `${noticesMarkup(screen)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), careerHtml })}`;
+  const body = `${noticesMarkup(screen)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason, { admin }), careerHtml })}`;
   return [
     playerHeadMarkup({ teamId: screen.teamId, badgeHtml, name: fallenName(line), who: fallenWho(line, screen.team.baseTeamSlug) }),
     `<div class="g-profile__body g-profile__fallen"${dataAttributes({ panelPlayer: line.key })}>${body}</div>`,

@@ -6,6 +6,12 @@
  * Font, border, background, text-transform and letter-spacing are set on purpose: the 2.x globals outlive this sheet
  * until stage 13.
  */
+/*
+ * The admin's band (stage 12, DeskAdminTeamEdit.html; screens/admin/admin.css draws it): its own margin goes, the
+ * roster's gap is the space under it on a phone, as under the coach's band.
+ */
+.g-roster > .g-admin__head { margin-bottom: 0; }
+
 /* A banner as StatsLive.html draws it: 12px over and under, its detail at 1.45. */
 .g-roster__notices .g-callout { padding: var(--space-12) var(--space-14); }
 .g-roster__notices .g-callout__sub { line-height: 1.45; }
@@ -94,6 +100,9 @@
     flex-wrap: wrap;
     margin-bottom: var(--space-8);
   }
+  /* The admin's band: the same 24px to the first block, its title and the search wrapping as the coach's. */
+  .g-roster > .g-admin__head { margin-bottom: var(--space-8); }
+  .g-roster > .g-admin__head .g-pagehead { flex-wrap: wrap; }
 
   /*
    * The search at the right of the band (DeskRoster.html, stage 07d): 320px and never wider than the band, 44px, its words

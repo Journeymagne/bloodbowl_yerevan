@@ -7,6 +7,8 @@ import { pool } from "../server/db/pool.mjs";
 import { loadTeamReference } from "../server/domain/roster.mjs";
 import { handleTeamRoutes } from "../server/routes/teams.mjs";
 import { handleAdminRoutes } from "../server/routes/admin.mjs";
+import { callApi, seedCoach, seedTeam, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
+import { scratchSkip } from "./helpers/scratch-db.mjs";
 
 await loadTeamReference(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -134,15 +136,62 @@ test("the admin route is not held to the stage", async () => {
   });
 });
 
-test("creating a team leaves the stage to the database default", async () => {
+// Stage 12 (decision 26, spec 3.0 §3.1): a new team is born in the build, `draft`, whatever the column's default
+// (009 keeps `active` for the teams made before stages existed); an admin moves it into the season.
+test("creating a team writes it as a draft, its Start Re-rolls as the build bought them", async () => {
   await withDatabase({}, async (db) => {
     await handleTeamRoutes(request("POST", { name: "New", baseTeamSlug: "teams/human",
       roster: { teamSlug: "teams/human", players: [], startingRerolls: 3 } }), response(), new URL("http://localhost/api/teams"));
     const insert = db.log.find((entry) => entry.sql.startsWith("INSERT INTO saved_teams"));
     assert.ok(insert);
-    assert.doesNotMatch(insert.sql, /stage/);
+    assert.match(insert.sql, /\(user_id, name, base_team_slug, logo_data, roster, stage\)\s+VALUES \(\$1, \$2, \$3, \$4, \$5, 'draft'\)/);
+    assert.equal(JSON.parse(insert.values[4]).startingRerolls, 3, "the create is not held to the stage");
   });
 });
+
+const scratch = { skip: scratchSkip };
+/** A save of the team as it stands with these re-rolls, its treasury as it is: nothing else changes. */
+const withRerolls = (team, { startingRerolls = 0, teamRerolls = 0 }) => ({ name: team.name, baseTeamSlug: team.baseTeamSlug, revision: team.revision,
+  roster: { ...team.roster, startingRerolls, teamRerolls } });
+
+test("a new team is born a draft: its Start Re-rolls may grow, its Team Re-rolls may not, until an admin moves it", scratch, () => withApiDatabase(async ({ client }) => {
+  const admin = await seedCoach(client, "boss", { admin: true }), coach = await seedCoach(client, "lion");
+  const made = await callApi("POST", "/api/teams", { token: coach.token, body: { name: "Cubs", baseTeamSlug: "teams/human",
+    roster: { teamSlug: "teams/human", teamName: "Cubs", players: [], treasury: 540, startingRerolls: 1 } } });
+  assert.equal(made.status, 201);
+  const id = made.body.team.id;
+  assert.deepEqual([made.body.team.stage, made.body.team.activatedAt], ["draft", null]);
+  assert.equal((await teamRow(client, id)).stage, "draft", "the row, not only the answer");
+  const read = async () => (await callApi("GET", `/api/teams/${id}`, { token: coach.token })).body.team;
+  const save = async (counts) => callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: withRerolls(await read(), counts) });
+
+  const more = await save({ startingRerolls: 2 });
+  assert.deepEqual([more.status, more.body.team.stage, more.body.team.roster.startingRerolls], [200, "draft", 2]);
+  const early = await save({ startingRerolls: 2, teamRerolls: 1 });
+  assert.deepEqual([early.status, early.body.error.code, early.body.error.params], [422, "STAGE_PURCHASE_LOCKED", { key: "teamRerolls", stage: "draft" }]);
+
+  const moved = await callApi("POST", `/api/teams/${id}/activate`, { token: admin.token });
+  assert.deepEqual([moved.status, moved.body.team.stage, Boolean(Date.parse(moved.body.team.activatedAt))], [200, "active", true]);
+  const late = await save({ startingRerolls: 3 });
+  assert.deepEqual([late.status, late.body.error.code, late.body.error.params], [422, "STAGE_PURCHASE_LOCKED", { key: "startingRerolls", stage: "active" }]);
+  const bought = await save({ startingRerolls: 2, teamRerolls: 1 });
+  assert.deepEqual([bought.status, bought.body.team.stage, bought.body.team.roster.teamRerolls], [200, "active", 1]);
+  assert.deepEqual([(await teamRow(client, id)).roster.startingRerolls, (await teamRow(client, id)).roster.teamRerolls], [2, 1]);
+}));
+
+test("a team made before stage 12 keeps its stage, and a draft stays a draft, whoever saves it", scratch, () => withApiDatabase(async ({ client }) => {
+  const admin = await seedCoach(client, "boss", { admin: true }), coach = await seedCoach(client, "lion");
+  const veteran = await seedTeam(client, coach.id, { name: "Veterans" }), cub = await seedTeam(client, coach.id, { name: "Cubs", stage: "draft" });
+  for (const [id, stage] of [[veteran, "active"], [cub, "draft"]]) {
+    for (const [token, path] of [[coach.token, `/api/teams/${id}`], [admin.token, `/api/admin/teams/${id}`]]) {
+      const team = (await callApi("GET", `/api/teams/${id}`, { token: coach.token })).body.team;
+      const saved = await callApi("PATCH", path, { token, body: { name: team.name, baseTeamSlug: team.baseTeamSlug, revision: team.revision,
+        roster: { ...team.roster, cheerleaders: (team.roster.cheerleaders ?? 0) + 1 } } });
+      assert.deepEqual([saved.status, saved.body.team.stage], [200, stage], path);
+      assert.deepEqual([(await teamRow(client, id)).stage, (await teamRow(client, id)).activated_at], [stage, null], path);
+    }
+  }
+}));
 
 // values of one INSERT INTO team_ledger: [team, delta, balanceAfter, kind, reason, note, pairing, actor]
 const ledger = (db) => db.log.filter((entry) => entry.sql.startsWith("INSERT INTO team_ledger")).map((entry) => entry.values);

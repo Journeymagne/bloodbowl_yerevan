@@ -30,25 +30,60 @@ test("an SPP counter outside 0…999 refuses a roster save, the owner's and the 
   assert.deepEqual([saved.body.team.roster.players[0].spp.touchdowns, saved.body.team.roster.players[0].spp.mvps, await count(client, "match_events")], [999, 999, 1000]);
 }));
 
-test("two players under one id refuse a roster on every write — PATCH, the admin's PATCH, a create that reads it, a create that stores it as sent — and nothing is written; two players without an id are fine", db, () => withApiDatabase(async ({ client }) => {
+test("two players under one id refuse a roster on every write — PATCH, the admin's PATCH, a coach's create, the admin's create for a coach — and nothing is written; two players without an id are fine", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), boss = await seedCoach(client, "boss", { admin: true }), rookie = await seedCoach(client, "rookie");
   const id = await seedTeam(client, coach.id, { roster: { players: [{ id: "a", rowIndex: 0 }, { id: "b", rowIndex: 0 }] } });
   const twins = { players: [{ id: "a", rowIndex: 0, name: "Ann" }, { id: "a", rowIndex: 0, name: "Bea" }] };
   const legacy = { players: [{ rowIndex: 0, name: "Old" }, { rowIndex: 0, name: "Older" }] };
   const twice = refused("DUPLICATE_PLAYER_ID", { playerId: "a", names: "Ann, Bea" });
-  const asSent = (roster) => callApi("POST", "/api/season/admin/create-team", { token: boss.token, body: { userId: rookie.id, ...body(roster) } });
-  const before = { team: await teamRow(client, id), teams: await count(client, "saved_teams"), seasons: await count(client, "seasons") };
+  // The season's 2.x create stored a roster as sent; stage 12 took it away with the season's coach route. What is
+  // left creates through readTeamBody: a coach's own, and the admin's for a coach.
+  const forRookie = (roster) => callApi("POST", `/api/admin/users/${rookie.id}/teams`, { token: boss.token, body: body(roster) });
+  const before = { team: await teamRow(client, id), teams: await count(client, "saved_teams") };
   assert.deepEqual(refusal(await callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: body(twins, 1) })), twice, "PATCH");
   assert.deepEqual(refusal(await callApi("PATCH", `/api/admin/teams/${id}`, { token: boss.token, body: body(twins, 1) })), twice, "the admin's PATCH");
   assert.deepEqual(refusal(await callApi("POST", "/api/teams", { token: coach.token, body: body(twins) })), twice, "a create read through readTeamBody");
-  assert.deepEqual(refusal(await asSent(twins)), twice, "a create that stores the roster as sent");
-  assert.deepEqual(refusal(await asSent({ players: [{ id: "x", rowIndex: 0, spp: { bonus: -1 } }] })), refused("SPP_OUT_OF_RANGE", { playerId: "x", player: "#1", counter: "BONUS" }),
+  assert.deepEqual(refusal(await forRookie(twins)), twice, "the admin's create for a coach");
+  assert.deepEqual(refusal(await forRookie({ players: [{ id: "x", rowIndex: 0, spp: { bonus: -1 } }] })), refused("SPP_OUT_OF_RANGE", { playerId: "x", player: "#1", counter: "BONUS" }),
     "which holds the SPP rule too");
   const team = await teamRow(client, id);
-  assert.deepEqual([team.revision, team.roster, await count(client, "saved_teams"), await count(client, "seasons")],
-    [before.team.revision, before.team.roster, before.teams, before.seasons], "nothing is written, no season is made");
+  assert.deepEqual([team.revision, team.roster, await count(client, "saved_teams")],
+    [before.team.revision, before.team.roster, before.teams], "nothing is written");
   assert.equal((await callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: body(legacy, 1) })).status, 200, "two players without an id never clash");
-  assert.equal((await asSent(legacy)).status, 201, "nor as sent");
+  assert.equal((await forRookie(legacy)).status, 201, "nor in the admin's create");
+}));
+
+// Stage 12, decision 27: Starting and Team Re-rolls together are at most 8 on every write, as "more than 14 players" is.
+test("nine re-rolls are refused on every write, eight are not — the owner's PATCH, the admin's, a coach's create, the admin's create for a coach; a 2.x `rerolls` counts, and a roster over eight is refused until it is put right", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), boss = await seedCoach(client, "boss", { admin: true }), rookie = await seedCoach(client, "rookie");
+  const id = await seedTeam(client, coach.id, { players: 0, roster: { startingRerolls: 4, teamRerolls: 4 } });
+  const legacy = await seedTeam(client, coach.id, { name: "Old Lions", players: 0, roster: { rerolls: 6, teamRerolls: 3 } });
+  const nine = refused("REROLLS_MAX", { max: 8, count: 9 });
+  const rerolls = (startingRerolls, teamRerolls) => ({ startingRerolls, teamRerolls });
+  const before = { team: await teamRow(client, id), legacy: await teamRow(client, legacy), teams: await count(client, "saved_teams") };
+  assert.deepEqual(refusal(await callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: body(rerolls(5, 4), 1) })), nine, "the owner's PATCH");
+  assert.deepEqual(refusal(await callApi("PATCH", `/api/admin/teams/${id}`, { token: boss.token, body: body(rerolls(5, 4), 1) })), nine, "the admin's PATCH");
+  assert.deepEqual(refusal(await callApi("POST", "/api/teams", { token: coach.token, body: body(rerolls(9, 0)) })), nine, "a coach's create");
+  assert.deepEqual(refusal(await callApi("POST", `/api/admin/users/${rookie.id}/teams`, { token: boss.token, body: body(rerolls(5, 4)) })), nine,
+    "the admin's create for a coach");
+  // The stored 2.x roster as it is: `rerolls` 6 is its Starting Re-rolls, and with Team 3 it is nine.
+  const asStored = { rerolls: 6, teamRerolls: 3 };
+  assert.deepEqual(refusal(await callApi("PATCH", `/api/teams/${legacy}`, { token: coach.token, body: { ...body(asStored, 1), name: "Old Lions" } })), nine,
+    "the 2.x roster, saved as it is");
+  assert.deepEqual(refusal(await callApi("PATCH", `/api/admin/teams/${legacy}`, { token: boss.token, body: { ...body(asStored, 1), name: "Old Lions" } })), nine,
+    "and by the admin");
+  const team = await teamRow(client, id), old = await teamRow(client, legacy);
+  assert.deepEqual([team.revision, team.roster, old.revision, old.roster, await count(client, "saved_teams"), await count(client, "team_ledger")],
+    [before.team.revision, before.team.roster, before.legacy.revision, before.legacy.roster, before.teams, 0], "nothing is written");
+  const eight = await callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: body(rerolls(4, 4), 1) });
+  assert.equal(eight.status, 200, JSON.stringify(eight.body));
+  assert.deepEqual([eight.body.team.roster.startingRerolls, eight.body.team.roster.teamRerolls], [4, 4], "eight are a roster");
+  const fixed = await callApi("PATCH", `/api/admin/teams/${legacy}`, { token: boss.token, body: { ...body(rerolls(5, 3), 1), name: "Old Lions" } });
+  assert.equal(fixed.status, 200, JSON.stringify(fixed.body));
+  const stored = (await teamRow(client, legacy)).roster;
+  assert.deepEqual([stored.startingRerolls, stored.teamRerolls, "rerolls" in stored], [5, 3, false], "put right, it is stored the 3.0 way");
+  assert.equal((await callApi("PATCH", `/api/teams/${legacy}`, { token: coach.token, body: { ...body(rerolls(5, 3), 2), name: "Old Lions" } })).status, 200,
+    "and the owner saves it again");
 }));
 
 test("one save changes SPP by at most 2000 steps: 2000 are written, 2001 refuse it and change nothing — the team, the rows, the journal", db, () => withApiDatabase(async ({ client }) => {

@@ -68,6 +68,16 @@
   font: 700 15px/1 var(--font-body);
 }
 
+/*
+ * The playoff zone (stage 12, decision 6): the place in the league's green (League.html's posColor #2F7A52), the Nth
+ * row's rule 2px of it. The prototypes' green is --accent-text, which holds 4.5:1 on --surface in every palette; on the
+ * own row's tint it does not in one (grass, 4.46), so there the place takes the tint's ink, as the race does. The line
+ * is --accent-text too, not --accent: a dark palette's --accent is under 3:1 on --surface, and the line keys the places.
+ */
+.g-table__row--zone .g-table__rank { color: var(--accent-text); }
+.g-table__row--mine.g-table__row--zone .g-table__rank { color: var(--on-accent-tint); }
+.g-table__row--zoneend { border-bottom: 2px solid var(--accent-text); }
+
 .g-table__team {
   display: flex;
   flex-direction: column;
@@ -184,6 +194,24 @@
   border: 0;
 }
 
+/* The zone's line, first in the note: a dot of 10 in the zone's green, 8 from the words (League.html, DeskSeason.html). */
+.g-table__zone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.g-table__zone::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-text);
+}
+
 @media (max-width: 900px) {
   .g-table__head,
   .g-table__row { grid-template-columns: 26px minmax(0, 1fr) repeat(4, 24px) 38px 34px; }
@@ -221,8 +249,9 @@
 
 /*
  * The overview's mini table (DeskOverview.html): a card of a few rows, the place, the name, the touchdown
- * difference and the points. No zone: every place is --muted (decision 4); a difference below nothing is
- * --muted too, as the prototype draws it. Drawn on a desk only; the sizes a thumb needs stand as the default.
+ * difference and the points. A place is --muted, or the zone's green once the admin sets the playoff places (stage 12;
+ * stage 10's decision 4 drew no zone); a difference below nothing is --muted too, as the prototype draws it. Drawn on
+ * a desk only; the sizes a thumb needs stand as the default.
  */
 .g-minitable {
   box-sizing: border-box;
@@ -294,6 +323,9 @@
   color: var(--muted);
   font: 700 14px/1 var(--font-body);
 }
+.g-minitable__row--zone .g-minitable__rank { color: var(--accent-text); }
+.g-minitable__row--mine.g-minitable__row--zone .g-minitable__rank { color: var(--on-accent-tint); }
+.g-minitable__row--zoneend { border-bottom: 2px solid var(--accent-text); }
 
 .g-minitable__team { min-width: 0; }
 

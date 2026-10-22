@@ -62,10 +62,14 @@ async function postSources(client, fixture) {
   return sources;
 }
 
+// A result confirmed before the post-match began, as the post-match holds it: a technical one with its reason
+// (stage 12), the other kind for one confirmed before 12, which has none.
 function officialResult(fixture) {
   if (fixture.result_status !== 'confirmed') return null;
-  return { mode: fixture.result_type === 'technical' ? 'technical' : 'played', official: true,
-    winner: fixture.result_type === 'technical' ? fixture.home_touchdowns > fixture.away_touchdowns ? 'home' : 'away' : '',
+  const technical = fixture.result_type === 'technical';
+  return { mode: technical ? 'technical' : 'played', official: true,
+    winner: technical ? fixture.home_touchdowns > fixture.away_touchdowns ? 'home' : 'away' : '',
+    ...(technical ? { reason: fixture.technical_reason ?? 'other' } : {}),
     accepted: { home: true, away: true }, ...Object.fromEntries(SIDES.map(name => [name,
       { touchdowns: Number(fixture[name + '_touchdowns']), casualties: Number(fixture[name + '_casualties']) }])) };
 }
@@ -125,11 +129,13 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     await settleOutsideEdits(client, state[name].team.id);
     state[name].settlement = projection;
   }
-  const result = state.result, points = name => postPoints(state, name, fixture.match_kind).total;
+  // The points are the post-match's (`postPoints`); a technical result writes its reason with them (stage 12), the
+  // other kind for one a post-match begun before 12 holds without it, as its points read it.
+  const result = state.result, points = name => postPoints(state, name, fixture.match_kind).total, technical = result.mode === 'technical';
   await client.query(`UPDATE season_pairings SET home_touchdowns=$2,away_touchdowns=$3,home_casualties=$4,away_casualties=$5,
-    home_points=$6,away_points=$7,result_type=$8,result_status='confirmed',confirmed_at=now(),updated_at=now() WHERE id=$1`,
+    home_points=$6,away_points=$7,result_type=$8,technical_reason=$9,result_status='confirmed',confirmed_at=now(),updated_at=now() WHERE id=$1`,
   [fixture.id, result.home.touchdowns, result.away.touchdowns, result.home.casualties, result.away.casualties,
-    points('home'), points('away'), result.mode === 'technical' ? 'technical' : 'played']);
+    points('home'), points('away'), technical ? 'technical' : 'played', technical ? result.reason ?? 'other' : null]);
   state.status = 'completed'; state.completedAt = new Date().toISOString(); state.revision++;
   return state;
 }

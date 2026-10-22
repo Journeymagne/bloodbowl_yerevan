@@ -4,7 +4,6 @@
  * browser without Postgres.
  *
  *   node scripts/mock-api.mjs          # serves on :5174
- *   node scripts/browser-check-roster.mjs
  *
  * Ports and variants (the launch configs in .claude/launch.json):
  *   :5174  bloodbowl-mock-api          a coach with five teams and six matches
@@ -23,13 +22,12 @@
  * and the password `mock-pass`.
  *
  * It keeps one user and the coach's teams in memory (a team made or deleted
- * stays so until the mock restarts), records every accepted PATCH of the first team
- * into .codex_tmp/mock-saves.json, and answers just enough of the API for the shell
+ * stays so until the mock restarts), and answers just enough of the API for the shell
  * (sign-in, settings, the SideNav's match card, the header's place), the teams
  * list, a team's overview, a new team, the saved roster, my-games (with its
- * challenges), game, administration (including editing a user's team) and
- * player-profile screens. Not a substitute for `npm run smoke`, which exercises
- * the real server.
+ * challenges), game and player-profile screens; the administration's are
+ * scripts/mock/admin.mjs's (MOCK_ADMIN=1). Not a substitute for `npm run smoke`,
+ * which exercises the real server.
  *
  * What it answers, where it is not obvious (the real server is the reference):
  *   GET   /api/auth/me           the coach as `accountUser` (server/routes/account.mjs)
@@ -57,7 +55,7 @@
  *                                GET /api/teams/:id is one, or 404 TEAM_NOT_FOUND.
  *   POST  /api/teams             no `name` is 400 TEAM_NAME_REQUIRED, no `baseTeamSlug` 400
  *                                BASE_TEAM_REQUIRED (`readTeamBody`); else 201 `{team}`: the
- *                                next `t<n>` (an id is not used twice), `stage: "active"`, in no
+ *                                next `t<n>` (an id is not used twice), `stage: "draft"`, in no
  *                                season, first on the list. The roster is kept as sent, not
  *                                checked against the race.
  *   DELETE /api/teams/:id        a team of the active season or of a past one is 409
@@ -101,6 +99,7 @@ import { fileURLToPath } from "node:url";
 
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
+import { answerAdmin } from "./mock/admin.mjs";
 import { answerMatches } from "./mock/matches.mjs";
 import { answerPost } from "./mock/post.mjs";
 import { answerSeason } from "./mock/season.mjs";
@@ -108,7 +107,6 @@ import { answerRoster, humanPlayers, preparingFriendly } from "./mock/roster.mjs
 import { treasuryRoutes } from "./mock/treasury.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const savesPath = path.join(rootDir, ".codex_tmp", "mock-saves.json");
 const port = Number(process.env.MOCK_PORT || 5174);
 const empty = process.env.MOCK_EMPTY === "1";
 const mockPassword = "mock-pass";
@@ -190,7 +188,7 @@ const teamOf = (id, name, baseTeamSlug, players, changes = {}) => ({
   ...changes,
 });
 
-// t1 is the team whose saves the browser checks read back (any team may be saved). t2 has seven players of its own (the roster
+// t1 is the team the screenshots open (any team may be saved). t2 has seven players of its own (the roster
 // screen's match) and t3 is a copy of the small roster under another race, so that the coach has a team for each phase of the
 // SideNav's match card (g1, g2, g3 below). t4 is still being built and has played nothing, so it can be deleted; t5 played a
 // season that is over, so it cannot be.
@@ -382,15 +380,6 @@ const challenges = {
   opponents: [coach(rival)],
 };
 
-export const saves = [];
-
-/** A PATCH of t1 that was accepted, kept for scripts/browser-check-roster.mjs in .codex_tmp/mock-saves.json. */
-async function recordSave(body) {
-  saves.push(body);
-  await fs.mkdir(path.dirname(savesPath), { recursive: true });
-  await fs.writeFile(savesPath, JSON.stringify(saves, null, 1));
-}
-
 /** A body that is no JSON object: the 400 `readJson` (server/http/responses.mjs) gives it. */
 async function readBody(request) {
   const chunks = [];
@@ -413,7 +402,7 @@ const refuse = (status, code, params = {}) => reply(errorPayload(code, params), 
 const mock = { teams, games, user, rival, readBody, reply, refuse };
 
 /** A team's history, an entry by hand and the save of any team (scripts/mock/treasury.mjs); it gives t1, t4 and t5 their fixtures too. */
-const answerTreasury = treasuryRoutes({ teams, readBody, onSave: recordSave });
+const answerTreasury = treasuryRoutes({ teams, readBody });
 
 /** Sign-in, the account and its settings: the routes of server/routes/auth.mjs and account.mjs. */
 async function answerAuth(request, pathname) {
@@ -448,7 +437,7 @@ function makeTeam(body) {
   const made = teamOf(`t${lastTeamNumber}`, name, baseTeamSlug, [], {
     logoData: body.logoData ? String(body.logoData) : null,
     roster: body.roster ?? {},
-    inActiveSeason: false,
+    inActiveSeason: false, stage: "draft",
     createdAt: stamp,
     updatedAt: stamp,
   });
@@ -501,13 +490,8 @@ function teamOrRefusal(id, answer) {
   return found ? reply(answer(found)) : refuse(404, "TEAM_NOT_FOUND");
 }
 
-/** The administrator's lists, and a player's page. */
+/** The coach's own page as a player's page has it, and one of his teams. */
 function answerPeople(request, pathname) {
-  if (pathname === "/api/admin/users") return reply({ users: [user, rival] });
-  if (pathname.startsWith("/api/admin/users/")) return reply({ user, teams });
-  // An administrator opening somebody else's team: the owner beside the team (server/routes/admin.mjs).
-  const adminTeam = pathname.match(/^\/api\/admin\/teams\/([^/]+)$/);
-  if (adminTeam && request.method === "GET") return teamOrRefusal(adminTeam[1], (found) => ({ owner: user, team: found }));
   const playerTeam = pathname.match(/^\/api\/players\/[^/]+\/teams\/([^/]+)$/);
   if (playerTeam) return teamOrRefusal(playerTeam[1], (found) => ({ user, team: found }));
   if (pathname.startsWith("/api/players/")) return reply({ user, teams });
@@ -515,7 +499,8 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
+  // The administration first: the roster's mock would call another coach's team, which an admin opens, not found.
+  for (const answer of [answerAuth, answerAdmin, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }

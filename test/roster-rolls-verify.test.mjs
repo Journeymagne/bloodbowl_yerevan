@@ -819,14 +819,13 @@ test("a team is created with no rolls: every way of creating one refuses a roste
   const rosterWith = (advancement) => ({ treasury: 0, players: [{ id: "p0", rowIndex: 0, spp: { touchdowns: 10 }, advancements: [advancement] }] });
   const ways = [
     ["POST /api/teams", "/api/teams", coach.token, {}],
-    ["POST /api/admin/users/:id/teams", `/api/admin/users/${coach.id}/teams`, boss.token, {}],
-    ["POST /api/season/admin/create-team", "/api/season/admin/create-team", boss.token, { userId: coach.id }],
-    ["POST /api/season/admin/coaches", "/api/season/admin/coaches", boss.token, { login: "newcoach", password: "newcoach-pw", telegram: "@newcoach" }]];
+    ["POST /api/admin/users/:id/teams", `/api/admin/users/${coach.id}/teams`, boss.token, {}]];
   const created = async () => (await client.query(`SELECT (SELECT count(*) FROM saved_teams)::int AS teams, (SELECT count(*) FROM users)::int AS users,
     (SELECT count(*) FROM seasons)::int AS seasons, (SELECT count(*) FROM season_entries)::int AS entries`)).rows[0];
   const nothing = await created();
   for (const [way, path, token, extra] of ways) {
-    // The season's own create stores the body as sent, so it gets the raw shape: the id with spaces round it.
+    // The raw shape too, the id with spaces round it: no create may read past it. (`POST /api/admin/coaches` takes
+    // no roster — the server builds the team's draft — so it is not one of the ways here.)
     for (const roll of [named.roll, { via: "site", id: ` ${named.roll.id} ` }]) {
       const refused = await callApi("POST", path, { token, body: { name: "Forged", baseTeamSlug: "teams/human", roster: rosterWith({ ...named, roll }), ...extra } });
       assert.deepEqual([refused.status, refused.body.error?.code, refused.body.error?.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }], way);
@@ -837,5 +836,5 @@ test("a team is created with no rolls: every way of creating one refuses a roste
     const tabled = await callApi("POST", path, { token, body: { name: `Tabled ${way}`, baseTeamSlug: "teams/human", roster: rosterWith({ ...named, roll: { via: "table" } }), ...extra } });
     assert.equal(tabled.status, 201, `${way}: a table roll names no row`);
   }
-  assert.equal((await created()).teams, nothing.teams + 4);
+  assert.equal((await created()).teams, nothing.teams + 2);
 }));

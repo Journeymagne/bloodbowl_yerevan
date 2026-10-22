@@ -469,8 +469,9 @@ test("a team not in the table: the call to enter the season, the friendlies, the
     assert.equal(view.querySelector("h2#matches-current").textContent, "Current match");
     assert.ok(card().querySelector(".g-matches__records"), "the records and the post-match of a friendly in the off-season");
     assert.equal(card().querySelector(".g-matches__cta--dark").getAttribute("href"), postMatchUrl("g8"));
-    const call = view.querySelector("a.g-callout");
+    const call = view.querySelector("[data-season-enter]").closest(".g-callout");
     assert.equal(call.querySelector(".g-callout__title").textContent, "Not entered in the season");
+    assert.equal(view.querySelector("a.g-callout"), null, "the call carries its button (stage 12): no link to a 2.x season screen");
     const blocks = view.querySelector(".g-matches").childNodes.map((node) => node.getAttribute("class"));
     assert.ok(blocks.indexOf("g-callout") > blocks.indexOf("g-matches__current"), "under the card");
     assert.equal(view.querySelector(".g-matches__record"), null, "no league record outside the table");
@@ -643,7 +644,7 @@ test("every key in both dictionaries; the phases' words for every phase", () => 
 });
 
 test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut with «…»", () => {
-  const sheets = [CSS, "src/ui/match-card.css", "src/screens/matches/before.css", "status-chip.css", "result-pill.css", "callout.css", "page-head.css"];
+  const sheets = [CSS, "src/ui/match-card.css", "src/screens/matches/before.css", "status-chip.css", "result-pill.css", "callout.css", "page-head.css", "button.css"];
   const live = gamesWith({ g2: { preparationStatus: "in_progress" } });
   for (const model of [modelOf("t1"), modelOf("t2", { games: live, records: { events: TAPS } }), modelOf("t3"), modelOf("t4"), modelOf("t1", { opponent: { error: "x" } })]) {
     assertStyled(mountHere(matchesMarkup(model)), ...sheets);
@@ -802,6 +803,21 @@ test("the table is the season's: the same rows as #/season", async () => {
     assert.equal(table.querySelector(".g-season__rule").textContent, tablePointsText(), "the league's points at the card's head (pre-flight L17)");
     assert.ok(table.querySelector(".g-table__notes").textContent.includes(t("league.order")));
     assert.ok(!table.querySelector(".g-table__notes").textContent.includes(tablePointsText()), "said once");
+  } finally {
+    leave();
+  }
+});
+
+test("a desk's table draws the playoff zone the admin set and names it in its note", async () => {
+  try {
+    await visit("t1", { phone: false, season: { ...SEASON, season: { ...SEASON.season, playoffPlaces: 2 } } });
+    const table = view.querySelector(".g-season__table");
+    const ranks = (modifier) => table.querySelectorAll(`.g-table__row--${modifier}`).map((row) => row.querySelector(".g-table__rank").textContent);
+    assert.deepEqual([ranks("zone"), ranks("zoneend")], [["1", "2"], ["2"]]);
+    assert.equal(table.querySelector(".g-table__notes p.g-table__zone").textContent, t("league.zone", { places: 2 }));
+    await visit("t1", { phone: false });
+    assert.equal(view.querySelectorAll(".g-table__row--zone").length, 0);
+    assert.equal(view.querySelector(".g-table__zone"), null);
   } finally {
     leave();
   }

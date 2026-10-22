@@ -15,6 +15,7 @@
  */
 import { createHash } from "node:crypto";
 import { pool } from "../db/pool.mjs";
+import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson, writeResponse } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
@@ -95,7 +96,9 @@ export async function handleGameRoutes(request, response, url) {
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const row = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
     if (!row) return sendError(response, 404, "GAME_NOT_FOUND");
-    await updateSeasonPairing(row.season_id, gameMatch[1], await readJson(request), true, user.id);
+    const body = await readJson(request);
+    // One transaction: the pairing's lock holds through the post-match's check and the write (decision 29).
+    await withTransaction((client) => updateSeasonPairing(row.season_id, gameMatch[1], body, true, user.id, client));
     const updated = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
     return send(response, 200, { game: publicGame(updated, user.id) });
   }

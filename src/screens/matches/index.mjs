@@ -19,7 +19,7 @@
 import { announce } from "../../components/live-region.mjs";
 import { delegate, drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { seasonTabUrl, teamUrl } from "../../core/routes.mjs";
+import { teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -30,6 +30,7 @@ import { currentMatch } from "../../shell/current-match.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
+import { enterCallMarkup, seasonEnterVisit } from "../season/enter.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { leagueTableMarkup, tableCardMarkup, tableNotesMarkup } from "../season/table.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
@@ -51,10 +52,13 @@ function friendliesMarkup(model) {
   return `<a class="g-matches__friendlies" href="${escapeHtml(teamUrl(model.teamId, "challenges"))}">${icon("plus", 18)}${escapeHtml(t("teamOverview.friendlies"))}</a>`;
 }
 
-/** Outside the table, the call to enter the season (decision 8), under the card when there is one (pre-flight L9). */
+/**
+ * Outside the table, the call to enter the season (decision 8), under the card when there is one (pre-flight L9): its
+ * button «Enter the season», or the coach's other team that plays it (stage 12, decision 22).
+ */
 function seasonCallMarkup(model) {
   if (!model.seasonRead || model.inSeason) return "";
-  return renderCallout({ title: t("teamOverview.notInSeason"), sub: t("teamOverview.notInSeasonSub"), href: seasonTabUrl("registration") });
+  return enterCallMarkup(model.seasonCall, model.entering);
 }
 
 /** The match on, or the word that the round has none for the team yet; nothing otherwise. */
@@ -73,9 +77,11 @@ function currentMarkup(model) {
 function deskMarkup(model) {
   const head = renderPageHead({ title: t("shell.side.season"), sub: model.seasonLine });
   const calendar = model.gamesRead ? calendarMarkup(model.calendar, model.teamId) : "";
-  const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, teamId: model.teamId, labelledBy: "matches-table" });
+  const { playoffPlaces } = model;
+  const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, teamId: model.teamId, labelledBy: "matches-table",
+    playoffPlaces });
   const season = model.inSeason
-    ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false }) })}`
+    ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false, playoffPlaces, rows: model.table }) })}`
       + `${calendar ? `<aside class="g-season__aside">${calendar}</aside>` : ""}</div>`
     : `${seasonCallMarkup(model)}${calendar}`;
   return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}${season}</div>`;
@@ -101,7 +107,7 @@ const listed = (teamId) => state.myTeams.items.find((item) => item.id === teamId
  * The page of `teamId` as the state has it now; "" when the team is not in the coach's list, and the screen is left as it
  * was. A failure an earlier read left, which the read repeating it has not answered yet, is not drawn (`held`).
  */
-function markupOf(teamId, held, band, records) {
+function markupOf(teamId, held, band, records, entry) {
   const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
@@ -109,6 +115,7 @@ function markupOf(teamId, held, band, records) {
     team, raceTeam: raceTeamOf(team.baseTeamSlug), seasonData: state.season.data,
     games: loaded && !held.games ? items : null, gamesError: held.games ? "" : error, seasonError: held.season ? "" : state.season.error,
     opponent: band.opponent, records, data: state.data, phone: isPhone(), bandKey: band.key, viewerId: state.auth.currentUser?.id ?? "",
+    myTeams: state.myTeams.items, entering: entry.busy,
   }));
 }
 
@@ -161,9 +168,11 @@ export async function renderTeamMatches(teamId) {
   const gamesNow = () => (state.games.loaded && !held.games ? state.games.items : null);
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held, band, records.last);
+    const markup = markupOf(teamId, held, band, records.last, entry);
     if (markup) patch(view, markup);
   };
+  // «Enter the season» on the call (stage 12): one question, one entry on its way.
+  const entry = seasonEnterVisit({ root: view, teamId, here: () => here, draw });
   const band = bandVisit({ teamId, root: view, draw, read: () => ({ team: listed(teamId), games: gamesNow(), seasonData: state.season.data, data: state.data }) });
   const records = recordsVisit({ teamId, here: () => here, games: gamesNow, draw });
   const offs = [
@@ -179,13 +188,14 @@ export async function renderTeamMatches(teamId) {
     }),
     delegate(view, "click", "[data-before-closed]", (event, tile) => announce(tile.getAttribute("data-before-closed"))),
     () => band.release(),
+    entry.off,
   ];
   onScreenLeave("team-matches", () => {
     here = false;
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(true), loadSeason(held.season)]);
-  const first = markupOf(teamId, held, band, records.last);
+  const first = markupOf(teamId, held, band, records.last, entry);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();

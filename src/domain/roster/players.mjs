@@ -10,7 +10,7 @@
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
-import { createPlayer, normalizeAbsence, normalizePurchasedStaff } from "./schema.mjs";
+import { normalizeAbsence } from "./schema.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 export function normalizeExtraSkill(skill) {
@@ -289,11 +289,3 @@ export function selectedRosterPlayers(team, draft) {
     .filter(Boolean);
 }
 
-
-/**
- * The shape of a player and of purchased staff moved to schema.mjs in step 3.2,
- * which is now the only place either is described. The names stay: every caller
- * uses them, and renaming was not what the step was for.
- */
-export { normalizePurchasedStaff };
-export const makeRosterPlayer = createPlayer;

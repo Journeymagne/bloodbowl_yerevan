@@ -18,7 +18,9 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { fallenWriting } from "./fallen.mjs";
 import { sessionSppOf } from "./memory.mjs";
 import { fallenLines, rosterLines, rosterMode, sortLines } from "./model.mjs";
-import { saveState } from "./save.mjs";
+import { saveState, savedIdentity } from "./save.mjs";
+import { adminOf } from "./source.mjs";
+import { adminSheetOf, adminWriting } from "./admin-block.mjs";
 import { keyed, sheetOf } from "./injury.mjs";
 import { recordsOf } from "./match-taps.mjs";
 import { markSheetOf } from "./marks.mjs";
@@ -45,8 +47,14 @@ export function onPhoneChange(listener) {
   return () => media.removeEventListener?.("change", listener);
 }
 
-/** What the roster is for just now, by the games as last read (`rosterMode`). */
-export const modeOf = (teamId) => rosterMode(state.games.loaded ? state.games.items ?? [] : [], teamId);
+/** An admin's visit (stage 12, decision 23) has no match and no preparation: the admin repairs the roster, a step is a save of it. */
+const ADMIN_MODE = Object.freeze({ kind: "plain" });
+
+/**
+ * What the roster is for just now, by the games as last read (`rosterMode`); on an admin's visit always a save of the
+ * roster (the repair path, plan 09a's question 2): the games read are the admin's, not the team's.
+ */
+export const modeOf = (teamId) => (adminOf(teamId) ? ADMIN_MODE : rosterMode(state.games.loaded ? state.games.items ?? [] : [], teamId));
 
 /** The games are read and say what they say: until then a step might go into a match (plan 07a, decision 18). */
 export const gamesKnown = () => state.games.loaded && !state.games.loading && !state.games.error;
@@ -58,13 +66,15 @@ export const reading = (visit) => visit.answered !== visit.reads;
  * Why no counter takes a step just now, "" when none: the games unread or unreadable, or to be read after the roster
  * in the air (`readWithGames`); the records read during a match or after one ended (fix round 1: a read may land with
  * a tap already in it, and a roster read during the match is no roster to save); a death on its way (K7: a step taken
- * now would go on the revision it moves, and its answer would give that step up); another device's save to settle.
+ * now would go on the revision it moves, and its answer would give that step up), or an admin's fix of the treasury
+ * (stage 12, admin-block.mjs: the same reason); another device's save to settle.
  */
 export function lockOf(teamId, save, visit, mode) {
   if (!state.games.loaded || state.games.loading) return t("teamRoster.gamesLoading");
   if (state.games.error) return state.games.error;
   if (reading(visit)) return t(mode.kind === "match" || visit.stale ? "teamRoster.readingRecords" : "teamRoster.gamesLoading");
   if (fallenWriting(teamId)) return t("teamRoster.mark.writing");
+  if (adminWriting(teamId)) return t("adminTeam.treasury.writing");
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
 
@@ -88,11 +98,12 @@ export function linesOf(visit, mode) {
 
 /**
  * Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale,
- * player.mjs a player's edit, his advancement, the undo of his last one and his fix by hand (stage 07d); injury.mjs the rest.
+ * player.mjs a player's edit, his advancement, the undo of his last one and his fix by hand (stage 07d), admin-block.mjs the
+ * admin's fallen player added afterwards (stage 12); injury.mjs the rest.
  */
 const KEEPERS = {
   mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf, edit: playerSheetOf, advance: playerSheetOf, unadvance: playerSheetOf,
-  fix: playerSheetOf,
+  fix: playerSheetOf, adminFallen: adminSheetOf,
 };
 
 /**
@@ -106,7 +117,8 @@ export function screenOf(teamId, visit, memory) {
   const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
   const fallen = sortLines(dead, memory.sort);
   const save = saveState(teamId);
-  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft };
+  // `admin` is the admin's visit (source.mjs), null for the coach's: its sheets offer no roll on the site and undo any death.
+  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft, admin: adminOf(teamId) };
   // A sheet whose player has left the screen (read again) closes with him; an injury's, with its match (injury.mjs); a
   // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs); a player's edit and his
   // advancement, with a match begun (player.mjs). A fallen player's chip opens a skill's sheet too.
@@ -120,9 +132,12 @@ export function screenOf(teamId, visit, memory) {
     visit.chosen = true;
     yieldQuery(memory, his);
   }
+  // An admin's change of the name or the logo is drawn at once, as a step's draft is (save.mjs, `stepIdentity`).
+  const team = where.admin && visit.team ? { ...visit.team, ...savedIdentity(teamId) } : visit.team;
   return {
-    teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
+    teamId, team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
     ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls, careers: visit.careers, careerOpen: visit.careerOpen,
+    owner: visit.admin?.owner ?? null, inMatch: Boolean(visit.admin?.inMatch), matches: visit.admin?.matches ?? [],
   };
 }
 

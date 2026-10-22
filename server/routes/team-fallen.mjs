@@ -9,13 +9,14 @@
  * in its own transaction (server/season/finance-store.mjs).
  *
  * A team is the owner's. The list may be read by an administrator too, and an administrator may undo
- * any death; marking one is the owner's alone. A death a match recorded is the administrator's to undo
+ * any death; marking one is the owner's alone on these routes. A death a match recorded is the administrator's to undo
  * (FALLEN_FROM_MATCH for a coach): the match is settled, and the coach's word does not unsettle it. To
  * anybody else the team is not there (`teamForUser`), and neither is a death that belongs to another team.
  *
  * While the team plays a match (stage 09a) both writes are refused, TEAM_IN_MATCH, to an administrator on
  * this route too: the team changes again after the post-match, and an administrator's repair is the
- * administration's own route (`PATCH /api/admin/teams/:id`), not a coach's.
+ * administration's own route, not a coach's — `PATCH /api/admin/teams/:id`, and for a death and its undo the
+ * same two transactions below on `/api/admin/teams/:id/…` (`{ admin: true }`, server/routes/admin-team.mjs, stage 12).
  *
  * Undoing needs no revision, as it only gives a player back under the team's lock: an editor that was
  * open on the roster is refused on its next save (TEAM_SAVED_ELSEWHERE), as it is after any other write.
@@ -45,9 +46,9 @@ const LIST_SQL = `
 
 /**
  * The cause a body gives, trimmed: 1 to 500 characters, with no NUL (U+0000, which no text column of
- * Postgres holds: it would be a 500). Anything else is a 400 for `cause`.
+ * Postgres holds: it would be a 500). Anything else is a 400 for `cause`. The administration's fallen ask it too.
  */
-function checkCause(body) {
+export function checkCause(body) {
   const { cause } = body ?? {};
   const text = typeof cause === "string" ? cause.trim() : "";
   if (!text || text.length > MAX_CAUSE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "cause" });
@@ -83,11 +84,14 @@ async function sendFallen(request, response, teamId) {
  * the roster without him and the row that keeps him, and the answer read back. A refusal at any point
  * throws, and the whole transaction goes back. While the team plays a match, a coach's write is refused (TEAM_IN_MATCH,
  * stage 09a) — after the revision, so a stale tab still hears it was saved elsewhere.
+ *
+ * `admin` is the administration's route (stage 12): any coach's team, for a user who is an admin (`teamForUser`), and no
+ * refusal while the team plays — that route is the repair path. The row says who wrote it, the admin.
  */
-async function writeDeath(client, teamId, user, playerId, cause, revision) {
-  const team = await teamForUser(client, teamId, user, { lock: true });
+export async function writeDeath(client, teamId, user, playerId, cause, revision, { admin = false } = {}) {
+  const team = await teamForUser(client, teamId, user, { lock: true, admin });
   if (revision !== team.revision) throw await teamConflict(client, team); // no revision at all is a revision that cannot match
-  await refuseWhilePlaying(client, team.id);
+  if (!admin) await refuseWhilePlaying(client, team.id);
   refuseSharedPlayerId(team.roster, playerId);
   const removed = removeFallenPlayer(team.roster, playerId);
   if (!removed) throw httpError(404, "PLAYER_NOT_FOUND");
@@ -123,10 +127,13 @@ async function markDeath(request, response, teamId, playerId) {
  * A record the roster cannot read — no place on it (`rowIndex`), or one the race has no row for — is not
  * undone (422 FALLEN_NOT_RESTORABLE): normalisation would drop him, and the death would be forgotten for a
  * player nobody then sees. Who reads him is counted, the roster as it was and with him back.
+ *
+ * `admin` is the administration's route (stage 12): the same undo with no refusal while the team plays — the repair
+ * path, a match's death included (an administrator's to undo in any case).
  */
-async function returnPlayer(client, teamId, fallenId, user) {
+export async function returnPlayer(client, teamId, fallenId, user, { admin = false } = {}) {
   const team = await teamForUser(client, teamId, user, { lock: true, admin: true });
-  await refuseWhilePlaying(client, team.id);
+  if (!admin) await refuseWhilePlaying(client, team.id);
   const { rows } = await client.query("SELECT * FROM team_fallen_players WHERE id = $1 AND saved_team_id = $2", [fallenId, team.id]);
   const dead = rows[0];
   if (!dead) throw httpError(404, "FALLEN_NOT_FOUND");

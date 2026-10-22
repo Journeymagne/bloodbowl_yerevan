@@ -433,7 +433,7 @@ test("the 2.x public team's rules went with it: no sheet keeps a selector no mod
     assert.ok(!sheets.includes(`.${name}`), `${name}: no rule left for it`);
   }
   assert.ok(!code.includes("matchday-jersey"));
-  assert.doesNotMatch(sheets, /\.matchday-jersey\s*\{/, "the jersey's own rule is gone (the saved roster's :not() keeps its weight)");
+  assert.doesNotMatch(sheets, /\.matchday-jersey\s*\{/, "the jersey's own rule is gone");
 });
 
 test("the prototypes' sizes: their padding on top of min-height, Oswald's figures at its own line height, a chip 44 wide, no ring on the title", () => {

@@ -1006,6 +1006,39 @@ it("the score's draft is what it writes: a winner picked, then «Played» again,
   assert.equal(writes().length, 0);
 });
 
+it("a technical result's reason (stage 12): none picked, nothing sent; the arrows move it with the focus, the group patched, not drawn anew; it goes with the score", async () => {
+  for (const phone of [true, false]) {
+    await visit(begin(), { step: "result", phone });
+    await press(view.querySelector('[data-after-mode] [data-mode="technical"]'));
+    const group = view.querySelector('[role="radiogroup"][data-after-reason]');
+    const item = (reason) => view.querySelector(`[data-after-reason] [data-reason="${reason}"]`);
+    assert.ok(group, "the reason asked under the winner");
+    assert.deepEqual([cta().getAttribute("data-prep-action"), cta().hasAttribute("disabled")], ["result", true]);
+    assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.reasonFirst"));
+    await pressCta();
+    assert.equal(writes().length, 0, "no reason, no write");
+    item("no_team").focus();
+    fireEvent(item("no_team"), "keydown", { key: "ArrowRight" });
+    await flush();
+    assert.equal(item("other").getAttribute("aria-checked"), "true");
+    assert.ok(document.activeElement === item("other"), "the focus moved with the arrow");
+    assert.ok(view.querySelector("[data-after-reason]") === group, "the group is the one drawn before");
+    fireEvent(item("other"), "keydown", { key: "ArrowLeft" });
+    await flush();
+    assert.deepEqual([item("no_team").getAttribute("aria-checked"), item("other").getAttribute("aria-checked")], ["true", "false"]);
+    assert.ok(document.activeElement === item("no_team"), "the focus where the check is");
+    assert.equal(view.querySelector(".g-after__pts").textContent, t("after.points", { points: 4 }));
+    assert.equal(cta().hasAttribute("disabled"), false);
+    const action = { type: "result", mode: "technical", winner: "home", reason: "no_team", home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } };
+    api.reply(WRITE, 200, payload(act(begin(), "home", action)));
+    await pressCta();
+    assert.deepEqual(writes().map((call) => call.body.action), [action]);
+    // The answer drawn: the reason sent is the one checked.
+    assert.equal(view.querySelector('[data-after-reason] [aria-checked="true"]').getAttribute("data-reason"), "no_team");
+    api.assertAnswered();
+  }
+});
+
 it("a sheet's «−» pressed down to its floor keeps the focus in the sheet, on its «+»", async () => {
   const post = at({ home: 2, away: 2 });
   const counts = (side, knockouts) => ({ statistics: { ...side.statistics, h3: { ...side.statistics.h3, knockouts } } });

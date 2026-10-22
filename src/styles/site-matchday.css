@@ -28,11 +28,9 @@ body { background: var(--bg); font-size: .9375rem; }
 .site-page-crest svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; }
 .site-page-crest svg path:nth-child(2) { fill: currentColor; stroke: none; }
 .site-page-crest svg path:nth-child(3) { fill: var(--panel-2); stroke: none; }
-.matchday-editor > .page-head .site-page-crest, .matchday-editor > .page-head .site-page-kicker { display: none; }
-.matchday-editor > .page-head { padding: 0; border: 0; background: none; box-shadow: none; }
 .page-head .toolbar { align-self: center; gap: 12px; }
 .page-back-button { min-height: 44px; }
-.content-panel h2, .side-panel h2 { font: 800 1.9rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
+.content-panel h2 { font: 800 1.9rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
 .card { background: var(--panel); border-color: var(--line-bright); backdrop-filter: none; padding: 22px; }
 .card::before { display: none; }
 .card:hover { background: var(--panel-2); border-color: var(--focus); }
@@ -40,22 +38,13 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .card h2, .card h3 { font: 800 1.7rem/1.2 var(--display-font); letter-spacing: .3px; text-transform: uppercase; text-shadow: none; color: var(--text); }
 .card p { font-size: .85rem; text-shadow: none; line-height: 1.65; }
 .card-grid { gap: 20px; }
-.badge, .roster-pill, .season-status-pill, .season-tab,
-.team-stat-grid, .admin-reset-password-result { border-radius: 0; }
+.badge, .season-status-pill { border-radius: 0; }
 .badge, .season-status-pill { background: var(--md-wash); border-color: var(--line); font: .6rem/1.5 var(--label-font); letter-spacing: .3px; padding: 5px 8px; }
-.roster-pill { background: var(--panel-2); border-color: var(--line); padding: 7px 10px; font-size: .8rem; line-height: 1.5; }
-.roster-pill:is(a, button), .chip { min-height: 44px; align-items: center; }
-.content-panel table th, .side-panel table th { background: var(--panel-2); font: .65rem/1.5 var(--label-font); letter-spacing: .3px; color: var(--muted); }
+.chip { min-height: 44px; align-items: center; }
+.content-panel table th { background: var(--panel-2); font: .65rem/1.5 var(--label-font); letter-spacing: .3px; color: var(--muted); }
 .content-panel table td { border-color: var(--line); }
 .table-scroll { border-color: var(--line); }
-.season-admin-block,
 .game-versus > div { background: var(--panel-2); border-color: var(--line); box-shadow: none; }
-.season-tabs { padding: 0; border: 0; background: none; gap: 7px; margin-bottom: 24px; }
-.season-tab { min-height: 48px; font-size: .8rem; background: var(--panel); border-color: var(--line); }
-.season-tab.active { border: 2px solid var(--line-bright); background: var(--panel-2); color: var(--text); }
-.season-rounds { gap: 24px; }
-.season-round-header { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.season-round-header h2 { margin: 0; }
 .game-page > .pre-game-panel { margin-bottom: 28px; }
 .game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--muted); }
 .game-versus h2 { overflow-wrap: anywhere; }
@@ -89,6 +78,5 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .content-panel, .card { padding: 18px; }
   .content-panel h2 { font-size: 1.65rem; }
   .card h3 { font-size: 1.6rem; }
-  .season-tab { flex-basis: 120px; }
   .challenge-panel { margin-bottom: 24px; }
 }

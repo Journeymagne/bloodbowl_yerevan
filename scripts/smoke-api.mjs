@@ -165,7 +165,8 @@ async function undoTaking(team, id, roll) {
 await step("GET /api/teams/:id has stage and activatedAt", async () => {
   const team = await readTeam();
   for (const key of ["stage", "activatedAt"]) need(Object.hasOwn(team, key), `the team has no ${key}`, Object.keys(team));
-  need(team.stage === "active", "a new team is not active", { stage: team.stage, activatedAt: team.activatedAt });
+  // Born in the build (stage 12, decision 26): an admin moves it into the season.
+  need(team.stage === "draft" && team.activatedAt === null, "a new team is not a draft", { stage: team.stage, activatedAt: team.activatedAt });
 });
 
 await step("POST /api/teams/:id/treasury credits with a reason", async () => {

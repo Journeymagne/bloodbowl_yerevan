@@ -1,18 +1,16 @@
 /**
- * The season screen's data operations — loading it, applying a server
- * response after a mutation, and shaping a starter roster for the admin's
- * "create and commit a team for a coach" action.
+ * The season's data operations — loading it, and applying a server response
+ * after a mutation.
  *
- * Mechanically moved out of src/app.js. Every screens/season/*.mjs module
- * that mutates season data calls `replaceSeasonData`, and index.mjs calls
- * `loadSeason` — living here rather than under any one tab avoids the tab
- * modules importing each other.
+ * Mechanically moved out of src/app.js. The 2.x season screen that first read
+ * it went with stage 12; the league's page, the team's pages and the shell call
+ * `loadSeason`, and the writes that answer with the season — the
+ * administration's (data/admin.mjs) and a coach's entry (data/season-entry.mjs)
+ * — call `replaceSeasonData`.
  */
 import { errorText } from "../../core/api.mjs";
 import { state } from "../../core/state.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
-import { emptyBuilderState } from "../../data/roster-draft.mjs";
 
 /** The request on its way, and whom it was sent for: `{userId, done}`, or null. */
 let inFlight = null;
@@ -62,11 +60,4 @@ export function loadSeason(force = false) {
 export function replaceSeasonData(payload) {
   state.season.data = payload;
   state.season.loaded = true;
-}
-
-export function makeSeasonStarterRoster(team, name) {
-  const draft = emptyBuilderState(team);
-  draft.teamName = name || team.title;
-  draft.selectedLeague = teamLeagueOptions(team)[0] ?? "";
-  return draft;
 }

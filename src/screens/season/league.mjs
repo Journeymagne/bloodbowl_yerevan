@@ -4,30 +4,32 @@
  * One form for each width, drawn again when the width crosses 900px. A phone's is League.html: the season's name
  * with the last round over at its right, the table's eight columns, the league's rules under it, then the season's
  * calendar. A desk's is DeskSeason.html without its board: the band «Table» (its `h1`, as the prototype's; the owner,
- * 2026-10-21) with the season's line (and, for an admin, the way to the season's administration until stage 12 moves
- * it), the table's card at the left and the calendar at its right.
+ * 2026-10-21) with the season's line (and, for an admin, the way to the administration's season, `#/administration/season`
+ * since stage 12), the table's card at the left and the calendar at its right.
  *
  * The season's calendar has no prototype (owner question 2): the league's rounds under way or over, newest first,
  * each pairing a line «Home — Away» built as DeskSeason.html's calendar draws a match, the score once confirmed,
- * a bye said as one. A name leads where its row in the table does (`rowHref`): nowhere for a guest, nor for a
- * withdrawn entry.
+ * a bye said as one, a result decided without being played said as a technical win and why (stage 12, decision 5).
+ * A name leads where its row in the table does (`rowHref`): nowhere for a guest, nor for a withdrawn entry.
  *
- * `#/season/registration` for a coach and `#/season/administration` for an admin are still the 2.x screen with those
- * two tabs (index.mjs); any other tab, and those two for anyone else, is this page (`renderSeasonRoute`).
+ * The table draws the playoff zone the admin set for the season (`playoffPlacesOf`, stage 12), on both widths.
+ *
+ * Every `#/season/<tab>` is this page (`renderSeasonRoute`): the 2.x season screen and its two tabs went with stage 12
+ * — a coach enters a team from its own pages (screens/season/enter.mjs), the admin runs the season in the
+ * administration, and their old addresses lead there (`OLD_ADDRESSES`).
  */
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { seasonTabUrl } from "../../core/routes.mjs";
+import { adminSeasonUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { lastRoundOver, leagueRounds, seasonTable } from "../../data/season-table.mjs";
+import { lastRoundOver, leagueRounds, playoffPlacesOf, seasonTable } from "../../data/season-table.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { assertLinkHref, classNames } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { seasonLineOf } from "../matches/model.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
-import { renderSeason } from "./index.mjs";
 import { loadSeason } from "./season-data.mjs";
 import { leagueTableMarkup, rowHref, tableCardMarkup, tableNotesMarkup } from "./table.mjs";
 
@@ -49,6 +51,7 @@ export function leagueModel({ seasonData, seasonError = "", viewer, phone }) {
     line: seasonLineOf(seasonData),
     read: Boolean(seasonData),
     rows: seasonTable(seasonData),
+    playoffPlaces: playoffPlacesOf(seasonData),
     rounds: leagueRounds(seasonData),
     viewerId: viewer?.id ?? "",
     signedIn: Boolean(viewer),
@@ -74,18 +77,25 @@ function sentenceWith(key, name, html) {
 
 const WAITING_WORDS = { result: "league.pending", confirmation: "league.awaiting" };
 
-/** One pairing: «Home — Away» (or the bye's line), what it waits for under it, the score at the right. */
+/** What the line under a pairing says: what it still waits for, or why a confirmed result was not played; "" for neither. */
+function pairState(pairing) {
+  if (pairing.technical) return t(`league.technical.${pairing.technical.reason}`);
+  const waiting = WAITING_WORDS[pairing.waiting];
+  return waiting ? t(waiting) : "";
+}
+
+/** One pairing: «Home — Away» (or the bye's line), what it waits for or a technical win under it, the score at the right. */
 function pairMarkup(pairing, viewer) {
   const mine = viewer.signedIn && [pairing.home, pairing.away].some((side) => side && side.user?.id === viewer.viewerId);
   const names = pairing.away
     ? `${sideMarkup(pairing.home, viewer)} — ${sideMarkup(pairing.away, viewer)}`
     : sentenceWith("league.bye", "team", sideMarkup(pairing.home, viewer));
-  const waiting = WAITING_WORDS[pairing.waiting];
+  const line = pairState(pairing);
   const score = pairing.score
     ? `<span class="g-league__score">${escapeHtml(`${pairing.score[0]}–${pairing.score[1]}`)}</span>`
     : `<span class="g-league__score g-league__score--none">—</span>`;
   return `<li class="${classNames("g-league__pair", mine && "g-league__pair--mine")}"><div class="g-league__teams">`
-    + `<span class="g-league__names">${names}</span>${waiting ? `<span class="g-league__state">${escapeHtml(t(waiting))}</span>` : ""}</div>${score}</li>`;
+    + `<span class="g-league__names">${names}</span>${line ? `<span class="g-league__state">${escapeHtml(line)}</span>` : ""}</div>${score}</li>`;
 }
 
 /**
@@ -106,8 +116,9 @@ export function roundsMarkup(rounds, viewer) {
 /** The table, its rules under it; while the table is on its way, the word that it is. */
 function tableMarkup(model) {
   if (!model.read) return model.failure ? "" : `<p class="g-league__loading" role="status">${escapeHtml(t("season.loading"))}</p>`;
-  const table = leagueTableMarkup({ rows: model.rows, phone: model.phone, viewerId: model.viewerId, signedIn: model.signedIn, labelledBy: "league-title" });
-  return model.rows.length ? `${table}${tableNotesMarkup({ phone: model.phone, signedIn: model.signedIn })}` : table;
+  const { rows, phone, viewerId, signedIn, playoffPlaces } = model;
+  const table = leagueTableMarkup({ rows, phone, viewerId, signedIn, labelledBy: "league-title", playoffPlaces });
+  return rows.length ? `${table}${tableNotesMarkup({ phone, signedIn, playoffPlaces, rows })}` : table;
 }
 
 const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed" role="alert">${renderCallout({ tone: "danger", title: model.failure })}</div>` : "");
@@ -115,7 +126,7 @@ const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed"
 /** A desk's: the band «Table», then the table's card and the calendar side by side (DeskSeason.html without the board). */
 function deskMarkup(model) {
   const admin = model.admin
-    ? `<a class="g-league__admin" href="${escapeHtml(seasonTabUrl("administration"))}">${escapeHtml(t("league.admin"))}</a>` : "";
+    ? `<a class="g-league__admin" href="${escapeHtml(adminSeasonUrl())}">${escapeHtml(t("league.admin"))}</a>` : "";
   const head = renderPageHead({ title: t("shell.tab.table"), sub: model.line, metaHtml: admin });
   const viewer = { viewerId: model.viewerId, signedIn: model.signedIn };
   return `${head}<div class="g-league">${failureMarkup(model)}<div class="g-season__row">`
@@ -164,13 +175,10 @@ export async function renderLeague() {
 }
 
 /**
- * `#/season/<tab>`: a coach's entry (`registration`) and an admin's season (`administration`) are the 2.x screen until
- * stage 12; everything else is the league's page.
- *
- * @param {string} [tab]
+ * `#/season/<tab>`: the league's page, whatever the tab — the router hands the tab over, and it is not read (stage 12:
+ * the 2.x screen's `registration` and `administration` are gone; their old addresses are led on before the route is
+ * drawn, `resolveRedirect`).
  */
-export function renderSeasonRoute(tab = "") {
-  const user = state.auth.currentUser;
-  if ((tab === "registration" && user) || (tab === "administration" && user?.isAdmin)) return renderSeason(true, tab);
+export function renderSeasonRoute() {
   return renderLeague();
 }

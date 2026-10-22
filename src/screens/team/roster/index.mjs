@@ -19,7 +19,9 @@
  * ends while the screen is open, as the games say it, reads the roster and the records again.
  *
  * On a desk stage 08's treasury strip stands over the table (strip.mjs). Its writes land in the coach's list, and the
- * roster reads the team again when the list moves past the revision its queue saves on (`followList`).
+ * roster reads the team again when the list moves past the revision its queue saves on (`followList`). An admin's visit
+ * (stage 12) has the admin's block in its place (admin-block.mjs): its fix of the treasury is no step of the queue
+ * either — it goes only when none waits, every step waits while it is on its way, and its answer is the queue's.
  *
  * The team's fallen are read with it, every time (stage 07b, `readSnapshot`): they are drawn under the roster, and a
  * read of one without the other would draw a player twice or not at all. A missed match and back on the roster are
@@ -32,7 +34,6 @@
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
-import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
@@ -56,6 +57,9 @@ import { careerLineOf, rosterMarkup } from "./view.mjs";
 import { askCareer } from "./career.mjs";
 import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
+import { adminOf, openRosterAs } from "./source.mjs";
+import { wireIdentity } from "./admin-identity.mjs";
+import { adminHandlers } from "./admin-block.mjs";
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
@@ -112,6 +116,7 @@ function listen(target, type, listener) {
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d; a read on its way keeps the list before it)
  * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player the visit read it for, by his stored id (career.mjs)
  * @property {boolean} careerOpen its list is open, on his profile and in a desk's panel alike (one state of the visit's)
+ * @property {import("./data.mjs").AdminPart|null} admin what the admin's read says besides the team (stage 12): null on a coach's visit
  */
 
 /**
@@ -128,9 +133,9 @@ const busy = (status) => status === SAVE_STATUS.SAVING || status === SAVE_STATUS
  * away, and one made after has it once. A read of the records ends what `EVENT_SIDE_LOCKED` said. The fallen are the
  * read's, or the visit's own where the team comes without them.
  */
-function holdTeam(saving, { team, events, fallen }, draft, since) {
+function holdTeam(saving, { team, events, fallen, admin }, draft, since) {
   const { visit } = saving;
-  Object.assign(visit, { team, events: withHeard(visit, events, since), fallen: fallen ?? visit.fallen, draft, sideLocked: "", stale: false, unsure: false });
+  Object.assign(visit, { team, events: withHeard(visit, events, since), fallen: fallen ?? visit.fallen, admin: admin ?? visit.admin, draft, sideLocked: "", stale: false, unsure: false });
   visit.saveOff?.();
   visit.saveOff = onSaveState(team.id, (now) => heardSave(saving, now));
 }
@@ -396,7 +401,8 @@ function heardSave(saving, now) {
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
- * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d).
+ * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d);
+ * the admin's block admin-block.mjs's (stage 12).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
@@ -405,7 +411,7 @@ function pressHandlers({ read, ...saving }) {
     const mode = modeOf(teamId);
     const save = saveState(teamId);
     const { race, draft, lines, fallen } = linesOf(visit, mode);
-    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit), race, draft };
+    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit), race, draft, admin: adminOf(teamId) };
   };
   const marks = {
     now, refused: () => retakeRefused(saving), hold: (answer) => holdAnswer(saving, answer),
@@ -417,6 +423,7 @@ function pressHandlers({ read, ...saving }) {
     ...marketHandlers(saving, marks),
     ...playerHandlers(saving, marks),
     ...searchHandlers(saving),
+    ...adminHandlers(saving, marks),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();
@@ -495,18 +502,22 @@ function drawVisit(teamId, visit, memory) {
  * once with the wait, the title taking the focus; again when the roster comes, when the games change (a match begun or
  * ended changes what a line counts), when the width crosses 900px, when the save queue moves, and on every press. The
  * later draws patch the page, so the focus stays where the coach has put it (or goes to the nearest place left), and a
- * sheet that is open stays open.
+ * sheet that is open stays open. The administration draws it too, for any team (stage 12, decision 23): with `admin` the
+ * visit is the admin's (source.mjs) — read and saved on the admin's routes, its links in the administration.
  * @param {string} teamId
- * @param {{playerId?: string}} [options] `playerId` is his stored id, as the address carries it
+ * @param {{playerId?: string, admin?: {ownerId: string}|null}} [options] `playerId` is his stored id, as the address
+ *   carries it; `admin` names the team's coach for an admin's visit, null for the coach's own
  */
-export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
+export async function renderTeamRoster(teamId, { playerId = "", admin = null } = {}) {
+  // Every visit says whose it is: the coach's next visit after an admin's is the coach's again.
+  openRosterAs(teamId, { admin });
   const memory = rosterMemory(teamId);
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], fallen: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, inMatch: "", saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
     match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null, player: playerId, chosen: false, titled: false, rolls: null,
-    careers: new Map(), careerOpen: false,
+    careers: new Map(), careerOpen: false, admin: null,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   // The team and its fallen, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.
@@ -543,6 +554,8 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
     fitter.release,
     () => visit.saveOff?.(),
     wireRoster(view, pressHandlers({ ...saving, read })),
+    // The admin's card of the team's name and logo (stage 12): on a coach's visit there is none to hear.
+    wireIdentity(view, saving),
     onGamesChange(() => {
       followMatch(saving);
       saving.draw();

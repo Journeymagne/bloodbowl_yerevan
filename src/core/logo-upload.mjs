@@ -1,10 +1,11 @@
 /**
  * Turning a picked logo file into a small data URL.
  *
- * Mechanically moved out of src/app.js. Used by both the new-team builder and
- * the saved-roster editor's logo picker, so — same reasoning as core/state.mjs —
- * it has to live somewhere both screens/teams/new.mjs and screens/saved-roster.mjs
- * can import it from.
+ * Mechanically moved out of src/app.js. Used by the new-team builder, the team's
+ * settings and the administration's card of a team's name and logo, so — same
+ * reasoning as core/state.mjs — it has to live somewhere screens/teams/new.mjs,
+ * screens/team/manage/settings.mjs and screens/team/roster/admin-identity.mjs can
+ * all import it from.
  */
 
 export const logoUploadMaxBytes = 2 * 1024 * 1024;
@@ -39,7 +40,7 @@ function canvasToDataUrl(canvas, mimeType, quality) {
   }
 }
 
-export async function optimizeLogoDataUrl(dataUrl) {
+async function optimizeLogoDataUrl(dataUrl) {
   const source = String(dataUrl || "");
   if (!source.startsWith("data:image/")) return source;
   if (source.startsWith("data:image/webp") && source.length <= logoOptimizeSkipLength) return source;

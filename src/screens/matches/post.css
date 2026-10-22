@@ -175,6 +175,41 @@
 .g-after__mode[aria-checked="true"] { background: var(--accent-tint-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 700; }
 .g-after__mode[aria-disabled="true"] { cursor: default; }
 
+/* «Why technical» (stage 12; the prototypes have no place for it — it stands under the winner): the modes' radios, as
+   PostResult.html's kit draws a radio with a quiet line under its word — «+2 to the winner's points» —, the chosen one
+   in the soft tint inside the accent's ring. One under another: in a half of the card «The opponent could not field a
+   team» took three lines at 375 and two on a desk; a whole row holds it in one, 44px on a phone, a desk's 40px. */
+.g-after__reasons { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+
+.g-after__reason {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-after__reason[aria-checked="true"] { background: var(--accent-tint-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 700; }
+.g-after__reason[aria-disabled="true"] { cursor: default; }
+
+.g-after__reasonl { max-width: 100%; }
+
+.g-after__reasonsub { color: var(--muted); font: 500 11px/1.3 var(--font-body); }
+
 /* Under 370px the two steppers and their word do not fit in a row (2 × 128 + «CAS» + gaps): the word goes over them, the
    figure narrower; the buttons keep 44px. A half of the modes' row is 109px inside at 320, short of «Safe concession»
    (111) and «Сдача без штрафа» (128; 118 at 13px): the modes go one under another, each on a line of its own at 14px. */
@@ -194,7 +229,10 @@
 .g-after__card--switches .g-toggle__label { font: 600 15px/1.3 var(--font-body); }
 .g-after__card--switches .g-toggle__caption { font: 400 12px/1.35 var(--font-body); }
 
-/* From 901px the controls are the prototype's (D2: never under 24px): the score's steppers 40px. */
+/*
+ * From 901px the controls are the prototype's (D2: never under 24px): the score's steppers 40px. A reason stays 44px on
+ * every width, as the modes beside it and DeskPostResult's radios are.
+ */
 @media (min-width: 901px) {
   .g-after__step { width: 40px; height: 40px; }
 }

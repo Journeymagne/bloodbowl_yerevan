@@ -50,6 +50,7 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../../../domain/roster/transfers.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
+import { teamSavePath } from "./source.mjs";
 
 /** The steps taken and not yet confirmed by an answer, by team, in order, the first in the air: each its `space` (`refusalOf`). */
 const waiting = new Map();
@@ -152,12 +153,14 @@ function watchSession() {
 /**
  * What the store is told of a team: its draft, and `meta`, which the server's answers move (its revision)
  * and the next request is built from. The body is the blob as GET gave it and as the steps changed it — never the career.
+ * Where it goes is the visit's (source.mjs, stage 12): the admin's route on an admin's visit, the coach's on the coach's.
+ * The store takes it on each read the queue takes, so steps that wait keep the route they were taken on.
  */
 function tracking(meta, draft) {
   return {
     draft,
     meta,
-    endpoint: `/api/teams/${encodeURIComponent(meta.id)}`,
+    endpoint: teamSavePath(meta.id),
     buildRequest: (snapshot) => ({
       name: meta.name,
       baseTeamSlug: meta.baseTeamSlug,
@@ -222,6 +225,28 @@ function stepRoster(teamId, plan, { closed, space = "" } = {}) {
   waiting.set(teamId, [...(waiting.get(teamId) ?? []), space]);
   store.saveChange(teamId);
   return { ok: true, ...applied };
+}
+
+/**
+ * The team's name or logo, an admin's step (stage 12; owner: never the race): `meta`, which a request is built from as it
+ * leaves, takes it. Only with no step of the queue's waiting or in the air — the answer of one before would put the old
+ * one back in `meta` (`mergeServerTeam`) — else nothing is sent; the screen says why first (admin-identity.mjs).
+ * @param {string} teamId @param {{name?: string, logoData?: string}} identity @param {{closed?: () => string}} [options]
+ */
+export function stepIdentity(teamId, identity, { closed } = {}) {
+  const meta = waitingFor(teamId) === 0 ? tracked.get(teamId) : null;
+  return stepRoster(teamId, () => (meta ? { apply: () => { Object.assign(meta, identity); } } : null), { closed });
+}
+
+/** The name and logo the team's next save sends: as read, or as a step made them; null for a team the queue does not hold. */
+export const savedIdentity = (teamId) => (tracked.has(teamId) ? { name: tracked.get(teamId).name, logoData: tracked.get(teamId).logoData ?? "" } : null);
+
+/** An admin's staff step (stage 12, admin-block.mjs): the count ± 1 alone — no money, no purchase on record, so no ledger line (L18). */
+export function stepAdminStaff(teamId, key, delta, { closed, refusal }) {
+  return stepRoster(teamId, (draft) => {
+    const value = (Number(draft[key]) || 0) + delta, said = value < 0 ? null : refusal(draft, value);
+    return said === null ? null : said ? { refusal: said } : { apply: () => { draft[key] = value; } };
+  }, { closed });
 }
 
 /** The player of the draft the id names, by his id as text (`storedPlayerId`), or null. */

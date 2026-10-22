@@ -12,7 +12,7 @@ test("the lengths are the server's", () => {
 });
 
 test("the server reads its lengths from the same module, in every file that checks them", () => {
-  const files = ["server/routes/auth.mjs", "server/routes/account.mjs", "server/routes/admin.mjs", "server/season/coach-entry.mjs"];
+  const files = ["server/routes/auth.mjs", "server/routes/account.mjs", "server/routes/admin.mjs", "server/routes/admin-coaches.mjs"];
   for (const file of files) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     assert.match(source, /from "\.\.\/\.\.\/src\/domain\/account\.mjs"/, file);
