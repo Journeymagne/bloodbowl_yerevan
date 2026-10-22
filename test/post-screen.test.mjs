@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertCspSafe, document } from "./helpers/ui.mjs";
@@ -613,6 +614,16 @@ it("reopen and reset-side ask first", async () => {
   assert.deepEqual(asked.splice(0), [t("after.resetAsk")]);
   assert.deepEqual(writes().map((call) => call.body.action), [{ type: "reset-side" }]);
   api.assertAnswered();
+  // In the 3.0 window the two resets are the red action, named as their opener without its «…» (review of Task 9b);
+  // «Change the score…», which only opens the steppers, stays a plain confirmation.
+  const wire = readFileSync(new URL("../src/screens/matches/post-wire.mjs", import.meta.url), "utf8");
+  assert.match(wire, /const ask = \(message, reset = ""\) => confirmAction\(reset \? \{ message, confirmLabel: reset\.replace\(\/…\$\/, ""\), destructive: true \} : \{ message \}\);/);
+  assert.match(wire, /\["after\.reopenAsk", "after\.reopen"\] : \["after\.resetAsk", "after\.reset"\]/);
+  assert.match(wire, /await ask\(t\("after\.changeAsk"\)\)/);
+  for (const locale of ["en", "ru"]) {
+    const words = JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
+    for (const key of ["after.reopen", "after.reset"]) assert.ok(words[key].replace(/…$/, "").trim().length > 3, `${locale} ${key}`);
+  }
 });
 
 it("«Finish the match» pressed twice is one request; a finish answered completed draws the summary read only", async () => {

@@ -305,3 +305,45 @@ test("the question and patchWithModal live with the sheet, and a screen's patch 
   fireEvent(cancelOf(), "click");
   assert.equal(await answer, false);
 });
+
+test("a change of the route answers no and sends nothing: the screen that asked is gone (review of Task 9b)", () => withoutTimers(async () => {
+  // The page's window, where the router hears hashchange: an EventTarget of its own here.
+  const page = new EventTarget();
+  const [add, remove] = [globalThis.addEventListener, globalThis.removeEventListener];
+  globalThis.addEventListener = page.addEventListener.bind(page);
+  globalThis.removeEventListener = page.removeEventListener.bind(page);
+  try {
+    const screen = enterPage();
+    await ask(screen.button());
+    page.dispatchEvent(new Event("hashchange"));
+    await flush();
+    assert.equal(windowOf(), null, "the window is gone");
+    assert.deepEqual(posts(), [], "nothing is sent");
+    assert.equal(screen.visit.busy, false);
+    // Answered, the question hears no more routes: a later one changes nothing.
+    opener();
+    const answer = confirmAction({ message: "m" });
+    fireEvent(actionOf(), "click");
+    assert.equal(await answer, true);
+    page.dispatchEvent(new Event("hashchange"));
+    await flush();
+    assert.equal(windowOf(), null);
+  } finally {
+    globalThis.addEventListener = add;
+    globalThis.removeEventListener = remove;
+  }
+}));
+
+test("an Enter or a Space held down presses nothing in the window: the question stays until a fresh press (review of Task 9b)", async () => {
+  opener();
+  const answer = confirmAction({ message: "Delete the pair?", confirmLabel: "Delete", destructive: true });
+  for (const key of ["Enter", " "]) {
+    const held = fireEvent(cancelOf(), "keydown", { key, repeat: true });
+    assert.equal(held.defaultPrevented, true, `${JSON.stringify(key)} held: its repeat activates nothing`);
+    assert.ok(windowOf(), "still asking");
+  }
+  const fresh = fireEvent(cancelOf(), "keydown", { key: "Enter" });
+  assert.equal(fresh.defaultPrevented, false, "a fresh press is the button's");
+  fireEvent(cancelOf(), "click");
+  assert.equal(await answer, false);
+});

@@ -55,8 +55,12 @@ const within = (value, most) => Math.min(most, Math.max(0, value));
 /** The radio groups under the view: `group` a group's selector, `item` its items' attribute, `onChange(value, group)`. */
 const radios = (group, item, onChange) => wireRadioGroups(view, { group, item: `[${item}]`, attribute: item, onChange });
 
-/** Ask the coach first; the answer is a yes or a no. */
-const ask = (message) => confirmAction({ message });
+/**
+ * Ask the coach first; the answer is a yes or a no. A question before a reset (`reset`: «Change from Income», «Start over
+ * with the current roster») is the red action named as its opener is, without the opener's «…»; «Change the score…»
+ * only opens the steppers, a plain confirmation.
+ */
+const ask = (message, reset = "") => confirmAction(reset ? { message, confirmLabel: reset.replace(/…$/, ""), destructive: true } : { message });
 
 /** The write a frame's button makes: the step's own, from its draft where it keeps one. */
 function actionOf(screen, model, type) {
@@ -86,7 +90,8 @@ async function act(visit, screen, action) {
     return;
   }
   if (action === "reopen" || action === "reset-side") {
-    if (await ask(t(action === "reopen" ? "after.reopenAsk" : "after.resetAsk"))) await screen.send({ type: action });
+    const [message, label] = action === "reopen" ? ["after.reopenAsk", "after.reopen"] : ["after.resetAsk", "after.reset"];
+    if (await ask(t(message), t(label))) await screen.send({ type: action });
     return;
   }
   if (action === "finish") {

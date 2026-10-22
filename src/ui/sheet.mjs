@@ -183,8 +183,9 @@ let asked = 0;
  * caller's message, and ends in «Cancel», in its ring and in the focus, beside the action: the primary, or the red
  * button when `destructive`. The window stands in a host of its own at the end of <body>, so no screen's redraw takes
  * it away and no screen's sheets hear it. The answer is no for «Cancel», the cross, the backdrop, Escape, the Android
- * back gesture, or a close of any other kind (wireSheets' one path); yes only for the action. Either way the window
- * goes, and the focus goes back to what had it when the question was asked.
+ * back gesture, a change of the route (the screen that asked is gone), or a close of any other kind (wireSheets' one
+ * path); yes only for the action. Either way the window goes, and the focus goes back to what had it when the question
+ * was asked. A key held down (its auto-repeat) presses nothing in the window: the question stays until a fresh press.
  *
  * @param {object} options
  * @param {string} options.message         already translated
@@ -236,9 +237,20 @@ export function confirmAction({
       if (!focusLost(opener)) opener.focus();
       resolve(confirmed);
     };
+    // Enter or Space held on the opener repeats into the window: its auto-repeat activates nothing there (as the
+    // post-match's frame does), or the question would answer itself and open again while the key is down.
+    const onKey = (event) => {
+      if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+    };
+    // The screen that asked is gone once the route changes: the question is answered no and nothing is sent.
+    const onRoute = () => settle(false);
+    host.addEventListener("keydown", onKey);
+    globalThis.addEventListener?.("hashchange", onRoute);
     offs.push(
       wireSheets(host, { onClose: () => settle(false) }),
       delegate(host, "click", "[data-confirm]", (event, button) => settle(button.getAttribute("data-confirm") === "yes")),
+      () => host.removeEventListener("keydown", onKey),
+      () => globalThis.removeEventListener?.("hashchange", onRoute),
     );
     // A close no button, key or backdrop made (another script's) is a no as well.
     dialog.addEventListener("close", () => settle(false));
