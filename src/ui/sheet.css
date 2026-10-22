@@ -120,12 +120,29 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
   dialog.g-sheet {
     width: min(480px, calc(100% - 32px));
     max-width: none;
-    /* The top margin is 112px; leave the bottom its 32px as well on a short window. */
-    max-height: min(86dvh, calc(100dvh - 144px));
-    margin: 112px auto auto;
+    /* 110px from the top, as most prototypes' windows stand (DeskOverview, DeskSeason, DeskOppTeam, DeskAdminReset); the bottom keeps 32px on a short window. */
+    max-height: min(86dvh, calc(100dvh - 142px));
+    margin: 110px auto auto;
     border-radius: var(--radius-2xl);
   }
   dialog.g-sheet.g-sheet--wide { width: min(640px, calc(100% - 32px)); }
+  /*
+   * A window its prototype stands higher or lower (renderSheet's `at`): the advancement and a new team 64 (DeskRosterAdv,
+   * DeskTeamNew), the hiring 80 (DeskRosterHire), the sale, a player's edit and the password 120 (DeskRosterSell,
+   * DeskRosterEdit, DeskCoachPassword); each keeps 32px under it on a short window.
+   */
+  dialog.g-sheet.g-sheet--at-64 {
+    max-height: min(86dvh, calc(100dvh - 96px));
+    margin: 64px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-80 {
+    max-height: min(86dvh, calc(100dvh - 112px));
+    margin: 80px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-120 {
+    max-height: min(86dvh, calc(100dvh - 152px));
+    margin: 120px auto auto;
+  }
   /* The team switcher: a panel at the left, by the SideNav's team block, not a modal in the middle; its bottom keeps 24px from the window's edge. */
   dialog.g-sheet.g-sheet--anchored {
     width: 300px;

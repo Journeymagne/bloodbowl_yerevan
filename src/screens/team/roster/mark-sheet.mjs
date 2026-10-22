@@ -134,6 +134,7 @@ export function markSheetMarkup({ line, choice, busy = false, refusal = "", reas
   const send = footButton({ label, kind: "primary", data: { markSend: true }, busy, disabled: !reason && Boolean(waits), reason });
   return renderSheet({
     id: MARK_SHEET,
+    at: 120,
     title: t("teamRoster.mark.title"),
     sub: t("teamRoster.injury.who", { number: line.number, name: line.name, position: line.position }),
     bodyHtml: `${list}${detailMarkup(choice, busy)}${refused}`,

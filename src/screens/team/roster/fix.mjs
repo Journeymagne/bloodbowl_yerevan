@@ -242,6 +242,7 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   return renderSheet({
     id: FIX_SHEET,
     className: PLAYER_FRAME,
+    at: 120,
     title: t("teamPlayer.fix.title"),
     sub: t("teamPlayer.fix.sub"),
     bodyHtml: `${blocks.join("")}${valueMarkup(line.value, playerCurrentCost(fix.row, fix.after))}${prep}${alert}`,

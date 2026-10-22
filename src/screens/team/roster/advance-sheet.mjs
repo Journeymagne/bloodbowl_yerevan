@@ -313,6 +313,7 @@ function phoneMarkup(line, screen, sheet, choices) {
   return renderSheet({
     id: ADVANCE_SHEET,
     className: PLAYER_FRAME,
+    at: 64,
     title,
     sub,
     step: { current: PLACES[sheet.step] ?? total, total },
@@ -375,6 +376,7 @@ function deskMarkup(line, screen, sheet, choices) {
   return renderSheet({
     id: ADVANCE_SHEET,
     className: PLAYER_FRAME,
+    at: 64,
     title: t("teamAdvance.titleDesk", { name: line.name }),
     sub: t("teamAdvance.subDesk", { spp: spendable(line, screen.race), next: line.level + (done ? 0 : 1), position: line.position }),
     leadHtml: renderPlayerBadge({ number: line.number, kind: line.kind }),

@@ -131,6 +131,7 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
   return renderSheet({
     id: EDIT_SHEET,
     className: PLAYER_FRAME,
+    at: 120,
     title: t("teamPlayer.edit.title"),
     sub: t("teamPlayer.edit.sub", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) }),
     bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}${fix}`,
@@ -203,6 +204,7 @@ export function unadvanceSheetMarkup({ line, screen, sheet }) {
   return renderSheet({
     id: UNADVANCE_SHEET,
     className: PLAYER_FRAME,
+    at: 120,
     title: t("teamPlayer.undo.title"),
     sub: t("teamPlayer.undo.sub", { name: line.name, level: index + 1 }),
     bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${stay}${prep}${alert}`,

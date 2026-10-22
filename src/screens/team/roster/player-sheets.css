@@ -265,11 +265,8 @@
  * name, 12 apart; its «C» 26px.
  */
 @media (min-width: 901px) {
-  dialog.g-sheet.g-player-sheet {
-    max-height: min(86dvh, calc(100dvh - 152px));
-    margin: 120px auto auto;
-    border-radius: 20px;
-  }
+  /* 120px from the top is sheet.css's (`at: 120`; the advancement's 64). */
+  dialog.g-sheet.g-player-sheet { border-radius: 20px; }
   .g-player-sheet .g-sheet__head {
     gap: var(--space-16);
     padding: 18px var(--space-20) 18px var(--space-24);

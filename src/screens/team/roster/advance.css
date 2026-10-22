@@ -370,10 +370,10 @@
  * rule, 16 24, the summary 15px, «Cancel» and «Take» 48px, 12px round, the button from 220px.
  */
 @media (min-width: 901px) {
+  /* 64px from the top is sheet.css's (`at: 64`); the window may be as tall as that leaves, over the 86dvh of the others. */
   dialog#player-advance {
     width: min(1080px, calc(100% - 32px));
     max-height: calc(100dvh - 96px);
-    margin: 64px auto auto;
   }
   #player-advance .g-sheet__head {
     gap: var(--space-14);

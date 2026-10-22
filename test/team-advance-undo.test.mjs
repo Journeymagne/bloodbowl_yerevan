@@ -182,7 +182,7 @@ test("the fix by hand ends with «Advancements»: «Undo the last: Frenzy», whi
         assert.ok(!fixSheet(), "the question takes the fix's place");
         assert.ok(sheet()?.isModal, "dialog#player-unadvance, open");
         assert.equal(view.querySelectorAll("dialog").filter((dialog) => dialog.isModal).length, 1, "one sheet at a time");
-        assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet().querySelector("h2").textContent, "Undo the advancement?");
         assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 1 of 6");
         assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
