@@ -5,11 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describeCase, stableJson } from "./helpers/roster-cases.mjs";
-import { calculateRosterCosts, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
+import { calculateRosterCosts, favouredSkillCost, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, positionKind, selectedRosterPlayers, skillNamesForPlayer, skillsForPlayer } from "../src/domain/roster/players.mjs";
 import { playerAvailableSpp, playerSppTotal, playerLevelRank } from "../src/domain/roster/progression.mjs";
-import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
-import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
+import { teamFavouredOptions, teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
+import { costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam } from "../src/domain/roster/values.mjs";
 import { advancementStatCosts, builderStaffCosts } from "../src/domain/league-rules.mjs";
 import { validateRoster as validateRosterSync } from "../src/domain/roster/validate.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
@@ -173,7 +173,6 @@ test("a player who skips the next game is left out of cost and count", () => {
 test("skill and stat surcharges follow the league rules table", () => {
   assert.equal(skillModCost({ name: "Block", access: "primary" }), 20);
   assert.equal(skillModCost({ name: "Block", access: "secondary" }), 40);
-  assert.equal(skillModCost({ name: "Block", access: "favoured" }), 0);
   for (const [stat, cost] of Object.entries(advancementStatCosts)) {
     assert.equal(statModCost(stat, 1), cost);
     assert.equal(statModCost(stat, 2), cost * 2);
@@ -508,4 +507,41 @@ test("one sitsOut: the roster's players read the schema's, and the absence modul
   const viewed = players.rosterPlayerView(team, { id: "p3", rowIndex: 0, temporarilyRetired: true, absence: marked });
   assert.deepEqual([viewed.skipNextGame, viewed.absence], [true, marked]);
   assert.equal(players.rosterPlayerView(team, { id: "p4", rowIndex: 0, skipNextGame: 0 }).skipNextGame, false);
+});
+
+// The owner's answer of 2026-10-22 («по обычной для навыка цене»; content «Team Management»: a god's skill «increases
+// the player's value», the price list knows primary +20k and secondary +40k): a god's skill costs what a skill of its
+// category, Mutation, costs for that player — +20k with Mutation among his position's primary categories, +40k with it
+// among the secondary ones or with no Mutation access at all. It does not raise his rank.
+test("a god's skill («Favoured of…») costs a skill's price for that player, by his position's Mutation access", () => {
+  const rowOf = (slug, position) => {
+    const row = rowsForTeam(teamBySlug.get(slug)).find((candidate) => candidate.position === position);
+    assert.ok(row, `${slug}: ${position}`);
+    return row;
+  };
+  const cases = [
+    [rowOf("teams/chaos-chosen", "Chosen Blocker"), 20, "Mutation primary"],
+    [rowOf("teams/chaos-dwarfs", "Chaos Dwarf Blocker"), 40, "Mutation secondary"],
+    [rowOf("teams/chaos-dwarfs", "Hobgoblin Lineman"), 40, "no Mutation access"],
+  ];
+  for (const [row, cost, what] of cases) {
+    assert.ok(teamFavouredOptions(teamBySlug.get(row === cases[0][0] ? "teams/chaos-chosen" : "teams/chaos-dwarfs")).length, `${what}: a race with a god`);
+    assert.equal(favouredSkillCost(row), cost, what);
+    assert.equal(skillModCost({ name: "Horns", access: "favoured" }, row), cost, what);
+    const plain = { id: "p", rowIndex: 0, extraSkills: [], favouredSkills: [] };
+    const blessed = { ...plain, favouredSkills: [{ name: "Horns", access: "favoured" }] };
+    assert.equal(playerCurrentCost(row, blessed) - playerCurrentCost(row, plain), cost, `${what}: the player's value`);
+    assert.equal(playerLevelRank(blessed), playerLevelRank(plain), `${what}: no rank of it`);
+  }
+  // The team's value follows: a Chosen Blocker with Horns from the god is 20k more in the roster's sum.
+  const chosen = teamBySlug.get("teams/chaos-chosen");
+  const index = rowsForTeam(chosen).findIndex((row) => row.position === "Chosen Blocker");
+  const draft = (favouredSkills) => {
+    const made = { teamSlug: chosen.slug, favouredChoice: "Khorne", players: [{ id: "c1", rowIndex: index, name: "Chosen", number: "1", extraSkills: [], favouredSkills }] };
+    ensureDraftPlayers(chosen, made);
+    return made;
+  };
+  const before = calculateRosterCosts(chosen, draft([])).playersCost;
+  const after = calculateRosterCosts(chosen, draft([{ name: "Horns", access: "favoured" }])).playersCost;
+  assert.equal(after - before, 20);
 });

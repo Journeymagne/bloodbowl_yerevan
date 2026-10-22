@@ -698,7 +698,8 @@ const godLines = () => favoured().querySelectorAll(".g-favoured__line").map((lin
 const godFace = (face) => favoured().querySelectorAll("[data-favoured-d8]").find((each) => each.getAttribute("data-favoured-d8") === String(face));
 const godItem = (name) => favoured().querySelectorAll("[data-favoured-skill]").find((each) => each.getAttribute("data-favoured-skill") === name);
 const godTake = () => godSheet().querySelector("[data-advance-take]");
-const NURGLE_SUB = "Roll a D8 at the table with every advancement: on a 7 the player gains one of the god's skills, at no cost to the value.";
+// A Rotter Lineman has Mutation among his primary categories: the god's skill is priced as a primary one, +20k (the owner, 2026-10-22).
+const NURGLE_SUB = "Roll a D8 at the table with every advancement: on a 7 the player gains one of the god's skills, +20k to the value.";
 /** A chosen primary skill on a phone: the type, «Next», the category, «Next», the skill. */
 function choosePrimary(category, skill) {
   fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
@@ -768,7 +769,7 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       api.reply(PATCH, 200, { team: nurgle([added], { revision: 5 }) });
       fireEvent(godTake(), "click");
       assert.ok(view.querySelector(".g-advance__done"));
-      assert.deepEqual(godLines(), ["D8 7: Tentacles, at no cost to the value"]);
+      assert.deepEqual(godLines(), ["D8 7: Tentacles, +20k to the value"]);
       assert.ok(!favoured().querySelector("button"), "nothing to press under done");
       assert.ok(document.activeElement === view.querySelector("[data-advance-done]"));
       await settle();
@@ -783,7 +784,8 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       await openPlayer(true, { id: "n2", teamAnswer: nurgle([SPAWN]) });
       fireEvent(advance(), "click");
       choosePrimary("Strength", "Guard");
-      assert.deepEqual(godLines(), [NURGLE_SUB, "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too."]);
+      // A Rotspawn has Mutation among his secondary categories: the god's skill is priced as a secondary one, +40k.
+      assert.deepEqual(godLines(), [NURGLE_SUB.replace("+20k", "+40k"), "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too."]);
       fireEvent(godFace(7), "click");
       assert.ok(closed(godItem("Tentacles")));
       assert.equal(godItem("Tentacles").getAttribute("title"), "The player has this skill already.");
@@ -889,7 +891,7 @@ test("Favoured of Nurgle: undoing an advancement takes back the god's skill its 
       reopenFix();
       assert.equal(undo().textContent, "Undo the last: Block");
       fireEvent(undo(), "click");
-      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−40k"]], "Block's 20k and the god's Tentacles' 20k");
       assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE], "nothing loose to point at");
       api.reply(PATCH, 200, { team: nurgle([ROT], { revision: 6 }) });
       fireEvent(send(), "click");

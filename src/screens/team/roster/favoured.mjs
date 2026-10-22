@@ -2,8 +2,8 @@
  * The god's D8 with an advancement (the owner, 2026-10-21; content «Team Management», «Favoured of…»: «Every time a
  * player receives an advancement, roll a d8»), asked by the advancement's sheet before «Take» — on the roster and in the
  * post-match alike (stage 09b, Task 10; it reverses 07d decision 17, the bonus after done if wanted). A roster «Favoured
- * of…» rolls it at the table with every advancement: on the god's face the player may gain one of the god's skills at no
- * cost to the value — or none —, on any other nothing. «Take» waits for the face, and on the god's face for the choice.
+ * of…» rolls it at the table with every advancement: on the god's face the player may gain one of the god's skills — at a
+ * skill's price to his value, +20k or +40k by his position's Mutation access (`bonus.cost`) — or none, on any other nothing. «Take» waits for the face, and on the god's face for the choice.
  * Not asked — and said so — when the player holds every skill the god offers once this advancement is his
  * (`favouredRollAsked`, the post-match's domain asks it the same).
  *
@@ -26,7 +26,7 @@ export const NO_BONUS = "none";
  * with no favour (`bonus`, advance.mjs's `bonusOf`); else the bonus with its skills — his own held, and the one this
  * advancement gives him (`given`) —, whether the D8 is asked, the face marked, whether it is the god's, the choice on it
  * (a skill he lacks, or `NO_BONUS`; "" for none yet), the skill it gives ("" for none), and whether «Take» waits for it.
- * @param {null | {alignment: string, trigger: number, random: boolean, skills: {name: string, held: boolean}[]}} bonus
+ * @param {null | {alignment: string, trigger: number, random: boolean, cost: number, skills: {name: string, held: boolean}[]}} bonus
  * @param {{favouredRoll?: number|null, bonus?: string|null}} sheet @param {{grant: {skill?: string}}|null} chosen
  */
 export function favouredOf(bonus, sheet, chosen) {
@@ -48,8 +48,8 @@ export function favouredOf(bonus, sheet, chosen) {
 /** What the post-match's `advance` carries of it: the D8 and the skill on the god's face ("" for none); nothing when it is not asked. */
 export const favouredFields = (god) => (god?.asked ? { favouredRoll: god.face, favouredSkill: god.skill } : {});
 
-/** What the done step says of it (`taken.favoured`): the god, whether the D8 was asked, its face and the skill it gave; null for no favour. */
-export const favouredTaken = (god) => (god ? { alignment: god.alignment, asked: god.asked, face: god.face, hit: god.hit, skill: god.skill } : null);
+/** What the done step says of it (`taken.favoured`): the god, whether the D8 was asked, its face, the skill it gave and its price; null for no favour. */
+export const favouredTaken = (god) => (god ? { alignment: god.alignment, asked: god.asked, face: god.face, hit: god.hit, skill: god.skill, cost: god.cost } : null);
 
 /**
  * The presses of the god's D8 (wire.mjs), on the advancement open and not yet taken (`pressed`, advance.mjs's): a face —

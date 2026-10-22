@@ -165,7 +165,7 @@ export const sppCounterDefinitions = [
  */
 export const startingBudget = 600;
 export const rosterSizeLimits = { min: 7, max: 14 };
-export const skillCosts = { primary: 20, secondary: 40, favoured: 0 };
+export const skillCosts = { primary: 20, secondary: 40 };
 export const extendedContractCost = 20;
 export const eliteComboCost = 15;
 /** Fallback used when a position's quantity is not written as a range. */

@@ -23,17 +23,30 @@ import {
   skillCosts,
   startingBudget,
 } from "../league-rules.mjs";
-import { clamp, costToNumber, countToNumber, rowCost } from "./values.mjs";
+import { categoriesForAccess, clamp, costToNumber, countToNumber, rowCost } from "./values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "./team-rules.mjs";
-import { canonicalSkillName, normalizePlayerExtraSkills, selectedRosterPlayers } from "./players.mjs";
+import { canonicalSkillName, normalizePlayerExtraSkills, normalizePlayerFavouredSkills, selectedRosterPlayers } from "./players.mjs";
 import { sumMoney } from "../money.mjs";
 
 export function statModCost(stat, mod = 0) {
   return (advancementStatCosts[stat] ?? 0) * Math.max(0, mod);
 }
 
-export function skillModCost(skill) {
-  if (skill?.access === "favoured") return skillCosts.favoured;
+/**
+ * What a god's skill («Favoured of…») adds to a player's value. The content says only that it «increases the player's
+ * value» (Team Management, «Favoured of…»); the owner (2026-10-22): «по обычной для навыка цене» — what a skill of its
+ * category, Mutation, costs for that player: +20k when his position has Mutation among its primary categories, +40k
+ * otherwise — Mutation among the secondary ones, or none at all (the content then makes the choice random, and a skill
+ * outside the primary list is priced as a secondary one). It does not raise his rank.
+ * @param {{primary?: string[]}} row the player's position
+ */
+export function favouredSkillCost(row) {
+  return categoriesForAccess(row?.primary ?? []).includes("Mutation") ? skillCosts.primary : skillCosts.secondary;
+}
+
+/** What a skill adds to a player's value (Team Management: primary +20k, secondary +40k; a god's, `favouredSkillCost`). */
+export function skillModCost(skill, row) {
+  if (skill?.access === "favoured") return favouredSkillCost(row);
   return skill?.access === "secondary" ? skillCosts.secondary : skillCosts.primary;
 }
 
@@ -69,7 +82,8 @@ export function eliteComboCost(row, player) {
 
 /**
  * What a player is worth above their position's list price: bought skills,
- * raised characteristics, extended contracts and any elite combination.
+ * a god's skills (`favouredSkillCost`), raised characteristics, extended
+ * contracts and any elite combination.
  *
  * `row` is a parameter rather than `player.row` so this works on a raw draft
  * player, which only carries `rowIndex`. It used to read `player.row` while
@@ -77,7 +91,8 @@ export function eliteComboCost(row, player) {
  * worked on the copy `rosterPlayerView` hands out and threw on anything else.
  */
 export function playerAdjustmentCost(row, player) {
-  const skillCost = normalizePlayerExtraSkills(row, player.extraSkills ?? []).reduce((sum, skill) => sum + skillModCost(skill), 0);
+  const skills = [...normalizePlayerExtraSkills(row, player.extraSkills ?? []), ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? [])];
+  const skillCost = skills.reduce((sum, skill) => sum + skillModCost(skill, row), 0);
   const statCost = Object.entries(player.statMods ?? {}).reduce((sum, [stat, mod]) => sum + statModCost(stat,
     (Number(mod) || 0) - (Number(player.injuryStatMods?.[stat]) || 0)), 0);
   const contractCost = countToNumber(player.extendedContracts) * extendedContractCost;

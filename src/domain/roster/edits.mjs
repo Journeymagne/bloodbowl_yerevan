@@ -12,6 +12,7 @@
 import { FAVOURED_ROLLS } from "../post-match/rules.mjs";
 import { absenceOf, applyInjuryEffects, markChanged } from "./absence.mjs";
 import { LAST_SHIRT_NUMBER } from "./build.mjs";
+import { favouredSkillCost } from "./costs.mjs";
 import {
   canonicalSkillName, favouredSkillNames, heldSkillKeys, normalizePlayerAdvancements, normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills, setRosterCaptain, storedPlayerId,
@@ -319,17 +320,18 @@ export function playerEdits(before, after) {
 /**
  * The bonus skill the roster's favour may bring a player with an advancement: the alignment the roster chose when
  * its race knows it (none otherwise), the D8 result that brings it, whether it is rolled for — a position without
- * Mutation among its primary categories gets one at random, the others choose — and the alignment's skills, each
- * marked when the player holds it already (`heldSkillKeys`).
+ * Mutation among its primary categories gets one at random, the others choose —, what the skill adds to his value
+ * (`cost`, thousands: `favouredSkillCost`) and the alignment's skills, each marked when the player holds it already
+ * (`heldSkillKeys`).
  *
- * @returns {null | {alignment: string, trigger: number, random: boolean, skills: {name: string, held: boolean}[]}}
+ * @returns {null | {alignment: string, trigger: number, random: boolean, cost: number, skills: {name: string, held: boolean}[]}}
  */
 export function favouredBonus(team, draft, row, player) {
   const alignment = favouredAlignment(team, draft);
   if (!alignment) return null;
   const held = heldSkillKeys(row, player);
   return {
-    alignment, trigger: FAVOURED_ROLLS[alignment], random: !categoriesForAccess(row.primary ?? []).includes("Mutation"),
+    alignment, trigger: FAVOURED_ROLLS[alignment], random: !categoriesForAccess(row.primary ?? []).includes("Mutation"), cost: favouredSkillCost(row),
     skills: favouredSkillsForChoice(alignment).map((name) => ({ name, held: held.has(canonicalSkillName(name)) })),
   };
 }

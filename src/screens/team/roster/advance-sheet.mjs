@@ -177,7 +177,7 @@ function favouredSkillsMarkup(god) {
 /**
  * The god's D8 before «Take» (the owner, 2026-10-21; content «Team Management», «Favoured of…»; no prototype —
  * Adv3StatTable's faces, Adv3Skill's list): a roster «Favoured of…» rolls a D8 at the table with every advancement, and on
- * the god's face the player may gain one of the god's skills at no cost to the value — chosen, or without Mutation in the
+ * the god's face the player may gain one of the god's skills at a skill's price to his value — chosen, or without Mutation in the
  * primary access rolled for at the table too — or none. Shown once the advancement is chosen whole; the faces a radio
  * group, the skills on the god's face another; skipped, and said so, when the player holds every skill the god offers.
  * None for a roster with no favour.
@@ -189,7 +189,7 @@ function favouredMarkup(god) {
   const title = `<h3 class="g-favoured__title">${escapeHtml(t("teamPlayer.favoured.title", { alignment: god.alignment }))}</h3>`;
   if (!god.asked) return `<section class="g-favoured">${title}${line(t("teamPlayer.favoured.skipped"))}</section>`;
   const came = god.face ? line(t(god.hit ? "teamPlayer.favoured.hit" : "teamPlayer.favoured.miss", { face: god.face })) : "";
-  return `<section class="g-favoured">${title}${line(t("teamPlayer.favoured.sub", { trigger: god.trigger }))}${god.random ? line(t("teamPlayer.favoured.random")) : ""}`
+  return `<section class="g-favoured">${title}${line(t("teamPlayer.favoured.sub", { trigger: god.trigger, cost: god.cost }))}${god.random ? line(t("teamPlayer.favoured.random")) : ""}`
     + `${favouredFacesMarkup(god)}${came}${god.hit ? favouredSkillsMarkup(god) : ""}</section>`;
 }
 
@@ -197,7 +197,7 @@ function favouredMarkup(god) {
 function favouredDoneMarkup(favoured) {
   if (!favoured) return "";
   const words = !favoured.asked ? t("teamPlayer.favoured.skipped") : !favoured.hit ? t("teamPlayer.favoured.miss", { face: favoured.face })
-    : favoured.skill ? t("teamPlayer.favoured.gained", { face: favoured.face, skill: favoured.skill }) : t("teamPlayer.favoured.declined", { face: favoured.face });
+    : favoured.skill ? t("teamPlayer.favoured.gained", { face: favoured.face, skill: favoured.skill, cost: favoured.cost }) : t("teamPlayer.favoured.declined", { face: favoured.face });
   return `<section class="g-favoured"><h3 class="g-favoured__title">${escapeHtml(t("teamPlayer.favoured.title", { alignment: favoured.alignment }))}</h3>`
     + `<p class="g-favoured__line">${escapeHtml(words)}</p></section>`;
 }
