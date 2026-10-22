@@ -151,7 +151,7 @@ function historyMarkup(model, options) {
   if (!model.history.length) return "";
   const open = options.historyOpen === true;
   const toggle = `<button type="button" class="g-friendly__fold" aria-expanded="${open ? "true" : "false"}" aria-controls="${HISTORY_ID}" data-friendly-history="">`
-    + `<span>${escapeHtml(t("friendly.history", { count: model.history.length }))}</span>${icon("chevron", 16)}</button>`;
+    + `<span>${escapeHtml(t("friendly.history", { count: model.history.length }))}</span>${icon("chevronShort", 16)}</button>`;
   const list = `<ul class="g-friendly__history${options.phone ? " g-friendly__card" : ""}" id="${HISTORY_ID}"${open ? "" : " hidden"}>${model.history.map(pastMarkup).join("")}</ul>`;
   return sectionMarkup("history", headingMarkup("history", toggle, options) + list, options);
 }
