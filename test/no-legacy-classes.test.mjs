@@ -15,15 +15,12 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const LEGACY = ["loading", "empty-state", "sr-only", "skip-link", "toast", "toast-region", "toast-info", "toast-error"];
 
 /**
- * The 2.x modules still in the tree that draw them (pre-flight L28): the 2.x pages of games, which go with the 3.0
- * match page (Task 5, `game.mjs`) and with 09c (`my-games.mjs`). The list narrows when the groups are merged.
+ * Every script under src, as a path from the root of the repository. No 2.x module is left out (pre-flight L28): the
+ * 2.x pages of games went with the 3.0 match page (Task 5, `game.mjs`) and with 09c (`my-games.mjs`).
  */
-const LEGACY_MODULES = ["src/screens/games/"];
-
-/** Every script under src, as a path from the root of the repository. */
 const scripts = () => readdirSync(new URL("../src/", import.meta.url), { recursive: true })
   .map((name) => `src/${name.split("\\").join("/")}`)
-  .filter((file) => /\.m?js$/.test(file) && !LEGACY_MODULES.some((prefix) => file.startsWith(prefix)));
+  .filter((file) => /\.m?js$/.test(file));
 
 /** The string literals in a piece of code: what classList and classNames are handed. */
 const literals = (code) => [...code.matchAll(/(["'`])((?:(?!\1)[^\\]|\\.)*)\1/g)].map(([, , text]) => text);
