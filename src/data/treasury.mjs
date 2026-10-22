@@ -35,14 +35,17 @@ const reads = new Map();
 const writing = new Set();
 const listeners = new Set();
 
-const emptyLedger = () => ({ entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+const emptyLedger = () => ({ entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "", errorMore: false });
 const heldAt = (slot) => ledgers.get(slot) ?? emptyLedger();
 
 /**
  * What the page holds of a team's history: `entries` newest first, `next` the cursor of the page after them
  * (null at the end), `since` when the history is kept from, `total` how many lines there are. `loaded` is false
  * until a read has answered, so a team that has a history is not shown as having none while it is still coming.
- * @param {string} teamId @returns {{entries: object[], next: string|null, since: string|null, total: number, loaded: boolean, loading: boolean, error: string}}
+ * `error` says why the last read failed, and `errorMore` whether that read was a «More» (the page after the lines held):
+ * «Try again» asks for the read that failed, not for the first page (08 T9, stage 13).
+ * @param {string} teamId
+ * @returns {{entries: object[], next: string|null, since: string|null, total: number, loaded: boolean, loading: boolean, error: string, errorMore: boolean}}
  */
 export function ledgerOf(teamId) {
   return heldAt(mySlot(teamId));
@@ -90,9 +93,9 @@ function isLedgerPage(page) {
 /**
  * Read the history: its first page, which replaces what the page holds, or with `more` the page after the
  * lines it holds, which is added at the end (and nothing is sent where there is no page after). A failure keeps
- * the lines and says why in `error`; so does an answer that is not a page (`isLedgerPage`), which is a failed read
- * and not an empty history. The answer of a read that a newer one overtook, or of a coach who is no
- * longer the one signed in, is not written.
+ * the lines and says why in `error`, and in `errorMore` which of the two failed, so it can be asked for again; so does
+ * an answer that is not a page (`isLedgerPage`), which is a failed read and not an empty history. The answer of a read
+ * that a newer one overtook, or of a coach who is no longer the one signed in, is not written.
  * @param {string} teamId @param {{more?: boolean}} [options] @returns {Promise<void>}
  */
 export async function readLedger(teamId, { more = false } = {}) {
@@ -104,7 +107,7 @@ export async function readLedger(teamId, { more = false } = {}) {
   const ticket = ++reader.ticket;
   reader.flying = { more };
   const query = more ? `before=${encodeURIComponent(next)}&limit=${LEDGER_PAGE}` : `limit=${LEDGER_PAGE}`;
-  setLedger(slot, { loading: true, error: "" });
+  setLedger(slot, { loading: true, error: "", errorMore: false });
   let page = null;
   let failure = null;
   try {
@@ -119,7 +122,7 @@ export async function readLedger(teamId, { more = false } = {}) {
     return;
   }
   if (failure || !isLedgerPage(page)) {
-    setLedger(slot, { loading: false, error: failure ? errorText(failure) : t("treasury.history.unreadable") });
+    setLedger(slot, { loading: false, error: failure ? errorText(failure) : t("treasury.history.unreadable"), errorMore: more });
     return;
   }
   const entries = more ? [...heldAt(slot).entries, ...page.entries] : page.entries;

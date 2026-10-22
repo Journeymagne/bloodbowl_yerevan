@@ -12,14 +12,14 @@ import { toast, toastError } from "../../../components/toast.mjs";
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { state } from "../../../core/state.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
 import { isWriting, saveTeamRoster } from "../../../data/treasury.mjs";
 import { combinedRerollsMaximum, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { renderToggle, wireToggles } from "../../../ui/toggle.mjs";
-import { canStepDown, matchLock, resourceRows, stepResource } from "./model.mjs";
+import { canStepDown, resourceRows, stepResource } from "./model.mjs";
 import { teamToast } from "./sheet-host.mjs";
+import { isLive, teamOf } from "./team-of.mjs";
 
 /** The two counters that share `combinedRerollsMaximum` between them. */
 const REROLLS = ["startingRerolls", "teamRerolls"];
@@ -118,7 +118,6 @@ export function resourcesMarkup({ rows, busy = false }) {
     + `${rows.map(rowMarkup).join("")}<p class="g-manage__note">${escapeHtml(t("treasury.resources.note"))}</p></section>`;
 }
 
-const teamOf = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
 const rowsOf = (team) => resourceRows({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage });
 
 /** The words for a step the model refused: «+» has its reason, a «−» that is not allowed has none to give. */
@@ -155,8 +154,7 @@ async function step(teamId, key, delta) {
   const team = teamOf(teamId);
   if (!team) return notTaken(t("error.TEAM_NOT_FOUND"));
   if (isWriting(teamId)) return saveOnItsWay();
-  const locked = matchLock(state.games.items, teamId)?.kind === "live";
-  const taken = stepResource({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage, key, delta, locked });
+  const taken = stepResource({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage, key, delta, locked: isLive(teamId) });
   if (taken.refused) return notTaken(refusedWords(taken.refused, delta));
   const answer = await saveTeamRoster(teamId, taken.roster);
   if (answer.team) return true;

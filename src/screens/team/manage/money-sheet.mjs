@@ -8,13 +8,13 @@
  * rewrites a field the coach is in.
  *
  * Nothing the sheet judges is its own: whether a debit can be covered, which reasons there are and how long a
- * comment may be come from `moneyCheck` (model.mjs) and the domain, whether a match is on from `matchLock`, and
- * the write from `addTreasuryEntry`. The sheet decides again at the press, on what the page holds then.
+ * comment may be come from `moneyCheck` (model.mjs) and the domain, whether a match is on from `isLive`
+ * (team-of.mjs), and the write from `addTreasuryEntry`. The sheet decides again at the press, on what the page holds
+ * then.
  */
 import { escapeHtml, listenerGroup } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../../data/teams.mjs";
 import { addTreasuryEntry, readLedger } from "../../../data/treasury.mjs";
@@ -26,8 +26,9 @@ import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../../ui/segmented-control.mjs";
 import { renderSheet, wireSheets } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
-import { MAX_ENTRY, MAX_NOTE, matchLock, moneyCheck, readAmount } from "./model.mjs";
+import { MAX_ENTRY, MAX_NOTE, moneyCheck, readAmount } from "./model.mjs";
 import { sheetController, teamToast } from "./sheet-host.mjs";
+import { isLive, teamOf } from "./team-of.mjs";
 
 export const MONEY_SHEET_ID = "treasury-money";
 /** The amounts to press, in thousands. */
@@ -139,8 +140,7 @@ export function moneySheetMarkup({ form, treasury, locked }) {
   });
 }
 
-const treasuryOf = (teamId) => countToNumber(state.myTeams.items.find((team) => team.id === teamId)?.roster?.treasury);
-const isLive = (teamId) => matchLock(state.games.items, teamId)?.kind === "live";
+const treasuryOf = (teamId) => countToNumber(teamOf(teamId)?.roster?.treasury);
 
 const drawn = (form) => moneySheetMarkup({ form, treasury: treasuryOf(form.teamId), locked: isLive(form.teamId) });
 
