@@ -8,9 +8,10 @@
  * and chosen (decision 1) —, opens the sheets and turns each press into one write.
  *
  * The reads (decision 7): the challenges and the games on the way in, whenever the tab is seen again and on «Refresh»;
- * the challenges after each write of the coach's, the games after an accept. No timer polls (2.x read every six
- * seconds): an opponent's answer is seen on the next visit or the next look at the tab. A read waits for the one on its
- * way, so the later answer is always the newer list.
+ * the challenges after each write of the coach's, the games after an accept or after any write whose list names a
+ * match they lack (an opponent accepted meanwhile: its challenge would be in no section). No timer polls (2.x read
+ * every six seconds): an opponent's answer is seen on the next visit or the next look at the tab. A read waits for the
+ * one on its way, so the later answer is always the newer list.
  *
  * The writes — one on its way at a time; a press while one is (and while the list is read after it) sends nothing and
  * opens no sheet: what the page offers is what the write's answer and the list read after it say:
@@ -193,6 +194,19 @@ function readList(visit) {
   return visit.reading;
 }
 
+/** Whether the list read names an accepted challenge, but `own`, whose match the games read do not have. */
+const unknownMatch = (visit, own) => (visit.payload?.challenges ?? []).some((challenge) => challenge.id !== own
+  && challenge.status === "accepted" && challenge.gameId && !state.games.items.some(({ id }) => id === challenge.gameId));
+
+/**
+ * The list read after a write; the games too when it names a match they do not have — an opponent's accept meanwhile,
+ * which without them would be in no section. `own` is the challenge the write accepted: going to its match reads them.
+ */
+async function readAfterWrite(visit, own = "") {
+  await readList(visit);
+  if (visit.here && !visit.readError && unknownMatch(visit, own)) await loadGames(true);
+}
+
 /**
  * The challenge sheet opens, nothing typed, the page's team; `chosenId` chosen when he can be, and in view either way —
  * a coach busy with the team shows his chip.
@@ -250,7 +264,7 @@ async function send(visit) {
   draw(visit);
   const answer = await sendChallenge({ opponentId: chosen.id, teamId });
   if (!visit.here) return;
-  await readList(visit);
+  await readAfterWrite(visit);
   visit.writing = "";
   if (!visit.here) return;
   if (!answer.error || (answer.lost && waitingWith(visit, chosen.id, teamId))) {
@@ -279,7 +293,7 @@ async function accept(visit) {
   const answer = await answerChallenge(model.id, "accept", model.chosenId);
   if (answer.gameId) return toMatch(visit, answer.gameId);
   if (!visit.here) return;
-  await readList(visit);
+  await readAfterWrite(visit, model.id);
   visit.writing = "";
   if (!visit.here) return;
   const now = visit.payload?.challenges.find((challenge) => challenge.id === model.id);
@@ -299,7 +313,7 @@ async function respond(visit, action, id) {
   draw(visit);
   const answer = await answerChallenge(id, action);
   if (!visit.here) return;
-  await readList(visit);
+  await readAfterWrite(visit);
   visit.writing = "";
   if (!visit.here) return;
   const now = visit.payload?.challenges.find((challenge) => challenge.id === id);

@@ -638,6 +638,44 @@ test("a refused decline is said on the page; a lost one is read again and never 
   }
 });
 
+/** A friendly of the coach's Mock Team against `other`'s `team`, its preparation not started, as `GET /api/games` sends it. */
+const friendlyGame = (id, other, team) => ({
+  id, kind: "friendly", season: null, roundNumber: 0, roundStatus: null, resultStatus: "pending", preparationStatus: "not_started",
+  postMatchStatus: "not_started", homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null, proposedByUserId: null,
+  viewerIsProposer: false, createdAt: ago(0), updatedAt: ago(0), home: { user: ME, team: teamOf(T1) }, away: { user: named(other), team },
+});
+
+test("a write whose list names a challenge accepted meanwhile reads the games too: its match is on the page", async () => {
+  try {
+    // lilit accepts the coach's c2 while he declines c1: the list read after the decline names her match, g8.
+    await visit();
+    api.reply("POST /api/challenges/c1/decline", 200, {});
+    list(changed({ c1: { status: "declined", updatedAt: ago(0) }, c2: { status: "accepted", gameId: "g8", updatedAt: ago(0) } }));
+    api.reply("GET /api/games", 200, { games: [friendlyGame("g8", LILIT, LILIT.teams[0])], currentGames: [] });
+    click('[data-friendly-answer="decline"]');
+    await settle();
+    await settle();
+    await settle();
+    assert.equal(sent("GET /api/games").length, 2, "the games are read again: the list names a match they lack");
+    assert.equal(view.querySelector('[data-friendly-answer="cancel"]'), null, "c2 is no longer waiting");
+    assert.deepEqual(words(".g-friendly__item--accepted .g-friendly__side"), ["Mock Team", "Silverbrook Rangers"], "it is accepted, with its match");
+    assert.equal(view.querySelector(".g-friendly__item--accepted .g-btn--primary").getAttribute("href"), "#/games/g8/pre-match");
+    // A cancel whose list names no match the games lack reads the list alone.
+    await visit();
+    api.reply("POST /api/challenges/c2/cancel", 200, {});
+    list(changed({ c2: { status: "cancelled", updatedAt: ago(0) } }));
+    click('[data-friendly-answer="cancel"]');
+    await settle();
+    await settle();
+    await settle();
+    assert.equal(sent("GET /api/challenges").length, 2);
+    assert.equal(sent("GET /api/games").length, 1, "nothing new to read in the games");
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
 test("a coach named in the address is chosen when the sheet opens; closing it puts the address back without drawing again", async () => {
   const proto = Object.getPrototypeOf(view);
   const scrolled = [];
