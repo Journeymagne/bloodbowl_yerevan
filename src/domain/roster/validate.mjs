@@ -51,13 +51,14 @@ export function positionMinimum(qty) {
 
 /**
  * Starting and Team Re-rolls of a draft together, as `combinedRerollsMaximum` counts them. The draft is a normalised one
- * (`normalizeDraft`), where the first builder's `rerolls` is read as `startingRerolls`.
+ * (`normalizeDraft`), where the first builder's `rerolls` is read as `startingRerolls`. A counter below zero counts as
+ * none: −4 Starting Re-rolls do not make room for 12 Team Re-rolls.
  *
  * @param {object} draft
  * @returns {number}
  */
 export function combinedRerolls(draft) {
-  return countToNumber(draft?.startingRerolls) + countToNumber(draft?.teamRerolls);
+  return Math.max(0, countToNumber(draft?.startingRerolls)) + Math.max(0, countToNumber(draft?.teamRerolls));
 }
 
 /**

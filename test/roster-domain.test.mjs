@@ -329,6 +329,9 @@ test("nine re-rolls are refused on every write, eight are not", async () => {
   assert.deepEqual(rerolls({ startingRerolls: 5, teamRerolls: 4 }), nine, "5 + 4");
   assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 1 }), nine, "8 + 1: each within its own maximum, not together");
   assert.deepEqual(rerolls({ startingRerolls: 0, teamRerolls: 12 }), [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }]);
+  assert.deepEqual(rerolls({ startingRerolls: -4, teamRerolls: 12 }), [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }], "a counter below zero makes no room");
+  assert.deepEqual(validateRosterSync(team, normalizeDraft({ startingRerolls: -4, teamRerolls: 12 }), legal).filter((item) => item.code === "REROLLS_MAX"),
+    [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }], "nor once normalised");
   assert.deepEqual(rerolls({ startingRerolls: 4, teamRerolls: 4 }), [], "4 + 4 are eight");
   assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 0 }), [], "8 + 0");
   assert.deepEqual(rerolls({}), [], "none at all");
