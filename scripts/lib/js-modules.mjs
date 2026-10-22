@@ -12,17 +12,20 @@ import path from "node:path";
  */
 
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs"]);
+/** What check-structure counts the lines of besides the modules; a stylesheet has no functions to measure. */
+export const STYLESHEET_EXTENSIONS = new Set([".css"]);
 const IGNORED_DIRECTORIES = new Set(["node_modules", ".git", "dist", ".codex_tmp"]);
 
-export async function collectSourceFiles(rootDir, relativeRoots) {
+/** The files under `relativeRoots` with one of `extensions` (the modules by default), sorted. */
+export async function collectSourceFiles(rootDir, relativeRoots, extensions = SOURCE_EXTENSIONS) {
   const files = [];
   for (const relativeRoot of relativeRoots) {
-    await walk(path.join(rootDir, relativeRoot), files);
+    await walk(path.join(rootDir, relativeRoot), files, extensions);
   }
   return files.sort();
 }
 
-async function walk(dir, files) {
+async function walk(dir, files, extensions) {
   let entries;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
@@ -32,13 +35,36 @@ async function walk(dir, files) {
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (IGNORED_DIRECTORIES.has(entry.name)) continue;
-      await walk(path.join(dir, entry.name), files);
+      await walk(path.join(dir, entry.name), files, extensions);
       continue;
     }
-    if (entry.isFile() && SOURCE_EXTENSIONS.has(path.extname(entry.name))) {
+    if (entry.isFile() && extensions.has(path.extname(entry.name))) {
       files.push(path.join(dir, entry.name));
     }
   }
+}
+
+/** A path's budget in a map of check-budgets.json: its own entry, else its longest folder's, else `fallback`. */
+export function budgetFor(map, relativePath, fallback) {
+  const match = Object.keys(map)
+    .filter((prefix) => relativePath === prefix || relativePath.startsWith(`${prefix}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  return match ? map[match] : fallback;
+}
+
+/**
+ * The files longer than their budget in `budgets` (check-budgets.json): `maxFileLines` by path or folder, else
+ * `defaultMaxFileLines`. A stylesheet is held to it as a module is.
+ *
+ * @param {{path: string, lines: number}[]} files  repository-relative paths and their line counts
+ * @returns {string[]} one line per file over its budget, naming the file
+ */
+export function fileLineViolations(files, budgets) {
+  const { maxFileLines = {}, defaultMaxFileLines } = budgets.structure;
+  return files.flatMap(({ path: file, lines }) => {
+    const budget = budgetFor(maxFileLines, file, defaultMaxFileLines);
+    return lines > budget ? [`${file}: ${lines} lines exceeds the budget of ${budget}`] : [];
+  });
 }
 
 /**
