@@ -199,10 +199,14 @@
   overflow-wrap: anywhere;
 }
 
-/* The D8's eight faces at the table (Adv3StatTable): 4 apart, 10 round, on a ring, the number in Oswald. */
+/*
+ * The D8's eight faces at the table (Adv3StatTable): 4 apart, 10 round, on a ring, the number in Oswald. Four to a row at
+ * every width: Adv3StatTable's one row of eight gives a face 41px across in a 358px phone column, under a thumb's 44 (D2
+ * is stronger; stage 13, fidelity N3), and DeskRosterAdv has four to a row.
+ */
 #player-advance .g-advance__d8 {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-4);
 }
 #player-advance .g-advance__d8face {
@@ -468,7 +472,6 @@
     padding: 0 18px;
     font: 700 15px/normal var(--font-body);
   }
-  #player-advance .g-advance__d8 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   #player-advance .g-advance__d8face {
     min-height: 40px;
     font: 700 17px/normal var(--font-display);

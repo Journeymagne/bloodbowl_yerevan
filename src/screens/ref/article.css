@@ -458,6 +458,12 @@
   .g-ref-skilltable__desk {
     display: none;
   }
+
+  /* A skill rolled as short as «Leap» is still a thumb's 44 across (D2; the word alone gave 41). */
+  .g-ref-roller__skill .g-ref-link {
+    min-width: var(--size-touch);
+    justify-content: center;
+  }
 }
 
 @media (min-width: 901px) {

@@ -360,4 +360,8 @@ test("a heading the bodies draw sets its own type, and a link in them is 44px to
   }
   assert.deepEqual(valuesOf(SHEET, ".g-ref-skilltable li .g-ref-link", "min-height"), ["44px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-roller__skill .g-ref-link", "min-height"), ["44px"]);
+  // …and as wide on a phone, a skill as short as «Leap» too (D2; fidelity N3: 41×44 before).
+  const phone = mediaText(SHEET, "max-width: 900px");
+  assert.match(phone, /\.g-ref-roller__skill \.g-ref-link \{[^}]*min-width: var\(--size-touch\);[^}]*justify-content: center;/);
+  assert.match(read("src/styles/tokens.css"), /--size-touch: 44px;/);
 });

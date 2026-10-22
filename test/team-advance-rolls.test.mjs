@@ -1329,7 +1329,9 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces", "column-gap"), ["var(--space-10)", "var(--space-8)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces--shown", "list-style"), ["none"], "the site's list, reset (K10)");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces--shown", "padding"), ["0"]);
-  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))", "repeat(4, minmax(0, 1fr))"]);
+  // Four faces to a row at every width: eight in a phone's 358px column are 41px across, under a thumb's 44 (fidelity N3).
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(4, minmax(0, 1fr))"]);
+  assert.ok((358 - 3 * 4) / 4 >= 44, "four faces and three 4px gaps in a 358px column");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8face", "font"), ["700 18px/normal var(--font-display)", "700 17px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__table", "font"), ["400 13px/1.45 var(--font-body)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__table", "font"), ["400 13px/1.6 var(--font-body)"]);
