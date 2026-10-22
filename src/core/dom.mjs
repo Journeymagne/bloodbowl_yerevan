@@ -79,7 +79,11 @@ export function toHtml(value) {
  *
  * `patch()` walks the new markup against the live tree and touches only what
  * differs. Nodes carrying `data-key` are matched by that key, so a row can move
- * without being rebuilt; everything else is matched by position and kind.
+ * without being rebuilt; everything else is matched by position and kind. A
+ * node carrying `data-patch-keep` is one the page put in by hand, which no
+ * markup draws (the toasts' region in an open sheet, components/toast.mjs):
+ * patch leaves it where it is, and one inside a node that goes stays on the
+ * page, in the place of the node that went.
  *
  * This is deliberately not a virtual DOM: there is no component model, no
  * state, no scheduling. It is a diff between what is on screen and the string
@@ -87,6 +91,7 @@ export function toHtml(value) {
  */
 
 const KEY_ATTRIBUTE = "data-key";
+const KEEP_ATTRIBUTE = "data-patch-keep";
 const VALUE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 function isElement(node) {
@@ -99,6 +104,19 @@ function isText(node) {
 
 function keyOf(node) {
   return isElement(node) && typeof node.getAttribute === "function" ? node.getAttribute(KEY_ATTRIBUTE) : null;
+}
+
+/** A node no markup draws, which patch never matches, moves or takes away. */
+function isKept(node) {
+  return isElement(node) && typeof node.hasAttribute === "function" && node.hasAttribute(KEEP_ATTRIBUTE);
+}
+
+/** Take a live child away, and leave on the page, under `live`, the kept nodes it held. */
+function dropChild(live, child) {
+  if (isElement(child) && typeof child.querySelectorAll === "function") {
+    for (const kept of [...child.querySelectorAll(`[${KEEP_ATTRIBUTE}]`)]) live.appendChild(kept);
+  }
+  live.removeChild(child);
 }
 
 /** Can `live` be updated into `next`, or does it have to be replaced? */
@@ -140,7 +158,8 @@ function adopt(parent, node) {
 }
 
 /**
- * Match each wanted child to a live one, patch the matches, drop the rest.
+ * Match each wanted child to a live one, patch the matches, drop the rest; a kept
+ * one (`isKept`) is none of these, and stays after them.
  *
  * Keyed children are matched anywhere in the list — that is what lets a row
  * move without being rebuilt. Unkeyed children are matched strictly in order,
@@ -152,7 +171,7 @@ function patchChildren(live, next, activeElement) {
   const keyed = new Map();
   for (const child of liveChildren) {
     const key = keyOf(child);
-    if (key !== null && !keyed.has(key)) keyed.set(key, child);
+    if (key !== null && !keyed.has(key) && !isKept(child)) keyed.set(key, child);
   }
 
   const used = new Set();
@@ -169,7 +188,7 @@ function patchChildren(live, next, activeElement) {
       while (cursor < liveChildren.length) {
         const candidate = liveChildren[cursor];
         cursor += 1;
-        if (used.has(candidate) || keyOf(candidate) !== null) continue;
+        if (used.has(candidate) || keyOf(candidate) !== null || isKept(candidate)) continue;
         if (sameKind(candidate, wanted)) match = candidate;
         break;
       }
@@ -184,7 +203,7 @@ function patchChildren(live, next, activeElement) {
   }
 
   for (const child of liveChildren) {
-    if (!used.has(child)) live.removeChild(child);
+    if (!used.has(child) && !isKept(child)) dropChild(live, child);
   }
   reorder(live, ordered);
 }

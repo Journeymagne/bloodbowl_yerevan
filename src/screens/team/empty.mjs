@@ -16,7 +16,6 @@ import { teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { syncActiveTeam } from "../../data/active-team.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../data/teams.mjs";
 import { renderButton } from "../../ui/button.mjs";
@@ -49,7 +48,7 @@ export function unreadMarkup(error) {
  * says so again. Nothing is drawn once the coach has left the screen.
  */
 async function retry(isHere) {
-  view.innerHTML = `<div class="loading">${escapeHtml(t("myTeams.loadingTeams"))}</div>`;
+  view.innerHTML = `<p class="g-loading" role="status">${escapeHtml(t("myTeams.loadingTeams"))}</p>`;
   await loadMyTeams(true);
   if (!isHere()) return;
   if (state.activeTeamId) location.replace(teamUrl(state.activeTeamId));
@@ -69,8 +68,6 @@ function goOnToTeam() {
 }
 
 export function renderNoTeam() {
-  setActiveNav("home");
-  setViewSection("home");
   const { loaded, error } = state.myTeams;
   if (loaded || !error) {
     view.innerHTML = noTeamMarkup();

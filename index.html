@@ -29,7 +29,7 @@
          the top of the page and the content, and a keyboard had to walk all
          of them. A button, not a link: an href="#app-view" would rewrite the
          hash, and the hash is what the router reads. -->
-    <button class="skip-link" type="button" data-skip-to-content data-i18n="a11y.skipToContent">Skip to content</button>
+    <button class="g-skip" type="button" data-skip-to-content data-i18n="a11y.skipToContent">Skip to content</button>
     <!--
       The 3.0 frame, empty until src/shell/shell.mjs draws it for the route:
       the SideNav from 901px, the header up to 900px, the footer line under the
@@ -42,7 +42,7 @@
         <header class="g-appbar" id="app-header"></header>
         <main class="g-main" id="app-main">
           <section id="app-view" tabindex="-1">
-            <div class="loading">Loading reference...</div>
+            <p class="g-loading" role="status">Loading reference...</p>
           </section>
           <footer class="g-main__footer" id="site-footer"></footer>
         </main>

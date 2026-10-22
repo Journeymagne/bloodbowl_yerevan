@@ -303,7 +303,7 @@ test("a live match: the button that opens the sheet is shut, and pressing it say
   assert.equal($("dialog"), null);
   const [said] = toasts();
   assert.equal(said.text, "After the match's post-match");
-  assert.match(said.tone, /toast-error/);
+  assert.match(said.tone, /g-toast--error/);
   assert.equal(api.calls.length, 0);
 });
 
@@ -577,7 +577,7 @@ test("a sheet closed while its correction is on its way: the correction is still
   assert.equal($("dialog"), null);
   const [shown] = toasts();
   assert.equal(shown.text, `${en["error.ROSTER_BREAKS_THE_RULES"]} ${en["validation.TREASURY_INVALID"]}`);
-  assert.match(shown.tone, /toast-error/);
+  assert.match(shown.tone, /g-toast--error/);
 });
 
 test("the wiring is the screen's: its host stands at the end of the body, and what the release returns takes it, and the sheet in it, away", async () => {
@@ -600,7 +600,7 @@ test("the wiring is the screen's: its host stands at the end of the body, and wh
     await settle();
   });
   assert.equal(dialog.open, false, "nothing is drawn into a host that has gone");
-  assert.match(toasts()[0].tone, /toast-error/, "a screen left while a correction is on its way still hears its refusal");
+  assert.match(toasts()[0].tone, /g-toast--error/, "a screen left while a correction is on its way still hears its refusal");
   // Wired no more: the button opens nothing.
   fireEvent(opener, "click");
   assert.equal(document.querySelector("dialog"), null);

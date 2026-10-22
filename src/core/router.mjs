@@ -104,7 +104,7 @@ let shownRoute = "";
 
 /** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */
 function reloadTeams() {
-  view.innerHTML = `<div class="loading">${escapeHtml(t("myTeams.loadingTeam"))}</div>`;
+  view.innerHTML = `<p class="g-loading" role="status">${escapeHtml(t("myTeams.loadingTeam"))}</p>`;
   return loadMyTeams(true);
 }
 

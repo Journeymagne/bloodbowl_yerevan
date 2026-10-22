@@ -319,7 +319,7 @@ test("the page follows the team, the games and the history while it is on screen
   await withoutTimers(() => fireEvent(view.querySelector("[data-treasury-fix]"), "click"));
   assert.equal(document.body.querySelector("dialog#treasury-fix"), null);
   assert.deepEqual(toasts().map(({ text }) => text), ["After the match's post-match", "After the match's post-match"], "each press says why");
-  assert.ok(toasts().every(({ tone }) => /toast-error/.test(tone)));
+  assert.ok(toasts().every(({ tone }) => /g-toast--error/.test(tone)));
   releaseCurrentScreen();
   view.innerHTML = "<p>next</p>";
   setMyTeams(state.myTeams.items);
@@ -540,7 +540,7 @@ test("a write that lands after the coach went to another team says whose it was 
     await settle();
   });
   assert.equal(toasts().at(-1).text, `Ashgrove Wardens: ${en["error.STAGE_PURCHASE_LOCKED"]}`);
-  assert.match(toasts().at(-1).tone, /toast-error/);
+  assert.match(toasts().at(-1).tone, /g-toast--error/);
 });
 
 test("every word of the page is in both dictionaries, the phases too; nothing unstyled, nothing the CSP refuses", () => {

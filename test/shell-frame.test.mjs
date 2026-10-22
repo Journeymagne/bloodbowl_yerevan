@@ -299,6 +299,21 @@ test("the frame pads the view as the prototypes' main: 16 16 28 on a phone, 24 3
   assert.deepEqual(valuesOf(frameCss, '.g-frame[data-shell="bare"] #app-view', "padding"), ["0"]);
 });
 
+// Stage 13, Task 3: the first tab stop and the page's first line were 2.x's (.skip-link, .loading), drawn by its tables.
+test("the skip link and the loading line are 3.0's, drawn by the frame", () => {
+  const html = read("index.html");
+  assert.match(html, /<button class="g-skip" type="button" data-skip-to-content data-i18n="a11y\.skipToContent">/);
+  assert.match(html, /<section id="app-view" tabindex="-1">\s*<p class="g-loading" role="status">/);
+  const css = "src/shell/frame.css";
+  assert.ok(Number.parseInt(valuesOf(css, ".g-skip", "top")[0], 10) <= -44, "out of sight until it has the focus");
+  assert.deepEqual(valuesOf(css, ".g-skip:focus", "top"), ["8px"], "then at the top of the page");
+  assert.deepEqual([valuesOf(css, ".g-skip", "left"), valuesOf(css, ".g-skip", "min-height")], [["8px"], ["44px"]]);
+  assertReadable(css, ".g-skip", "color", ["--surface"], 4.5);
+  assert.deepEqual(valuesOf(css, ".g-skip", "box-shadow"), ["var(--ring)"]);
+  assertReadable(css, ".g-loading", "color", ["--page", "--desk"], 4.5);
+  assert.deepEqual(valuesOf(css, ".g-loading", "font"), ["400 15px/1.4 var(--font-body)"]);
+});
+
 /** Every stylesheet of 3.0: src/**\/*.css but the 2.x tables of src/styles/, which go with their rules at stage 13's wave 2. */
 const sheets30 = () => sources().filter((file) => file.endsWith(".css") && !file.startsWith("src/styles/"));
 

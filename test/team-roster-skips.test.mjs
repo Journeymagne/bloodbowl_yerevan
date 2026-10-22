@@ -905,7 +905,7 @@ test("a mark that waited for the network is given up when a match begins, and th
     await invalidateGames();
     await settle();
     assert.equal(toasts().at(-1), MATCH_DROPPED_MARKS);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(!toasts().some((said) => said.startsWith("A match has begun, so the edits")), "no SPP step was given up");
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(patches().length, 1, "the one try before the network went");
@@ -1384,7 +1384,7 @@ test("a death whose answer was lost: the sheet closes, the roster and the fallen
       assert.equal(teamReads(), 2, `${label}: read back once`);
       assert.equal(toasts().at(-1), said, label);
       if (said === DEAD_LOST) {
-        assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+        assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
         assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], label);
       } else {
         assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"], label);
@@ -1425,7 +1425,7 @@ test("a lost death whose read is split is read once more; still split, the coach
     assert.equal(teamReads(), 3);
     assert.equal(deaths().length, 1);
     assert.equal(toasts().at(-1), UNKNOWN);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
   });
   // A read that fails says why, and that the death's fate is not known.
   await withoutTimers(async () => {
@@ -1514,7 +1514,7 @@ test("a death's refusal whose sheet is gone is said in a message, never with «p
     assert.equal(teamReads(), 2, "read again");
     assert.ok(!markSheet(), "the read took her away, and the sheet with her");
     assert.equal(toasts().at(-1), "Player not found.", "the words stay with the coach");
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
   });
   // Another device's save without her: the read takes the sheet away too.
   await withoutTimers(async () => {
@@ -1554,7 +1554,7 @@ test("another device marked the same death first: read again she is among the fa
   const told = () => {
     assert.equal(toasts().at(-1), MARKED);
     assert.ok(!toasts().some((said) => said.includes("not marked")), "no words that she was not marked");
-    assert.doesNotMatch(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.doesNotMatch(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(namesIn(tables().at(-1)).includes("Ann"), "she stands among the fallen");
   };
   // The sheet open: the read takes her into «Fallen», and the sheet with her.

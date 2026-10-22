@@ -1,0 +1,53 @@
+/*
+ * The toasts (components/toast.mjs): short messages at the bottom right of the window that do not stop the page.
+ * No prototype draws one, so a toast is drawn on the tokens: the surface with its hairline ring, a 3px stripe at
+ * the left, the ink at 14px, and at least 44px tall, since a tap closes it. The stripe is --accent-text, which is
+ * --accent in the light palettes and keeps 3:1 on the surface in the dark ones, where --accent does not; an
+ * error's is --danger, the red that keeps 3:1 there. Long words wrap. The region stands in the body, or in the
+ * open sheet, which is in the top layer: `fixed` places it by the window either way, above the sheet's backdrop.
+ * Font, border, background, text-transform and letter-spacing are set on purpose while the 2.x sheets are still
+ * in the page.
+ */
+.g-toasts {
+  position: fixed;
+  right: var(--space-16);
+  bottom: var(--space-16);
+  z-index: 60;
+  display: grid;
+  gap: var(--space-8);
+  max-width: min(380px, calc(100vw - 32px));
+  margin: 0;
+  padding: 0;
+}
+
+.g-toast {
+  display: block;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-left: 3px solid;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+/* The stripe says the tone: news, or a refusal or a fault. */
+.g-toast--info { border-left-color: var(--accent-text); }
+.g-toast--error { border-left-color: var(--danger); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .g-toast { animation: g-toast-in 160ms ease-out; }
+
+  @keyframes g-toast-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}

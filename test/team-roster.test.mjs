@@ -635,7 +635,7 @@ test("a refusal names the rule, and the roster is read again", async () => {
       fireEvent(plus("touchdowns"), "click");
       await settle();
       assert.match(toasts().at(-1), /Ann/);
-      assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+      assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
       assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1").length, 1);
       assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1);
       assert.equal(countOf("touchdowns"), "0", "the server's roster");

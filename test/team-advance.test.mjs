@@ -609,7 +609,7 @@ test("an advancement that waited for the network is given up when a match begins
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "19", "drawn at once");
     await matchBegins(withOne(ADVANCED, { revision: 5 }));
     assert.equal(toasts().at(-1), DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(!sheet(), "R8: the window closes with the match");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "27", "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);

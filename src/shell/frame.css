@@ -63,6 +63,42 @@ html { scrollbar-gutter: stable; }
  */
 #app-view:focus { outline: none; }
 
+/*
+ * The skip link (index.html), the first stop of the Tab key: out of sight until it takes the focus, then at the top
+ * left of the page, over the header and the SideNav. `:focus`, not only `:focus-visible`: a control nobody can see
+ * is reached by a keyboard or a screen reader, and both should reveal it. A button 44px tall; the ring is the
+ * base's.
+ */
+.g-skip {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 100;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-skip:focus { top: 8px; }
+
+/* The line a screen stands in while what it shows is read: the page's first, and a team list read again. */
+.g-loading {
+  margin: 0;
+  padding: var(--space-24) 0;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* The footer line on the page, under the content (the SideNav draws it on the header colour). --faint is under 4.5:1 here. */
 .g-main__footer {
   box-sizing: border-box;
