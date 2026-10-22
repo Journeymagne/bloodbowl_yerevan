@@ -77,17 +77,6 @@ const SHEETS = ["src/screens/ref/article.css", "src/screens/ref/prose.css", "src
 const TOKEN_FIGURE = /(?<![\d.])(?:4|6|8|10|12|14|16|20|22|24)px\b/;
 const SPACING = /^(?:[a-z-]*-)?(?:margin|padding|gap)(?:-[a-z-]+)?$/;
 
-/*
- * Two declarations stay in figures, and only while a test of another group pins them so: the panel's 24px
- * (test/ref-skill.test.mjs, group A) and the Skill Table's 6px cells (test/ref-bodies.test.mjs). They take
- * their tokens with those pins, at the merge of wave 1; this list goes then.
- */
-const PINNED = [
-  { selector: ".g-skill-detail", property: "padding", value: "24px" },
-  { selector: ".g-article .g-ref-skilltable__desk th", property: "padding-right", value: "6px" },
-  { selector: ".g-article .g-ref-skilltable__desk th", property: "padding-left", value: "6px" },
-];
-
 function declarations(file) {
   return blocks(read(file)).flatMap(({ selectors, body }) => body.split(";").map((part) => part.trim()).filter(Boolean).map((part) => {
     const at = part.indexOf(":");
@@ -95,18 +84,13 @@ function declarations(file) {
   }));
 }
 
-const pinned = ({ selectors, property, value }) => PINNED.some((pin) => selectors.includes(pin.selector) && pin.property === property && pin.value === value);
-
 test("spacing in the reference's sheets is the tokens'", () => {
   for (const file of SHEETS) {
     for (const declaration of declarations(file)) {
-      if (!SPACING.test(declaration.property) || pinned(declaration)) continue;
+      if (!SPACING.test(declaration.property)) continue;
       assert.doesNotMatch(declaration.value, TOKEN_FIGURE, `${file}: ${declaration.selectors.join(", ")} { ${declaration.property}: ${declaration.value} }`);
     }
   }
-  // A pin that has gone takes its line here with it.
-  const article = declarations("src/screens/ref/article.css");
-  for (const pin of PINNED) assert.ok(article.some((declaration) => pinned(declaration) && declaration.selectors.includes(pin.selector) && declaration.property === pin.property), `${pin.selector} ${pin.property}`);
 });
 
 test("the spacing check reads a figure as a figure: 28px is not 8px, 1px is not a token's", () => {

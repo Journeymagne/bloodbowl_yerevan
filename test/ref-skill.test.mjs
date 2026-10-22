@@ -444,7 +444,7 @@ test("up to 900px the panel is the page itself; from 901px it is a card of the s
   const { wide, rest } = split(ARTICLE);
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\b(box-shadow|padding)\s*:/.test(rest), "a phone's panel has no frame");
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "and no card");
-  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*24px;/);
+  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*var\(--space-24\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*border-radius:\s*var\(--radius-2xl\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*background:\s*var\(--surface\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*box-shadow:\s*var\(--ring\);/);

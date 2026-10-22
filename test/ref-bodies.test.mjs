@@ -330,8 +330,8 @@ test("from 901px the vault's Skill Table has the card's whole width, past the ar
   assert.ok(classes(desk) > classes(cap), "and it wins by specificity, not by coming later");
   for (const part of ["th", "td"]) {
     const cell = `.g-article .g-ref-skilltable__desk ${part}`;
-    assert.deepEqual(declared(cell, "padding-left"), ["6px"], cell);
-    assert.deepEqual(declared(cell, "padding-right"), ["6px"], cell);
+    assert.deepEqual(declared(cell, "padding-left"), ["var(--space-6)"], cell);
+    assert.deepEqual(declared(cell, "padding-right"), ["var(--space-6)"], cell);
     const first = `.g-article .g-ref-skilltable__desk .numbered-table ${part}:first-child`;
     assert.deepEqual(declared(first, "min-width"), ["0"], "the 2.x 48px of the number column gives way");
     assert.deepEqual(declared(first, "width"), ["auto"], first);
