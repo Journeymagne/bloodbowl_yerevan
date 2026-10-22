@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { inMedia } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -411,6 +412,14 @@ test("a section stands 18px under the table before it, as in StatsInjured and De
   assert.deepEqual([valuesOf(frame, ".g-roster__sections .g-roster__section", "margin-top"), valuesOf(frame, ".g-roster__sections .g-roster__section", "gap")], [["0"], ["0"]]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__bar", "padding"), ["18px var(--space-16) var(--space-8)"]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__heading", "font"), ["700 20px/1.1 var(--font-display)"]);
+});
+
+test("the desk's card of tables holds its positioned parts, so a 901px page does not scroll sideways", () => {
+  // At 901px the card scrolls its tables (692px inside 245px); the hidden headers and the number badges are positioned,
+  // and with no positioned card they took the page's block and widened it to 915px (stage 13, fidelity N1).
+  const frame = "src/screens/team/roster/frame.css";
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "position"), ["relative"]);
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "overflow-x"), ["auto"]);
 });
 
 test("the fallen are grey and readable: their cells, the line under the name and the characteristics of the profile", () => {

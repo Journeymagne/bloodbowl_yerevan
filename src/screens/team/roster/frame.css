@@ -182,9 +182,11 @@
 
   /*
    * One card for the three tables (DeskRosterInjured.html): it scrolls them together at 901 to 1279px. Each table's
-   * own frame gives way to it, and the sections touch.
+   * own frame gives way to it, and the sections touch. It is the containing block of the tables' positioned parts (the
+   * hidden headers, the number badges): without it they hang off the page's block and widen the page past 901px.
    */
   .g-roster__sections {
+    position: relative;
     overflow-x: auto;
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-2xl);
