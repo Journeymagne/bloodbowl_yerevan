@@ -1728,6 +1728,7 @@
   "friendly.anyTeam": "Any of your teams can play, one not entered in the season too.",
   "friendly.sent": "Challenge sent: {login}",
   "friendly.lost": "No answer came: the challenges are read again, nothing is sent twice.",
+  "friendly.lostUnread": "No answer came, and the challenges could not be read again: nothing is sent twice.",
   "friendly.declined": "Challenge declined",
   "friendly.cancelled": "Challenge cancelled",
   "prep.title": "Before the match",

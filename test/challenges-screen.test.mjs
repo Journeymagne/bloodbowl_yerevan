@@ -360,6 +360,49 @@ test("an accept whose answer was lost goes to the match the list now names", asy
   }
 });
 
+test("an accept lost whose list could not be read again says so; a later read goes to the match it names, or says it is closed", async () => {
+  const events = new EventTarget();
+  Object.assign(document, { addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events), visibilityState: "visible" });
+  /** The accept of c1 pressed, its answer lost and the list read after it failing. */
+  const lostUnread = async () => {
+    await visit();
+    click('[data-friendly-accept="c1"]');
+    await settle();
+    api.fail("POST /api/challenges/c1/accept");
+    api.fail("GET /api/challenges");
+    click("[data-friendly-confirm]");
+    await settle();
+    await settle();
+    assert.equal(sent("GET /api/challenges").length, 2);
+    assert.ok(acceptSheet()?.isModal, "the sheet stays: what came of it is not known");
+    assert.equal(view.querySelector("#friendly-accept .g-challenge__refusal").textContent, t("friendly.lostUnread"), "not that the list was read");
+  };
+  try {
+    // The tab seen again: the list names c1 accepted — it goes to its match, as the answer would have.
+    await lostUnread();
+    list(changed({ c1: { status: "accepted", gameId: "g9", updatedAt: ago(0) } }));
+    events.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    await settle();
+    assert.equal(location.hash, "#/games/g9/pre-match");
+    assert.equal(sent("POST /api/challenges/c1/accept").length, 1, "never sent again");
+    // Or it names c1 cancelled: the sheet closes, the page saying so — not that no answer came.
+    await lostUnread();
+    list(changed({ c1: { status: "cancelled", updatedAt: ago(0) } }));
+    events.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    await settle();
+    assert.ok(acceptSheet() === null);
+    assert.equal(location.hash, "#/t/t1/challenges");
+    assert.ok(alerts().includes(t("error.CHALLENGE_CLOSED")));
+    assert.ok(!alerts().includes(t("friendly.lostUnread")));
+    api.assertAnswered();
+  } finally {
+    leave();
+    for (const name of ["addEventListener", "removeEventListener", "visibilityState"]) delete document[name];
+  }
+});
+
 test("a challenge cancelled meanwhile: the accept is refused in the server's words, the list is read again, the sheet closes", async () => {
   try {
     for (const code of ["CHALLENGE_CLOSED", "CHALLENGE_NOT_FOUND"]) {

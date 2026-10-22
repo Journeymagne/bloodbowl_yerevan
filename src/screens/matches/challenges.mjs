@@ -23,12 +23,12 @@
  *   match's preparation. A challenge no longer waiting (`CHALLENGE_CLOSED`, or `CHALLENGE_NOT_FOUND`: its pair was
  *   deleted) — the server's words on the page, the list read, the sheet closed; another refusal — the words in the
  *   sheet, the list read. Lost — the list read: accepted, it leads to the match it names; otherwise the sheet says no
- *   answer came.
+ *   answer came, and a later read that names it accepted while the sheet is open leads there too.
  * - «Decline» and «Cancel the challenge» (`POST …/:id/decline|cancel {}`), with no step to confirm (decision 15, as the
  *   prototypes and 2.x): the list read, the card gone and the focus on the title, the coach told. Refused or lost and
  *   not done — said on the page.
- * A refusal the page says is an alert over its sections (pre-flight L4: a screen reader's announcement alone is not
- * seen), until the coach's next action.
+ * «No answer came» says too whether the list could be read again after it. A refusal the page says is an alert over its
+ * sections (pre-flight L4: a screen reader's announcement alone is not seen), until the coach's next action.
  *
  * A coach the address names (decision 13) is chosen in the challenge sheet, opened once the challenges are read and the
  * coach scrolled into view; one busy with the page's team is not chosen (his chip says why), one who cannot be
@@ -71,13 +71,15 @@ const ANSWERED = { decline: "declined", cancel: "cancelled" };
  * One visit of the page: the team, the challenges last read (and why a read failed), whether the games are held back
  * (a failure an earlier read left, which the visit's own read has not answered yet), the sheet open with what is typed
  * and chosen in it, the challengers' teams read, what is said, the write on its way (and the challenge a decline or a
- * cancel answers), the history open, and the coach the address names.
+ * cancel answers), the accept whose answer was lost while its sheet is open, the history open, and the coach the
+ * address names.
  */
 function createVisit(teamId, presetUserId) {
   return {
     teamId, here: true, payload: null, readError: "", held: Boolean(state.games.error), reading: Promise.resolve(),
     sheet: null, query: "", chosenId: "", teamChoice: teamId, acceptId: "", ownChoice: teamId, senders: new Map(),
-    refusal: "", notice: "", writing: "", answering: "", historyOpen: false, preset: presetUserId, presetPending: Boolean(presetUserId),
+    refusal: "", notice: "", writing: "", answering: "", lost: "", historyOpen: false, preset: presetUserId,
+    presetPending: Boolean(presetUserId),
   };
 }
 
@@ -163,21 +165,36 @@ function dropPreset(visit) {
 function closeSheet(visit) {
   const sheet = visit.sheet;
   if (sheet === SEND_SHEET) dropPreset(visit);
-  Object.assign(visit, { sheet: null, refusal: "" });
+  Object.assign(visit, { sheet: null, refusal: "", lost: "" });
   draw(visit);
   const back = openerOf(visit, sheet);
   (back && !back.hasAttribute("disabled") ? back : view.querySelector("h1"))?.focus();
   visit.acceptId = "";
 }
 
+/** The match of challenge `id` once the list read names it accepted; "" before. */
+const acceptedMatch = (visit, id) => {
+  const challenge = (visit.payload?.challenges ?? []).find((item) => item.id === id);
+  return (challenge?.status === "accepted" && challenge.gameId) || "";
+};
+
 /**
  * An accept sheet whose challenge no longer waits for the coach (cancelled meanwhile, answered on another device) closes,
- * the page saying why — not while the accept is on its way: its own answer says what came of it.
+ * the page saying why — not while the accept is on its way: its own answer says what came of it. One whose accept got
+ * no answer (`lost`) and the list now names accepted goes to its match, as the answer would have; one now closed says
+ * so, not that no answer came.
  * @returns {boolean} whether it closed
  */
 function closeIfGone(visit) {
   if (visit.sheet !== ACCEPT_SHEET || visit.writing === "accept" || incomingOf(visit, visit.acceptId)) return false;
-  visit.notice = visit.refusal || visit.notice || t("error.CHALLENGE_CLOSED");
+  const lost = visit.lost === visit.acceptId;
+  const made = lost && acceptedMatch(visit, visit.acceptId);
+  if (made) {
+    visit.writing = "accept";
+    toMatch(visit, made);
+    return true;
+  }
+  visit.notice = (lost ? "" : visit.refusal) || visit.notice || t("error.CHALLENGE_CLOSED");
   closeSheet(visit);
   return true;
 }
@@ -224,7 +241,7 @@ function openSend(visit, chosenId = "") {
 async function openAccept(visit, id) {
   const challenge = incomingOf(visit, id);
   if (!challenge || !mayOpen(visit)) return;
-  Object.assign(visit, { sheet: ACCEPT_SHEET, acceptId: id, ownChoice: visit.teamId, refusal: "", notice: "" });
+  Object.assign(visit, { sheet: ACCEPT_SHEET, acceptId: id, ownChoice: visit.teamId, refusal: "", notice: "", lost: "" });
   draw(visit);
   // Read, or on its way (null): not read again. A read that failed is.
   if (visit.senders.has(id) && !visit.senders.get(id)?.error) return;
@@ -252,6 +269,9 @@ function say(visit, sheet, words) {
   else visit.notice = words;
 }
 
+/** That no answer came to a write, and whether the list read after it says what came of it. */
+const lostWords = (visit) => (visit.readError ? t("friendly.lostUnread") : t("friendly.lost"));
+
 /** Whether the list read names a challenge waiting from the coach's team `teamId` to `opponentId`. */
 const waitingWith = (visit, opponentId, teamId) => (visit.payload?.challenges ?? []).some((challenge) => challenge.status === "pending"
   && challenge.sender?.id === viewerId() && challenge.recipient?.id === opponentId && challenge.team?.id === teamId);
@@ -274,7 +294,7 @@ async function send(visit) {
     announce(t("friendly.sent", { login: chosen.login }));
     return;
   }
-  say(visit, SEND_SHEET, answer.lost ? t("friendly.lost") : answer.error);
+  say(visit, SEND_SHEET, answer.lost ? lostWords(visit) : answer.error);
   draw(visit);
 }
 
@@ -289,21 +309,23 @@ async function accept(visit) {
   if (visit.writing || visit.sheet !== ACCEPT_SHEET) return;
   const model = acceptModelOf(visit);
   if (!model || model.cta.disabled) return;
-  Object.assign(visit, { writing: "accept", refusal: "", notice: "" });
+  Object.assign(visit, { writing: "accept", refusal: "", notice: "", lost: "" });
   draw(visit);
   const answer = await answerChallenge(model.id, "accept", model.chosenId);
   if (answer.gameId) return toMatch(visit, answer.gameId);
   if (!visit.here) return;
+  // Its sheet open, until a list read says what came of it: a later read that names it accepted goes to its match.
+  if (answer.lost && visit.sheet === ACCEPT_SHEET && visit.acceptId === model.id) visit.lost = model.id;
   await readAfterWrite(visit, model.id);
-  visit.writing = "";
   if (!visit.here) return;
-  const now = visit.payload?.challenges.find((challenge) => challenge.id === model.id);
-  if (answer.lost && now?.status === "accepted" && now.gameId) return toMatch(visit, now.gameId);
+  const made = answer.lost && acceptedMatch(visit, model.id);
+  if (made) return toMatch(visit, made);
+  visit.writing = "";
   if (GONE.has(answer.code)) {
     visit.notice = answer.error;
     return visit.sheet === ACCEPT_SHEET ? closeSheet(visit) : draw(visit);
   }
-  say(visit, ACCEPT_SHEET, answer.lost ? t("friendly.lost") : answer.error);
+  say(visit, ACCEPT_SHEET, answer.lost ? lostWords(visit) : answer.error);
   draw(visit);
 }
 
@@ -319,7 +341,7 @@ async function respond(visit, action, id) {
   if (!visit.here) return;
   const now = visit.payload?.challenges.find((challenge) => challenge.id === id);
   const done = !answer.error || (answer.lost && now?.status === ANSWERED[action]);
-  if (!done) visit.notice = answer.lost ? t("friendly.lost") : answer.error;
+  if (!done) visit.notice = answer.lost ? lostWords(visit) : answer.error;
   draw(visit);
   // The card pressed is gone: the focus it held goes to the title.
   if (focusLost((view.ownerDocument ?? globalThis.document).activeElement)) view.querySelector("h1")?.focus();
