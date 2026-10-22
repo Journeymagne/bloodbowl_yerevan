@@ -1,0 +1,4362 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "320": 568,
+    "360": 780,
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "05-G3",
+      "url": "http://localhost:5185/#/login",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-login', 'felstell');",
+        "fill('#auth-password', 'qwerty');",
+        "document.querySelector('[data-auth-form] [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "05-C1",
+      "url": "http://localhost:5185/#/",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-C2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "window.scrollTo(0, 600);"
+      ]
+    },
+    {
+      "id": "05-C3",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-C4",
+      "url": "http://localhost:5185/#/t/t3/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-C5",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-C6",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'gata2025');",
+        "fill('#password-next', 'Wardens!77');",
+        "fill('#password-repeat', 'Wardens!7');"
+      ]
+    },
+    {
+      "id": "05-C7",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#password-current', 'wrong');",
+        "  fill('#password-next', 'abcd');",
+        "  fill('#password-repeat', 'abcd');",
+        "  document.querySelector('#password-sheet [type=\"submit\"]').click();",
+        "  for (let i = 0; i < 100 && document.querySelector('#password-sheet [aria-busy=\"true\"]'); i += 1) await wait(100);",
+        "  document.activeElement.blur();",
+        "  document.querySelector('#password-sheet').style.willChange = 'transform';",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "05-C8",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#password-current', 'mock-pass');",
+        "  fill('#password-next', 'abcd');",
+        "  fill('#password-repeat', 'abcd');",
+        "  document.querySelector('#password-sheet [type=\"submit\"]').click();",
+        "  for (let i = 0; i < 100 && document.querySelector('#password-sheet [aria-busy=\"true\"]'); i += 1) await wait(100);",
+        "  document.activeElement.blur();",
+        "  document.querySelector('#password-sheet').style.willChange = 'transform';",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "05-C9",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#settings-telegram', '@another');"
+      ]
+    },
+    {
+      "id": "05-C10",
+      "url": "http://localhost:5185/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-C11",
+      "url": "http://localhost:5185/#/my-teams/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-D1",
+      "url": "http://localhost:5186/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-D2",
+      "url": "http://localhost:5186/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-R2",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P1",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P2",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"parchment\",\"dark\":\"night\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P3",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"embers\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P4",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P5",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"ice\",\"dark\":\"night\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P6",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"dungeon\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "05-palettes-P7",
+      "url": "http://localhost:5185/#/settings",
+      "widths": [
+        390,
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"system\",\"light\":\"ice\",\"dark\":\"abyss\"}"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-G2",
+      "url": "http://localhost:5185/#/login",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-login', 'felstell');",
+        "fill('#auth-password', 'qwerty');",
+        "document.querySelector('[data-auth-form] [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "06-C1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        320,
+        768,
+        901,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C2",
+      "url": "http://localhost:5185/#/t/t2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C3",
+      "url": "http://localhost:5185/#/t/t3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C4",
+      "url": "http://localhost:5185/#/t/t4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C5",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "#app-header [data-team-switcher]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C6",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "#side-nav [data-team-switcher]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C7",
+      "url": "http://localhost:5185/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C8",
+      "url": "http://localhost:5185/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-delete-team=\"t4\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C9",
+      "url": "http://localhost:5185/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-delete-team=\"t5\"]",
+        "[data-delete-confirm]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C10",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C11",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();"
+      ]
+    },
+    {
+      "id": "06-C12",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const until = async (selector) => { for (let i = 0; i < 100; i += 1) { const found = document.querySelector(selector); if (found) return found; await wait(100); } throw new Error('never drawn: ' + selector); };",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#new-team-name', 'Iron Rooks');",
+        "  document.querySelector('[data-race=\"teams/human\"]').click();",
+        "  document.querySelector('[data-new-team-create]').click();",
+        "  await until('[data-hire-key=\"0\"] [data-hire-step=\"1\"]');",
+        "  const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "  const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "  hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "06-C13",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const until = async (selector) => { for (let i = 0; i < 100; i += 1) { const found = document.querySelector(selector); if (found) return found; await wait(100); } throw new Error('never drawn: ' + selector); };",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#new-team-name', 'Iron Rooks');",
+        "  document.querySelector('[data-race=\"teams/human\"]').click();",
+        "  document.querySelector('[data-new-team-create]').click();",
+        "  await until('[data-hire-key=\"0\"] [data-hire-step=\"1\"]');",
+        "  const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "  const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "  hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);",
+        "  document.querySelector('[data-roster-toggle]').click();",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "06-C14",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const until = async (selector) => { for (let i = 0; i < 100; i += 1) { const found = document.querySelector(selector); if (found) return found; await wait(100); } throw new Error('never drawn: ' + selector); };",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#new-team-name', 'Iron Rooks');",
+        "  document.querySelector('[data-race=\"teams/human\"]').click();",
+        "  document.querySelector('[data-new-team-create]').click();",
+        "  await until('[data-hire-key=\"0\"] [data-hire-step=\"1\"]');",
+        "  const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "  const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "  hire(0, 3); hire(1, 1); hire(2, 2); hire(3, 2); hire(5, 1); staff('startingRerolls', 2); staff('dedicatedFans', 2);",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "06-C15",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();"
+      ]
+    },
+    {
+      "id": "06-C16",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-C17",
+      "url": "http://localhost:5185/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'gata2025');",
+        "fill('#password-next', 'Wardens!77');",
+        "fill('#password-repeat', 'Wardens!77');"
+      ]
+    },
+    {
+      "id": "06-R1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "06-R2",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const until = async (selector) => { for (let i = 0; i < 100; i += 1) { const found = document.querySelector(selector); if (found) return found; await wait(100); } throw new Error('never drawn: ' + selector); };",
+        "  const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "  fill('#new-team-name', 'Iron Rooks');",
+        "  document.querySelector('[data-race=\"teams/human\"]').click();",
+        "  document.querySelector('[data-new-team-create]').click();",
+        "  await until('[data-hire-key=\"0\"] [data-hire-step=\"1\"]');",
+        "  const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "  const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "  hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07a-R1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        901,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07a-R2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key^=\"p3#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07a-R3",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key^=\"p3#\"]').click();",
+        "window.scrollTo(0, 420);"
+      ]
+    },
+    {
+      "id": "07a-R4",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const copy = matchMedia('(min-width: 901px)').matches ? '.g-rtable__skills--desk' : '.g-rtable__skillrow';",
+        "document.querySelector(`tbody[data-key^=\"p2#\"] ${copy} [data-skill=\"Block\"]`).click();"
+      ]
+    },
+    {
+      "id": "07a-R5",
+      "url": "http://localhost:5185/#/t/t5/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07a-R6",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key^=\"q4#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07a-R7",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]",
+        "[data-toggle-key=\"roster-outside\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07a-R8",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]",
+        "[data-roster-injury^=\"q4#\"]",
+        "#roster-injury [data-option-value=\"lasting\"]",
+        "#roster-injury [data-chip-value=\"ag\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07a-R9",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key^=\"q4#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07a-R10",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-sort-key=\"ag\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07a-R13",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        901,
+        1100
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07a-R11",
+      "url": "http://localhost:5185/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const untilFound = async (find) => { for (let i = 0; i < 100; i += 1) { const found = find(); if (found) return found; await wait(100); } throw new Error('never drawn: ' + find); };",
+        "  document.querySelector('[data-row-key]').click();",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  (await untilFound(() => copy() && copy().querySelector('[data-action-key=\"touchdowns\"] [data-action-step=\"1\"]'))).click();",
+        "})()"
+      ],
+      "runWaitMs": 1200,
+      "fullPage": true,
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07b-F1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07b-F2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-row-key^=\"p1#\"]').click();",
+        "  await wait(300);",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-mark]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-mark [data-option-value=\"lasting\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-mark [data-chip-value=\"ma\"]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "07b-F3",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-row-key^=\"p1#\"]').click();",
+        "  await wait(300);",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-mark]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-mark [data-option-value=\"dead\"]').click();",
+        "  await wait(200);",
+        "  const f = document.querySelector('#mark-text');",
+        "  f.value = 'Foul by the Duskspire Knives in round 4, Casualty 16';",
+        "  f.dispatchEvent(new Event('input', { bubbles: true }));",
+        "})()"
+      ]
+    },
+    {
+      "id": "07b-F4",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f1\"]"
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07b-F5",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f1\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key=\"fallen-f1\"]').scrollIntoView({ block: 'center' });"
+      ]
+    },
+    {
+      "id": "07b-F6",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f2\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "document.querySelector('[data-row-key=\"fallen-f2\"]').scrollIntoView({ block: 'center' });"
+      ]
+    },
+    {
+      "id": "07b-F7",
+      "url": "http://localhost:5185/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07b-F9",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07b-F10",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  document.querySelector('[data-row-key^=\"p6#\"]').click();",
+        "  await new Promise((resolve) => setTimeout(resolve, 300));",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-return]').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07b-F11",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const aside = document.querySelector('.g-roster__aside');",
+        "aside.scrollTop = aside.scrollHeight;"
+      ]
+    },
+    {
+      "id": "07c-H1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "click": [
+        "[data-row-key^=\"p2#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(() => {",
+        "  // The pair of actions brought into view: under his counters on a phone, at the panel's foot on a desk.",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('.g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-H2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-H3",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"0\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-H4",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"3\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-H5",
+      "url": "http://localhost:5185/#/t/t5/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-H6",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"0\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07c-S1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-S2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p8#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-S3",
+      "url": "http://localhost:5185/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"r1#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07c-S4",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-M1",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(() => {",
+        "  // The pair of actions brought into view: under his counters on a phone, at the panel's foot on a desk.",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('.g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-answers-P1",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390,
+        360
+      ],
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(() => {",
+        "  // The match's pair, «Injury in the match…» beside the closed «Sell», under his counters in the open row.",
+        "  document.querySelector('.g-rtable__panelrow .g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-answers-P2",
+      "url": "http://localhost:5185/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390,
+        360
+      ],
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(() => {",
+        "  document.querySelector('.g-rtable__panelrow .g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-answers-S1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-answers-D1",
+      "url": "http://localhost:5185/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-delete-team=\"t4\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07c-answers-C1",
+      "url": "http://localhost:5185/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  // A Goblin in the cart (its stepper beside two lines), then the Untrained Troll's seven skills and «in the team 0 of 1».",
+        "  document.querySelector('#roster-hire [data-hire-key=\"4\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"5\"]').scrollIntoView({ block: 'end' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07c-answers-C2",
+      "url": "http://localhost:5185/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"4\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"5\"]').scrollIntoView({ block: 'end' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-P1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-P2",
+      "url": "http://localhost:5185/#/t/t1/roster/p4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-P3",
+      "url": "http://localhost:5185/#/t/t1/roster/p6",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-E1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-edit]', 350);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-E2",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-edit]', 350);",
+        "  await typeIn('#player-edit-number', '4');",
+        "})()"
+      ],
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07d-A1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-A2",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "  await pick('.g-options [data-option-value=\"primary\"]');",
+        "  await nextIfAny();",
+        "})()"
+      ],
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07d-A3",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "  await pick('.g-options [data-option-value=\"primary\"]');",
+        "  await nextIfAny();",
+        "  firstOpen('[data-advance-category]').click(); await wait(200);",
+        "  await nextIfAny();",
+        "  firstOpen('[data-advance-skill]').click(); await wait(250);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-A6",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "  await pick('.g-options [data-option-value=\"stat\"]');",
+        "  await nextIfAny();",
+        "  await pick('[data-seg-group=\"advance-via\"] [data-seg-value=\"table\"]');",
+        "  await pick('[data-advance-d8=\"6\"]', 300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-A7",
+      "url": "http://localhost:5185/#/t/t1/roster/p5",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "  await pick('.g-options [data-option-value=\"random\"]');",
+        "  await nextIfAny();",
+        "  firstOpen('[data-advance-category]').click(); await wait(200);",
+        "  await nextIfAny();",
+        "  await pick('[data-advance-roll]', 600);",
+        "})()"
+      ],
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07d-U1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-edit]', 350);",
+        "  await pick('[data-player-fix]', 350);",
+        "  await pick('[data-player-unadvance]', 350);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-O1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-M1",
+      "url": "http://localhost:5185/#/t/t2/roster/q4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-R1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "})()"
+      ],
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "07d-F1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-edit]', 350);",
+        "  await pick('[data-player-fix]', 350);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-F2",
+      "url": "http://localhost:5185/#/t/t1/roster/p6",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-edit]', 350);",
+        "  await pick('[data-player-fix]', 350);",
+        "})()"
+      ],
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07d-S1",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(300);",
+        "  const place = vis('.g-team-settings-entry') || vis('#team-settings-title');",
+        "  if (!place) throw new Error('no team settings place');",
+        "  place.scrollIntoView({ block: 'center' });",
+        "  await wait(300);",
+        "})()"
+      ],
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "07d-S2",
+      "url": "http://localhost:5185/#/t/t1/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-settings-open=\"name\"]', 350);",
+        "})()"
+      ],
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "07d-S3",
+      "url": "http://localhost:5185/#/t/t1/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(300);",
+        "  if (innerWidth > 900) {",
+        "    const title = vis('#team-settings-title');",
+        "    if (!title) throw new Error('no #team-settings-title');",
+        "    title.scrollIntoView({ block: 'start' });",
+        "    await wait(300);",
+        "  }",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-S3p",
+      "url": "http://localhost:5185/#/t/t5/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(300);",
+        "  if (innerWidth > 900) {",
+        "    const title = vis('#team-settings-title');",
+        "    if (!title) throw new Error('no #team-settings-title');",
+        "    title.scrollIntoView({ block: 'start' });",
+        "    await wait(300);",
+        "  }",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-G1",
+      "url": "http://localhost:5185/#/t/x/roster/p1",
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "07d-A4t",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-advance]', 350);",
+        "  await pick('.g-options [data-option-value=\"random\"]');",
+        "  await nextIfAny();",
+        "  (sheet().querySelector('[data-advance-category=\"Agility\"]:not([aria-disabled=\"true\"])') || firstOpen('[data-advance-category]')).click(); await wait(200);",
+        "  await nextIfAny();",
+        "  await pick('[data-seg-group=\"advance-via\"] [data-seg-value=\"table\"]');",
+        "  firstOpen('[data-advance-face]').click(); await wait(200);",
+        "  [...sheet().querySelectorAll('[data-advance-face]')].filter((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true' && el.getAttribute('aria-checked') !== 'true')[1].click(); await wait(200);",
+        "  firstOpen('[data-advance-pick]').click(); await wait(250);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-C1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-career]', 600);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-C2",
+      "url": "http://localhost:5185/#/t/t1/roster/p2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-player-career]', 600);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-Q1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await typeIn('#roster-query', 'block');",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-K1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-skill=\"Dodge\"]', 600);",
+        "  document.querySelector('dialog[open]').style.willChange = 'transform';",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-N1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-team-switcher]', 400);",
+        "  await press('[data-switcher-new]', 500);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07d-N2",
+      "url": "http://localhost:5185/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(500);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "extraWidths": [
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C2",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "extraWidths": [
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C3",
+      "url": "http://localhost:5185/#/t/t1/roster/p4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C4",
+      "url": "http://localhost:5185/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C5",
+      "url": "http://localhost:5185/#/t/t2/roster/q4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C6",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-row-key=\"fallen-f2\"]', 500);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C7",
+      "url": "http://localhost:5185/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "extraWidths": [
+        768
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C7o",
+      "url": "http://localhost:5185/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C8",
+      "url": "http://localhost:5185/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C9",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-C10",
+      "url": "http://localhost:5185/#/t/t1/roster/p10",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-O1",
+      "url": "http://localhost:5185/#/t/t2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "07e-R1",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "08-T1",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T2",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-treasury-money]",
+        "[data-money-reason=\"friendly\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T3",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-treasury-money]",
+        "[data-seg-value=\"out\"]",
+        "[data-money-reason=\"fine\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#money-amount', '200');"
+      ]
+    },
+    {
+      "id": "08-T4",
+      "url": "http://localhost:5185/#/t/t4/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T5",
+      "url": "http://localhost:5185/#/t/t5/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T6",
+      "url": "http://localhost:5185/#/t/t2/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T7",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-ledger-all]"
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T8",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-treasury-fix]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-T9",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-resource-key=\"startingRerolls\"] [data-resource-step=\"1\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-R1",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-R2",
+      "url": "http://localhost:5185/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-treasury-money]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-O1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "08-O2",
+      "url": "http://localhost:5185/#/t/t4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-M1",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-M2",
+      "url": "http://localhost:5185/#/t/t2/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-M3",
+      "url": "http://localhost:5185/#/t/t3/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-M4",
+      "url": "http://localhost:5185/#/t/t5/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-M5",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/^1$/);",
+        "  await wait(400);",
+        "  document.activeElement.blur();",
+        "  window.scrollTo(0, 0);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-O1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-O2",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/inducement/i);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-R1",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-B1",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/inducement|missing the match/i);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-B2",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/inducement|missing the match/i);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-B3",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/inducement|missing the match/i);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-B4",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  await wait(400);",
+        "  await press(/inducement|missing the match/i);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "09a-P7",
+      "url": "http://localhost:5185/#/games/g2/pre-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-S1",
+      "url": "http://localhost:5185/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        320,
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-S2",
+      "url": "http://localhost:5185/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-S3",
+      "url": "http://localhost:5185/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-U1",
+      "url": "http://localhost:5185/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-F1",
+      "url": "http://localhost:5185/#/games/g2/post-match/fans",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-P1",
+      "url": "http://localhost:5185/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-U2",
+      "url": "http://localhost:5185/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-P3",
+      "url": "http://localhost:5185/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-P4",
+      "url": "http://localhost:5185/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-R1",
+      "url": "http://localhost:5185/#/games/g2/post-match/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-T1",
+      "url": "http://localhost:5185/#/games/g2/post-match/finance",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-N1",
+      "url": "http://localhost:5185/#/games/g2/post-match/next",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-V1",
+      "url": "http://localhost:5185/#/games/g2/post-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-V2",
+      "url": "http://localhost:5185/#/games/g2/post-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09b-G1",
+      "url": "http://localhost:5185/#/games/g2/post-match",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C1",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "waitMs": 1400,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C2",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await click('#friendly-send [data-friendly-pick=\"u2\"]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-C3",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await type('#friendly-search', 'raid');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-C4",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await type('#friendly-search', 'zzz');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-C5",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-accept=\"c1\"]', 1400);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-C6",
+      "url": "http://localhost:5185/#/t/t1/challenges/u3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "waitMs": 1800,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C7",
+      "url": "http://localhost:5185/#/t/t1/challenges/u4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "waitMs": 1800,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C12",
+      "url": "http://localhost:5185/#/t/t1/challenges/u99",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "waitMs": 1800,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C8",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-history]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-C10",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "waitMs": 1400,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C11",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440,
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await click('#friendly-send [data-friendly-pick=\"u2\"]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-P1",
+      "url": "http://localhost:5185/#/coaches/u3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "waitMs": 1400,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-G1",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "waitMs": 1400,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09c-C9",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/empty');",
+        "  await enter('#/t/t1/challenges');",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "09c-F1",
+      "url": "http://localhost:5185/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/fail');",
+        "  await enter('#/t/t1/challenges');",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "10-L1",
+      "url": "http://localhost:5185/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-L2",
+      "url": "http://localhost:5185/#/season",
+      "storage": {},
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-L3",
+      "url": "http://localhost:5185/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-S1",
+      "url": "http://localhost:5185/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-S2",
+      "url": "http://localhost:5185/#/t/t2/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-S3",
+      "url": "http://localhost:5185/#/t/t3/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-O1",
+      "url": "http://localhost:5185/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const until = async (selector) => { for (let i = 0; i < 100; i += 1) { const found = document.querySelector(selector); if (found) return found; await wait(100); } throw new Error('never drawn: ' + selector); };",
+        "  await until('.g-minitable__row');",
+        "})()"
+      ]
+    },
+    {
+      "id": "10-T1",
+      "url": "http://localhost:5185/#/coaches/u2/teams/rt1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-T2",
+      "url": "http://localhost:5185/#/coaches/u2/teams/rt2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-T3",
+      "url": "http://localhost:5185/#/coaches/u3/teams/n1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  await wait(400);",
+        "  await press(/^Wrestle$/, 'button[data-skill]', 0, 800);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "10-T4",
+      "url": "http://localhost:5185/#/coaches/u2/teams/rt1",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-T5",
+      "url": "http://localhost:5185/#/coaches/u3/teams/n1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-C1",
+      "url": "http://localhost:5185/#/coaches/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-C2",
+      "url": "http://localhost:5185/#/coaches/u1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "10-G1",
+      "url": "http://localhost:5185/#/coaches/u2",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-H1",
+      "url": "http://localhost:5185/#/",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-H2",
+      "url": "http://localhost:5185/#/",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-H3",
+      "url": "http://localhost:5185/#/",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F1",
+      "url": "http://localhost:5185/#/ref",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F2",
+      "url": "http://localhost:5185/#/ref",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-query', 'block');"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "11-F3",
+      "url": "http://localhost:5185/#/ref",
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-query', 'zzzz');"
+      ]
+    },
+    {
+      "id": "11-F4",
+      "url": "http://localhost:5185/#/ref/skills",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F5",
+      "url": "http://localhost:5185/#/ref/skills",
+      "click": [
+        "[data-chip-value=\"Agility\"]"
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-list-query', 'd');"
+      ]
+    },
+    {
+      "id": "11-F6",
+      "url": "http://localhost:5185/#/skills/mighty-blow-1",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F7",
+      "url": "http://localhost:5185/#/ref/traits",
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F8",
+      "url": "http://localhost:5185/#/ref/teams",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F9",
+      "url": "http://localhost:5185/#/ref/star-players",
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F10",
+      "url": "http://localhost:5185/#/ref/inducements",
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-F11",
+      "url": "http://localhost:5185/#/ref/rules",
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A1",
+      "url": "http://localhost:5185/#/weather",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A2",
+      "url": "http://localhost:5185/#/kick-off-table",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A3",
+      "url": "http://localhost:5185/#/prayers-to-nuffle",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A4",
+      "url": "http://localhost:5185/#/casualties",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A5",
+      "url": "http://localhost:5185/#/inducements/bribe",
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A6",
+      "url": "http://localhost:5185/#/player-advancement",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A7",
+      "url": "http://localhost:5185/#/skill-table",
+      "click": [],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "Math.random = () => 0.5;",
+        "document.querySelector('[data-roll-skill]').click();"
+      ]
+    },
+    {
+      "id": "11-A8",
+      "url": "http://localhost:5185/#/leagues",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A9",
+      "url": "http://localhost:5185/#/overview/code-of-conduct",
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A10",
+      "url": "http://localhost:5185/#/legal",
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-A11",
+      "url": "http://localhost:5185/#/no-such-page",
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-T1",
+      "url": "http://localhost:5185/#/teams/ogre",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-T2",
+      "url": "http://localhost:5185/#/teams/wood-elves",
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-T3",
+      "url": "http://localhost:5185/#/teams/amazon",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-S1",
+      "url": "http://localhost:5185/#/skills/evasive",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-U1",
+      "url": "http://localhost:5185/#/ref",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-U2",
+      "url": "http://localhost:5185/#/teams/ogre",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "11-U3",
+      "url": "http://localhost:5185/#/weather",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-A1",
+      "url": "http://localhost:5186/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-A2",
+      "url": "http://localhost:5186/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  const LOGIN = 'newbie_coach';",
+        "  await press('[data-coach-new]', 700);",
+        "  await type('#coach-new-login', LOGIN);",
+        "  await type('#coach-new-telegram', '@newbie');",
+        "  await type('#coach-new-team', 'Mudfoot Boyz');",
+        "  await press('[data-coach-race=\"teams/orc\"]', 400);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "12-U1",
+      "url": "http://localhost:5186/#/administration/users/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-U2",
+      "url": "http://localhost:5186/#/administration/users/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-acoach-reset]', 600);",
+        "  await press('[data-confirm-host] [data-confirm=\"yes\"]', 1200);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "12-U3",
+      "url": "http://localhost:5186/#/administration/users/u1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-T1",
+      "url": "http://localhost:5186/#/administration/users/u2/teams/rt1/edit",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-T2",
+      "url": "http://localhost:5186/#/administration/users/u2/teams/rt1/edit",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-admin-fallen]', 800);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "12-S1",
+      "url": "http://localhost:5186/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-S2",
+      "url": "http://localhost:5186/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-season-result=\"p3-4\"]', 700);",
+        "  await press('dialog[open] [data-seg-group=\"result-mode\"] [data-seg-value=\"technical\"]', 500);",
+        "  await press('dialog[open] [data-option-value=\"no_team\"]', 500);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "12-S3",
+      "url": "http://localhost:5186/#/administration/season/entries",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-L1",
+      "url": "http://localhost:5186/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-O1",
+      "url": "http://localhost:5186/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-P1",
+      "url": "http://localhost:5186/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const type = async (sel, value) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(400);",
+        "  await press('[data-after-mode] [data-mode=\"technical\"]', 700);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "12-E1",
+      "url": "http://localhost:5186/#/t/t5",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-N1",
+      "url": "http://localhost:5185/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-R1",
+      "url": "http://localhost:5186/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "12-R2",
+      "url": "http://localhost:5186/#/administration/season",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-P1",
+      "url": "http://localhost:5185/#/games/g1/pre-match",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-P2",
+      "url": "http://localhost:5185/#/games/g1/pre-match/weather",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-P3",
+      "url": "http://localhost:5185/#/games/g1/pre-match/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-P4",
+      "url": "http://localhost:5185/#/games/g1/pre-match/inducements",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-P6",
+      "url": "http://localhost:5185/#/games/g1/pre-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "09a-R2",
+      "url": "http://localhost:5185/#/games/g1/pre-match/inducements",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "13-G1",
+      "url": "http://localhost:5185/#/games/g3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "13-G2",
+      "url": "http://localhost:3081/#/",
+      "login": "admin",
+      "storage": {},
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  const token = localStorage.getItem('gata-league-auth-token');",
+        "  const answer = await fetch('/api/games', { headers: { Authorization: 'Bearer ' + token } });",
+        "  const { currentGames } = await answer.json();",
+        "  if (!currentGames.length) throw new Error('no open match for the administrator');",
+        "  location.hash = '#/games/' + currentGames[0].id;",
+        "  await wait(1500);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-T1",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  await press('[data-roster-hire]', 400);",
+        "  const refused = [...document.querySelectorAll('#roster-hire [data-hire-step=\"1\"][aria-disabled=\"true\"]')].find(shown);",
+        "  if (!refused) throw new Error('no refused +');",
+        "  refused.click();",
+        "  await wait(500);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-S1-hire",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  await press('[data-roster-hire]', 400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-S1-sell",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  await press('[data-row-key^=\"p2#\"]', 300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-S1-edit",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  await press('[data-player-edit]', 400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-S1-adv",
+      "url": "http://localhost:5185/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  await press('[data-player-advance]', 400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-S2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  await press('[data-row-key^=\"p1#\"]', 300);",
+        "  copy().querySelector('[data-roster-mark]').click();",
+        "  await wait(350);",
+        "  document.querySelector('#roster-mark [data-option-value=\"dead\"]').click();",
+        "  await wait(250);",
+        "  const field = document.querySelector('#mark-text');",
+        "  field.value = 'Foul by the Grimtusk Raiders in round 6, Casualty 15';",
+        "  field.dispatchEvent(new Event('input', { bubbles: true }));",
+        "  field.blur();",
+        "  await wait(200);",
+        "})()"
+      ]
+    },
+    {
+      "id": "13-R1",
+      "url": "http://localhost:5185/#/skills/claws",
+      "widths": [
+        1440
+      ],
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "13-D1",
+      "url": "http://localhost:5185/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';"
+      ]
+    },
+    {
+      "id": "13-D2",
+      "url": "http://localhost:5185/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "document.documentElement.style.caretColor = 'transparent';",
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 350); };",
+        "  await press('[data-roster-hire]', 400);",
+        "})()"
+      ]
+    }
+  ]
+}
