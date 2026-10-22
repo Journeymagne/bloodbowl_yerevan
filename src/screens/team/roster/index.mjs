@@ -536,7 +536,8 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
   const read = async () => {
     const ticket = ++visit.reads;
     if (tapsLeft.has(teamId)) await tapsLeft.get(teamId);
-    const since = visit.heard.length;
+    // The phase of the match the games knew before the team's read (none, or not read: nothing a finish could undo).
+    const [since, phase] = [visit.heard.length, state.games.loaded ? phaseKeyOf(teamId) : ":"];
     const answer = await readSnapshot(teamId);
     if (!visit.here || ticket !== visit.reads) return;
     const games = loadGames(true);
@@ -547,6 +548,11 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
     if (back !== null && visit.team && !playerId) putBack(back, memory.selected);
     if (visit.team) back = null;
     await games;
+    // A finish or a start between the two reads: the team was read on the match's other side (07a; readWithGames).
+    if (phase === ":" || !visit.here || ticket !== visit.reads || phaseKeyOf(teamId) === phase) return;
+    visit.stale = true;
+    saving.draw();
+    void readAgain(saving);
   };
   const offs = [];
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.

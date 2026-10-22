@@ -6,7 +6,7 @@ import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  LIVE_GAME, PLAYERS, api, callKeys, coach, openRow, releaseCurrentScreen, renderTeamRoster, save, settle, text, withPlayers,
+  LIVE_GAME, PLAYERS, api, callKeys, coach, openRow, releaseCurrentScreen, renderTeamRoster, save, settle, state, text, withPlayers,
 } from "./helpers/roster-page.mjs";
 
 // Stage 09a, Task 1 (Review Focus 1): the roster was drawn before the match began — the opponent pressed «Start the
@@ -176,6 +176,43 @@ test("a tap still in the air when the coach comes back: the new visit takes its 
     assert.equal(deltaOf("touchdowns"), "+1", "the row the tap wrote, once");
     assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false, "open once the records are read after it");
     assert.equal(callKeys().filter((key) => key === TAP).length, 1, "the tap was sent once");
+    api.assertAnswered();
+  }));
+});
+
+// The visit's own first read (review of stage 13, Task 10): the games known when the coach opens the roster have the
+// match on; the team is read, the match finishes elsewhere, and the games read after the team say so. The team may be
+// from before the finish: it is read again, and no counter opens until it answers. A coach whose games were not known
+// yet (a cold start) has nothing to compare and is read once.
+test("the visit's first read: a match that finishes between the team's read and the games' is read again before a counter opens", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    await inTheMatch();
+    releaseCurrentScreen();
+    const team = api.hold(TEAM);
+    const entered = renderTeamRoster("t1");
+    await settle();
+    assert.equal(team.count, 1, "the visit's read is in the air");
+    // The finish lands now: the games read after the team say the match is over, and the server has its roster.
+    gamesAre([OVER]);
+    serverHas(1, 5);
+    team.release({ status: 200, body: { team: annWith(0, 4) } });
+    await entered;
+    assert.equal(teamReads(), 2, "read again: the first may be from before the finish");
+    await settle();
+    assert.equal(countOf("touchdowns"), "1", "the roster the finish wrote");
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false, "open once the second read is taken");
+    api.assertAnswered();
+  }));
+});
+
+test("a visit with no games known yet reads the team once", async () => {
+  await withWindow({ phone: true }, () => withoutTimers(async () => {
+    coach({ open: "p1#0" });
+    state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
+    gamesAre([OVER]);
+    await renderTeamRoster("t1");
+    await settle();
+    assert.equal(callKeys().filter((key) => key === TEAM).length, 1);
     api.assertAnswered();
   }));
 });

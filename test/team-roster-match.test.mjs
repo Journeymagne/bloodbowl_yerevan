@@ -626,6 +626,10 @@ test("the switch is kept per match too: the same team's next match starts with i
     // Round 4's match is on now.
     gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }, { ...LIVE_GAME, id: "g7", roundNumber: 4, season: { currentRound: 4 } }]);
     await renderTeamRoster("t1");
+    // The games known before the visit's read had round 3 on; those read after it have it finished: the team is read
+    // again (it may be from before that finish), and the counters wait for it (review of stage 13, Task 10).
+    assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1").length, 3, "the first visit's read, this visit's, and the one after the finish");
+    await settle();
     assert.equal(titleOf(banner()), "Match on · round 4 · records: 0");
     assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
     assert.equal(banner().getAttribute("class"), "g-callout");
