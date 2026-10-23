@@ -8,7 +8,7 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
-## [3.0.0] — unreleased
+## [3.0.0] — 2026-10-23
 
 The redesign. Every screen is new, built from the 0.9.1 design handoff on a
 design system of its own (Golos Text and Oswald, eight palettes, the components
