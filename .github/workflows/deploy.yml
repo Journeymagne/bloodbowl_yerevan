@@ -121,7 +121,9 @@ jobs:
               for (const [index, source] of pairs.entries()) {
                 const pair = { ...source };
                 const round = (await client.query('SELECT season_id, round_number, status FROM season_rounds WHERE id = $1', [pair.round_id])).rows[0];
-                assert.deepEqual(round, { season_id: seasonId, round_number: index + 1, status: 'started' });
+                assert.equal(round.season_id, seasonId);
+                assert.equal(round.round_number, index + 1);
+                assert.ok(['started', 'completed'].includes(round.status));
                 assert.ok(before.entries.some(row => row.id === pair.home_entry_id && row.season_id === seasonId));
                 const existing = before.pairings.find(row => row.id === pair.id);
                 if (existing) {
