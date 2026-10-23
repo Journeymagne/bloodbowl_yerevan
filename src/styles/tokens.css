@@ -6,7 +6,8 @@
  * palettes from the PALETTES object of
  * docs/redesign/handoff-0.9.1/prototypes/mobile/Settings.html. The mode (light
  * or dark) sets the status colours (danger and its fill, warn, disabled, scrim);
- * the palette sets everything else.
+ * the palette sets everything else. The 0.9.1 package was removed before 3.0.0
+ * shipped; it stays in git's history: git log --diff-filter=D -- docs/redesign/handoff-0.9.1
  *
  * theme-boot.js puts data-mode and data-palette on <html> before the first
  * paint. Without them the page is "Perfect Conditions", or "Under the

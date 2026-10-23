@@ -29,7 +29,8 @@ function stylesheets() {
   });
 }
 
-// docs/redesign/handoff-0.9.1/prototypes/mobile/Settings.html, object PALETTES.
+// docs/redesign/handoff-0.9.1/prototypes/mobile/Settings.html, object PALETTES (the package is in git's
+// history since its removal: git log --diff-filter=D -- docs/redesign/handoff-0.9.1).
 const PALETTES = {
   grass: { header: "#17392C", page: "#FFFFFF", desk: "#F3F6F4", card: "#FFFFFF", s2: "#F3F6F4", track: "#EEF2F0", segOn: "#FFFFFF", ink: "#14201A", muted: "#5F6B65", faint: "#8A948F", line: "#E6EBE8", ring: "#DCE3DF", field: "#FFFFFF", off: "#C9D3CE", acc: "#2F7A52", accText: "#2F7A52", tint: "#E4F0E9", tintInk: "#163A28" },
   parchment: { header: "#3B2A1A", page: "#FBF6EC", desk: "#F3EBDB", card: "#FFFBF3", s2: "#F3EBDB", track: "#EDE3CF", segOn: "#FFFBF3", ink: "#2A1E12", muted: "#6E5D49", faint: "#9A8A74", line: "#E6DCC8", ring: "#DCCFB6", field: "#FFFBF3", off: "#CFC2A9", acc: "#9A4A1C", accText: "#9A4A1C", tint: "#F6E3D2", tintInk: "#5E2A0C" },
