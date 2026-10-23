@@ -19,20 +19,95 @@ jobs:
             node --input-type=module <<'NODE'
             import fs from 'node:fs/promises';
             import { execFileSync } from 'node:child_process';
-            import { pool } from './server/db/pool.mjs';
+            import { Pool } from 'pg';
+            import { databaseUrl, pool } from './server/db/pool.mjs';
+            
+            const destination = '/var/backups/bloodbowl-league/snotling-history-recovery-20261023';
+            const targetCoaches = new Set(['3556860a-fe0f-4980-964c-ccfa64b394ff']);
+            const targetEntries = new Set();
+            const container = 'gata-league-postgres', user = process.env.POSTGRES_USER || 'gata_admin';
+            const scratch = `codex_season_history_${Date.now()}_999`;
+            if (!/^codex_season_history_\d+_\d+$/.test(scratch)) throw new Error('Invalid scratch name');
+            const docker = args => execFileSync('docker', ['exec', container, ...args], { encoding: 'utf8', timeout: 30000 });
+            const quote = value => '"' + value.replaceAll('"','""') + '"';
+            const timestamp = bytes => new Date(Date.UTC(2000,0,1) + Number(bytes.readBigInt64LE()) / 1000).toISOString();
+            function decode(bytes, type) {
+              if (bytes == null) return null;
+              if (type === 'uuid') return bytes.toString('hex').replace(/^(........)(....)(....)(....)(............)$/, '$1-$2-$3-$4-$5');
+              if (type === 'integer') return bytes.readInt32LE();
+              if (type === 'bigint') return bytes.readBigInt64LE().toString();
+              if (type === 'smallint') return bytes.readInt16LE();
+              if (type === 'boolean') return bytes[0] !== 0;
+              if (type === 'timestamp with time zone') return timestamp(bytes);
+              if (type === 'text') {
+                const size = bytes[0]&1 ? bytes[0]>>1 : bytes.readUInt32LE()>>2;
+                if (size !== bytes.length) throw new Error('Unsupported external text');
+                return bytes.subarray(bytes[0]&1 ? 1 : 4).toString('utf8');
+              }
+              throw new Error('Unsupported type: ' + type);
+            }
+            let inspector;
             try {
-              const teams=(await pool.query(`SELECT t.id,t.user_id,u.login,t.name,t.base_team_slug,t.created_at
-                FROM saved_teams t JOIN users u ON u.id=t.user_id WHERE t.base_team_slug ILIKE '%snot%' OR t.base_team_slug ILIKE '%dark-elf%' ORDER BY t.created_at`)).rows;
-              const entries=(await pool.query(`SELECT e.id,e.season_id,e.user_id,u.login,e.saved_team_id,t.name,t.base_team_slug,e.withdrawn_at,
-                (SELECT count(*)::int FROM season_pairings p WHERE p.home_entry_id=e.id OR p.away_entry_id=e.id) AS matches
-                FROM season_entries e JOIN users u ON u.id=e.user_id JOIN saved_teams t ON t.id=e.saved_team_id ORDER BY e.created_at`)).rows;
-              const users=(await pool.query('SELECT id,login,created_at FROM users ORDER BY created_at')).rows;
-              const rounds=(await pool.query('SELECT id,season_id,round_number,status FROM season_rounds ORDER BY round_number')).rows;
-              const storage=(await pool.query(`SELECT c.relname,pg_relation_filepath(c.oid) AS file,pg_relation_size(c.oid)::int AS bytes,
-                s.n_live_tup,s.n_dead_tup,s.last_vacuum,s.last_autovacuum FROM pg_class c JOIN pg_stat_user_tables s ON s.relid=c.oid
-                WHERE c.relname IN ('season_entries','season_pairings')`)).rows;
-              const backups=execFileSync('find',['/var/backups/bloodbowl-league','-maxdepth','3','-type','f','-printf','%p %s bytes\n'],{encoding:'utf8',timeout:30000}).trim().split('\n');
-              console.log('RECOVERY_DATA '+JSON.stringify({teams,entries,users,rounds,storage,backups}));
-            } finally {await pool.end();}
+              await fs.mkdir(destination, { recursive: true, mode: 0o700 });
+              docker(['createdb', '-U', user, scratch]);
+              const connection = new URL(databaseUrl); connection.pathname = '/' + scratch;
+              inspector = new Pool({ connectionString: connection.toString() });
+              await inspector.query('CREATE EXTENSION pageinspect');
+              const recovered = {};
+              for (const table of ['season_entries','season_pairings']) {
+                const metadata = (await pool.query(`SELECT pg_relation_filepath($1::regclass) AS file,pg_relation_size($1::regclass)::int AS size,
+                  current_setting('block_size')::int AS blocksize`, ['public.'+table])).rows[0];
+                if (!/^base\/\d+\/\d+$/.test(metadata.file) || metadata.size > 1048576) throw new Error('Unexpected relation path or size');
+                const fields = (await pool.query(`SELECT attnum,attname,format_type(atttypid,atttypmod) AS type,attisdropped,attlen,
+                  CASE WHEN atthasmissing THEN to_jsonb(attmissingval)->0 ELSE NULL END AS missing_value
+                  FROM pg_attribute WHERE attrelid=$1::regclass AND attnum>0 ORDER BY attnum`, ['public.'+table])).rows;
+                const droppedType = field => ({1:'boolean',2:'smallint',4:'integer',8:'bigint',16:'uuid','-1':'text'})[field.attlen];
+                await inspector.query(`CREATE TABLE ${quote(table)} (${fields.map(field => quote(field.attisdropped ? '_dropped_'+field.attnum : field.attname)+' '+(field.attisdropped ? droppedType(field) : field.type)).join(',')})`);
+                for (const field of fields.filter(field => field.attisdropped)) await inspector.query(`ALTER TABLE ${quote(table)} DROP COLUMN ${quote('_dropped_'+field.attnum)}`);
+                const current = (await pool.query(`SELECT * FROM ${quote(table)}`)).rows;
+                await fs.writeFile(destination+'/'+table+'-context.json',JSON.stringify({metadata,fields,current}),{mode:0o600});
+                const currentIds = new Set(current.map(row => row.id));
+                const records = [], visibleChecks = [];
+                for (let block = 0; block < metadata.size/metadata.blocksize; block++) {
+                  const page = (await pool.query('SELECT pg_read_binary_file($1,$2,$3) AS page', [metadata.file,block*metadata.blocksize,metadata.blocksize])).rows[0].page;
+                  await fs.writeFile(`${destination}/${table}-block-${block}.bin`, page, { mode: 0o600 });
+                  const items = (await inspector.query(`SELECT i.lp,i.t_xmin::text AS xmin,i.t_xmax::text AS xmax,i.t_ctid::text AS ctid,(i.t_infomask2 & 2047) AS natts,
+                    f.raw_flags,tuple_data_split($2::regclass,i.t_data,i.t_infomask,i.t_infomask2,i.t_bits,false) AS attributes
+                    FROM heap_page_items($1) i CROSS JOIN LATERAL heap_tuple_infomask_flags(i.t_infomask,i.t_infomask2) f WHERE i.lp_flags=1`, [page,table])).rows;
+                  for (const item of items) {
+                    if (item.raw_flags.includes('HEAP_XMIN_INVALID')) continue;
+                    const row = {};
+                    for (const field of fields) if (!field.attisdropped) row[field.attname] = field.attnum>item.natts ? field.missing_value??null : decode(item.attributes[field.attnum-1],field.type);
+                    if (item.ctid !== `(${block},${item.lp})`) continue;
+                    if (currentIds.has(row.id)) {
+                      const visible = current.find(current => current.id === row.id);
+                      const differences = Object.keys(row).filter(key => JSON.stringify(row[key]) !== JSON.stringify(visible[key]));
+                      visibleChecks.push({id:row.id,differences});
+                      continue;
+                    }
+                    if (table === 'season_entries' && !targetCoaches.has(row.user_id)) continue;
+                    if (table === 'season_pairings' && !targetEntries.has(row.home_entry_id) && !targetEntries.has(row.away_entry_id)) continue;
+                    if (item.xmax === '0' || item.raw_flags.includes('HEAP_XMAX_INVALID') || item.raw_flags.includes('HEAP_XMAX_LOCK_ONLY') || item.raw_flags.includes('HEAP_XMAX_IS_MULTI')) continue;
+                    const status = (await pool.query('SELECT pg_xact_status($1::xid8) AS status', [item.xmax])).rows[0].status;
+                    if (status !== 'committed') continue;
+                    if (table === 'season_entries') targetEntries.add(row.id);
+                    records.push({row,source:{block,offset:item.lp,xmin:item.xmin,deletedBy:item.xmax,flags:item.raw_flags}});
+                  }
+                }
+                await fs.writeFile(destination+'/'+table+'-retained.json', JSON.stringify({records,visibleChecks}), {mode:0o600});
+                const differences = visibleChecks.flatMap(item => item.differences);
+                recovered[table] = {recoveredRecords: records.length,validatedVisible:visibleChecks.length,
+                  decodeMismatches:visibleChecks.filter(item => item.differences.length).length,
+                  mismatchColumns:Object.fromEntries([...new Set(differences)].map(column=>[column,differences.filter(item=>item===column).length]))};
+                recovered[table].records=records.map(item=>({row:item.row,source:item.source}));
+                if (table === 'season_pairings') recovered[table].scoredMatches=records.filter(item=>item.row.home_points!==null||item.row.away_points!==null).length;
+              }
+              console.log('RECOVERY_DATA '+JSON.stringify({retained:recovered}));
+            } finally {
+              if (inspector) await inspector.end();
+              docker(['dropdb','-U',user,'--if-exists',scratch]);
+              await pool.end();
+            }
+            
             
             NODE
