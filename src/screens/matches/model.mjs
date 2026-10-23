@@ -22,6 +22,7 @@
  * Nothing is said that a read not answered yet could contradict: without the games no card, no result and no round to
  * come; without the table no call to enter the season.
  */
+import { teamLogoProps } from "../../ui/team-logo.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl } from "../../core/routes.mjs";
@@ -100,8 +101,8 @@ function cardOf({ current, team, seasonData, preview, opponent, records }) {
     phase,
     head: headOf(phase, friendly),
     meta: { left: friendly ? t("matches.offTable") : subLine(game, sides.own), right: "" },
-    own: { name: team.name, sub: sideLine(team, seasonData) },
-    other: { name: rival.team?.name ?? "", sub: sideLine(rival.team, seasonData), href: teamHrefOf(rival) },
+    own: { name: team.name, sub: sideLine(team, seasonData), ...teamLogoProps(team) },
+    other: { name: rival.team?.name ?? "", sub: sideLine(rival.team, seasonData), href: teamHrefOf(rival), ...teamLogoProps(rival.team) },
     score: phase === "sent" ? sentScore(game, sides, " : ") : "",
     tiles: phase === "sent" ? null : tilesOf(preview, opponent),
     miss: (phase === "idle" || phase === "preparing") && preview ? beforeFigures(preview).miss : null,

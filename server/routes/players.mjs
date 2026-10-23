@@ -93,7 +93,8 @@ export async function handlePlayerRoutes(request, response, url) {
         [publicPlayerMatch[1]],
       ),
       pool.query(
-        `SELECT id, user_id, name, base_team_slug, roster, stage, created_at, updated_at
+        `SELECT id, user_id, name, base_team_slug, roster, stage, created_at, updated_at,
+                (logo_data IS NOT NULL AND logo_data <> '') AS has_logo
          FROM saved_teams
          WHERE user_id = $1
          ORDER BY updated_at DESC`,

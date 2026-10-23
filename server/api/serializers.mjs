@@ -11,6 +11,7 @@
  * the server itself.
  */
 import { countToNumber } from "../../src/domain/roster/values.mjs";
+import { logoReference } from "./logo-reference.mjs";
 
 export function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -61,6 +62,7 @@ export function publicSavedTeam(row) {
     name: row.name,
     baseTeamSlug: row.base_team_slug,
     logoData: row.logo_data,
+    ...logoReference(row.id, row.has_logo ?? Boolean(row.logo_data), row.updated_at),
     roster: rosterWithoutEmbeddedLogo(row.roster),
     revision: row.revision,
     // Where the team is in its life (migration 009), and when an admin moved it
@@ -138,6 +140,7 @@ export function publicSavedTeamSlim(row) {
     name: row.name,
     baseTeamSlug: row.base_team_slug,
     logoData: null,
+    ...logoReference(row.id, row.has_logo ?? Boolean(row.logo_data), row.updated_at),
     roster: {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -184,6 +187,7 @@ export function publicSeasonEntry(row, { includeContacts = true } = {}) {
       name: row.team_name,
       baseTeamSlug: row.base_team_slug,
       logoData: null,
+      ...logoReference(row.saved_team_id, row.team_has_logo, row.team_updated_at),
       roster: {},
       createdAt: row.team_created_at,
       updatedAt: row.team_updated_at,

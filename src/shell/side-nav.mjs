@@ -14,6 +14,7 @@ import { renderButton } from "../ui/button.mjs";
 import { icon as renderIcon } from "../ui/icons.mjs";
 import { assertLinkHref } from "../ui/markup.mjs";
 import { renderCrest } from "./crest.mjs";
+import { renderTeamLogo } from "../ui/team-logo.mjs";
 
 /** The legal page has no builder in core/routes.mjs; this is the one link to it. */
 const LEGAL_URL = "#/legal";
@@ -58,13 +59,13 @@ export function renderSiteFooter({ generatedAt = "", locale }) {
  * its front page. The name is cut at three lines and the race at one, so each carries itself whole as its title.
  * The button has no address (the model gives it none); the link's is checked.
  */
-function renderTeamBlock({ name, sideSub, href, switchTeam }) {
+function renderTeamBlock({ name, sideSub, href, switchTeam, ...logo }) {
   if (!switchTeam) assertLinkHref(href);
   const chevron = switchTeam ? renderIcon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   const tag = switchTeam ? "button" : "a";
   const attributes = switchTeam ? 'type="button" data-team-switcher aria-haspopup="dialog"' : `href="${escapeHtml(href)}"`;
-  return `<${tag} class="g-sidenav__team" ${attributes}>${renderCrest({ size: "sm" })}`
+  return `<${tag} class="g-sidenav__team" ${attributes}>${renderTeamLogo(logo, { size: "sm", fallbackHtml: renderCrest({ size: "sm" }) })}`
     + `<span class="g-sidenav__titles"><span class="g-sidenav__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><span class="g-sidenav__sub" title="${escapeHtml(sideSub)}">${escapeHtml(sideSub)}</span></span>${chevron}${hint}</${tag}>`;
 }
 

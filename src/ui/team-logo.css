@@ -1,0 +1,16 @@
+.g-team-logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.g-team-logo--sm { width: 24px; height: 24px; }
+.g-team-logo--md { width: 42px; height: 42px; }
+.g-team-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-team-logo[hidden], .g-team-logo [hidden] { display: none; }

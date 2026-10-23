@@ -27,6 +27,7 @@
  * by its dot. A withdrawn entry keeps its place in the table and is no place of the zone. The overview's few rows are
  * zoned by each team's place in the whole table (`zonePlace`), not by the row of the window (pre-flight L16).
  */
+import { renderTeamLogo } from "../../ui/team-logo.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, playerTeamUrl, teamUrl } from "../../core/routes.mjs";
@@ -89,7 +90,9 @@ function teamMarkup(row, phone, viewer) {
     ? `<a class="g-table__link" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("league.teamLink", { team: row.team.name }))}">${escapeHtml(row.team.name)}</a>`
     : `<span class="g-table__name">${escapeHtml(row.team.name)}</span>`;
   const withdrawn = row.withdrawn ? `<span class="g-table__withdrawn">${escapeHtml(t("league.withdrawn"))}</span>` : "";
-  return `${name}${raceMarkup(row, phone)}${withdrawn}`;
+  const identity = `${name}${raceMarkup(row, phone)}${withdrawn}`;
+  const logo = renderTeamLogo(row.team, { size: "sm" });
+  return logo ? `<span class="g-table__face">${logo}<span class="g-table__identity">${identity}</span></span>` : identity;
 }
 
 /** What one column of a row holds, as markup, and the classes of its cell beyond `g-table__cell`. */
@@ -239,7 +242,7 @@ function miniRowMarkup(row, viewerId, teamId, place) {
     : `<span class="g-minitable__name">${escapeHtml(row.team.name)}</span>`;
   return `<div class="${className}" role="row">`
     + `<span class="g-minitable__rank" role="cell">${escapeHtml(row.rank)}</span>`
-    + `<span class="g-minitable__team" role="cell">${name}</span>`
+    + `<span class="g-minitable__team" role="cell">${renderTeamLogo(row.team, { size: "sm" })}${name}</span>`
     + `<span class="g-minitable__diff g-minitable__diff--${tone}" role="cell">${escapeHtml(text)}</span>`
     + `<span class="g-minitable__points" role="cell">${escapeHtml(row.points)}</span></div>`;
 }

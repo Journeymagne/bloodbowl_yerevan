@@ -10,6 +10,7 @@
  * Who a side is goes by the coach (the payload's `user.id`), not by the account's role: an administrator who plays the
  * match is its coach. A coach of neither side never gets the payload (the server answers 404), so the page says that.
  */
+import { teamLogoProps } from "../../ui/team-logo.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl, seasonTabUrl, teamUrl } from "../../core/routes.mjs";
 import { isGameClosedForPlayers, isGameResultSubmitted } from "../../data/games.mjs";
@@ -77,7 +78,7 @@ function cardSide(side, viewerId) {
   if (!side?.team) return { name: "—" };
   const own = Boolean(viewerId) && side.user?.id === viewerId;
   const href = own ? teamUrl(side.team.id) : side.user?.id ? playerTeamUrl(side.user.id, side.team.id) : "";
-  return { name: side.team.name || "—", sub: side.user?.login ?? "", href };
+  return { name: side.team.name || "—", sub: side.user?.login ?? "", href, ...teamLogoProps(side.team) };
 }
 
 /** The ways on, for anyone who may read them: the preparation once it is begun, the post-match once it is opened. */

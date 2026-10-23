@@ -31,6 +31,7 @@ import { onGamesChange } from "../data/games.mjs";
 import { onMyTeamsChange, raceTitleOf } from "../data/teams.mjs";
 import { patchWithModal } from "../ui/sheet.mjs";
 import { renderAppHeader } from "./app-header.mjs";
+import { wireTeamLogos } from "../ui/team-logo.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
 import { renderSideNav, renderSiteFooter } from "./side-nav.mjs";
@@ -96,6 +97,7 @@ export function tabScrollLeft({ tabLeft, tabWidth, viewWidth, scrollLeft }) {
  *   was opened from (where the focus goes back to) and a `back` that opens the switcher again
  */
 export function mountShell({ document = globalThis.document, scroller = globalThis, onNewTeam = () => {} } = {}) {
+  wireTeamLogos(document);
   const find = (id) => document.querySelector(`#${id}`);
   parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), switcher: find(SWITCHER_HOST) };
   if (!parts.switcher) {

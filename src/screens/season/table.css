@@ -326,7 +326,14 @@
 .g-minitable__row--mine.g-minitable__row--zone .g-minitable__rank { color: var(--on-accent-tint); }
 .g-minitable__row--zoneend { border-bottom: 2px solid var(--accent-text); }
 
-.g-minitable__team { min-width: 0; }
+.g-minitable__team { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+
+.g-table__face { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+.g-table__identity { display: flex; flex-direction: column; min-width: 0; }
+
+@media (max-width: 900px) {
+  .g-table__face { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+}
 
 .g-minitable__name,
 .g-minitable__link {

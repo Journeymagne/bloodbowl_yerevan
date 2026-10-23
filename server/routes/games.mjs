@@ -67,15 +67,15 @@ export async function handleGameRoutes(request, response, url) {
     );
     const logoData = String(result.rows[0]?.logo_data || "");
     const match = logoData.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([a-z0-9+/=]+)$/i);
-    if (!match) { writeResponse(request, response, 404, "", { "Cache-Control": "public, max-age=300" }); return true; }
+    if (!match) { writeResponse(request, response, 404, "", { "Cache-Control": "public, no-cache" }); return true; }
     const body = Buffer.from(match[2], "base64");
     const etag = `"${createHash("sha256").update(body).digest("hex")}"`;
     if (request.headers["if-none-match"] === etag) {
-      writeResponse(request, response, 304, "", { ETag: etag, "Cache-Control": "public, max-age=86400" }); return true;
+      writeResponse(request, response, 304, "", { ETag: etag, "Cache-Control": "public, no-cache" }); return true;
     }
     writeResponse(request, response, 200, body, {
       "Content-Type": match[1].toLowerCase(),
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": "public, no-cache",
       ETag: etag,
     });
     return true;

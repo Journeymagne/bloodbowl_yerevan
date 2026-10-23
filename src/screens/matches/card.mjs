@@ -99,7 +99,7 @@ function actionsOf(card) {
 export function currentCardMarkup(card) {
   const chip = card.phase === "idle" ? "" : renderStatusChip({ label: t(`matches.status.${card.phase}`), tone: PHASE_TONES[card.phase] });
   const head = `<div class="g-matches__head"><h2 class="g-matches__title" id="${HEAD_ID}">${escapeHtml(t(`matches.head.${card.head}`))}</h2>${chip}</div>`;
-  const other = card.other.href ? card.other : { name: card.other.name, sub: card.other.sub };
+  const other = card.other;
   return `<section class="g-matches__current">${head}${renderMatchCard({
     labelledBy: HEAD_ID, meta: card.meta, home: card.own, away: other, score: card.score, live: card.phase === "live" || card.phase === "post",
     tilesHtml: tilesMarkup(card.tiles), bodyHtml: bodyOf(card), actionsHtml: actionsOf(card),

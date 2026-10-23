@@ -183,6 +183,9 @@
 }
 
 .g-navmatch__opp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
   color: var(--header-ink);
   font: 600 16px/1.3 var(--font-body);
   letter-spacing: 0;

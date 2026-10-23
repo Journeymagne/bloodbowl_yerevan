@@ -22,6 +22,7 @@
  * which side a team plays, and the figures of a game, are data/team-record.mjs's.
  * The caller puts the markup in the SideNav as `matchHtml` (shell/side-nav.mjs).
  */
+import { renderTeamLogo } from "../ui/team-logo.mjs";
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { gameUrl, postMatchUrl, preMatchUrl, teamUrl } from "../core/routes.mjs";
@@ -144,6 +145,6 @@ export function renderNavMatch(current, teamId) {
   const result = sentLine ? `<span class="g-navmatch__result">${escapeHtml(sentLine)}</span>` : "";
   return `<section class="g-navmatch${live ? " g-navmatch--live" : ""}" aria-label="${escapeHtml(t("shell.match.aria"))}">`
     + `<span class="g-navmatch__label">${dot}${escapeHtml(label)}</span>`
-    + `<span class="g-navmatch__opp">${escapeHtml(game[sides.other].team?.name ?? "")}</span>`
+    + `<span class="g-navmatch__opp">${renderTeamLogo(game[sides.other].team, { size: "sm" })}${escapeHtml(game[sides.other].team?.name ?? "")}</span>`
     + `<span class="g-navmatch__sub">${escapeHtml(subLine(game, sides.own))}</span>${result}${links.map(renderNavLink).join("")}</section>`;
 }

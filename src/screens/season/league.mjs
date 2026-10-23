@@ -18,6 +18,7 @@
  * — a coach enters a team from its own pages (screens/season/enter.mjs), the admin runs the season in the
  * administration, and their old addresses lead there (`OLD_ADDRESSES`).
  */
+import { renderTeamLogo } from "../../ui/team-logo.mjs";
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { adminSeasonUrl } from "../../core/routes.mjs";
@@ -63,9 +64,10 @@ export function leagueModel({ seasonData, seasonError = "", viewer, phone }) {
 /** A side's name: a link where its row in the table leads, text otherwise. */
 function sideMarkup(side, viewer) {
   const href = rowHref(side, viewer);
-  if (!href) return `<span class="g-league__team">${escapeHtml(side.team.name)}</span>`;
+  const label = `${renderTeamLogo(side.team, { size: "sm" })}${escapeHtml(side.team.name)}`;
+  if (!href) return `<span class="g-league__team">${label}</span>`;
   assertLinkHref(href);
-  return `<a class="g-league__team" href="${escapeHtml(href)}">${escapeHtml(side.team.name)}</a>`;
+  return `<a class="g-league__team" href="${escapeHtml(href)}">${label}</a>`;
 }
 
 /** A sentence of the dictionary with markup in the place of its one parameter: the words around it escaped, the markup as it is. */

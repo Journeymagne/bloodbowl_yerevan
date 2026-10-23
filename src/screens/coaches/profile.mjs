@@ -12,6 +12,7 @@
  *
  * The letter's circle is the header's colour: the prototype's maroon has no token. Long names wrap; nothing is cut.
  */
+import { teamLogoProps } from "../../ui/team-logo.mjs";
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatDay } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -104,6 +105,7 @@ export function coachModel({ user, teams, seasonData, games = [], viewerId, acti
     mine,
     teams: teams.map((team) => ({
       id: team.id, name: team.name ?? "", initials: teamInitials(team.name), line: teamLine(team, teamTableRow(table, team.id)),
+      ...teamLogoProps(team),
       href: mine ? teamUrl(team.id) : playerTeamUrl(user.id, team.id), draft: team.stage === "draft",
     })),
     meetings: mine ? [] : meetingsOf(Array.isArray(games) ? games : [], user.id),

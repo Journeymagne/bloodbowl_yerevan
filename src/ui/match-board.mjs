@@ -39,6 +39,7 @@
  * A phone's squares stay a list and no links (30px is less than a thumb's 44,
  * decision 12 of stage 05): a phone does not page.
  */
+import { renderTeamLogo } from "./team-logo.mjs";
 import { delegate, escapeHtml, focusLost } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { renderButton } from "./button.mjs";
@@ -66,9 +67,10 @@ function lineMarkup({ sub, race }) {
 }
 
 /** The crest or the letter at a side's outer edge; "" for neither. The letter is the name's, which is read instead. */
-function emblemMarkup({ crestHtml, initial }) {
+function emblemMarkup({ crestHtml, initial, ...logo }) {
   const crest = crestHtml ? `<span class="g-board__crest">${crestHtml}</span>` : "";
-  return crest + (initial ? `<span class="g-board__initial" aria-hidden="true">${escapeHtml(initial)}</span>` : "");
+  const fallbackHtml = crest + (initial ? `<span class="g-board__initial" aria-hidden="true">${escapeHtml(initial)}</span>` : "");
+  return renderTeamLogo(logo, { fallbackHtml });
 }
 
 /**

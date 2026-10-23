@@ -25,6 +25,7 @@
  * team page — so the header draws neither the team nor the tabs; the SideNav of a
  * desk is the same.
  */
+import { teamLogoProps } from "../ui/team-logo.mjs";
 import { t } from "../core/i18n.mjs";
 import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl } from "../core/routes.mjs";
 
@@ -144,7 +145,7 @@ function coachBrand(team, raceTitle, place) {
     return { name: t("shell.noTeam"), sub, sideSub: sub, switchTeam: true };
   }
   // A race the data does not know names the league, so the line is never empty under a team.
-  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), switchTeam: true };
+  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), switchTeam: true, ...teamLogoProps(team) };
 }
 
 /** @typedef {{key: string, label: string, href: string, icon: string, current: boolean}} NavItem */

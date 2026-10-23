@@ -65,6 +65,7 @@
   text-align: left;
 }
 .g-match__side--away { text-align: right; }
+.g-match__side--away > .g-team-logo { align-self: flex-end; }
 
 .g-match__name {
   color: var(--ink);

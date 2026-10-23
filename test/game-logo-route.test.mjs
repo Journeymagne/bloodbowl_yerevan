@@ -22,6 +22,12 @@ test("logo responses stop API dispatch for missing, successful and cached images
     const cached = response();
     assert.equal(await handleGameRoutes({ method: "GET", headers: { "if-none-match": image.writes[0].headers.ETag } }, cached, url), true);
     assert.equal(cached.writes[0].status, 304); assert.equal(cached.ends, 1);
+    for (const reply of [missing, image, cached]) assert.equal(reply.writes[0].headers["Cache-Control"], "public, no-cache");
+    pool.query = async () => ({ rows: [{ logo_data: "data:image/png;base64,bmV3" }] });
+    const changed = response();
+    await handleGameRoutes({ method: "GET", headers: { "if-none-match": image.writes[0].headers.ETag } }, changed, url);
+    assert.equal(changed.writes[0].status, 200); assert.equal(changed.body.toString(), "new");
+    assert.notEqual(changed.writes[0].headers.ETag, image.writes[0].headers.ETag);
   } finally { pool.query = original; }
 });
 

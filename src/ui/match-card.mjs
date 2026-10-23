@@ -15,6 +15,7 @@
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { assertLinkHref, classNames } from "./markup.mjs";
+import { renderTeamLogo } from "./team-logo.mjs";
 
 /** One team: its name — a link to the team when it has an address —, and a line under it when there is one. */
 function renderSide(team, away) {
@@ -23,7 +24,7 @@ function renderSide(team, away) {
   const name = team.href
     ? `<a class="g-match__name" href="${escapeHtml(team.href)}">${escapeHtml(team.name)}</a>`
     : `<span class="g-match__name">${escapeHtml(team.name)}</span>`;
-  return `<div class="${classNames("g-match__side", away && "g-match__side--away")}">${name}${sub}</div>`;
+  return `<div class="${classNames("g-match__side", away && "g-match__side--away")}">${renderTeamLogo(team)}${name}${sub}</div>`;
 }
 
 /**

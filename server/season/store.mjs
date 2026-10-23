@@ -54,6 +54,7 @@ export async function loadSeasonEntryRows(seasonId) {
        users.is_admin AS user_is_admin,
        saved_teams.name AS team_name,
        saved_teams.base_team_slug,
+       (saved_teams.logo_data IS NOT NULL AND saved_teams.logo_data <> '') AS team_has_logo,
        saved_teams.created_at AS team_created_at,
        saved_teams.updated_at AS team_updated_at
      FROM season_entries se
@@ -190,7 +191,8 @@ export async function loadSeasonBundle(user = null) {
     loadSeasonPairingRows(seasonRow.id),
     user
       ? pool.query(
-        `SELECT id, user_id, name, base_team_slug, created_at, updated_at
+        `SELECT id, user_id, name, base_team_slug, created_at, updated_at,
+                (logo_data IS NOT NULL AND logo_data <> '') AS has_logo
          FROM saved_teams
          WHERE user_id = $1
          ORDER BY updated_at DESC`,

@@ -14,6 +14,7 @@
  * L13; all of them while the season does not say when). `bandVisit` is the board's part of a screen's visit (pre-flight
  * L10): the match shown, the opponent's team read for the match on, the sheet its bubbles open.
  */
+import { teamLogoProps } from "../../ui/team-logo.mjs";
 import { delegate } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -41,7 +42,7 @@ import { beforeFigures, closeBeforeSheet, openBeforeSheet } from "./before.mjs";
  */
 
 /** The opponent as an item keeps him: what the board's side and the square's name need. */
-const opponentRef = (rival) => ({ name: rival.team?.name ?? "", userId: rival.user?.id ?? "", teamId: rival.team?.id ?? "", race: rival.team?.baseTeamSlug ?? "" });
+const opponentRef = (rival) => ({ name: rival.team?.name ?? "", userId: rival.user?.id ?? "", teamId: rival.team?.id ?? "", race: rival.team?.baseTeamSlug ?? "", ...teamLogoProps(rival.team) });
 
 /** «Round 7» or «Friendly», and the square's label: the round, or the friendly's letter. */
 function titled(game) {
@@ -156,10 +157,10 @@ export function opponentOf(rival, seasonData, phone) {
   const race = raceTeamOf(rival.team?.baseTeamSlug);
   const rank = standingOf(seasonData, rival.team?.id)?.rank;
   const place = rank ? t("teamOverview.opponentPlace", { place: rank }) : "";
-  if (phone) return { name, sub: [race?.title, place].filter(Boolean).join(" · ") };
+  if (phone) return { name, sub: [race?.title, place].filter(Boolean).join(" · "), ...teamLogoProps(rival.team) };
   const href = rival.user?.id && rival.team?.id ? playerTeamUrl(rival.user.id, rival.team.id) : undefined;
   const raceLink = race ? { title: race.title, href: pageUrl(race), hint: t("teamOverview.boardRace") } : undefined;
-  return { name, href, hint: t("teamOverview.boardTeam"), sub: place, initial: initialOf(name), race: raceLink };
+  return { name, href, hint: t("teamOverview.boardTeam"), sub: place, initial: initialOf(name), race: raceLink, ...teamLogoProps(rival.team) };
 }
 
 /** Our side: the race, the place and the value; a desk's has the league's crest. Outside the table, no place. */
@@ -168,7 +169,7 @@ export function ownSideOf(team, raceTeam, seasonData, phone) {
   const value = formatMoney(teamValue(team, raceTeam));
   const sub = !raceTeam ? "" : rank ? t("teamOverview.ownSub", { race: raceTeam.title, place: rank, value })
     : `${raceTeam.title} · ${t("teamOverview.oppValue", { value })}`;
-  return phone ? { name: team.name, sub } : { name: team.name, sub, crestHtml: renderCrest({ size: "md" }) };
+  return { name: team.name, sub, ...teamLogoProps(team), ...(phone ? {} : { crestHtml: renderCrest({ size: "md" }) }) };
 }
 
 /** The opponent's value, once his team is read and is the one the match is against; "" otherwise. */
@@ -190,7 +191,7 @@ function outcomeOf(item) {
 /** The board's sides and middle for a past match: its opponent without a value, its score, outcome and chips. */
 function pastBoard(item, seasonData) {
   const { opponent: ref } = item;
-  const rival = { user: { id: ref.userId }, team: { id: ref.teamId, name: ref.name, baseTeamSlug: ref.race } };
+  const rival = { user: { id: ref.userId }, team: { id: ref.teamId, name: ref.name, baseTeamSlug: ref.race, ...teamLogoProps(ref) } };
   const chips = [t("matches.band.cas", { cas: item.cas }), ...(item.mvps.length ? [t("matches.band.mvp", { names: item.mvps.join(", ") })] : [])];
   return { overline: subLine({ kind: item.friendly ? "friendly" : "league", roundNumber: item.round }, item.venue), opponent: opponentOf(rival, seasonData, false),
     pendingText: "", score: item.score, status: "none", outcome: outcomeOf(item), scoreResult: item.outcome === "w" || item.outcome === "l" ? item.outcome : "",

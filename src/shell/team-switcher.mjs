@@ -22,6 +22,7 @@ import { gameOutcome, seasonRecord, standingOf, teamInitials } from "../data/tea
 import { icon } from "../ui/icons.mjs";
 import { renderSheet, wireSheets } from "../ui/sheet.mjs";
 import { renderStatusChip } from "../ui/status-chip.mjs";
+import { renderTeamLogo, teamLogoProps } from "../ui/team-logo.mjs";
 
 /** What the sheet is shown by (`#team-switcher`), and what wireSheets reports. */
 export const SWITCHER_ID = "team-switcher";
@@ -64,6 +65,7 @@ export function switcherRows({ teams, activeTeamId, raceTitleOf, seasonData, gam
     id: team.id,
     name: team.name,
     initials: teamInitials(team.name),
+    ...teamLogoProps(team),
     line: lineParts(team, raceTitleOf(team.baseTeamSlug), seasonData, games).filter(Boolean).join(" · "),
     current: team.id === activeTeamId,
     draft: team.stage === "draft",
@@ -81,7 +83,8 @@ export function switcherRows({ teams, activeTeamId, raceTitleOf, seasonData, gam
 export function renderTeamFace(row) {
   const line = row.line ? `<span class="g-teamface__line">${escapeHtml(row.line)}</span>` : "";
   const draft = row.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
-  return `<span class="g-teamface"><span class="g-teamface__tile" aria-hidden="true">${escapeHtml(row.initials)}</span>`
+  const fallbackHtml = `<span class="g-teamface__tile" aria-hidden="true">${escapeHtml(row.initials)}</span>`;
+  return `<span class="g-teamface">${renderTeamLogo(row, { fallbackHtml })}`
     + `<span class="g-teamface__text"><span class="g-teamface__name">${escapeHtml(row.name)}</span>${line}${draft}</span></span>`;
 }
 
