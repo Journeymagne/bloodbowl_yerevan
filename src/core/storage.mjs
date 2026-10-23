@@ -22,7 +22,11 @@ function fullKey(key) {
 }
 
 /** A storage that works even when the browser refuses to persist anything. */
-export function createStorage(backend = globalThis.localStorage) {
+export function createStorage(backend) {
+  if (backend === undefined) {
+    try { backend = globalThis.localStorage; }
+    catch { backend = null; } // The property itself can throw when cookies are blocked.
+  }
   const memory = new Map();
 
   const readable = () => {

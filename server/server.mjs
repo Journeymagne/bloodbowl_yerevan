@@ -8,7 +8,9 @@ import { handleStatic, staticRootLabel } from "./http/static.mjs";
 import { sendJson } from "./http/responses.mjs";
 import { errorPayload } from "./http/errors.mjs";
 import { normalizeLogin } from "./api/serializers.mjs";
-import { hashPassword, startSessionSweeper } from "./auth/session.mjs";
+import { hashPassword, startSessionSweeper, currentUser } from "./auth/session.mjs";
+import { createTeamSource } from "./play/teams.mjs";
+import { createPlayHandler } from "./play/handler.mjs";
 import { handleAuthRoutes } from "./routes/auth.mjs";
 import { handleTeamRoutes } from "./routes/teams.mjs";
 import { handleAdminRoutes } from "./routes/admin.mjs";
@@ -82,10 +84,6 @@ async function ensureAdmin() {
   );
   startupLog(`admin account is ready: ${login}`);
 }
-
-
-
-
 /**
  * Every route module, in the order the API is tried.
  *
@@ -94,6 +92,7 @@ async function ensureAdmin() {
  * modules and this list.
  */
 const routes = [
+  createPlayHandler({ teams: createTeamSource(pool), currentUser }),
   handleAuthRoutes,
   handleTeamRoutes,
   handleAdminRoutes,

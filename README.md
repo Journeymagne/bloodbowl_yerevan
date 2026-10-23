@@ -35,6 +35,23 @@ The site contains:
 
 ## Running Locally
 
+### Playable tabletop demo
+
+Open **Play online · Demo** in the league sidebar, or <http://localhost:3002/play>
+after `npm start`. Sign in, choose any two database teams and their opening lineups,
+then start a local exhibition or an online room. Team cards can preselect a roster.
+Full rosters share the bench; before each drive choose up to seven players including
+three Linemen when available. Weather, kick/receive choice, both formations, kickoff
+events and landing resolve through the shared interactive dice tray.
+Exhibitions do not modify league records. See [setup, controls and rules coverage](docs/play-demo.md).
+
+`npm run demo` at <http://localhost:5174> still runs standalone practice teams
+without Docker or a database.
+The prototype implements the core match loop and selected GATA rules; it is not a
+complete Blood Bowl rules engine and does not write results to the league.
+
+### League site
+
 Install these first:
 
 - **Node.js** (includes `npm`) - <https://nodejs.org/en/download>

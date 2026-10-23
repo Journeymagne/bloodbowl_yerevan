@@ -1,0 +1,47 @@
+.right-rail{min-width:0;align-self:start}
+.dice-tray-panel{position:sticky;top:12px;z-index:5;margin-bottom:16px;border:1px solid var(--line-strong);border-radius:16px;background:var(--card);box-shadow:0 5px 20px #00000008}
+.dice-tray-panel.needs-roll{border-color:var(--accent-text)}
+.dice-tray-panel>.panel-heading{min-height:46px}
+#tray-status{font-size:9px;font-weight:600;letter-spacing:1px;border-radius:5px;padding:4px 6px;background:var(--accent-tint);color:var(--on-accent-tint)}
+.tray-body{padding:15px}
+.tray-roll-heading{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.tray-roll-heading h3{font:600 25px/1.1 var(--heading);margin:0}
+#tray-notation{font-size:12px;font-weight:600;color:var(--accent-text);white-space:nowrap}
+.tray-detail{font-size:12px;color:var(--muted);margin:7px 0 13px;line-height:1.4}
+.dice-well{position:relative;padding:6px;border:5px solid var(--line-strong);border-radius:18px;background:var(--surface-2);box-shadow:inset 0 2px 7px #00000020;isolation:isolate;overflow:hidden}
+.dice-well:before{content:"";position:absolute;inset:6px;border:1px dashed var(--control-border);border-radius:9px;z-index:-1}
+.dice-surface{min-height:130px;display:flex;align-items:center;justify-content:center;gap:13px;perspective:600px}
+.tray-watermark{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);font:600 12px var(--heading);letter-spacing:4px;color:var(--faint);opacity:.55;pointer-events:none;z-index:-1}
+.tray-die,.legend-die{--die-paper:#fff9e9;--die-ink:#283a31;color:var(--die-ink);background:var(--die-paper)}
+.tray-die{position:relative;flex-shrink:0;width:55px;height:55px;min-height:0;padding:5px;display:grid;place-items:center;border:1px solid #bcbaa7;border-bottom-width:4px;border-right-width:3px;border-radius:11px;box-shadow:2px 5px 5px #0002,inset 1px 1px 1px #fff;transform:rotate(var(--die-angle));user-select:none}
+.tray-die.block{--die-paper:#f4e4ba;--die-ink:#473820;border-color:#b6a377}
+.tray-die.d8{--die-paper:#e1edf8;--die-ink:#1e3a5f;border-color:#90a9bf}
+.die-face{width:100%;height:100%;display:block}
+button.tray-die{cursor:pointer}
+button.tray-die:hover:not(:disabled){background:var(--die-paper);border-color:var(--accent-text);outline:2px solid var(--accent-text);outline-offset:4px;transform:rotate(0) translateY(-3px)}
+button.tray-die:focus-visible{outline-offset:5px}
+.tray-die:disabled{opacity:.7}
+.tray-die.die-ghost{background:transparent;border:2px dashed var(--control-border);color:var(--muted);box-shadow:none;font:600 18px var(--heading)}
+.die-arriving{animation:die-arrives .9s cubic-bezier(.18,.7,.3,1) both;animation-delay:calc(var(--die-index)*.1s)}
+.die-arriving .die-face{animation:die-reveals .9s steps(1,end) both;animation-delay:calc(var(--die-index)*.1s)}
+@keyframes die-arrives{0%{transform:translate(100px,-145px) rotate(-300deg) scale(.7);opacity:0}15%{opacity:1}45%{transform:translate(-20px,5px) rotate(50deg) scale(1.06)}65%{transform:translate(8px,-17px) rotate(-20deg)}85%{transform:translate(-3px,1px) rotate(8deg)}100%{transform:translate(0,0) rotate(var(--die-angle))}}
+@keyframes die-reveals{0%{opacity:0}72%{opacity:1}100%{opacity:1}}
+.tray-result{font-size:13px;font-weight:600;text-align:center;line-height:1.45;min-height:19px;margin:13px 0;color:var(--ink)}
+.tray-result.failed{color:var(--danger)}
+.tray-controls{display:flex;flex-direction:column;gap:8px}
+.tray-controls>.primary{width:100%;min-height:43px}
+.tray-explanation,.reroll-caption,.reroll-notice{font-size:12px;color:var(--muted);line-height:1.5;margin:0}
+.reroll-notice{padding:10px 12px;border-radius:10px;background:var(--accent-tint);color:var(--on-accent-tint)}
+.reroll-options{display:flex;flex-wrap:wrap;gap:6px}
+.reroll-options:empty{display:none}
+.reroll-options button{flex:1;font-size:12px;min-height:36px;padding:7px 9px}
+.tray-waiting{font-size:12px;line-height:1.5;color:var(--accent-text);margin:10px 0 0}
+.tray-waiting:empty{display:none}
+.dice-legend{border-top:1px solid var(--line);padding-top:12px;margin-top:14px;font-size:11px;color:var(--muted)}
+.dice-legend summary{cursor:pointer}
+#block-legend{display:grid;gap:9px;padding-top:14px}
+#block-legend>div{display:flex;align-items:center;gap:10px}
+.legend-die{display:block;width:28px;height:28px;padding:3px;border-radius:5px;border:1px solid var(--control-border);flex-shrink:0}
+@media(max-width:1180px){.tray-body{padding:12px}.tray-die{width:51px;height:51px}.dice-surface{gap:9px}.tray-roll-heading h3{font-size:24px}}
+@media(max-width:780px){.right-rail{width:100%}.dice-tray-panel{position:relative;top:auto;scroll-margin:16px}.tray-body{padding:16px}.dice-surface{min-height:135px;gap:18px}.tray-die{width:59px;height:59px}.right-rail .inspector{display:block}.right-rail .action-panel,.right-rail .turn-panel{border-left:0;border-top:1px solid var(--line)}.right-rail .actions{grid-template-columns:1fr 1fr}.right-rail .player-identity{flex-wrap:nowrap}.right-rail .player-name{font-size:30px}}
+@media(prefers-reduced-motion:reduce){.die-arriving,.die-arriving .die-face{animation:none}.dice-tray-panel{scroll-behavior:auto}}

@@ -1,6 +1,11 @@
 # Gata Blood Bowl League — contributor notes
 
-This site is fully localized (EN/RU). Two things depend on that staying true after every change:
+Read [docs/project-context.md](docs/project-context.md) for the current architecture,
+feature status, run modes and validation snapshot.
+
+The league application is localized (EN/RU). The separate `/play` tabletop prototype
+currently uses English; its scope and limitations are in [docs/play-demo.md](docs/play-demo.md).
+Two things depend on the league's localization staying consistent after every change:
 
 ## 1. Content: `content/Gata/` and `content/Gata-ru/` must mirror each other
 
@@ -28,12 +33,13 @@ npm run build && npm run i18n:check
 ```
 This must report the same page count for both locales with 0 fallbacks.
 
-## 2. UI strings: everything in `src/app.js`/`index.html` must go through `t()`
+## 2. League UI strings must go through `t()`
 
 New UI (a new view, a new admin panel, a new form field, a new table column) must use the `t("key")`
 helper and `data-i18n*` attributes, not hardcoded English strings — add the key + English value to
-`src/i18n/en.json` and the Russian translation to `src/i18n/ru.json`. See existing calls in `src/app.js`
-for the pattern. Skipping this is easy to miss because the app still runs fine in English; it just
+`src/i18n/en.json` and the Russian translation to `src/i18n/ru.json`. This applies to `index.html`,
+`src/app.js`, league screens and shared components. See `src/core/i18n.mjs` and existing calls in
+`src/screens/` and `src/components/` for the pattern. Skipping this is easy to miss because the app still runs fine in English; it just
 silently breaks the Russian locale for that one feature.
 
 If you're merging in work that was developed on a branch without the i18n layer (this has happened

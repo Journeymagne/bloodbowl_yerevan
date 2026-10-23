@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17392C">
+  <title>GATA · Tabletop</title>
+  <link rel="icon" href="/assets/brand/favicon.ico">
+  <script src="/src/play/theme-boot.js"></script>
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/barlow/barlow-latin-400-normal.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/barlow/barlow-condensed-latin-700-normal.woff2" crossorigin>
+  <link rel="stylesheet" href="/src/play/palettes.css">
+  <link rel="stylesheet" href="/src/play/table.css">
+  <link rel="stylesheet" href="/src/play/dice-tray.css">
+  <link rel="stylesheet" href="/src/play/setup.css">
+  <link rel="stylesheet" href="/src/play/drive-panel.css">
+  <script type="module" src="/src/play/app.mjs"></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/index.html" title="League reference"><img src="/assets/brand/gata-league-logo-96.png" alt="" width="38" height="38"><span>GATA <b>TABLETOP</b><small>BLOOD BOWL SEVENS · YEREVAN</small></span></a>
+    <nav aria-label="Game modes"><span class="current-page">Tabletop <span class="beta">DEMO</span></span><a href="/index.html#/pages">League reference ↗</a></nav>
+    <div class="header-tools"><button id="appearance-button" class="appearance-button" aria-label="Appearance" aria-haspopup="dialog" aria-controls="appearance-dialog"><i data-table-icon="theme"></i><span id="appearance-name">Perfect Weather</span></button>
+    <button id="room-button" class="connect"><span class="connection-dot"></span><span id="connection-label">Local hotseat</span><span>⌄</span></button></div>
+  </header>
+  <div class="toolbar" role="toolbar" aria-label="Tabletop tools">
+    <div class="tool-group"><button id="new-match" title="Start a new practice match"><i data-table-icon="reset"></i><span>New match</span></button><button id="save-match" title="Download the match state and log"><i data-table-icon="save"></i><span>Save</span></button><button id="undo" title="Undo movement before rolling dice" disabled><i data-table-icon="undo"></i><span>Undo</span></button></div>
+    <div class="tool-group"><button id="free-die" title="Roll a free D6"><i data-table-icon="dice"></i><span>D6</span></button><button id="grid-toggle" aria-pressed="true" title="Show grid"><i data-table-icon="grid"></i><span>Grid</span></button><button id="zones-toggle" aria-pressed="false" title="Opponent tackle zones"><i data-table-icon="zones"></i><span>Tackle zones</span></button></div>
+    <div class="tool-group zoom-tools"><button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom-label">100%</output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit" title="Fit the pitch to width">Fit</button></div>
+    <div class="tool-group toolbar-end"><button id="help-button" aria-label="Demo rules"><i data-table-icon="info"></i><span>Demo rules</span></button><button id="fullscreen" aria-label="Fullscreen"><i data-table-icon="fullscreen"></i></button></div>
+  </div>
+  <main class="workspace">
+    <section class="table-area" aria-label="Tabletop">
+      <div class="match-strip" id="scoreboard"></div>
+      <section id="drive-panel" class="drive-panel" aria-labelledby="drive-heading">
+        <header><h2 id="drive-heading">Pre-game</h2><span id="drive-weather">Autumn weather</span></header>
+        <p id="drive-help"></p><div id="drive-controls" class="drive-controls"></div><p id="drive-waiting" role="status"></p>
+      </section>
+      <div class="map-title"><span><i></i> MAIN PITCH <small>20 × 11</small></span><span id="map-meta">GATA SEVENS · PRACTICE MATCH</span></div>
+      <div class="board-viewport" id="board-viewport">
+        <div class="board-stage" id="board-stage">
+          <div class="coordinate-top" id="coordinate-top"></div>
+          <div class="pitch-surround">
+            <div class="coordinate-side" id="coordinate-side"></div>
+            <div class="pitch" id="pitch" role="grid" aria-label="Blood Bowl pitch, 20 by 11 squares">
+              <div class="pitch-art" aria-hidden="true"><span class="endzone-label home-end">GRIFFINS</span><span class="endzone-label away-end">RED GORGE</span><div class="centre-mark"><span>G</span><small>GATA LEAGUE</small></div><div class="scrimmage"></div><div class="wide-zone top"></div><div class="wide-zone bottom"></div></div>
+              <div id="cells" class="cells"></div>
+            </div>
+          </div>
+          <div class="pitch-caption"><span>← END ZONE</span><span>GATA LEAGUE · SEVENS PITCH</span><span>END ZONE →</span></div>
+        </div>
+      </div>
+      <div class="table-status"><span id="hint">Select a player and a destination square.</span><span id="cursor-position">—</span></div>
+      <section class="dugouts" id="dugouts" aria-label="Team rosters"></section>
+      <section class="journal-panel" aria-label="Match log">
+        <div class="panel-heading"><h2>Log & chat</h2><span>DICE · ACTIONS · MESSAGES</span><button id="download-log" title="Download the log">⇩</button></div>
+        <div id="journal" class="journal" role="log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form"><label for="chat-input" class="sr-only">Message</label><span>↳</span><input id="chat-input" maxlength="240" placeholder="Message your opponent or add a match note…" autocomplete="off"><button type="submit">Send ↵</button></form>
+      </section>
+    </section>
+    <aside class="right-rail" aria-label="Dice, player and actions">
+      <section id="dice-tray-panel" class="dice-tray-panel" aria-labelledby="dice-heading">
+        <div class="panel-heading"><h2 id="dice-heading">Dice tray</h2><span id="tray-status">READY</span></div>
+        <div class="tray-body">
+          <div class="tray-roll-heading"><h3 id="tray-title">Ready for action</h3><span id="tray-notation">2D6</span></div>
+          <p id="tray-detail" class="tray-detail">One tray · both coaches</p>
+          <div class="dice-well"><div id="dice" class="dice-surface" aria-label="Rolled dice"></div><span class="tray-watermark" aria-hidden="true">GATA</span></div>
+          <p id="tray-result" class="tray-result" role="status" aria-live="polite">Your dice will land here.</p>
+          <div id="resolution" class="tray-controls"></div>
+          <p id="tray-waiting" class="tray-waiting" role="status"></p>
+          <details class="dice-legend"><summary>Block dice · face guide</summary><div id="block-legend"></div></details>
+        </div>
+      </section>
+      <div class="inspector">
+      <div class="panel-heading"><h2>Player inspector</h2><span id="selected-coordinate">F6</span></div>
+      <div id="player-card"></div>
+      <section class="action-panel"><div class="section-label">PLAYER ACTION</div><div class="actions" id="actions"></div><p class="action-help" id="action-help"></p><button id="end-activation" class="wide-button">End activation <kbd>Esc</kbd></button></section>
+      <section class="turn-panel"><div id="turn-resources"></div><button id="end-turn" class="end-turn">End turn <span>→</span></button><p>Two halves · 6 turns per team</p></section>
+      <div class="gata-note"><span class="rule-tag">GATA</span><p>Touchdowns from turn two of a drive.<br>Block applies in your own activation.</p><button id="coverage-link">Rules coverage ↗</button></div>
+      </div>
+    </aside>
+  </main>
+  <footer class="app-footer"><span><i></i> <span id="footer-mode">LOCAL TABLE</span></span><span>1–5 select action · Esc end activation · click a counter → click a square</span><span>Unofficial fan project · DEMO 0.1</span></footer>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="appearance-dialog" aria-labelledby="appearance-heading">
+    <div class="dialog-header"><div><span class="dialog-eyebrow">GATA LEAGUE</span><h2 id="appearance-heading">Your matchday colours</h2></div><button data-close aria-label="Close">×</button></div>
+    <p class="appearance-intro">Eight palettes from GATA League. Pick the atmosphere for your table.</p>
+    <div class="appearance-modes" role="group" aria-label="Colour mode">
+      <button type="button" data-appearance-mode="light" aria-pressed="true">Light</button>
+      <button type="button" data-appearance-mode="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-appearance-mode="system" aria-pressed="false">System</button>
+    </div>
+    <div id="palette-groups"></div>
+    <div class="appearance-footer"><p id="appearance-summary" aria-live="polite"></p><button data-close class="primary">Back to the pitch</button></div>
+  </dialog>
+  <dialog id="help-dialog">
+    <div class="dialog-header"><h2>GATA Sevens · demo</h2><button data-close aria-label="Close">×</button></div>
+    <p>A virtual tabletop inspired by Vassal. Select a counter, choose an action, then click a square or target. To block, choose a die, a push destination and whether to follow up.</p>
+    <h3>Automated rules</h3>
+    <p>A 20 × 11 pitch, up to seven players per side, movement, tackle zones, dodging, two rushes, ball pickup, assisted blocks, block-die selection, pushes, blitzing, armour and injury, short passes and handoffs, rerolls, turnovers, scoring and two halves.</p>
+    <h3>GATA changes included</h3>
+    <p>Full league rosters, including saved improvements and injuries. Before each drive, choose up to seven players with three Linemen when available and at most four specialists. Seven is a maximum: you may field fewer. Place three players on the central Line of Scrimmage (or all if fewer remain) and at most one in each wide zone. Block only during your own activation; Dodge separate from Evasive; no first-turn touchdowns; 1 SPP for a KO; kick deviation of ⌊D6 / 2⌋.</p>
+    <h3>Bench and kickoff</h3>
+    <p>Roll Autumn weather, then roll off to choose kick or receive. The kicking team sets up first, followed by the receiving team. Use Bench / Field below the pitch, then select a player and an empty square to position them. Auto formation keeps your selected players. Lock both formations, nominate a kicker and select the kick target. Confirm deviation, the GATA kickoff event and the landing separately. Resolve catches, bounces or touchback before the first turn.</p>
+    <p>After a touchdown or at half-time, resolve KO recovery and choose both lineups again. Casualties and unavailable players stay out. If fewer than three Linemen remain available, field those available and choose the rest of the lineup yourself. A team with no available players ends the exhibition. The other team receives after half-time.</p>
+    <h3>Interactive dice</h3>
+    <p>Every roll waits in the dice tray. Confirm the throw, review the result, then choose an available skill or team reroll, or confirm the result. Rerolls require a second confirmation and cannot be rerolled again. Armour and injury use pairs of D6; block dice show their own symbols. Keep your block dice before the appropriate coach selects a face. After a push, choose Follow-up or Stay before armour, injury or ball-bounce dice. In online play both coaches see the same rolls.</p>
+    <h3>Prototype limitations</h3>
+    <p>Fouls, interceptions, the full passing template, long passes, apothecaries, inducement purchasing and the complete skill catalogue are not implemented. Only Block, Dodge, Evasive, Tackle, Pass, Sure Hands and Catch are automated; other skills are shown for reference. No Throw Team-mate, including during kickoff Blitz. Kickoff Bribes are tracked but cannot yet be spent. Weather currently uses the Autumn table. Chain pushes continue straight; D6 throw-ins go straight inward. Blitz blocks require non-rush movement. Failed kickoff catches bounce without a turnover. This is a playable prototype, not a complete rules engine.</p>
+    <h3>Online play</h3>
+    <p>Open Play online on the league site, sign in and choose any two database teams. Both coaches sign in to join a league-team room. The host plays home; the guest plays away. Practice rooms are also available without an account via <code>npm run demo</code>. On another device, use this computer’s LAN address. Rooms stay in memory until the server restarts; disconnected rooms expire after two idle hours. Exhibition results do not affect league records.</p>
+    <p class="dialog-source">Based on the GATA repository rules and the <a href="https://vassalengine.org/doc/latest/ReferenceManual/Toolbar.html" target="_blank" rel="noreferrer">Vassal tabletop tools ↗</a>.</p>
+    <button data-close class="primary">Back to the match</button>
+  </dialog>
+  <dialog id="room-dialog">
+    <div class="dialog-header"><h2>Play with another coach</h2><button data-close aria-label="Close">×</button></div>
+    <p>One room, one pitch. Moves and dice stay in sync between browsers.</p>
+    <div id="room-current"></div>
+    <button id="create-room" class="primary">Choose teams &amp; create room</button>
+    <div class="join-divider">or join the away team</div>
+    <form id="join-form"><label for="room-code">Room code</label><div class="join-row"><input id="room-code" pattern="[A-Fa-f0-9]{6}" maxlength="6" placeholder="A1B2C3" required autocomplete="off"><button class="primary" type="submit">Join →</button></div></form>
+    <p class="small-note" id="room-feedback">Choose database teams on the league site, or use practice teams.</p>
+    <button id="leave-room" class="wide-button" hidden>Return to local table</button>
+  </dialog>
+  <dialog id="setup-dialog" aria-labelledby="setup-heading">
+    <div class="dialog-header"><div><span class="dialog-eyebrow">GATA LEAGUE · EXHIBITION</span><h2 id="setup-heading">Choose your match</h2></div><button data-close aria-label="Close">×</button></div>
+    <p class="setup-intro">Bring both full rosters to the tabletop. Preview a preferred lineup here; choose up to seven players, including three Linemen when available, on the pitch before each drive. Roll for kick or receive after starting.</p>
+    <div class="setup-tools"><input id="setup-search" type="search" placeholder="Find a team, race or coach…" aria-label="Find a league team"><span id="setup-count"></span><button id="refresh-teams">Refresh teams</button></div>
+    <div class="setup-sides">
+      <section class="setup-side"><label for="setup-team-0">HOME TEAM</label><select id="setup-team-0" aria-label="Home team"></select><div id="setup-roster-0"></div></section>
+      <section class="setup-side away"><label for="setup-team-1">AWAY TEAM</label><select id="setup-team-1" aria-label="Away team"></select><div id="setup-roster-1"></div></section>
+    </div>
+    <p class="setup-footnote">* Reference-only skill. All roster players join the match; reserves can be substituted between drives. KO and unavailable players cannot enter a lineup. Exhibition results do not change league records.</p>
+    <p id="setup-feedback" role="status" aria-live="polite"></p>
+    <p id="setup-login" hidden><a href="/index.html#/my-teams">Sign in to the league ↗</a></p>
+    <div class="setup-actions"><button id="practice-match">Use practice teams</button><button id="start-league-match" class="primary" disabled>Start exhibition →</button></div>
+  </dialog>
+</body>
+</html>

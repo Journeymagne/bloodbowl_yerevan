@@ -46,7 +46,7 @@ export async function renderPublicTeamProfile(userId, teamId) {
       <div class="matchday-editor matchday-public">
         ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, `${t("admin.coachHeading")}: ${payload.user.login}`, "", { back: true, backFallback: playerUrl(payload.user) })}
         ${renderMatchdayEditor({ team, draft, costs, mode: LEAGUE_MODE, readOnly: true,
-          identityHtml: `<section class="public-team-coach-block"><h2>${t("admin.coachHeading")}</h2><p>${renderPlayerLink(payload.user)}</p>${renderTeamRuleAccess(team, draft, "", { readOnly: true })}</section>`,
+          identityHtml: `<section class="public-team-coach-block"><h2>${t("admin.coachHeading")}</h2><p>${renderPlayerLink(payload.user)}</p><a class="primary-button" href="/play?team=${encodeURIComponent(payload.team.id)}">${t("nav.tabletop")}</a>${renderTeamRuleAccess(team, draft, "", { readOnly: true })}</section>`,
           summaryHtml: renderPublicTeamSummary(team, draft, costs),
           purchasesHtml: renderPublicTeamResources(team, draft),
           playersHtml: renderPublicTeamPlayers(team, draft),

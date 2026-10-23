@@ -107,7 +107,8 @@ async function sendPrecompressed(request, response, fullPath, headers) {
 }
 
 export async function handleStatic(request, response, url) {
-  const fullPath = resolveStaticPath(url.pathname, staticRoot);
+  const pathname = ["/play", "/play/"].includes(url.pathname) ? "/public/play.html" : url.pathname;
+  const fullPath = resolveStaticPath(pathname, staticRoot);
   if (!fullPath) {
     // 404 rather than 403: a 403 confirms the file exists.
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });

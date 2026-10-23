@@ -1,0 +1,169 @@
+/* Palette values from the user-supplied Gata League v0.7 design system. */
+:root, :root[data-table-palette="grass"] {
+  color-scheme: light;
+  --header: #17392C;
+  --page: #FFFFFF;
+  --desk: #F3F6F4;
+  --card: #FFFFFF;
+  --surface-2: #F3F6F4;
+  --track: #EEF2F0;
+  --segment-on: #FFFFFF;
+  --ink: #14201A;
+  --muted: #5F6B65;
+  --faint: #8A948F;
+  --line: #E6EBE8;
+  --line-strong: #DCE3DF;
+  --field: #FFFFFF;
+  --control-border: #C9D3CE;
+  --accent: #2F7A52;
+  --accent-text: #2F7A52;
+  --accent-tint: #E4F0E9;
+  --on-accent-tint: #163A28;
+}
+:root[data-table-palette="parchment"] {
+  color-scheme: light;
+  --header: #3B2A1A;
+  --page: #FBF6EC;
+  --desk: #F3EBDB;
+  --card: #FFFBF3;
+  --surface-2: #F3EBDB;
+  --track: #EDE3CF;
+  --segment-on: #FFFBF3;
+  --ink: #2A1E12;
+  --muted: #6E5D49;
+  --faint: #9A8A74;
+  --line: #E6DCC8;
+  --line-strong: #DCCFB6;
+  --field: #FFFBF3;
+  --control-border: #CFC2A9;
+  --accent: #9A4A1C;
+  --accent-text: #9A4A1C;
+  --accent-tint: #F6E3D2;
+  --on-accent-tint: #5E2A0C;
+}
+:root[data-table-palette="ice"] {
+  color-scheme: light;
+  --header: #1E3A5F;
+  --page: #FFFFFF;
+  --desk: #F1F5F9;
+  --card: #FFFFFF;
+  --surface-2: #EEF3F8;
+  --track: #E7EDF4;
+  --segment-on: #FFFFFF;
+  --ink: #0F1B2A;
+  --muted: #566579;
+  --faint: #8592A3;
+  --line: #E2E8EF;
+  --line-strong: #D5DEE8;
+  --field: #FFFFFF;
+  --control-border: #C6D1DD;
+  --accent: #1D5FA8;
+  --accent-text: #1D5FA8;
+  --accent-tint: #E1ECF8;
+  --on-accent-tint: #12396A;
+}
+:root[data-table-palette="imperial"] {
+  color-scheme: light;
+  --header: #5A1220;
+  --page: #FFFDF8;
+  --desk: #F7F2EA;
+  --card: #FFFFFF;
+  --surface-2: #F6F0E6;
+  --track: #F0E8DA;
+  --segment-on: #FFFFFF;
+  --ink: #1F1414;
+  --muted: #6A5A55;
+  --faint: #998985;
+  --line: #EDE4D8;
+  --line-strong: #E2D6C6;
+  --field: #FFFFFF;
+  --control-border: #D6C9BA;
+  --accent: #8E1B2E;
+  --accent-text: #8E1B2E;
+  --accent-tint: #F6E2E2;
+  --on-accent-tint: #5A1220;
+}
+:root[data-table-palette="night"] {
+  color-scheme: dark;
+  --header: #17392C;
+  --page: #0F1A15;
+  --desk: #0F1A15;
+  --card: #15231C;
+  --surface-2: #1B2B23;
+  --track: #1B2B23;
+  --segment-on: #2C4036;
+  --ink: #E8EFEB;
+  --muted: #9AA9A1;
+  --faint: #6F8078;
+  --line: #24352C;
+  --line-strong: #2C4036;
+  --field: #0F1A15;
+  --control-border: #3A4D43;
+  --accent: #2F7A52;
+  --accent-text: #7FD3A2;
+  --accent-tint: #1C3A2B;
+  --on-accent-tint: #7FD3A2;
+}
+:root[data-table-palette="dungeon"] {
+  color-scheme: dark;
+  --header: #241A33;
+  --page: #121018;
+  --desk: #121018;
+  --card: #1A1722;
+  --surface-2: #221E2C;
+  --track: #221E2C;
+  --segment-on: #332C42;
+  --ink: #ECE8F3;
+  --muted: #A69EB5;
+  --faint: #7A728A;
+  --line: #2A2534;
+  --line-strong: #362F44;
+  --field: #121018;
+  --control-border: #4A4159;
+  --accent: #7A4BB0;
+  --accent-text: #C3A4E8;
+  --accent-tint: #2E2342;
+  --on-accent-tint: #C3A4E8;
+}
+:root[data-table-palette="embers"] {
+  color-scheme: dark;
+  --header: #2A1A12;
+  --page: #121110;
+  --desk: #121110;
+  --card: #1B1917;
+  --surface-2: #24211E;
+  --track: #24211E;
+  --segment-on: #36302B;
+  --ink: #F1ECE6;
+  --muted: #ADA398;
+  --faint: #7E756C;
+  --line: #2B2724;
+  --line-strong: #3A342F;
+  --field: #121110;
+  --control-border: #4E463F;
+  --accent: #C2571A;
+  --accent-text: #F2A06A;
+  --accent-tint: #3A2416;
+  --on-accent-tint: #F2A06A;
+}
+:root[data-table-palette="abyss"] {
+  color-scheme: dark;
+  --header: #0F2A3A;
+  --page: #0B141B;
+  --desk: #0B141B;
+  --card: #111D26;
+  --surface-2: #172631;
+  --track: #172631;
+  --segment-on: #223645;
+  --ink: #E6EEF3;
+  --muted: #93A6B3;
+  --faint: #667A88;
+  --line: #1E2E3A;
+  --line-strong: #29404F;
+  --field: #0B141B;
+  --control-border: #3A5262;
+  --accent: #1F7A8C;
+  --accent-text: #7FD0DE;
+  --accent-tint: #143340;
+  --on-accent-tint: #7FD0DE;
+}

@@ -8,6 +8,7 @@
     "build": "node scripts/build-data.mjs && node scripts/build-site.mjs",
     "i18n:check": "node scripts/check-i18n-glossary.mjs && node scripts/check-i18n-strings.mjs",
     "dev": "node scripts/build-data.mjs && node scripts/serve.mjs",
+    "demo": "node scripts/serve-play.mjs",
     "server": "node server/server.mjs",
     "start": "npm run build && node server/server.mjs",
     "site:up": "npm start",

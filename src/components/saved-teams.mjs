@@ -34,6 +34,7 @@ function renderSavedTeamCard(team, owner, editUrl) {
       <div><dt>${t("roster.treasuryTitle")}</dt><dd>${countToNumber(draft.treasury)}k</dd></div>
       <div><dt>${t("footer.updated")}</dt><dd>${escapeHtml(updated)}</dd></div>
     </dl>
+    <div class="saved-team-actions"><a class="primary-button" href="/play?team=${encodeURIComponent(team.id)}">${t("nav.tabletop")}</a></div>
     ${editUrl ? `<div class="saved-team-actions"><a class="primary-button" href="${escapeHtml(editUrl)}">${t("myTeams.openRoster")}</a>
       ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}</div>` : ""}
   </article>`;

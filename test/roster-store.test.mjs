@@ -424,6 +424,23 @@ test("storage keeps working when the browser refuses to persist", () => {
   assert.equal(store.get("theme"), null);
 });
 
+test("storage boots when accessing the browser's localStorage property throws", async (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get() { throw new Error("Storage access denied"); },
+  });
+  const { storage } = await import("../src/core/storage.mjs?blocked-property");
+  storage.set("theme", "grass");
+  assert.equal(storage.get("theme"), "grass");
+  storage.remove("theme");
+  assert.equal(storage.get("theme"), null);
+});
+
 test("storage round-trips JSON and survives corrupt values", () => {
   const backing = new Map();
   const store = createStorage({

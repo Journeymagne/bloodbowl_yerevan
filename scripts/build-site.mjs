@@ -65,6 +65,7 @@ async function assetVersion() {
   // moved no code would otherwise be served from a day-old cache.
   const files = [
     path.join(rootDir, "index.html"),
+    path.join(rootDir, "public", "play.html"),
     ...(await sourceFiles(path.join(rootDir, "src"))),
     ...["data.en.json", "data.ru.json"].map((name) => path.join(rootDir, "public", name)),
   ];
@@ -146,6 +147,11 @@ await fs.writeFile(path.join(distDir, "index.html"), indexHtml);
 await copyDir(path.join(rootDir, "src"), path.join(distDir, "src"));
 await stampImports(path.join(distDir, "src"), version);
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
+const playPath = path.join(distDir, "public", "play.html");
+const playHtml = (await fs.readFile(playPath, "utf8")).replace(
+  /((?:src|href)="\/src\/play\/[^"]+\.(?:mjs|js|css))"/g, `$1?v=${version}"`,
+);
+await fs.writeFile(playPath, playHtml);
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 const stylesPath = path.join(distDir, "src", "styles.css");
 await fs.writeFile(stylesPath, minifyCss(await inlineCssImports(stylesPath)));
