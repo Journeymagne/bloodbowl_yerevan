@@ -202,6 +202,7 @@ function playerRowOf(line, screen) {
   const injury = injuryLine(line, screen.mode);
   return {
     key: line.key,
+    reorderIndex: !screen.lock && screen.mode.kind !== "match" ? line.index : undefined,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
     name: line.name,
     sub: injury || (line.skip ? absenceWords(line) : line.position),
@@ -334,10 +335,11 @@ function sectionMarkup({ which, heading, count, barHtml = "", bodyHtml }) {
  * the click; on a phone the tap, the green, and what each action is worth to the race.
  */
 function captionMarkup(screen) {
-  if (!screen.phone) return `<p class="g-roster__caption">${escapeHtml(t("teamRoster.caption.desk"))}</p>`;
+  const reorder = !screen.lock && screen.mode.kind !== "match" ? ` ${t("teamRoster.reorder.hint")}` : "";
+  if (!screen.phone) return `<p class="g-roster__caption">${escapeHtml(t("teamRoster.caption.desk") + reorder)}</p>`;
   const weights = counterSlots(screen.race).main.map(({ key, spp }) => `${t(`teamRoster.counter.${key}`)} ${spp}`).join(" · ");
   const key = screen.mode.kind === "match" ? "teamRoster.caption.phoneMatch" : "teamRoster.caption.phone";
-  return `<p class="g-roster__caption">${escapeHtml(t(key, { weights }))}</p>`;
+  return `<p class="g-roster__caption">${escapeHtml(t(key, { weights }) + reorder)}</p>`;
 }
 
 /**

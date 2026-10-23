@@ -59,14 +59,12 @@ import { careerLineOf, rosterMarkup } from "./view.mjs";
 import { askCareer } from "./career.mjs";
 import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
+import { wireRosterOrder } from "./reorder.mjs";
 import { adminOf, openRosterAs } from "./source.mjs";
 import { wireIdentity } from "./admin-identity.mjs";
 import { adminHandlers } from "./admin-block.mjs";
 
-/**
- * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
- * language switch); another team's roster, which the team switcher opens from this one, is another page: from its top.
- */
+/** Keep scroll on a redraw; start at the top when switching to another team. */
 let shownTeam = null;
 
 /** By team, the taps a visit left in the air (`whenQuiet`): the next visit reads after them, not to miss their rows (07a T11). */
@@ -574,6 +572,7 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
     fitter.release,
     () => visit.saveOff?.(),
     wireRoster(view, pressHandlers({ ...saving, read })),
+    wireRosterOrder(view, saving),
     // The admin's card of the team's name and logo (stage 12): on a coach's visit there is none to hear.
     wireIdentity(view, saving),
     onGamesChange(() => {

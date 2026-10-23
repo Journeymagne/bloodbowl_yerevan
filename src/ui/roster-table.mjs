@@ -153,7 +153,7 @@ function renderPlayer(row, places, phoneSpan) {
   const skillRow = row.skillsHtml ? `<tr class="g-rtable__skillrow"><td colspan="${phoneSpan}">${row.skillsHtml}</td></tr>` : "";
   const panelRow = row.expanded ? `<tr class="g-rtable__panelrow" id="rt-panel-${escapeHtml(row.key)}"><td colspan="${phoneSpan}">${row.panelHtml ?? ""}</td></tr>` : "";
   const className = classNames("g-rtable__player", row.expanded && "is-expanded", row.selected && "is-selected");
-  return `<tbody class="${className}"${dataAttributes({ key: row.key })}><tr class="g-rtable__row">${renderWho(row)}${cells}</tr>${skillRow}${panelRow}</tbody>`;
+  return `<tbody class="${className}"${dataAttributes({ key: row.key, reorderIndex: row.reorderIndex })}><tr class="g-rtable__row">${renderWho(row)}${cells}</tr>${skillRow}${panelRow}</tbody>`;
 }
 
 /**
@@ -185,6 +185,7 @@ function renderFoot(columns, places, groups) {
  *
  * @typedef {object} RosterTableRow
  * @property {string} key unique on the page and with no blank in it (a player's id): it is the row's data-key, what wireRosterTable reports, and the id of its panel
+ * @property {number} [reorderIndex] editable roster slot, enables hold-and-drag within this table
  * @property {string} badgeHtml markup from renderPlayerBadge
  * @property {string} name
  * @property {string} sub the line under the name (the position, or why he misses the match)

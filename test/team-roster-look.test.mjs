@@ -177,19 +177,21 @@ test("the injury's sheet: the characteristic's caption over its five chips in on
 
 // The owner's fidelity pass (2026-10-19): what the prototypes draw that the roster drew otherwise.
 test("under the tables a line on how to read them: a desk's columns and click; a phone's tap and what each action is worth to the race", async () => {
+  const reorderHint = " Hold a player’s row and drag to reorder. Keyboard: Alt + ↑ / ↓ on the player’s name. The order is saved automatically.";
   coach();
   await renderTeamRoster("t1");
   assert.equal(view.querySelector(".g-roster__main .g-roster__caption").textContent,
-    "SPP: «Total» — earned in the career, «Avail.» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right.");
+    "SPP: «Total» — earned in the career, «Avail.» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right." + reorderHint);
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
     assert.equal(view.querySelector(".g-roster__caption").textContent,
-      "Tap a player for his SPP counters, his profile and a missed match. In green — characteristics raised and skills gained. SPP: TD 3 · CAS 2 · COMP 1 · KO 1 · INT 2 · MVP 5.");
+      "Tap a player for his SPP counters, his profile and a missed match. In green — characteristics raised and skills gained. SPP: TD 3 · CAS 2 · COMP 1 · KO 1 · INT 2 · MVP 5." + reorderHint);
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     assert.match(view.querySelector(".g-roster__caption").textContent, /^Tap a player for the match's counters, his profile and an injury in the match\./);
+    assert.ok(!view.querySelector(".g-roster__caption").textContent.includes(reorderHint));
   });
 });
 

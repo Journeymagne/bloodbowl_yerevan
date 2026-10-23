@@ -45,6 +45,7 @@ import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import { rollRefusal, siteRollReferences, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
 import { addAdvancementFavoured, applyFix, editPlayer } from "../../../domain/roster/edits.mjs";
 import { normalizePlayerAdvancements, normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
+import { rosterInOrder } from "../../../domain/roster/order.mjs";
 import { playerAdvancementLevel, takeAdvancement, undoLastAdvancement } from "../../../domain/roster/progression.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../../../domain/roster/transfers.mjs";
@@ -252,12 +253,15 @@ export function stepAdminStaff(teamId, key, delta, { closed, refusal }) {
 /** The player of the draft the id names, by his id as text (`storedPlayerId`), or null. */
 const playerIn = (draft, id) => (id ? draft?.players.find((player) => storedPlayerId(player) === String(id)) : null) ?? null;
 
-/**
- * One step on one player of the draft (`stepRoster`): `fieldsOf(player)` says what his fields become, or null when the
- * step has nothing to change. Nothing is sent for a player who is not on the roster.
- * @param {string} teamId @param {string} playerId his id in the roster @param {(player: object) => object|null} fieldsOf
- * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
- */
+/** Persist only a new order, using the same revision and conflict handling as other roster edits. */
+export function reorderPlayers(teamId, indices, { closed }) {
+  return stepRoster(teamId, (draft) => {
+    const players = rosterInOrder(draft.players, indices);
+    return players ? { apply: () => { draft.players = players; } } : null;
+  }, { closed });
+}
+
+/** Change one player's fields; no step for a missing player or an unchanged value. */
 function stepOn(teamId, playerId, fieldsOf) {
   const player = playerIn(store.getDraft(teamId), playerId);
   if (!player) return { ok: false };

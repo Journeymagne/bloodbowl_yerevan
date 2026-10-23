@@ -990,6 +990,7 @@
   "teamRoster.skips.retiredClosed": "Retired for the season: he cannot be brought back here.",
   "teamRoster.counts": "On the roster: {players} · missing a match: {skipping} · can advance: {ready}",
   "teamRoster.caption.desk": "SPP: «Total» — earned in the career, «Avail.» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right.",
+  "teamRoster.reorder.hint": "Hold a player’s row and drag to reorder. Keyboard: Alt + ↑ / ↓ on the player’s name. The order is saved automatically.",
   "teamRoster.caption.phone": "Tap a player for his SPP counters, his profile and a missed match. In green — characteristics raised and skills gained. SPP: {weights}.",
   "teamRoster.caption.phoneMatch": "Tap a player for the match's counters, his profile and an injury in the match. In green — characteristics raised and skills gained. SPP: {weights}.",
   "teamRoster.heading": "Active roster",
