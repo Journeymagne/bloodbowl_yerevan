@@ -17,20 +17,22 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
-            import assert from 'node:assert/strict';
-            import { loadSeasonBundle } from './server/season/store.mjs';
+            import fs from 'node:fs/promises';
+            import { execFileSync } from 'node:child_process';
             import { pool } from './server/db/pool.mjs';
             try {
-              const targets=new Set(['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6','b06d2c69-8218-47c9-8e94-b08a22ee45c3']);
-              const data=await loadSeasonBundle();
-              const restored=data.standings.filter(row=>targets.has(row.user.id));
-              assert.equal(restored.length,2);
-              assert.ok(restored.every(row=>row.withdrawnAt && row.games>0));
-              assert.ok(data.entries.every(row=>!targets.has(row.user.id)));
-              const ids=new Set(restored.map(row=>row.entryId));
-              const matches=data.rounds.flatMap(round=>round.pairings).filter(pair=>ids.has(pair.homeEntryId)||ids.has(pair.awayEntryId));
-              assert.equal(matches.length,4);
-              console.log('RECOVERY_DATA '+JSON.stringify({verified:true,restoredParticipants:2,restoredMatches:4,activeParticipants:data.entries.length}));
+              const teams=(await pool.query(`SELECT t.id,t.user_id,u.login,t.name,t.base_team_slug,t.created_at
+                FROM saved_teams t JOIN users u ON u.id=t.user_id WHERE t.base_team_slug ILIKE '%snot%' OR t.base_team_slug ILIKE '%dark-elf%' ORDER BY t.created_at`)).rows;
+              const entries=(await pool.query(`SELECT e.id,e.season_id,e.user_id,u.login,e.saved_team_id,t.name,t.base_team_slug,e.withdrawn_at,
+                (SELECT count(*)::int FROM season_pairings p WHERE p.home_entry_id=e.id OR p.away_entry_id=e.id) AS matches
+                FROM season_entries e JOIN users u ON u.id=e.user_id JOIN saved_teams t ON t.id=e.saved_team_id ORDER BY e.created_at`)).rows;
+              const users=(await pool.query('SELECT id,login,created_at FROM users ORDER BY created_at')).rows;
+              const rounds=(await pool.query('SELECT id,season_id,round_number,status FROM season_rounds ORDER BY round_number')).rows;
+              const storage=(await pool.query(`SELECT c.relname,pg_relation_filepath(c.oid) AS file,pg_relation_size(c.oid)::int AS bytes,
+                s.n_live_tup,s.n_dead_tup,s.last_vacuum,s.last_autovacuum FROM pg_class c JOIN pg_stat_user_tables s ON s.relid=c.oid
+                WHERE c.relname IN ('season_entries','season_pairings')`)).rows;
+              const backups=execFileSync('find',['/var/backups/bloodbowl-league','-maxdepth','3','-type','f','-printf','%p %s bytes\n'],{encoding:'utf8',timeout:30000}).trim().split('\n');
+              console.log('RECOVERY_DATA '+JSON.stringify({teams,entries,users,rounds,storage,backups}));
             } finally {await pool.end();}
-
+            
             NODE
