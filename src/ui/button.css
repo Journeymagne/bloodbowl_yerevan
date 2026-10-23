@@ -1,0 +1,133 @@
+/*
+ * Buttons.
+ */
+
+/* Outline is the base look: the secondary, or state-toggling, action. */
+.g-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-14);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+/* Navigation to a deeper screen. */
+.g-btn--dark {
+  border-color: var(--header);
+  background: var(--header);
+  color: var(--header-ink);
+}
+
+/* The one action of a card or sheet: full width, at its bottom. */
+.g-btn--primary {
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-cta);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 17px/1.2 var(--font-body);
+}
+.g-btn--primary:hover:not(:disabled) { background: var(--accent-ink); }
+
+/* The one red button of an irreversible step (§0): the prototypes' bright fill; red words keep --danger. */
+.g-btn--danger {
+  border-color: var(--danger-fill);
+  background: var(--danger-fill);
+  color: var(--on-danger-fill);
+}
+
+/* An action that leaves (Log out): red words in the ring every outline button has, not a red border. */
+.g-btn--danger-quiet {
+  border-color: var(--control-border);
+  color: var(--danger);
+}
+
+.g-btn--block { width: 100%; }
+
+/* The display above would otherwise win over the attribute's own. */
+.g-btn[hidden] { display: none; }
+
+.g-btn:disabled {
+  cursor: default;
+  opacity: .6;
+}
+/*
+ * A disabled primary is drawn by its fill, and its label says what is
+ * missing: dimming that label as well would leave it unreadable. The red
+ * button of an irreversible step is closed the same way (a grey fill, the
+ * full white label, as the prototypes draw a closed main button): the red
+ * shows only when the step can be taken.
+ */
+.g-btn--primary:disabled,
+.g-btn--danger:disabled {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  opacity: 1;
+}
+/*
+ * In a dark palette that grey fill read as one more button (the owner, M2; stage 13's answer 3): a closed main button
+ * there is drawn as closed, a dashed ring with no fill and the muted label (4.5:1 on --page and --surface), undimmed.
+ * This sheet owns that look for every way a main button is closed: `disabled`, or `aria-disabled` while it stays in reach
+ * to say why (not while a press is on its way, `aria-busy`), and the two main buttons a screen draws without .g-btn —
+ * the preparation's and post-match's footer (`.g-prep__cta`) and the administration's «Generate round» — whose own
+ * sheets keep the grey fill for the light palettes only, as their rules lose to these. The mode is data-mode on <html>,
+ * or the system's dark when theme-boot.js did not run (tokens.css's fallback): the two blocks are one rule and say the
+ * same.
+ */
+:root[data-mode="dark"] .g-btn--primary:disabled,
+:root[data-mode="dark"] .g-btn--danger:disabled,
+:root[data-mode="dark"] .g-btn--primary[aria-disabled="true"]:not([aria-busy="true"]),
+:root[data-mode="dark"] .g-btn--danger[aria-disabled="true"]:not([aria-busy="true"]),
+:root[data-mode="dark"] .g-prep__cta:disabled,
+:root[data-mode="dark"] .g-adminseason__btn--go[aria-disabled="true"]:not([aria-busy="true"]) {
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  opacity: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]) .g-btn--primary:disabled,
+  :root:not([data-mode]) .g-btn--danger:disabled,
+  :root:not([data-mode]) .g-btn--primary[aria-disabled="true"]:not([aria-busy="true"]),
+  :root:not([data-mode]) .g-btn--danger[aria-disabled="true"]:not([aria-busy="true"]),
+  :root:not([data-mode]) .g-prep__cta:disabled,
+  :root:not([data-mode]) .g-adminseason__btn--go[aria-disabled="true"]:not([aria-busy="true"]) {
+    border: 1.5px dashed var(--line-strong);
+    background: transparent;
+    box-shadow: none;
+    color: var(--muted);
+    opacity: 1;
+  }
+}
+
+/* The round close or back button of a sheet. */
+.g-icon-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sheet);
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { delegate, escapeHtml, html, isRaw, patch, raw, toHtml } from "../src/core/dom.mjs";
+import { delegate, drawKeepingFocus, escapeHtml, focusLost, patch } from "../src/core/dom.mjs";
+import * as dom from "../src/core/dom.mjs";
 import { createDocument, el, outline } from "./helpers/fake-dom.mjs";
 
 test("escapeHtml neutralises everything that can break out of markup", () => {
@@ -19,41 +20,9 @@ test("escapeHtml copes with whatever it is handed", () => {
   assert.equal(escapeHtml(42), "42");
 });
 
-test("html escapes interpolations by default", () => {
-  const name = '<img src=x onerror="alert(1)">';
-  const markup = toHtml(html`<h1>${name}</h1>`);
-  assert.equal(markup, "<h1>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;</h1>");
-  assert.doesNotMatch(markup, /<img/);
-});
-
-test("raw() is the explicit way to nest markup", () => {
-  const inner = html`<span>Amazon</span>`;
-  assert.equal(toHtml(html`<div>${inner}</div>`), "<div><span>Amazon</span></div>");
-  assert.equal(toHtml(html`<div>${raw("<b>bold</b>")}</div>`), "<div><b>bold</b></div>");
-});
-
-test("a raw value that came from a person is still the caller's responsibility", () => {
-  // raw() means "I checked this" — the point is that it is impossible to do by
-  // accident, not that it is safe.
-  assert.equal(toHtml(html`${raw("<script>")}`), "<script>");
-  assert.equal(toHtml(html`${"<script>"}`), "&lt;script&gt;");
-});
-
-test("arrays are joined so lists need no .join(\"\")", () => {
-  const rows = ["Amazon", "Goblin"].map((name) => html`<li>${name}</li>`);
-  assert.equal(toHtml(html`<ul>${rows}</ul>`), "<ul><li>Amazon</li><li>Goblin</li></ul>");
-});
-
-test("null, undefined and false render as nothing, so conditionals are quiet", () => {
-  assert.equal(toHtml(html`<p>${null}${undefined}${false}</p>`), "<p></p>");
-  assert.equal(toHtml(html`<p>${0}</p>`), "<p>0</p>", "zero is a value, not an absence");
-});
-
-test("isRaw tells markup from text", () => {
-  assert.equal(isRaw(html`<p></p>`), true);
-  assert.equal(isRaw(raw("<p>")), true);
-  assert.equal(isRaw("<p>"), false);
-  assert.equal(isRaw(null), false);
+// The tagged template `html`, `raw`, `isRaw` and `toHtml` had no reader in 3.0 but this test (review of stage 13): gone.
+test("the module offers escapeHtml for markup, and no tagged template nothing reads", () => {
+  for (const name of ["html", "raw", "isRaw", "toHtml"]) assert.equal(name in dom, false, name);
 });
 
 // ---------------------------------------------------------------------------
@@ -248,4 +217,34 @@ test("patch survives a focused control that has no caret to save", () => {
   patch(live, el(document, "div", {}, el(document, "div", {}, el(document, "input", { "data-key": "spp", type: "number", value: "3" }))));
 
   assert.equal(document.activeElement, live.querySelector('[data-key="spp"]'));
+});
+
+// The overview and the team page across 900px (07d, L22): one test of a lost focus, one place for it to go.
+test("focusLost: no element, the body, a node out of the page, or one a stylesheet hides; drawKeepingFocus moves only a focus the root held and the draw lost", () => {
+  const document = createDocument();
+  const kept = el(document, "button", { id: "kept" });
+  const root = el(document, "section", {}, el(document, "h1", {}, "Title"), kept);
+  document.body.appendChild(root);
+  const title = root.querySelector("h1");
+  assert.deepEqual([focusLost(null), focusLost(document.body), focusLost(el(document, "button", {})), focusLost(kept)], [true, true, true, false]);
+  kept.getClientRects = () => [];
+  assert.equal(focusLost(kept), true, "in the page, but it draws no box");
+  kept.getClientRects = () => [{ width: 40, height: 44 }];
+  assert.equal(focusLost(kept), false);
+
+  // The focused node goes with the draw: the title takes the focus.
+  kept.focus();
+  drawKeepingFocus(root, () => root.removeChild(kept), "h1");
+  assert.equal(document.activeElement, title);
+  // One the draw keeps and shows stays; so does one outside the root.
+  const other = el(document, "button", {});
+  root.appendChild(other);
+  other.focus();
+  drawKeepingFocus(root, () => {}, "h1");
+  assert.equal(document.activeElement, other);
+  const outside = el(document, "button", {});
+  document.body.appendChild(outside);
+  outside.focus();
+  drawKeepingFocus(root, () => document.body.removeChild(outside), "h1");
+  assert.equal(document.activeElement, document.body, "not the root's to move");
 });

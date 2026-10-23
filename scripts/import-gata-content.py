@@ -48,7 +48,7 @@ TRAITS = {
     "Hatred (X)", "Hypnotic Gaze", "Insignificant", "Kick Team-Mate", "Kick Team-mate", "Loner (3+)", "Loner (4+)",
     "Loner (5+)", "Loner (X+)", "My Ball", "No Ball", "No Hands", "Pick-Me-Up", "Plague Ridden", "Pogo",
     "Projectile Vomit", "Really Stupid", "Regeneration", "Right Stuff", "Secret Weapon", "Stab", "Stunty", "Swoop",
-    "Snail Sh...", "Take Root", "Throw Team-Mate", "Throw Team-mate", "Timmm-ber!", "Titchy", "Trickster", "Unchanneled Fury",
+    "Snail Shell", "Take Root", "Throw Team-Mate", "Throw Team-mate", "Timmm-ber!", "Titchy", "Trickster", "Unchanneled Fury",
     "Unchannelled Fury", "Unsteady", "Thick Skull",
 }
 

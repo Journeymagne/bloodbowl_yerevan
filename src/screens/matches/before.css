@@ -1,0 +1,246 @@
+/*
+ * «Before the match» (screens/matches/before.mjs), the sheet that MatchesPrePlus/Minus/Even.html draw from the bottom of
+ * a phone and DeskSeasonPrePlus/Minus/Even.html as a 640px modal: the CTV block, who misses the match on each side, the
+ * inducement budget and the way to the reference. The frame is the sheet's (ui/sheet.css); this sheet's body has no
+ * padding of its own, so the CTV block runs from edge to edge under the head, as in the prototypes. A long name wraps;
+ * nothing is cut with «…».
+ */
+dialog.g-sheet.g-before-sheet .g-sheet__body {
+  gap: 0;
+  padding: 0;
+}
+
+/* The title wraps in balance after «·»: «Round 3» holds together by its no-break space (the fidelity pass's G3). */
+.g-before-sheet .g-sheet__title { text-wrap: balance; }
+
+.g-before {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* CTV against CTV: who gets the difference stands on the green half, who pays it on the red; equal CTVs are one grey. */
+.g-before__hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 18px var(--space-20) var(--space-16);
+  color: var(--header-ink);
+}
+.g-before__hero--gets { background: linear-gradient(90deg, var(--hero-gets) 0 38%, var(--hero-pays) 62% 100%); }
+.g-before__hero--pays { background: linear-gradient(90deg, var(--hero-pays) 0 38%, var(--hero-gets) 62% 100%); }
+.g-before__hero--even { background: var(--hero-even); }
+
+.g-before__teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-10);
+}
+
+.g-before__side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-before__side--other {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.g-before__name {
+  font: 700 19px/1.05 var(--font-display);
+  overflow-wrap: anywhere;
+}
+
+.g-before__ctvk {
+  color: color-mix(in srgb, var(--header-ink) 70%, transparent);
+  font: 400 12px/1.3 var(--font-body);
+}
+
+.g-before__ctv,
+.g-before__amount {
+  font: 700 30px/1 var(--font-display);
+}
+
+.g-before__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-6);
+  text-align: center;
+}
+
+.g-before__to {
+  max-width: 120px;
+  color: color-mix(in srgb, var(--header-ink) 85%, transparent);
+  font: 700 12px/1.3 var(--font-body);
+}
+
+.g-before__lineups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-10);
+  color: color-mix(in srgb, var(--header-ink) 80%, transparent);
+  font: 400 13px/1.3 var(--font-body);
+}
+.g-before__lineup b {
+  color: var(--header-ink);
+  font-weight: 700;
+}
+.g-before__lineup--other { text-align: right; }
+
+.g-before__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-20) var(--space-22);
+}
+
+/* «Miss the match» over the two columns, «Inducement budget» at the left of its block. */
+.g-before__heading {
+  margin: 0;
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.g-before__heading--start { text-align: left; }
+
+/* Ours at the left, the opponent's at the right of a 2px rule, each name «#9 J. Corr» toward its own edge. */
+.g-before__missing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.g-before__col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-right: var(--space-14);
+}
+.g-before__col--other {
+  align-items: flex-end;
+  padding-right: 0;
+  padding-left: var(--space-14);
+  border-left: 2px solid var(--line);
+  text-align: right;
+}
+
+.g-before__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-before__miss {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-before__col--other .g-before__miss { align-items: flex-end; }
+
+.g-before__who {
+  color: var(--ink);
+  font: 700 16px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.g-before__pos,
+.g-before__back {
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+}
+
+.g-before__why {
+  color: var(--danger);
+  font: 600 14px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.g-before__none {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+}
+
+.g-before__budget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+
+.g-before__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.g-before__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 28px;
+  font: 400 14px/1.3 var(--font-body);
+}
+.g-before__line dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 400;
+}
+.g-before__line dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.g-before__note {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+
+.g-before__shop {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  padding-top: var(--space-4);
+  color: var(--accent-text);
+  font: 700 14px/1.3 var(--font-body);
+  text-align: center;
+  text-decoration: underline;
+}
+
+/* D2: a thumb's link up to 900px; from 901px the prototype's line, and never under 24px. */
+@media (max-width: 900px) {
+  .g-before__shop { min-height: var(--size-touch); }
+}
+
+@media (min-width: 901px) {
+  /* The desk's modal (DeskSeasonPre*.html): 20px round, its title 28px over a rule, 18 20 18 24 around it. */
+  dialog.g-sheet.g-before-sheet { border-radius: 20px; }
+  .g-before-sheet .g-sheet__head { padding: 18px var(--space-20) 18px var(--space-24); }
+  .g-before-sheet .g-sheet__title { font-size: 28px; line-height: 1; }
+  .g-before__name { font-size: 24px; }
+  .g-before__shop { min-height: 24px; }
+}

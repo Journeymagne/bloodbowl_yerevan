@@ -1,0 +1,274 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "G1",
+      "url": "http://localhost:3002/#/",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "G2",
+      "url": "http://localhost:3002/#/login",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "G3",
+      "url": "http://localhost:5174/#/login",
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-login', 'felstell');",
+        "fill('#auth-password', 'qwerty');",
+        "document.querySelector('[data-auth-form] [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "G4",
+      "url": "http://localhost:3002/#/register",
+      "fullPage": true
+    },
+    {
+      "id": "G5",
+      "url": "http://localhost:3002/#/register",
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-login', 'ab');",
+        "fill('#auth-telegram', 'abc');",
+        "fill('#auth-password', 'abc');",
+        "fill('#auth-repeat', 'abc');",
+        "document.querySelector('[data-auth-form] [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "G6",
+      "url": "http://localhost:3002/#/settings",
+      "fullPage": true
+    },
+    {
+      "id": "G7",
+      "url": "http://localhost:3002/#/ref/skills"
+    },
+    {
+      "id": "C1",
+      "url": "http://localhost:5174/#/",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5174/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": "window.scrollTo(0, 600);"
+    },
+    {
+      "id": "C3",
+      "url": "http://localhost:5174/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ]
+    },
+    {
+      "id": "C4",
+      "url": "http://localhost:5174/#/t/t3/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ]
+    },
+    {
+      "id": "C5",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C6",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'gata2025');",
+        "fill('#password-next', 'Wardens!77');",
+        "fill('#password-repeat', 'Wardens!7');"
+      ]
+    },
+    {
+      "id": "C7",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'wrong');",
+        "fill('#password-next', 'abcd');",
+        "fill('#password-repeat', 'abcd');",
+        "document.querySelector('#password-sheet [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "C8",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'mock-pass');",
+        "fill('#password-next', 'abcd');",
+        "fill('#password-repeat', 'abcd');",
+        "document.querySelector('#password-sheet [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "C9",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#settings-telegram', '@another');"
+      ]
+    },
+    {
+      "id": "C10",
+      "url": "http://localhost:5174/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C11",
+      "url": "http://localhost:5174/#/my-teams/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "D1",
+      "url": "http://localhost:5175/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "D2",
+      "url": "http://localhost:5175/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ]
+    },
+    {
+      "id": "E1",
+      "url": "http://localhost:5176/#/",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:3002/#/login",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5174/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "fullPage": true
+    }
+  ]
+}

@@ -36,7 +36,7 @@ export const overviewCards = [
         items: [
           "Season: A major event lasting about 3-4 months, with a defined start, end, and fixed roster of participants. Match schedules and times are strictly designated.",
           "Tournaments: Events played over 1-2 days, typically serving as season finales or fun cup events.",
-          "Off-season: Friendly matches that can be played at any time, provided the team is not currently participating in another event. This is a great way to develop your team before the season. You may register up to 6 games per month in this format.",
+          "Off-season: Friendly matches that can be played at any time, provided the team is not currently participating in another event. This is a great way to develop your team before the season.",
           "Match results must be reported within 1-3 days of completion. Failure to comply may result in penalties, up to and including the annulment of match results.",
           "A single coach may register up to 4 teams in the league.",
           "If either player wishes, the game can be played with a clock. The standard format is 45 minutes per person. The timer stops for both players during pre-game preparations, kick-offs, and similar downtime.",

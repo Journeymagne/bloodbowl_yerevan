@@ -5,11 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describeCase, stableJson } from "./helpers/roster-cases.mjs";
-import { calculateRosterCosts, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
-import { ensureDraftPlayers, selectedRosterPlayers } from "../src/domain/roster/players.mjs";
+import { calculateRosterCosts, favouredSkillCost, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
+import { ensureDraftPlayers, positionKind, selectedRosterPlayers, skillNamesForPlayer, skillsForPlayer } from "../src/domain/roster/players.mjs";
 import { playerAvailableSpp, playerSppTotal, playerLevelRank } from "../src/domain/roster/progression.mjs";
-import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
-import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
+import { teamFavouredOptions, teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
+import { costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam } from "../src/domain/roster/values.mjs";
 import { advancementStatCosts, builderStaffCosts } from "../src/domain/league-rules.mjs";
 import { validateRoster as validateRosterSync } from "../src/domain/roster/validate.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
@@ -35,7 +35,8 @@ test("fixtures cover the teams whose special rules the domain branches on", () =
 });
 
 // Keep the pinned pre-extraction arithmetic baseline; new post-match fields
-// with empty defaults are covered by post-match.test.mjs.
+// with empty defaults are covered by post-match.test.mjs, and `absence` with its
+// null default by roster-absence.test.mjs.
 function baselineView(value) {
   if (Array.isArray(value)) return value.map(baselineView);
   if (!value || typeof value !== 'object') return value;
@@ -44,6 +45,7 @@ function baselineView(value) {
     || key === 'nigglingInjuries' && entry === (value.niglingInjury ? 1 : 0)
     || key === 'temporarilyRetired' && entry === false
     || key === 'injuryStatMods' && Object.keys(entry).length === 0
+    || key === 'absence' && entry === null
   )).map(([key, entry]) => [key, baselineView(entry)]));
 }
 
@@ -171,7 +173,6 @@ test("a player who skips the next game is left out of cost and count", () => {
 test("skill and stat surcharges follow the league rules table", () => {
   assert.equal(skillModCost({ name: "Block", access: "primary" }), 20);
   assert.equal(skillModCost({ name: "Block", access: "secondary" }), 40);
-  assert.equal(skillModCost({ name: "Block", access: "favoured" }), 0);
   for (const [stat, cost] of Object.entries(advancementStatCosts)) {
     assert.equal(statModCost(stat, 1), cost);
     assert.equal(statModCost(stat, 2), cost * 2);
@@ -253,17 +254,17 @@ test("validation reports codes with the parameters the UI needs", async () => {
   const { validateRoster, VALIDATION_CODES, positionMinimum } = await import("../src/domain/roster/validate.mjs");
   const team = teamBySlug.get("teams/amazon");
 
-  const tooFew = validateRoster(team, { roster: {} }, { playersCount: 3 });
+  const tooFew = validateRoster(team, { roster: {} }, { playersCount: 3, totalPlayersCount: 3 });
   const min = tooFew.find((item) => item.code === VALIDATION_CODES.ROSTER_MIN_PLAYERS);
   assert.ok(min, "expected a minimum-players violation");
   assert.deepEqual(min.params, { min: 7, count: 3 });
 
-  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 15 });
+  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 15, totalPlayersCount: 15 });
   const max = tooMany.find((item) => item.code === VALIDATION_CODES.ROSTER_MAX_PLAYERS);
   assert.ok(max, "expected a maximum-players violation");
   assert.deepEqual(max.params, { max: 14, count: 15 });
 
-  const legal = validateRoster(team, { roster: {} }, { playersCount: 14 });
+  const legal = validateRoster(team, { roster: {} }, { playersCount: 14, totalPlayersCount: 14 });
   assert.deepEqual(legal.filter((item) => item.code.startsWith("ROSTER_")), []);
 
   assert.equal(positionMinimum("1-2"), 1);
@@ -279,16 +280,71 @@ test("validation reports codes with the parameters the UI needs", async () => {
   }
 });
 
+// Owner ruling of 2026-10-19 (stage 07c, question 2): the 14-player limit counts EVERYONE on the roster —
+// players sitting out the next match too. The minimum of 7 stays about the players who play it.
+test("the 14-player maximum counts everyone on the roster, those sitting out included; the minimum counts only those who play", () => {
+  const team = teamBySlug.get("teams/human");
+  /** The violations of a roster of `playing` players, `skipping` of them marked for the next match, `retired` retired for the season. */
+  const roster = (playing, skipping, retired = 0) => {
+    const player = (id, flags = {}) => ({ id, rowIndex: 0, name: id, statMods: {}, extraSkills: [], spp: {}, advancements: [], ...flags });
+    const draft = { roster: {}, playerEdits: {}, purchasedStaff: {}, treasury: 0, players: [
+      ...Array.from({ length: playing }, (_, n) => player(`p${n}`)),
+      ...Array.from({ length: skipping }, (_, n) => player(`s${n}`, { skipNextGame: true })),
+      ...Array.from({ length: retired }, (_, n) => player(`r${n}`, { temporarilyRetired: true })) ] };
+    return validateRosterSync(team, draft, calculateRosterCosts(team, draft)).filter((item) => item.code.startsWith("ROSTER_"));
+  };
+  assert.deepEqual(roster(12, 3), [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }], "12 playing + 3 skipping are 15 on the roster");
+  assert.deepEqual(roster(11, 3), [], "11 + 3 are 14: the limit itself is legal");
+  assert.deepEqual(roster(13, 0, 2), [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }], "a player retired for the season is on the roster still");
+  assert.deepEqual(roster(14, 0), [], "14 who play are 14");
+  assert.deepEqual(roster(5, 3), [{ code: "ROSTER_MIN_PLAYERS", params: { min: 7, count: 5 } }], "8 on the roster, 5 to play the match: the minimum counts the five");
+  assert.deepEqual(roster(7, 7), [], "7 playing is the minimum, and 14 on the roster the maximum");
+  assert.deepEqual(roster(2, 14), [{ code: "ROSTER_MIN_PLAYERS", params: { min: 7, count: 2 } }, { code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 16 } }], "both at once");
+});
+
 test("position limits are reported per position", () => {
   const team = teamBySlug.get("teams/amazon");
   const rows = team.team.roster;
   const overFilled = Object.fromEntries(rows.map((_row, index) => [index, 99]));
-  const violations = validateRosterSync(team, { roster: overFilled }, { playersCount: 9 });
+  const violations = validateRosterSync(team, { roster: overFilled }, { playersCount: 9, totalPlayersCount: 9 });
   assert.equal(violations.filter((item) => item.code === "POSITION_MAX").length, rows.length);
   for (const violation of violations.filter((item) => item.code === "POSITION_MAX")) {
     assert.ok(violation.params.position, "violation must name the position");
     assert.equal(typeof violation.params.max, "number");
   }
+});
+
+// Stage 12, decision 27: Starting and Team Re-rolls together are at most `combinedRerollsMaximum` (8) — a violation
+// every write refuses (server/domain/roster.mjs, BLOCKING_CODES), read from the draft as normalised, where the first
+// builder's `rerolls` is Starting Re-rolls.
+test("nine re-rolls are refused on every write, eight are not", async () => {
+  const { combinedRerollsMaximum } = await import("../src/domain/league-rules.mjs");
+  const { normalizeDraft } = await import("../src/domain/roster/schema.mjs");
+  const team = teamBySlug.get("teams/human");
+  const legal = { playersCount: 11, totalPlayersCount: 11 };
+  const rerolls = (draft) => validateRosterSync(team, { roster: {}, ...draft }, legal).filter((item) => item.code === "REROLLS_MAX");
+  const nine = [{ code: "REROLLS_MAX", params: { max: 8, count: 9 } }];
+  assert.equal(combinedRerollsMaximum, 8);
+  assert.deepEqual(rerolls({ startingRerolls: 5, teamRerolls: 4 }), nine, "5 + 4");
+  assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 1 }), nine, "8 + 1: each within its own maximum, not together");
+  assert.deepEqual(rerolls({ startingRerolls: 0, teamRerolls: 12 }), [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }]);
+  assert.deepEqual(rerolls({ startingRerolls: -4, teamRerolls: 12 }), [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }], "a counter below zero makes no room");
+  assert.deepEqual(validateRosterSync(team, normalizeDraft({ startingRerolls: -4, teamRerolls: 12 }), legal).filter((item) => item.code === "REROLLS_MAX"),
+    [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }], "nor once normalised");
+  assert.deepEqual(rerolls({ startingRerolls: 4, teamRerolls: 4 }), [], "4 + 4 are eight");
+  assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 0 }), [], "8 + 0");
+  assert.deepEqual(rerolls({}), [], "none at all");
+  assert.deepEqual(rerolls({ startingRerolls: "5", teamRerolls: "4" }), nine, "counted as the roster counts them");
+  const legacy = normalizeDraft({ rerolls: 6, teamRerolls: 3 });
+  assert.deepEqual(validateRosterSync(team, legacy, legal).filter((item) => item.code === "REROLLS_MAX"), nine, "2.x `rerolls` 6 + Team 3");
+  assert.deepEqual(validateRosterSync(team, normalizeDraft({ rerolls: 5, teamRerolls: 3 }), legal).filter((item) => item.code === "REROLLS_MAX"), [], "2.x 5 + 3");
+  // Its words, in both dictionaries (and through VALIDATION_CODES, "validation reports codes…" above checks every code).
+  const { VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  assert.equal(VALIDATION_CODES.REROLLS_MAX, "REROLLS_MAX");
+  const en = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "en.json"), "utf8"));
+  const ru = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "ru.json"), "utf8"));
+  assert.equal(en["validation.REROLLS_MAX"], "Starting and Team Re-rolls together: at most {max}, the team has {count}.");
+  assert.equal(ru["validation.REROLLS_MAX"], "Start и Team Re-rolls вместе — не больше {max}, у команды {count}.");
 });
 
 // ---------------------------------------------------------------------------
@@ -340,4 +396,152 @@ test("every advancement block reason has a message in both locales", async () =>
     assert.ok(en[`validation.${reason}`], `missing English message for ${reason}`);
     assert.ok(ru[`validation.${reason}`], `missing Russian message for ${reason}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// What a roster as sent breaks player by player, read before normalisation
+// can hide it: an SPP counter outside 0…999, an id two players share.
+// ---------------------------------------------------------------------------
+
+test("every SPP counter of a player as sent, MVPs included, must be a whole number from 0 to 999, read as the roster reads it", async () => {
+  const { playerViolations, VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  const out = (who, counter) => ({ code: VALIDATION_CODES.SPP_OUT_OF_RANGE, params: { ...who, counter } });
+  const roster = { players: [
+    { id: "a", name: "  Bo  ", rowIndex: 0, spp: { mvps: 2.5, bonus: 1000, casualties: -1, touchdowns: "100000", completions: 999, catches: "7", knockouts: null, throws: "abc", landings: 0 } },
+    { rowIndex: 0, spp: { interceptions: 1000 } },
+    { id: "b", name: " ", rowIndex: 0, spp: { touchdowns: "1e3", catches: 0.5 } },
+    { id: "c", rowIndex: 0 },
+  ] };
+  // `player` and `counter` are what a person reads (the name, or the place in the list; the counter's short
+  // label); `playerId`, or `row` for a player without an id, is what the client finds him by.
+  const bo = { playerId: "a", player: "Bo" }, third = { playerId: "b", player: "#3" };
+  assert.deepEqual(playerViolations(roster), [out(bo, "TD"), out(bo, "CAS"), out(bo, "BONUS"), out(bo, "MVP"),
+    out({ row: 1, player: "#2" }, "INT"), out(third, "TD"), out(third, "CATCH")]);
+  assert.deepEqual(playerViolations({ players: [{ id: "a", spp: { touchdowns: 999, mvps: 0, bonus: "12" } }] }), []);
+  for (const shapeless of [{}, null, { players: "none" }, { players: [null, 7, { spp: "x" }] }]) assert.deepEqual(playerViolations(shapeless), [], JSON.stringify(shapeless));
+});
+
+test("two players under one id are refused once per id; players without an id never clash, and an id is read as the roster stores it", async () => {
+  const { playerViolations, VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  const twice = (playerId, names) => ({ code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId, names } });
+  const players = (...ids) => ({ players: ids.map((id) => (id === undefined ? { rowIndex: 0 } : { id, rowIndex: 0 })) });
+  const named = { players: [{ id: "a", name: "Bo" }, { id: "b" }, { id: "a", name: " Al " }, { id: "a" }, { id: "c" }, { id: "b", name: "Cy" }] };
+  assert.deepEqual(playerViolations(named), [twice("a", "Bo, Al, #4"), twice("b", "#2, Cy")]);
+  assert.deepEqual(playerViolations(players(undefined, undefined, "", "", null, null, 0, 0)), [], "no id is nobody's: the roster gives each his own");
+  assert.deepEqual(playerViolations(players(5, "5")), [twice("5", "#1, #2")], "stored, both are \"5\"");
+});
+
+test("skillsForPlayer is what skillNamesForPlayer names, with where each came from", () => {
+  const catcher = { skills: ["Catch", "Dodge"] };
+  const player = {
+    extraSkills: [{ name: "Frenzy", access: "primary" }, { name: "Dodge", access: "secondary" }, { name: "Block", access: "secondary" }],
+    favouredSkills: [{ name: "Block" }, { name: "Tackle" }, "Wrestle"], isCaptain: true,
+  };
+  assert.deepEqual(skillsForPlayer(catcher, player), [
+    { name: "Catch", access: "base" }, { name: "Dodge", access: "base" }, { name: "Frenzy", access: "primary" }, { name: "Block", access: "secondary" },
+    { name: "Tackle", access: "favoured" }, { name: "Wrestle", access: "favoured" }, { name: "Pro", access: "captain" },
+  ], "a skill he starts with is not an advancement's, and each name is listed once");
+  assert.deepEqual(skillNamesForPlayer(catcher, player), skillsForPlayer(catcher, player).map(({ name }) => name));
+  assert.deepEqual(skillsForPlayer(catcher, { extraSkills: [{ name: "Pro", access: "primary" }], isCaptain: true }).map(({ name, access }) => [name, access]),
+    [["Catch", "base"], ["Dodge", "base"], ["Pro", "primary"]], "the captain's Pro, once, as the one he took");
+  assert.deepEqual(skillsForPlayer({}, {}), []);
+});
+
+test("a position's kind is read from its tags: a big guy, a thrower, a catcher, a blitzer, else a lineman's", () => {
+  assert.equal(positionKind({ tags: ["Ogre", "Big Guy"] }), "big");
+  assert.equal(positionKind({ tags: ["Human", "Thrower"] }), "thrower");
+  assert.equal(positionKind({ tags: ["Human", "Catcher"] }), "catcher");
+  assert.equal(positionKind({ tags: ["Human", "Blitzer"] }), "blitzer");
+  assert.equal(positionKind({ tags: ["Human", "Blocker"] }), "lineman");
+  assert.equal(positionKind({}), "lineman");
+  assert.equal(positionKind({ tags: ["Thrower", "Big Guy"] }), "big", "a big guy comes first, as the order of the tags in the list says");
+});
+
+// ---------------------------------------------------------------------------
+// Stage 13 (decision 20): one rule, one place — what an advancement costs at a rank, and who sits the next match out.
+// ---------------------------------------------------------------------------
+
+const source = (file) => fs.readFile(path.join(rootDir, file), "utf8");
+
+test("a price at a rank is one function: the league's table, rank by rank, and nothing off it", async () => {
+  const { advancementCostAt } = await import("../src/domain/roster/progression.mjs");
+  const { advancementRanks } = await import("../src/domain/league-rules.mjs");
+  assert.equal(advancementCostAt(0, "random"), 3, "Experienced, a random skill");
+  assert.equal(advancementCostAt(5, "stat"), 38, "Legend, a characteristic");
+  advancementRanks.forEach(({ costs }, index) => {
+    for (const [type, cost] of Object.entries(costs)) assert.equal(advancementCostAt(index, type), cost, `${index} ${type}`);
+  });
+  for (const [index, type] of [[advancementRanks.length, "random"], [-1, "primary"], [0, "favoured"], [0, undefined]]) {
+    assert.equal(advancementCostAt(index, type), 0, `${index} ${type}: off the table`);
+  }
+  // The content's table (Team Management, «Advancement Costs»): rank by rank, Primary, Secondary and Stat in SPP.
+  const content = await source("content/Gata/Rules/3. Team Management.md");
+  const start = content.indexOf("No\n\nRank\n\nPrimary\n\nSecondary\n\nStat\n\n");
+  assert.ok(start >= 0, "the content's table was found");
+  const cells = content.slice(start, content.indexOf("\nd8\n", start)).split("\n").filter(Boolean).slice(5);
+  assert.equal(cells.length, advancementRanks.length * 5);
+  for (let row = 0; row < advancementRanks.length; row += 1) {
+    const [number, rank, ...spp] = cells.slice(row * 5, row * 5 + 5);
+    assert.deepEqual([Number(number), rank], [row + 1, advancementRanks[row].rank]);
+    assert.deepEqual(["primary", "secondary", "stat"].map((type) => `${advancementCostAt(row, type)} SPP`), spp, rank);
+  }
+  // No copy of the lookup is left: the roster's model asks the domain, and the domain asks it once.
+  assert.doesNotMatch(await source("src/screens/team/roster/model.mjs"), /advancementRanks\[/);
+  assert.equal((await source("src/domain/roster/progression.mjs")).match(/\.costs\b/g)?.length, 1, "progression.mjs reads a rank's costs in advancementCostAt alone");
+});
+
+test("one sitsOut: the roster's players read the schema's, and the absence module hands the same one on", async () => {
+  const schema = await import("../src/domain/roster/schema.mjs");
+  const absence = await import("../src/domain/roster/absence.mjs");
+  const players = await import("../src/domain/roster/players.mjs");
+  assert.equal(absence.sitsOut, schema.sitsOut, "absence.mjs re-exports it: its readers are unchanged");
+  assert.doesNotMatch(await source("src/domain/roster/players.mjs"), /skipNextGame \|\| player\.temporarilyRetired/, "no copy of the rule");
+  const team = teamBySlug.get("teams/human");
+  const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
+  const rows = rowsForTeam(team);
+  const marked = { code: "miss" };
+  const retired = players.normalizeRosterPlayer({ id: "p1", rowIndex: 0, temporarilyRetired: true, absence: marked }, rows);
+  assert.deepEqual([retired.skipNextGame, retired.absence], [true, marked], "retired for the season: he sits out, and why stays");
+  const playing = players.normalizeRosterPlayer({ id: "p2", rowIndex: 0, absence: marked }, rows);
+  assert.deepEqual([playing.skipNextGame, playing.absence], [false, null], "a player who plays has no absence, whatever the blob holds");
+  const viewed = players.rosterPlayerView(team, { id: "p3", rowIndex: 0, temporarilyRetired: true, absence: marked });
+  assert.deepEqual([viewed.skipNextGame, viewed.absence], [true, marked]);
+  assert.equal(players.rosterPlayerView(team, { id: "p4", rowIndex: 0, skipNextGame: 0 }).skipNextGame, false);
+});
+
+// The owner's answer of 2026-10-22 («по обычной для навыка цене»; content «Team Management»: a god's skill «increases
+// the player's value», the price list knows primary +20k and secondary +40k): a god's skill costs what a skill of its
+// category, Mutation, costs for that player — +20k with Mutation among his position's primary categories, +40k with it
+// among the secondary ones or with no Mutation access at all. It does not raise his rank.
+test("a god's skill («Favoured of…») costs a skill's price for that player, by his position's Mutation access", () => {
+  const rowOf = (slug, position) => {
+    const row = rowsForTeam(teamBySlug.get(slug)).find((candidate) => candidate.position === position);
+    assert.ok(row, `${slug}: ${position}`);
+    return row;
+  };
+  const cases = [
+    [rowOf("teams/chaos-chosen", "Chosen Blocker"), 20, "Mutation primary"],
+    [rowOf("teams/chaos-dwarfs", "Chaos Dwarf Blocker"), 40, "Mutation secondary"],
+    [rowOf("teams/chaos-dwarfs", "Hobgoblin Lineman"), 40, "no Mutation access"],
+  ];
+  for (const [row, cost, what] of cases) {
+    assert.ok(teamFavouredOptions(teamBySlug.get(row === cases[0][0] ? "teams/chaos-chosen" : "teams/chaos-dwarfs")).length, `${what}: a race with a god`);
+    assert.equal(favouredSkillCost(row), cost, what);
+    assert.equal(skillModCost({ name: "Horns", access: "favoured" }, row), cost, what);
+    const plain = { id: "p", rowIndex: 0, extraSkills: [], favouredSkills: [] };
+    const blessed = { ...plain, favouredSkills: [{ name: "Horns", access: "favoured" }] };
+    assert.equal(playerCurrentCost(row, blessed) - playerCurrentCost(row, plain), cost, `${what}: the player's value`);
+    assert.equal(playerLevelRank(blessed), playerLevelRank(plain), `${what}: no rank of it`);
+  }
+  // The team's value follows: a Chosen Blocker with Horns from the god is 20k more in the roster's sum.
+  const chosen = teamBySlug.get("teams/chaos-chosen");
+  const index = rowsForTeam(chosen).findIndex((row) => row.position === "Chosen Blocker");
+  const draft = (favouredSkills) => {
+    const made = { teamSlug: chosen.slug, favouredChoice: "Khorne", players: [{ id: "c1", rowIndex: index, name: "Chosen", number: "1", extraSkills: [], favouredSkills }] };
+    ensureDraftPlayers(chosen, made);
+    return made;
+  };
+  const before = calculateRosterCosts(chosen, draft([])).playersCost;
+  const after = calculateRosterCosts(chosen, draft([{ name: "Horns", access: "favoured" }])).playersCost;
+  assert.equal(after - before, 20);
 });

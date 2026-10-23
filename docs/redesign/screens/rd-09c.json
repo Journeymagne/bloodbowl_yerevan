@@ -1,0 +1,385 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "C1",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "waitMs": 1400
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await click('#friendly-send [data-friendly-pick=\"u2\"]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "C3",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await type('#friendly-search', 'raid');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "C4",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await type('#friendly-search', 'zzz');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "C5",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-accept=\"c1\"]', 1400);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "C6",
+      "url": "http://localhost:5183/#/t/t1/challenges/u3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "waitMs": 1800
+    },
+    {
+      "id": "C7",
+      "url": "http://localhost:5183/#/t/t1/challenges/u4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "waitMs": 1800
+    },
+    {
+      "id": "C12",
+      "url": "http://localhost:5183/#/t/t1/challenges/u99",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "waitMs": 1800
+    },
+    {
+      "id": "C8",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-history]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "C10",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "waitMs": 1400
+    },
+    {
+      "id": "C11",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440,
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await click('[data-friendly-send]', 900);",
+        "  await click('#friendly-send [data-friendly-pick=\"u2\"]', 600);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "P1",
+      "url": "http://localhost:5183/#/coaches/u3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "waitMs": 1400
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "waitMs": 1400
+    },
+    {
+      "id": "C9",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/empty');",
+        "  await enter('#/t/t1/challenges');",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "F1",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/fail');",
+        "  await enter('#/t/t1/challenges');",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "W1",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await enter('#/t/t1/challenges');",
+        "  await click('[data-friendly-send]', 900);",
+        "  await click('#friendly-send [data-friendly-pick=\"u2\"]', 600);",
+        "  await click('#friendly-send [data-friendly-challenge]', 1800);",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "W2",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await enter('#/t/t1/challenges');",
+        "  await click('[data-friendly-accept=\"c1\"]', 1400);",
+        "  await click('#friendly-accept [data-friendly-confirm]', 2500);",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    },
+    {
+      "id": "W3",
+      "url": "http://localhost:5183/#/t/t1/challenges",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const click = async (sel, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 600); };",
+        "  const type = async (sel, text, ms) => { const el = document.querySelector(sel); if (!el) throw new Error('no ' + sel); el.focus(); el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(ms || 700); };",
+        "  const mock = async (path) => { const r = await fetch(path, { method: 'POST' }); if (!r.ok) throw new Error(path + ' ' + r.status); };",
+        "  const enter = async (hash) => { location.hash = '#/t/t1/matches'; await wait(900); location.hash = hash; await wait(1500); if (!document.querySelector('[data-screen=\"team-challenges\"]')) throw new Error('not on the challenges page'); };",
+        "  await wait(400);",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await enter('#/t/t1/challenges');",
+        "  await click('[data-friendly-answer=\"decline\"][data-friendly-id=\"c1\"]', 1500);",
+        "  await click('[data-friendly-history]', 600);",
+        "  await mock('/api/mock/challenges/reset');",
+        "  await wait(400);",
+        "})()"
+      ],
+      "waitMs": 1400
+    }
+  ]
+}

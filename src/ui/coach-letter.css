@@ -1,0 +1,39 @@
+/*
+ * A coach's letter in its circle (ui/coach-letter.mjs): white Oswald on the header's green, the letter half the circle.
+ */
+.g-coach-letter {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 700 18px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-coach-letter--36 {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+.g-coach-letter--40 {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+.g-coach-letter--44 {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+.g-coach-letter--64 {
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+}

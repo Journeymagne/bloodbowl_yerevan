@@ -18,8 +18,10 @@ export const API_ERROR = Object.freeze({
   OFFLINE: "offline",
   /** It took too long and was aborted. */
   TIMEOUT: "timeout",
-  /** 401/403: the session is gone or the account may not do this. */
+  /** 401: the session is gone. The only status that ends it on the client. */
   UNAUTHORIZED: "unauthorized",
+  /** 403: the session is alive, the account just may not do this. */
+  FORBIDDEN: "forbidden",
   /** 409: someone else changed this first. */
   CONFLICT: "conflict",
   /** 422: the server rejected the payload, `violations` says why. */
@@ -47,7 +49,8 @@ export class ApiError extends Error {
 }
 
 function kindForStatus(status, payload) {
-  if (status === 401 || status === 403) return API_ERROR.UNAUTHORIZED;
+  if (status === 401) return API_ERROR.UNAUTHORIZED;
+  if (status === 403) return API_ERROR.FORBIDDEN;
   if (status === 409) return API_ERROR.CONFLICT;
   if (status === 422) return API_ERROR.INVALID;
   if (status === 503 && payload?.error?.code === "MAINTENANCE") return API_ERROR.MAINTENANCE;
@@ -58,7 +61,8 @@ function kindForStatus(status, payload) {
  * @param {object} deps
  * @param {typeof fetch} deps.fetchFn
  * @param {() => string} deps.getToken
- * @param {(error: ApiError) => void} [deps.onUnauthorized] called once per 401
+ * @param {(error: ApiError, sent: {token: string}) => void} [deps.onUnauthorized] called once per 401, with the
+ *   token the request went out with: the session may have changed while it was on its way
  * @param {(error: ApiError) => void} [deps.onMaintenance] called on 503 MAINTENANCE
  * @param {number} [deps.timeoutMs]
  */
@@ -91,7 +95,7 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
       message: payload?.error?.message || payload?.error || `Request failed with ${response.status}`,
       payload,
     });
-    if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error);
+    if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error, { token });
     if (error.kind === API_ERROR.MAINTENANCE) {
       try {
         onMaintenance?.(error);
@@ -112,8 +116,14 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
  * refusal reads in whichever language the page is in. `message` is the
  * English the server sends alongside, and stays the fallback: a dictionary
  * that lacks the key should show a sentence, not error.SOMETHING.
+ *
+ * A request that never got an answer has no code, and its `message` is
+ * whatever the browser's fetch said ("Failed to fetch"), in the browser's
+ * language rather than the page's. Those two are told here instead.
  */
 export function errorText(error) {
+  if (error?.kind === API_ERROR.OFFLINE) return t("request.offline");
+  if (error?.kind === API_ERROR.TIMEOUT) return t("request.timeout");
   const code = error?.code;
   if (code) {
     const key = `error.${code}`;
@@ -121,4 +131,20 @@ export function errorText(error) {
     if (translated !== key) return translated;
   }
   return error?.message ?? String(error);
+}
+
+/**
+ * A refused request as a sentence, for the writes that sign in, change a password, save a contact or
+ * make and delete a team: errorText's, with two exceptions. Too many tries say when to try again: the 429 carries
+ * `retryAfterSeconds`, and the window is a quarter of an hour, so the wait is said in
+ * minutes, and in seconds only for its last minute; without the number, "shortly" is all
+ * there is to say. And an answer without a code (a proxy's 502 while the server restarts)
+ * says the server did not answer instead of "Request failed with 502".
+ * @param {unknown} error
+ */
+export function refusalText(error) {
+  if (error?.kind === API_ERROR.HTTP && !error.code) return t("request.noAnswer");
+  const seconds = Math.ceil(Number(error?.payload?.retryAfterSeconds));
+  if (error?.code !== "TOO_MANY_LOGIN_ATTEMPTS" || !(seconds > 0)) return errorText(error);
+  return seconds < 60 ? t("auth.tooManySeconds", { seconds }) : t("auth.tooManyMinutes", { minutes: Math.ceil(seconds / 60) });
 }

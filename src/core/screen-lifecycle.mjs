@@ -33,7 +33,7 @@ function run(cleanup) {
 }
 
 /**
- * @param {string} key stable per subscription, e.g. "saved-roster:autosave-status"
+ * @param {string} key stable per subscription, e.g. "team-roster:strip"
  * @param {() => void} cleanup
  */
 export function onScreenLeave(key, cleanup) {

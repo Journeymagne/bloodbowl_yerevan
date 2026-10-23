@@ -4,7 +4,6 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { GAME_RESULT_STATUSES } from "../src/components/game-status.mjs";
 import { PLAYER_STATS } from "../src/domain/roster/values.mjs";
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,19 +16,12 @@ async function dictionaries() {
 }
 
 /**
- * The keys these screens build by hand — `games.status.${status}` and
- * `stats.${stat}` — cannot be found by reading the source, which is the whole
- * reason step 13.4 asked for the lists to be written down. This is what
- * checking them looks like.
+ * The keys the screens build by hand — `stats.${stat}` — cannot be found by
+ * reading the source, which is the whole reason step 13.4 asked for the list to
+ * be written down. This is what checking them looks like. (The game statuses'
+ * `games.status.${status}` went with their last reader, 2.x «My games», in
+ * stage 09c.)
  */
-test("every game status has a label in both languages", async () => {
-  const { en, ru } = await dictionaries();
-  for (const status of GAME_RESULT_STATUSES) {
-    assert.ok(en[`games.status.${status}`], `missing English label for ${status}`);
-    assert.ok(ru[`games.status.${status}`], `missing Russian label for ${status}`);
-  }
-});
-
 test("every characteristic has a column heading in both languages", async () => {
   const { en, ru } = await dictionaries();
   for (const stat of PLAYER_STATS) {

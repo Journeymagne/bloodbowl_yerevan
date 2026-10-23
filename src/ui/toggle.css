@@ -1,0 +1,66 @@
+/*
+ * An on/off row.
+ */
+.g-toggle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: var(--size-row);
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 16px/1.3 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.g-toggle:disabled {
+  cursor: default;
+  opacity: .6;
+}
+
+.g-toggle__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-toggle__label {
+  font-size: 16px;
+  font-weight: 500;
+}
+.g-toggle__caption {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.g-toggle__track {
+  box-sizing: border-box;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: var(--control-border);
+}
+.g-toggle__knob {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--on-accent);
+  transition: transform .15s;
+}
+
+.g-toggle[aria-checked="true"] .g-toggle__track { background: var(--accent); }
+.g-toggle[aria-checked="true"] .g-toggle__knob { transform: translateX(20px); }

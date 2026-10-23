@@ -1,0 +1,376 @@
+/*
+ * Signing in and registering (screens/auth/login.mjs), and the strength meter
+ * it draws (password-meter.mjs).
+ *
+ * Up to 900px: the league's strip with the crest on the header colour, and the
+ * form on a sheet under it; the page title is for a screen reader there (the
+ * switch names the form). From 901px: two columns, the league at the left (its
+ * pitch and three points, the footer at its foot), the form at the right.
+ */
+.g-auth {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  background: var(--header);
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The league: a strip on a phone, the left column on a wide screen. */
+.g-auth__brand {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-10);
+  padding: 40px var(--space-24) 28px;
+  color: var(--header-ink);
+  text-align: center;
+}
+
+.g-auth__mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-10);
+}
+
+.g-auth__names {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.g-auth__name {
+  color: var(--header-ink);
+  font: 700 34px/1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-auth__tagline {
+  color: var(--header-muted);
+  font: 400 14px/1.35 var(--font-body);
+  text-transform: none;
+}
+
+/* The pitch and the points are the wide screen's: a phone goes straight to the form. */
+.g-auth__pitch,
+.g-auth__points { display: none; }
+
+.g-auth__pitch {
+  margin: var(--space-24) 0 0;
+  max-width: 520px;
+  color: var(--header-ink);
+  font: 700 32px/1.1 var(--font-display);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-auth__points {
+  flex-direction: column;
+  gap: 18px;
+  max-width: 480px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.g-auth__point {
+  display: flex;
+  gap: var(--space-14);
+}
+
+.g-auth__number {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+  color: var(--header-ink);
+  font: 700 16px/1 var(--font-display);
+}
+
+.g-auth__point-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.g-auth__point-title {
+  color: var(--header-ink);
+  font: 700 17px/1.3 var(--font-body);
+  text-transform: none;
+}
+
+.g-auth__point-desc {
+  color: var(--header-muted);
+  font: 400 15px/1.4 var(--font-body);
+  text-transform: none;
+}
+
+/* The form: on a sheet over the strip on a phone. */
+.g-auth__sheet {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  padding: 18px var(--space-16) var(--space-20);
+  border: 0;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--surface-2);
+}
+
+.g-auth__panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  border: 0;
+  background: none;
+}
+
+/* The page title is for a screen reader on a phone: the switch under it names the form. */
+.g-auth__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  color: var(--ink);
+  font: 700 30px/1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A segment is a tap target: 44px, where the control alone draws 40. */
+.g-auth .g-seg__item { min-height: var(--size-touch); }
+
+.g-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  margin: 0;
+}
+
+/* Empty, it takes no room; the next field's gap is given back. */
+.g-auth__alert:empty { margin-bottom: calc(-1 * var(--space-14)); }
+
+/*
+ * Show password: a word at the end of the label's line, with the tap target of a button. Its
+ * 44px overhang the input below, so it sits above it: the lower part still takes the press.
+ */
+.g-auth__show {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: -14px 0;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 13px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-auth__show[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.g-auth__forgot-toggle {
+  align-self: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.g-auth__forgot {
+  margin: calc(-1 * var(--space-8)) 0 0;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 400 14px/1.45 var(--font-body);
+  text-transform: none;
+}
+.g-auth__forgot[hidden] { display: none; }
+
+.g-auth__note {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.45 var(--font-body);
+  text-align: center;
+  text-transform: none;
+}
+
+.g-auth__switch {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  text-align: center;
+  text-transform: none;
+}
+
+/* The two links in running text, each a 44px target. */
+.g-auth__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch);
+  min-height: var(--size-touch);
+  color: var(--accent-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.g-auth__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-16);
+  border: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 400 11px/1.5 var(--font-body);
+  text-align: center;
+  text-transform: none;
+}
+.g-auth__footer .g-auth__link {
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* The strength of a new password: three bars across the whole width, and the word under them. */
+.g-meter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: calc(-1 * var(--space-6));
+}
+
+.g-meter__bar,
+.g-meter--0 .g-meter__bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.g-meter--1 .g-meter__bar:nth-child(-n+1) { background: var(--danger); }
+.g-meter--2 .g-meter__bar:nth-child(-n+2) { background: var(--warn); }
+.g-meter--3 .g-meter__bar { background: var(--accent); }
+
+.g-meter__label {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font: 600 12px/1.2 var(--font-body);
+  text-align: left;
+  text-transform: none;
+}
+
+@media (min-width: 901px) {
+  .g-auth {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand sheet"
+      "footer sheet";
+    min-height: 640px;
+  }
+
+  .g-auth__brand {
+    grid-area: brand;
+    align-items: flex-start;
+    gap: 28px;
+    padding: 48px 48px var(--space-24);
+    text-align: left;
+  }
+
+  .g-auth__mark {
+    flex-direction: row;
+    gap: var(--space-16);
+  }
+
+  .g-auth__names { gap: var(--space-4); }
+
+  .g-auth__tagline { font-size: 15px; }
+
+  .g-auth__pitch {
+    display: block;
+    font: 700 52px/1.05 var(--font-display);
+  }
+  .g-auth__points { display: flex; }
+
+  .g-auth__footer {
+    grid-area: footer;
+    justify-content: flex-start;
+    padding: 0 48px 40px;
+    background: none;
+    color: var(--header-muted);
+    font-size: 12px;
+    text-align: left;
+  }
+  .g-auth__footer .g-auth__link { color: var(--header-ink); }
+
+  .g-auth__sheet {
+    grid-area: sheet;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    border-radius: 0;
+  }
+
+  .g-auth__panel {
+    width: 100%;
+    max-width: 420px;
+    gap: 18px;
+    padding: 32px;
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+
+  .g-auth__title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .g-auth__forgot { background: var(--surface-2); }
+}

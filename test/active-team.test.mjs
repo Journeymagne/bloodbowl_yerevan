@@ -1,0 +1,461 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { installFakeApi } from "./helpers/fake-api.mjs";
+
+const api = installFakeApi();
+const { state } = await import("../src/core/state.mjs");
+const { createStorage, storage } = await import("../src/core/storage.mjs");
+const team = await import("../src/data/active-team.mjs");
+const session = await import("../src/data/session.mjs");
+const { loadMyTeams } = await import("../src/data/teams.mjs");
+const { setOnUnauthorized } = await import("../src/core/api-client.mjs");
+
+// Wired as app.js wires it, so a 401 ends the session the way it does on the page.
+setOnUnauthorized(session.sessionEnded);
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const KEY = "gata-league-active-team";
+const IDS = ["t1", "t2", "t3"];
+const PATCH = "PATCH /api/auth/preferences";
+const NOT_AUTHORIZED = { error: { code: "NOT_AUTHORIZED", params: {}, message: "x" } };
+const TEAM_NOT_FOUND = { error: { code: "TEAM_NOT_FOUND", params: {}, message: "x" } };
+/** What the account was asked to hold, in order. */
+const patches = () => api.calls.filter(({ key }) => key === PATCH).map(({ body }) => body);
+function memory() {
+  const backend = new Map();
+  return { backend, store: createStorage({ getItem: (k) => backend.get(k) ?? null, setItem: (k, v) => backend.set(k, String(v)), removeItem: (k) => backend.delete(k) }) };
+}
+function coachWith(preferences, ids = IDS) {
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  state.auth.currentUser = { id: "u1", login: "coach", preferences };
+  state.myTeams = { items: ids.map((id) => ({ id })), loaded: true, loading: false, error: "" };
+  state.activeTeamId = null;
+}
+
+test("the route's team wins, then the account's, then this browser's, then the first", () => {
+  const pick = (over) => team.resolveActiveTeamId({ teamIds: IDS, ...over });
+  assert.equal(pick({ routeTeamId: "t3", preferenceTeamId: "t2", cachedTeamId: "t1" }), "t3");
+  assert.equal(pick({ preferenceTeamId: "t2", cachedTeamId: "t3" }), "t2");
+  assert.equal(pick({ cachedTeamId: "t3" }), "t3");
+  assert.equal(pick({}), "t1");
+  api.assertAnswered();
+});
+
+// K3: the team on the page stays active through a reload of the list, whatever the account still says.
+test("the team already active outranks the account and this browser, but not the route", () => {
+  const pick = (over) => team.resolveActiveTeamId({ teamIds: IDS, preferenceTeamId: "t1", cachedTeamId: "t1", ...over });
+  assert.equal(pick({ currentTeamId: "t2" }), "t2");
+  assert.equal(pick({ currentTeamId: "t2", routeTeamId: "t3" }), "t3");
+  assert.equal(pick({ currentTeamId: "gone" }), "t1", "a team no longer in the list is not kept");
+  api.assertAnswered();
+});
+
+test("an id that is not one of the coach's teams is skipped, wherever it came from", () => {
+  assert.equal(team.resolveActiveTeamId({ teamIds: IDS, routeTeamId: "x", preferenceTeamId: "y", cachedTeamId: "t2" }), "t2");
+  assert.equal(team.resolveActiveTeamId({ teamIds: [], preferenceTeamId: "t1" }), null);
+  api.assertAnswered();
+});
+
+test("the cache belongs to one coach: another login on this browser does not inherit it", () => {
+  const { store, backend } = memory();
+  team.writeActiveTeamCache(store, "u1", "t2");
+  assert.deepEqual(JSON.parse(backend.get(KEY)), { userId: "u1", teamId: "t2" });
+  assert.equal(team.readActiveTeamCache(store, "u1"), "t2");
+  assert.equal(team.readActiveTeamCache(store, "u2"), null);
+  team.writeActiveTeamCache(store, "u1", null);
+  assert.equal(backend.has(KEY), false);
+  api.assertAnswered();
+});
+
+test("junk in the cache is no team", () => {
+  for (const junk of ["{oops", "[]", "null", "42", JSON.stringify({ userId: "u1", teamId: 5 })]) {
+    const { store, backend } = memory();
+    backend.set(KEY, junk);
+    assert.equal(team.readActiveTeamCache(store, "u1"), null, junk);
+  }
+  api.assertAnswered();
+});
+
+test("following a team link makes it active here and in the account, and says so once", async () => {
+  const { store } = memory();
+  coachWith({ activeTeamId: "t1" });
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t2" } });
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  assert.equal(team.syncActiveTeam({ routeTeamId: "t2", store }), "t2");
+  await flush();
+  assert.equal(state.activeTeamId, "t2");
+  assert.equal(team.readActiveTeamCache(store, "u1"), "t2");
+  team.syncActiveTeam({ routeTeamId: "t2", store });
+  await flush();
+  assert.deepEqual(api.calls.map(({ body }) => body), [{ activeTeamId: "t2" }], "the account already says t2");
+  assert.deepEqual(heard, ["t2"]);
+  off();
+  api.assertAnswered();
+});
+
+// K3: the router makes the route's team active (its PATCH on the way), then the roster screen
+// reloads the list, and that reload's sync has no route — while the account still names t1.
+test("reloading the list on a team's page keeps that team active before the account answers", async () => {
+  coachWith({ activeTeamId: "t1" });
+  let answer;
+  api.reply(PATCH, 200, new Promise((resolve) => { answer = resolve; }));
+  api.reply("GET /api/teams", 200, { teams: IDS.map((id) => ({ id })) });
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  team.syncActiveTeam({ routeTeamId: "t2" });
+  await loadMyTeams(true);
+  const accountThen = state.auth.currentUser.preferences.activeTeamId;
+  const activeThen = state.activeTeamId;
+  // Answered before anything is asserted, so a failure here leaves no write hanging for the next test.
+  answer({ preferences: { activeTeamId: "t2" } });
+  await flush();
+  assert.equal(accountThen, "t1", "the account had not answered yet");
+  assert.equal(activeThen, "t2");
+  assert.deepEqual(patches(), [{ activeTeamId: "t2" }], "one write, not one per sync");
+  assert.deepEqual(heard, ["t2"], "the page's team never flips back");
+  off();
+  api.assertAnswered();
+});
+
+test("a team chosen before the account answers is written after that answer, in the order shown", async () => {
+  coachWith({ activeTeamId: "t1" });
+  let answer;
+  api.reply(PATCH, 200, new Promise((resolve) => { answer = resolve; }));
+  team.syncActiveTeam({ routeTeamId: "t2", store: memory().store });
+  await flush(); // t2 is on its way
+  team.syncActiveTeam({ routeTeamId: "t3", store: memory().store });
+  await flush();
+  const sentThen = patches().length;
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t3" } }); // for the write still to come
+  answer({ preferences: { activeTeamId: "t2" } });
+  await flush();
+  assert.equal(sentThen, 1, "one write at a time");
+  assert.deepEqual(patches(), [{ activeTeamId: "t2" }, { activeTeamId: "t3" }]);
+  assert.equal(state.auth.currentUser.preferences.activeTeamId, "t3");
+  api.assertAnswered();
+});
+
+test("a team left again before the account answers is not written", async () => {
+  coachWith({ activeTeamId: "t1" });
+  let answer;
+  api.reply(PATCH, 200, new Promise((resolve) => { answer = resolve; }));
+  for (const routeTeamId of ["t2", "t3", "t2"]) team.syncActiveTeam({ routeTeamId, store: memory().store });
+  answer({ preferences: { activeTeamId: "t2" } });
+  await flush();
+  assert.deepEqual(patches(), [{ activeTeamId: "t2" }], "t3 was shown and left while t2 was on its way");
+  api.assertAnswered();
+});
+
+test("the active team deleted elsewhere moves to another team without writing a dead id", async () => {
+  coachWith({ activeTeamId: "t1" }, ["t2", "t3"]);
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t2" } });
+  assert.equal(team.syncActiveTeam({ store: memory().store }), "t2");
+  await flush();
+  assert.deepEqual(api.calls.map(({ body }) => body), [{ activeTeamId: "t2" }]);
+  api.assertAnswered();
+});
+
+test("the active team deleted on this page moves to another one on the next reload of the list", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam(); // this browser's cache, which the reload reads too, now says t1
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t3" }, { id: "t2" }] });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t3" } });
+  await loadMyTeams(true);
+  await flush();
+  assert.equal(state.activeTeamId, "t3");
+  assert.deepEqual(patches(), [{ activeTeamId: "t3" }], "never t1");
+  api.assertAnswered();
+});
+
+test("a team created a moment ago is found by reloading the list once, not bounced to My Teams", async () => {
+  api.reset();
+  state.myTeams.items = [{ id: "t1" }];
+  let reloads = 0;
+  const reload = async () => { reloads += 1; state.myTeams.items = [{ id: "new" }, { id: "t1" }]; };
+  assert.equal(await team.prepareTeamRoute("new", { reload }), true);
+  assert.equal(await team.prepareTeamRoute("t1", { reload }), true);
+  assert.equal(reloads, 1, "a known team costs no request");
+  assert.equal(await team.prepareTeamRoute("gone", { reload }), false);
+  assert.deepEqual(api.calls, [], "the route asks nothing of its own");
+  api.assertAnswered();
+});
+
+// Found on the real server: the reload's own sync has no route, so with no team active yet it
+// settled on the first of the list and wrote it, and only then did the router make the route's
+// team active and write that too.
+test("the list read again for a team's address settles on that team, not on the first", async () => {
+  coachWith({}, []);
+  team.writeActiveTeamCache(storage, "u1", null);
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t2" }, { id: "t1" }] });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t1" } });
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  assert.equal(await team.prepareTeamRoute("t1", { reload: () => loadMyTeams(true) }), true);
+  team.syncActiveTeam({ routeTeamId: "t1" }); // as the router does next
+  await flush();
+  assert.deepEqual(patches(), [{ activeTeamId: "t1" }]);
+  assert.deepEqual(heard, ["t1"]);
+  off();
+  api.assertAnswered();
+});
+
+test("an address stops steering the syncs once its reload is over", async () => {
+  coachWith({ activeTeamId: "t1" }, ["t1"]);
+  const reload = async () => { state.myTeams.items = [{ id: "t1" }, { id: "t2" }]; };
+  assert.equal(await team.prepareTeamRoute("t2", { reload }), true);
+  assert.equal(team.syncActiveTeam({ store: memory().store }), "t1", "no route now, and the account says t1");
+  await flush();
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("another coach's team in this browser's cache is not this coach's", async () => {
+  const { store } = memory();
+  team.writeActiveTeamCache(store, "u2", "t3");
+  coachWith({});
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t1" } });
+  assert.equal(team.syncActiveTeam({ store }), "t1");
+  await flush();
+  assert.deepEqual(patches(), [{ activeTeamId: "t1" }]);
+  assert.equal(team.readActiveTeamCache(store, "u1"), "t1");
+  api.assertAnswered();
+});
+
+test("a coach with no team has none, and an account that names none is left alone", async () => {
+  const { store, backend } = memory();
+  team.writeActiveTeamCache(store, "u1", "t1");
+  coachWith({}, []);
+  assert.equal(team.syncActiveTeam({ store }), null);
+  await flush();
+  assert.equal(state.activeTeamId, null);
+  assert.equal(team.activeTeam(), null);
+  assert.equal(backend.has(KEY), false);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+// The only write that could erase anything: a list that came back empty (a 200 `{}` reads as
+// no teams) would clear the team the account keeps. /me already hides a dead id, so it is never sent.
+test("an empty list leaves the account's team alone", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  api.reply("GET /api/teams", 200, {});
+  await loadMyTeams(true);
+  await flush();
+  assert.equal(state.activeTeamId, null);
+  assert.equal(api.items.has(KEY), false);
+  assert.deepEqual(patches(), [], "never {activeTeamId: null}");
+  api.assertAnswered();
+});
+
+test("a write the account refuses or never gets keeps this page's team, and is tried again only at the next sync", async () => {
+  for (const [label, answer] of [["404", () => api.reply(PATCH, 404, TEAM_NOT_FOUND)], ["offline", () => api.fail(PATCH)]]) {
+    const { store } = memory();
+    coachWith({ activeTeamId: "t1" });
+    answer();
+    team.syncActiveTeam({ routeTeamId: "t2", store });
+    await flush();
+    await flush();
+    assert.equal(state.activeTeamId, "t2", label);
+    assert.equal(team.readActiveTeamCache(store, "u1"), "t2", label);
+    assert.equal(state.auth.currentUser.preferences.activeTeamId, "t1", `${label}: the account is as it was`);
+    assert.equal(patches().length, 1, `${label}: no retry on its own`);
+    team.syncActiveTeam({ store });
+    await flush();
+    assert.deepEqual(patches(), [{ activeTeamId: "t2" }, { activeTeamId: "t2" }], `${label}: once more at the next sync`);
+    api.assertAnswered();
+  }
+});
+
+test("a listener that throws does not keep the others from hearing", async () => {
+  coachWith({ activeTeamId: "t1" });
+  const heard = [];
+  const errors = [];
+  const consoleError = console.error;
+  console.error = (error) => errors.push(error);
+  const offs = [team.onActiveTeamChange(() => { throw new Error("a broken screen"); }), team.onActiveTeamChange((id) => heard.push(id))];
+  try {
+    assert.equal(team.syncActiveTeam({ store: memory().store }), "t1");
+  } finally {
+    console.error = consoleError;
+    offs.forEach((off) => off());
+  }
+  assert.deepEqual(heard, ["t1"]);
+  assert.equal(errors.length, 1);
+  api.assertAnswered();
+});
+
+test("the account that already names the team is not written again, and the team is at hand", async () => {
+  coachWith({ activeTeamId: "t3" });
+  assert.equal(team.syncActiveTeam({ store: memory().store }), "t3");
+  await flush();
+  assert.equal(team.activeTeam(), state.myTeams.items[2]);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("a guest has no active team, and nothing is asked", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam({ store: memory().store });
+  state.auth.currentUser = null;
+  assert.equal(team.syncActiveTeam({ store: memory().store }), null);
+  await flush();
+  assert.equal(state.activeTeamId, null);
+  assert.deepEqual(api.calls, []);
+  api.assertAnswered();
+});
+
+test("signing out tells the listeners there is no team", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.fail("POST /api/auth/logout");
+  await session.signOut();
+  off();
+  assert.deepEqual(heard, [null]);
+  api.assertAnswered();
+});
+
+test("a session that dies under the coach (a 401) tells the listeners there is no team", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.reply("GET /api/teams", 401, NOT_AUTHORIZED);
+  await loadMyTeams(true);
+  off();
+  assert.equal(state.auth.currentUser, null);
+  assert.equal(state.activeTeamId, null);
+  assert.deepEqual(heard, [null]);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("signing in starts from no active team, whatever the coach before had", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.reply("POST /api/auth/login", 200, { token: "tok2" });
+  api.reply("GET /api/auth/me", 200, { user: { id: "u2", login: "other", preferences: {} } });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t9" }] });
+  await session.signIn({ login: "other", password: "pw" });
+  off();
+  assert.equal(state.activeTeamId, null, "the next sync chooses from the new coach's own");
+  assert.deepEqual(heard, [null]);
+  api.assertAnswered();
+});
+
+test("a list that lands while the logout is on its way does not bring this browser's team back", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  let answer;
+  api.reply("POST /api/auth/logout", 200, new Promise((resolve) => { answer = resolve; }));
+  const signingOut = session.signOut();
+  team.syncActiveTeam(); // what a loadMyTeams that answers now runs, the coach still signed in
+  const cachedThen = api.items.has(KEY);
+  answer({});
+  await signingOut;
+  assert.equal(cachedThen, true, "written back while the logout was out");
+  assert.equal(api.items.has(KEY), false);
+  api.assertAnswered();
+});
+
+test("signing out forgets the active team here and in this browser", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  assert.ok(api.items.has(KEY));
+  api.fail("POST /api/auth/logout");
+  await session.signOut();
+  assert.equal(state.activeTeamId, null);
+  assert.equal(api.items.has(KEY), false);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+// R10: /me answered with the coach, the list of teams did not. The session holds; the list says nothing of
+// which team is the coach's, so nothing is decided from it and nothing is written.
+test("a list that could not be read decides nothing: the account's team stays active, and neither the account nor the cache is written", async () => {
+  const { store, backend } = memory();
+  team.writeActiveTeamCache(store, "u1", "t3");
+  const cached = backend.get(KEY);
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  api.reply("GET /api/auth/me", 200, { user: { id: "u1", login: "coach", preferences: { activeTeamId: "t2" } } });
+  api.reply("GET /api/teams", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } });
+  const off = session.onSessionChange(() => team.syncActiveTeam({ store }));
+  try {
+    assert.equal(await session.loadSession(), "signed-in");
+  } finally {
+    off();
+  }
+  await flush();
+  assert.deepEqual([state.myTeams.loaded, state.myTeams.items.length], [false, 0]);
+  assert.equal(state.activeTeamId, "t2", "the account's, which /me has already checked");
+  assert.equal(backend.get(KEY), cached, "the cache keeps what it had");
+  assert.deepEqual(patches(), []);
+  // An account that names no team: none is active, and none is made up.
+  coachWith({}, []);
+  state.myTeams = { items: [], loaded: false, loading: false, error: "The server did not answer." };
+  assert.equal(team.syncActiveTeam({ store }), null);
+  await flush();
+  assert.equal(backend.get(KEY), cached);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("the list read again after such a failure decides as usual", async () => {
+  const { store } = memory();
+  coachWith({ activeTeamId: "gone" }, []);
+  state.myTeams = { items: [], loaded: false, loading: false, error: "The server did not answer." };
+  team.syncActiveTeam({ store });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t3" }, { id: "t1" }] });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t3" } });
+  await loadMyTeams(true);
+  await flush();
+  assert.equal(state.activeTeamId, "t3");
+  assert.deepEqual(patches(), [{ activeTeamId: "t3" }]);
+  api.assertAnswered();
+});
+
+// R13-M1: a list is the teams of the coach it was asked for, and only the last one asked is written.
+test("a list that comes back after its coach signed out is not written into the next one's, nor made active", async () => {
+  coachWith({}, []);
+  const gate = api.hold("GET /api/teams");
+  const loading = loadMyTeams(true);
+  await flush();
+  api.reply("PATCH /api/auth/preferences", 404, TEAM_NOT_FOUND);
+  state.auth.currentUser = { id: "u2", login: "next", preferences: {} };
+  state.myTeams = { items: [{ id: "n1" }], loaded: true, loading: false, error: "" }; // as the next coach's /me left it
+  state.activeTeamId = "n1";
+  gate.release({ status: 200, body: { teams: [{ id: "t1" }] } });
+  await loading;
+  await flush();
+  assert.deepEqual(state.myTeams.items, [{ id: "n1" }]);
+  assert.equal(state.activeTeamId, "n1");
+  assert.deepEqual(patches(), [], "no PATCH of the coach before's team to the next one's account");
+});
+
+test("a list read that a newer one overtook writes nothing, and its caller waits for the newer list", async () => {
+  coachWith({ activeTeamId: "t1" });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t1" } });
+  const first = api.hold("GET /api/teams");
+  let olderDone = false;
+  const older = loadMyTeams(true).then(() => { olderDone = true; });
+  await flush();
+  const second = api.hold("GET /api/teams");
+  const newer = loadMyTeams(true);
+  await flush();
+  first.release({ status: 200, body: { teams: [{ id: "t1" }] } });
+  await flush();
+  assert.equal(olderDone, false, "its caller reads state.myTeams when it returns, so it waits for the list that will be there");
+  assert.deepEqual(state.myTeams.items.map((item) => item.id), IDS, "the list from before is not written");
+  second.release({ status: 200, body: { teams: [{ id: "t1" }, { id: "new" }] } });
+  await Promise.all([older, newer]);
+  assert.deepEqual(state.myTeams.items.map((item) => item.id), ["t1", "new"]);
+  assert.equal(state.myTeams.loading, false);
+});

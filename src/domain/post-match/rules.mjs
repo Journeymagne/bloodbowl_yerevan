@@ -1,6 +1,8 @@
 import { matchError } from '../match/rules.mjs';
 
 export const POST_STEPS = ['result', 'fans', 'players', 'roster', 'finance', 'next', 'review'];
+/** The Players step's place in `POST_STEPS`: a side's `stage` while it writes its statistics and takes its advancements. */
+export const PLAYERS_STAGE = POST_STEPS.indexOf('players');
 export const POST_STATS = ['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'crowdCasualties', 'foulCasualties'];
 export const INJURIES = ['none', 'badly-hurt', 'miss', 'niggling', 'lasting', 'dead'];
 export const RESULT_MODES = ['played', 'technical', 'conceded', 'conceded-safe'];

@@ -27,13 +27,17 @@ try {
   let season = (await client.query("SELECT * FROM seasons WHERE name='Pre-match preview' AND status='preview'")).rows[0];
   if (!season) season = (await client.query("INSERT INTO seasons (name,status,current_round) VALUES ('Pre-match preview','preview',1) RETURNING *")).rows[0];
   const entries = {};
+  // 008 replaced UNIQUE (season_id, user_id) with a partial index over entries not withdrawn.
   for (const side of ["home", "away"]) entries[side] = (await client.query(`INSERT INTO season_entries (season_id,user_id,saved_team_id) VALUES ($1,$2,$3)
-    ON CONFLICT (season_id,user_id) DO UPDATE SET saved_team_id=EXCLUDED.saved_team_id RETURNING id`, [season.id, sources[side].user.id, sources[side].team.id])).rows[0].id;
+    ON CONFLICT (season_id, user_id) WHERE withdrawn_at IS NULL DO UPDATE SET saved_team_id=EXCLUDED.saved_team_id RETURNING id`, [season.id, sources[side].user.id, sources[side].team.id])).rows[0].id;
   const round = (await client.query(`INSERT INTO season_rounds (season_id,round_number,status) VALUES ($1,1,'started') ON CONFLICT (season_id,round_number) DO UPDATE SET status='started' RETURNING id`, [season.id])).rows[0].id;
   const fixture = (await client.query(`INSERT INTO season_pairings (round_id,table_number,home_entry_id,away_entry_id) VALUES ($1,1,$2,$3)
     ON CONFLICT (round_id,table_number) DO UPDATE SET home_entry_id=EXCLUDED.home_entry_id RETURNING *`, [round, entries.home, entries.away])).rows[0];
   const preparation = createPreparation(sources, data);
   await client.query("INSERT INTO match_preparations (pairing_id,state) VALUES ($1,$2) ON CONFLICT (pairing_id) DO NOTHING", [fixture.id, JSON.stringify(preparation)]);
+  // The pairing reads as the preparation it holds, as savePreparationState leaves it: a second run keeps that preparation.
+  await client.query(`UPDATE season_pairings p SET preparation_status = m.state->>'status' FROM match_preparations m
+    WHERE m.pairing_id = p.id AND p.id = $1`, [fixture.id]);
   await client.query("COMMIT");
   console.log(JSON.stringify({ url: `http://localhost:${process.env.APP_PORT || 3002}/#/games/${fixture.id}/pre-match`, gameId: fixture.id, accounts: ["preview-home", "preview-away"], password: "preview2026" }, null, 2));
 } catch (error) { await client.query("ROLLBACK"); throw error; }

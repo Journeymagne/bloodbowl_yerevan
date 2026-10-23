@@ -1,0 +1,274 @@
+/*
+ * A sheet on the native <dialog>: from the bottom of the screen up to 900px,
+ * a modal in the middle from 901px. On a phone the title is centred and the
+ * footer is a column; on a desk the title stands left over a rule and the
+ * footer's button sits at its right. Nothing here sets `display` on the
+ * dialog, so a closed one stays hidden by the browser's own rule. The team
+ * switcher is an `anchored` sheet: the same from the bottom up to 900px, a
+ * 300px panel by the SideNav from 901px.
+ */
+dialog.g-sheet {
+  box-sizing: border-box;
+  max-height: 86dvh;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+dialog.g-sheet::backdrop { background: var(--scrim); }
+
+/* The page under an open sheet stays where it is: a scroll over the backdrop does not move it. */
+html:has(dialog.g-sheet:modal) { overflow: hidden; }
+
+/* The panel is the dialog's whole height, so the body is what scrolls. */
+.g-sheet__panel {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.g-sheet__handle {
+  flex: none;
+  width: 40px;
+  height: 5px;
+  margin: var(--space-8) auto 0;
+  border-radius: var(--radius-xs);
+  background: var(--control-border);
+}
+
+.g-sheet__head {
+  display: grid;
+  flex: none;
+  grid-template-columns: var(--size-touch) minmax(0, 1fr) var(--size-touch);
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12) var(--space-4);
+}
+
+/* Where the back button would be: the title stays centred on the first step. */
+.g-sheet__spacer {
+  width: var(--size-touch);
+  height: var(--size-touch);
+}
+
+.g-sheet__titles { min-width: 0; }
+
+.g-sheet__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 24px/1.1 var(--font-display);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-sheet__sub {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-sheet__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: 0;
+  padding: var(--space-12) var(--space-16) var(--space-8);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 0;
+}
+/* A scroller the keyboard can reach: its ring sits inside, where the panel does not clip it. */
+.g-sheet__body:focus-visible { outline-offset: -3px; }
+
+/* On a phone the footer is a column: the quiet control (if the sheet has one) over the one button. */
+.g-sheet__foot {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--space-16) var(--space-24);
+  border-top: 1px solid var(--line);
+}
+
+.g-sheet__foot-start {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  dialog.g-sheet {
+    width: 100%;
+    max-width: none;
+    margin: auto 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  }
+}
+
+@media (min-width: 901px) {
+  dialog.g-sheet {
+    width: min(480px, calc(100% - 32px));
+    max-width: none;
+    /* 110px from the top, as most prototypes' windows stand (DeskOverview, DeskSeason, DeskOppTeam, DeskAdminReset); the bottom keeps 32px on a short window. */
+    max-height: min(86dvh, calc(100dvh - 142px));
+    margin: 110px auto auto;
+    border-radius: var(--radius-2xl);
+  }
+  dialog.g-sheet.g-sheet--wide { width: min(640px, calc(100% - 32px)); }
+  /*
+   * A window its prototype stands higher or lower (renderSheet's `at`): the advancement and a new team 64 (DeskRosterAdv,
+   * DeskTeamNew), the hiring 80 (DeskRosterHire), the sale, a player's edit and the password 120 (DeskRosterSell,
+   * DeskRosterEdit, DeskCoachPassword); each keeps 32px under it on a short window.
+   */
+  dialog.g-sheet.g-sheet--at-64 {
+    max-height: min(86dvh, calc(100dvh - 96px));
+    margin: 64px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-80 {
+    max-height: min(86dvh, calc(100dvh - 112px));
+    margin: 80px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-120 {
+    max-height: min(86dvh, calc(100dvh - 152px));
+    margin: 120px auto auto;
+  }
+  /* The team switcher: a panel at the left, by the SideNav's team block, not a modal in the middle; its bottom keeps 24px from the window's edge. */
+  dialog.g-sheet.g-sheet--anchored {
+    width: 300px;
+    max-height: calc(100dvh - 96px);
+    margin: 72px auto auto 12px;
+    border-radius: var(--radius-2xl);
+  }
+  /* The handle is a bottom sheet's; a modal has nothing to drag. */
+  .g-sheet__handle { display: none; }
+
+  /* The title stands at the left over a rule, the close at the right; the spacer that centred it is not needed. */
+  .g-sheet__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-20) var(--space-24) var(--space-16);
+    border-bottom: 1px solid var(--line);
+  }
+  .g-sheet__spacer { display: none; }
+  .g-sheet__titles { flex: 1 1 auto; }
+  .g-sheet__title {
+    font-size: 26px;
+    text-align: left;
+  }
+  .g-sheet__sub { text-align: left; }
+  /* A panel's title is a small caption over its list, with no rule and no cross: the backdrop and Escape close it. */
+  .g-sheet--anchored .g-sheet__head {
+    padding: var(--space-12) var(--space-16) var(--space-4);
+    border-bottom: 0;
+  }
+  .g-sheet--anchored .g-sheet__title {
+    color: var(--muted);
+    font: 700 13px/1.2 var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .g-sheet--anchored .g-sheet__head .g-icon-btn { display: none; }
+  .g-sheet--anchored .g-sheet__body { padding: var(--space-4) var(--space-8) var(--space-8); }
+
+  /* The button sits at the right of the footer, as wide as its words; the quiet control goes to the left. */
+  .g-sheet__foot {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-12);
+    padding: var(--space-16) var(--space-24) var(--space-20);
+    border-top: 0;
+  }
+  .g-sheet__foot .g-btn--primary {
+    width: auto;
+    height: var(--size-touch);
+    padding: 0 var(--space-20);
+    font-size: 15px;
+  }
+  .g-sheet__foot-start { margin-right: auto; }
+}
+
+/*
+ * A question before something that cannot be taken back (`confirmAction`, ui/sheet.mjs): the caller's words,
+ * then «Cancel» and the action. Up to 900px PlayerDeadConfirm.html's sheet: the words 15/1.5 in --ink-2, the body
+ * 10 16 12; «Cancel» and the action in two halves under the foot's rule, 8 apart. From 901px DeskAdminReset.html's
+ * window: 520 wide, 20 round, 110 from the top (the sheet's own, no `at`); the head 18 20 18 24, 16 between the title
+ * (28) and the 40px cross; the body 16 24; «Cancel» and the action at the right, 8 apart, 12 24 20 around them, as
+ * DeskAdminCoachNew's. Both: 48px buttons, 12 round, 15px bold. Their colours are button.css's own — «Cancel» the
+ * outline (white in its ring, here in --ink as the prototypes'), the action the primary or the red one.
+ */
+.g-confirm .g-sheet__body { gap: var(--space-14); }
+
+.g-confirm__text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 400 15px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-confirm .g-sheet__foot .g-btn {
+  height: auto;
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-confirm .g-sheet__foot .g-btn[data-confirm="no"] { color: var(--ink); }
+
+@media (max-width: 900px) {
+  .g-confirm .g-sheet__body { padding: var(--space-10) var(--space-16) var(--space-12); }
+  .g-confirm .g-sheet__foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-16) var(--space-24);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: 100%;
+    padding: 0 var(--space-10);
+  }
+}
+
+@media (min-width: 901px) {
+  dialog.g-sheet.g-confirm {
+    width: min(520px, calc(100% - 32px));
+    border-radius: 20px;
+  }
+  .g-confirm .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-confirm .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-confirm .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-confirm .g-sheet__body { padding: var(--space-16) var(--space-24); }
+  .g-confirm .g-sheet__foot {
+    justify-content: flex-end;
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24) var(--space-20);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: auto;
+    padding: 0 var(--space-16);
+  }
+}

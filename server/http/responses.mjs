@@ -89,6 +89,18 @@ export function sendJson(response, status, payload) {
   });
 }
 
+/**
+ * The request body as the object every route reads: `{}` when there is none.
+ *
+ * A body that is no JSON, or JSON whose root is not an object — `null`, an array, a number, a string — is
+ * 400 FIELD_INVALID `{ field: "body" }`, before a route reads a field of it: the parser's error used to go
+ * out as a 500 with its stack in the log, and `body.login` of `null` as another. One answer, in one place,
+ * for every route.
+ *
+ * @param {import("node:http").IncomingMessage} request
+ * @returns {Promise<object>}
+ * @throws 413 BODY_TOO_LARGE; 400 FIELD_INVALID `{ field: "body" }`
+ */
 export async function readJson(request) {
   const chunks = [];
   let size = 0;
@@ -103,5 +115,13 @@ export async function readJson(request) {
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+  if (!raw) return {};
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    throw httpError(400, "FIELD_INVALID", { field: "body" });
+  }
+  if (body === null || typeof body !== "object" || Array.isArray(body)) throw httpError(400, "FIELD_INVALID", { field: "body" });
+  return body;
 }

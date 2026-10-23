@@ -1,6 +1,6 @@
 {
   "name": "bloodbowl-sevens-reference",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,11 +26,18 @@
     "smoke:pre-match": "node scripts/smoke-pre-match.mjs",
     "smoke:friendly": "node scripts/smoke-friendly.mjs",
     "smoke:post-match": "node scripts/smoke-post-match.mjs",
+    "smoke:admin": "node scripts/smoke-admin.mjs",
     "backup:db": "node scripts/backup-db.mjs",
     "backup:status": "node scripts/backup-status.mjs",
     "maintenance:on": "node scripts/maintenance.mjs on",
     "maintenance:off": "node scripts/maintenance.mjs off",
-    "maintenance:status": "node scripts/maintenance.mjs status"
+    "maintenance:status": "node scripts/maintenance.mjs status",
+    "rehearsal:restore": "node scripts/rehearsal-restore.mjs",
+    "rehearsal:check": "node scripts/rehearsal-check.mjs",
+    "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs",
+    "rehearsal:transitions": "node scripts/rehearsal-transitions.mjs",
+    "screens": "node scripts/screenshots.mjs",
+    "screens:diff": "node scripts/screenshots-diff.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"

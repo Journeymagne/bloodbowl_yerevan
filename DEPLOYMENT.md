@@ -4,12 +4,16 @@ This document is for the person who will publish the Gata Blood Bowl League refe
 
 ## Quick Deploy Checklist
 
-1. Clone the repository.
-2. Use the `gata-league` branch, or merge it into the branch you want to deploy.
-3. Run `npm install`.
-4. Run `npm run build`.
-5. Confirm that `dist/` was generated.
-6. Publish `dist/` on a static host.
+Since 2.0 the site is a Node server with Postgres (accounts, teams, the season), not a static site:
+`dist/` alone serves the reference pages and nothing behind a sign-in.
+
+1. Deploys go through GitHub Actions from `main` to the VPS ("VPS Deployment" below): `git reset --hard
+   origin/main && npm install && npm run build`, then `npm run deploy:migrate` and the pm2 restart.
+2. `npm run build` writes `dist/` and removes from it whatever an earlier build left that this one did
+   not write (a deleted stylesheet, module, font or image is not served afterwards).
+3. A migration in `server/db/migrations/` is applied by `npm run deploy:migrate`; read "Database
+   Backups" before one that changes data.
+4. The move from 2.x to 3.0 is a window of its own: "Moving to 3.0" below.
 
 ## Updating Content
 
@@ -45,32 +49,29 @@ GATA_CHANGELOG_DOCX
 
 ## Smoke Test Before Publishing
 
-Run:
+**The guest's screens, with no server** (`npm run dev` has no API: whatever needs a sign-in sends the
+visitor to `#/login`, which cannot sign anyone in there):
 
 ```bash
 npm run build
 npm run dev
 ```
 
-Open:
+Open <http://localhost:5173> and check at least:
 
-```text
-http://localhost:5173
-```
+- The guest's front page opens: the league, the way in, the table's card, the reference's tiles.
+- `#/ref/teams` lists 37 teams (`scripts/browser-check.mjs` counts the same rows).
+- A team's rules page, for example `#/teams/amazon`, opens with its roster table.
+- The settings' palette and language switch change the page (`#/settings` as a guest: language and
+  palette only).
 
-Check at least:
+The counts come from the build: `npm run build` prints the page total, and `public/data.en.json` carries
+the rest in its `counts` field. Check there rather than here if the two ever disagree.
 
-- Overview opens.
-- Teams shows 37 cards.
-- Star Players shows 75 cards.
-- Skills shows 86 cards.
-- Traits shows 38 cards.
-- Team Builder can add a player and update cost.
-- A team detail page, for example `#/teams/amazon`, shows a horizontally scrollable roster table on mobile.
-
-The counts come from the build: `npm run build` prints the page total (292),
-and `public/data.en.json` carries the rest in its `counts` field. Check there
-rather than here if the two ever disagree.
+**Everything behind a sign-in** (the builder `#/teams/new`, a team's roster, matches, the season, the
+administration) needs `npm start` with Postgres and a signed-in coach ("A Match, Locally" in
+`README.md`), or the five smoke checks of "Commands" in `README.md` against such a server. Before the
+3.0 release they are part of "Moving to 3.0" (T−2 days).
 
 ## Current UX And Content Questions
 
@@ -590,3 +591,404 @@ for it. Public requests never get through: Caddy reaches Node from the docker
 network, and `X-Forwarded-For` is not consulted.
 
 If Node itself is down, Caddy answers 502 — the maintenance page needs Node.
+
+## Moving to 3.0
+
+This is the runbook for day X, when the site moves from 2.1.0 to 3.0. It covers the master plan's phase X
+(`docs/superpowers/plans/2026-10-14-redesign-rollout.md`) and §6 of the rollout spec
+(`docs/superpowers/specs/2026-10-14-redesign-rollout-design.md`), with the commands. Claude sends it to the
+chat the day before, with the dates filled in.
+
+- **Who runs what.** The owner runs every command on the server, as root (`sudo -i` first, as in the
+  setup steps above). Claude follows in the chat and checks the output of each step.
+- **Times.** T is the start of the maintenance window. The window takes about forty minutes; the
+  maintenance page announces an hour.
+- **Migrations.** 3.0 brings nine of them, 009–017. The deploy applies them with `deploy:migrate`, which
+  takes a labelled dump first (see "Ongoing deploys"). Each migration only adds: none deletes or changes
+  data that was there before, and 2.1.0 runs on the migrated schema.
+- **The point of no return is `maintenance:off`.** Before it, nobody has written anything in 3.0, and
+  every way back is a code change. After it, problems are fixed forward.
+
+The first command of every server session defines a shorthand for the database queries below. Every one
+of those queries only reads:
+
+```bash
+DB() { docker exec -i gata-league-postgres psql -U gata_admin -d gata_league "$@"; }
+```
+
+### Preparation
+
+#### After the owner's "go" on M5
+
+1. The owner picks a quiet evening. A round may be open; see "When the window can start" below.
+2. Claude prepares the pull request `redesign → main`. In it, `## [3.0.0] — unreleased` in
+   `CHANGELOG.md` gets day X's date. Its body carries the M5 report.
+
+```bash
+git fetch origin && git switch redesign && git merge --no-ff origin/main && npm run build && npm test && npm run check && npm run i18n:check && git push
+gh pr create --base main --head redesign --title "Gata League 3.0" --body-file <scratchpad>/pr-3.0.md
+```
+
+#### T−7 days
+
+The owner posts in the league's Telegram; Claude drafts the text. It gives:
+
+- the date, and a window of up to an hour;
+- "finish your drafts in the builder" (a draft kept in the 2.x builder does not reach 3.0);
+- "finish the post-match of the matches you have played and confirm the scores by <time>".
+
+#### T−2 days
+
+1. **The final rehearsal (M5), on a fresh dump.** Follow "Rehearsing a migration on a copy of
+   production" in `README.md`: seed the transitions on 2.1.0, then finish them on 3.0.
+2. **The five smoke checks**, on the 3.0 server over `gata_rehearsal` ("Commands" in `README.md`). A
+   restored production dump has no preview coaches, and the three match smokes sign in as them: seed
+   them first, into the same database. `<3.0 server>` is that server's address (for example
+   `http://localhost:3081`), `<gata_rehearsal>` the database's local URL:
+
+   ```bash
+   DATABASE_URL=<gata_rehearsal> npm run preview:seed
+   APP_URL=<3.0 server> npm run smoke
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:pre-match
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:friendly
+   SMOKE_BASE_URL=<3.0 server> DATABASE_URL=<gata_rehearsal> npm run smoke:post-match
+   . output/<admin env file> && SMOKE_ADMIN_LOGIN="$ADMIN_LOGIN" SMOKE_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+     APP_URL=<3.0 server> npm run smoke:admin
+   ```
+
+   `smoke:admin` signs in with the administrator's login and password. They are test values, kept in a
+   `0600` file under `output/` that is only ever `source`d, never printed. The same values start that
+   server and let `rehearsal:transitions -- --finish` sign in. Without `SMOKE_BASE_URL` the match smokes
+   go to their own defaults (3003, and 3002 for `smoke:post-match`), not to the 3.0 server.
+3. **The pull request.** `redesign → main` is green and has no conflicts.
+4. **Rosters over 14 players (M2), on the same dump:**
+
+   ```bash
+   docker exec -i gata-league-postgres psql -U gata_admin -d gata_rehearsal -c "SELECT id, name FROM saved_teams WHERE jsonb_typeof(roster->'players') = 'array' AND jsonb_array_length(roster->'players') > 14;"
+   ```
+
+   Each row is a team that 3.0 refuses (422) on every roster save until it sells its extra players. The
+   owner decides each one before the window.
+5. **Technical results and re-rolls (M4), on the same dump.** Read two sections of the rehearsal report
+   `output/rehearsal/report.md`:
+   - **`## Technical results`.** The owner says which of these were "the opponent could not field a
+     team". The administrator sets that reason after the move (see "Right after the point of no return").
+   - **`## Rosters over 8 re-rolls`.** The owner decides each one before the window. Otherwise every
+     write to it is refused (422 `REROLLS_MAX`).
+
+#### T−1 day
+
+The owner posts a reminder in Telegram. Claude sends this runbook to the chat with the dates filled in.
+
+### When the window can start
+
+What each pairing of the open round may be at the start of the window (rollout spec §6.2):
+
+| The pairing | At the start of the window |
+|---|---|
+| Not played, preparation not begun | fine |
+| Preparation begun, match not started | fine: the preparation carries on in 3.0 as it is |
+| Score confirmed | fine |
+| A challenge waiting or accepted | fine |
+| Score proposed, not confirmed | the opponent confirms it before the window, or the administrator enters the score in 3.0 |
+| Match started, post-match not finished | a warning if `rehearsal:transitions` was green on M5, a blocker otherwise |
+
+### The window
+
+#### T−15 min · preflight
+
+```bash
+cd /opt/bloodbowl-league && npm run backup:status && df -h /var /opt
+DB -c "
+SELECT 'preparing' AS state, p.id, p.match_kind FROM season_pairings p
+ WHERE p.preparation_status NOT IN ('not_started','in_progress') AND p.result_status IS DISTINCT FROM 'confirmed'
+UNION ALL
+SELECT 'started, post-match open', p.id, p.match_kind FROM season_pairings p
+ WHERE p.preparation_status = 'in_progress'
+   AND NOT EXISTS (SELECT 1 FROM match_post_applications a WHERE a.pairing_id = p.id)
+   AND (EXISTS (SELECT 1 FROM match_post_games g WHERE g.pairing_id = p.id) OR p.result_status IS DISTINCT FROM 'confirmed')
+UNION ALL
+SELECT 'awaiting confirmation', p.id, p.match_kind FROM season_pairings p WHERE p.result_status = 'awaiting_confirmation';"
+```
+
+What a row of the query means:
+
+- **`awaiting confirmation`.** Agree with the opponent to confirm it now, or the administrator enters the
+  score after the move.
+- **`started, post-match open`.** A warning if `rehearsal:transitions` was green on M5, a blocker
+  otherwise.
+
+Blockers are settled before the start.
+
+#### T+0 · maintenance on
+
+```bash
+npm run maintenance:on -- --kind planned --ends "$(date -u -d '+60 min' +%Y-%m-%dT%H:%M:%SZ)"
+curl -s http://127.0.0.1:3002/api/health
+```
+
+`maintenance` in the answer is now the flag, not `null`. Check from a phone that the maintenance page
+shows.
+
+#### T+2 · day X's dump, and a copy on the Mac
+
+```bash
+npm run backup:db
+DUMP=$(ls -1t /var/backups/bloodbowl-league/gata_league-2*.dump | head -1); echo "$DUMP"; sha256sum "$DUMP"
+install -m 600 -o ubuntu -g ubuntu "$DUMP" /home/ubuntu/
+```
+
+On the Mac:
+
+```bash
+mkdir -p ~/gata-dumps && chmod 700 ~/gata-dumps
+scp ubuntu@51.81.86.51:~/gata_league-YYYYMMDD-HHMMSS.dump ~/gata-dumps/
+shasum -a 256 ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump   # the same sum as sha256sum printed on the server
+chmod 600 ~/gata-dumps/*.dump
+```
+
+Once the sums match, delete the copy on the server: `rm /home/ubuntu/gata_league-YYYYMMDD-HHMMSS.dump`.
+
+#### T+8 · the snapshot "before", and the open states again
+
+```bash
+DB -At -c "
+SELECT table_name || '=' || (xpath('/row/c/text()', query_to_xml('SELECT count(*) AS c FROM ' || quote_ident(table_name), false, true, '')))[1]::text
+  FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name;
+SELECT 'teams=' || md5(string_agg(id || ':' || revision || ':' || md5(roster::text), ',' ORDER BY id)) FROM saved_teams;
+SELECT 'pairings=' || md5(coalesce(string_agg(concat_ws('|', id, home_touchdowns, away_touchdowns, home_casualties, away_casualties,
+  result_type, home_points, away_points, result_status, confirmed_at), ',' ORDER BY id), '')) FROM season_pairings;" > /root/cutover-before.txt
+cat /root/cutover-before.txt
+```
+
+Then run the open states' query from T−15 again: nothing new may have appeared.
+
+#### T+10 · the owner merges `redesign → main`
+
+The owner merges it on GitHub, as a merge commit. Claude watches the Deploy job; its log should show:
+
+```text
+deploy:migrate: pending: 009_team_stage.sql, …, 017_season_admin.sql
+backup ok: /var/backups/bloodbowl-league/gata_league-premigrate-….dump
+deploy:migrate: applied 009_team_stage.sql, …, 017_season_admin.sql
+deployed and answering on port 3002
+```
+
+If the job fails, the workflow has already put the previous code back (see "Ongoing deploys"), and
+maintenance stays on. A migration that failed leaves the database at the last file that succeeded,
+because each file runs in its own transaction. 2.1.0 starts on that database. Take the failure to T+30 as
+a blocker.
+
+#### T+15 · the schema and the data
+
+```bash
+cd /opt/bloodbowl-league && git log --oneline -1 && npm run db:migrate -- --check
+DB -At -c "
+SELECT table_name || '=' || (xpath('/row/c/text()', query_to_xml('SELECT count(*) AS c FROM ' || quote_ident(table_name), false, true, '')))[1]::text
+  FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name;
+SELECT 'teams=' || md5(string_agg(id || ':' || revision || ':' || md5(roster::text), ',' ORDER BY id)) FROM saved_teams;
+SELECT 'pairings=' || md5(coalesce(string_agg(concat_ws('|', id, home_touchdowns, away_touchdowns, home_casualties, away_casualties,
+  result_type, home_points, away_points, result_status, confirmed_at), ',' ORDER BY id), '')) FROM season_pairings;" > /root/cutover-after.txt
+diff /root/cutover-before.txt /root/cutover-after.txt
+pm2 logs bloodbowl-league --lines 100 --nostream
+```
+
+What to expect:
+
+- **`db:migrate -- --check`** prints `database is up to date`.
+- **`diff`.** `schema_migrations=8` becomes `schema_migrations=17`: nine migrations, 009–017. Four new
+  tables appear:
+  - `dice_rolls=0`
+  - `match_events=0`
+  - `team_ledger=0`
+  - `team_fallen_players=<n>`, where n is the number of fallen players 015 carried over from 2.x
+    post-matches; the M5 report gives the count per team on its dump.
+
+  Nothing else differs. In particular, the `teams=` and `pairings=` lines are the same.
+- **`pm2 logs`** show no errors.
+
+The snapshot counts rows, not columns, so it cannot see 017's two new columns or its recreated view.
+This query checks them:
+
+```bash
+DB -At -c "
+SELECT table_name || '.' || column_name FROM information_schema.columns
+ WHERE table_schema = 'public' AND (table_name, column_name) IN
+   (('seasons', 'playoff_places'), ('season_pairings', 'technical_reason'), ('match_pairing_context', 'technical_reason'))
+ ORDER BY 1;"
+```
+
+Expected, three lines:
+
+```text
+match_pairing_context.technical_reason
+season_pairings.technical_reason
+seasons.playoff_places
+```
+
+The first line is the recreated view. A view left from before 017 has no `technical_reason`.
+
+#### T+20 · the check through the tunnel
+
+Open the tunnel from the Mac, as in "Maintenance Mode" above:
+
+```bash
+ssh -o ExitOnForwardFailure=yes -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51
+```
+
+Then go through `http://localhost:3002` (rollout spec §6.5):
+
+1. Sign in as the administrator, and as your own coach.
+2. A team's overview.
+3. The roster.
+4. A player's profile, and the career by match.
+5. The treasury: "History is kept since …".
+6. The fallen are in place.
+7. The table and the season's calendar.
+8. The match card of the current round.
+9. The reference, and the teams' rules.
+10. Change the palette, and switch EN/RU.
+11. The administration: the teams in the build.
+12. An old link, `#/my-teams/…`, opens the new address.
+
+This check only looks. Two rules keep it that way:
+
+- **Save nothing except the palette and the language.** Those are a preference that 2.1.0 does not
+  read. Above all, set no technical result's reason: a rollback to 2.1.0 would have to clear it first
+  (017's header).
+- **Run no smoke check and no `rehearsal:transitions` through the tunnel.** They accept any `localhost`
+  as a site on this machine. Through the tunnel, `localhost:3002` is production, so they would write
+  their coaches, teams and results into it. `npm run smoke` even goes there by default.
+
+#### T+30 · decision
+
+A blocker leads to "Rollback before the point of no return" below. Otherwise, carry on.
+
+#### T+35 · the point of no return
+
+```bash
+npm run maintenance:off
+```
+
+From a phone: the page says "Done" («Готово») and opens 3.0. After the owner's "ok", Claude tags the
+release:
+
+```bash
+git tag -a v3.0.0 -m "Gata League 3.0" origin/main && git push origin v3.0.0
+```
+
+The owner announces it in Telegram.
+
+#### Right after the point of no return · past technical results, if any
+
+The administrator sets the reason of every technical result from before the move, as the owner decided
+it. The M5 report lists them under `## Technical results`. On the dump of 2026-10-18 (M3) there were
+none, since all 28 pairings were played. The list on production (it only reads):
+
+```bash
+DB -c "
+SELECT id, season_name, season_status, round_number, table_number, home_team_name, away_team_name,
+       home_points, away_points, result_status, technical_reason
+  FROM match_pairing_context
+ WHERE result_type = 'technical' AND match_kind = 'league'
+ ORDER BY season_created_at, round_number, table_number, id;"
+```
+
+How to read the list and set a reason:
+
+- **An empty `technical_reason`** is a result from before 3.0. It counts as another reason, 2 points, as
+  it always did.
+- **Where the reason is set.** In Administration → Season (`#/administration/season`), open the pairing's
+  "Result…" sheet. Pick the "Reason" and press "Save the reason"
+  (`PATCH /api/season/admin/pairings/:id/technical-reason`).
+- **What changes.** "The opponent could not field a team" makes the winner's points 4. Only the reason
+  and the points change; the score, the SPP and the treasury stay as they were.
+- **Which results.** The sheet reaches the confirmed results of the running season (`season_status`
+  `active`). A result of an earlier season keeps its 2 points.
+
+Rosters over 8 re-rolls are not handled here. The owner decided them before the window (T−2).
+
+#### T+35 to T+3 h · watching
+
+- Watch `pm2 logs bloodbowl-league`, `/api/health` and the coaches' messages.
+- **A hotfix** goes on a branch `hotfix/…` from `main`, then a PR, which the owner merges and which
+  deploys.
+- Claude merges `main` into `redesign` only while `redesign` still exists; it can be deleted after the
+  release.
+
+### Rollback before the point of no return (scenario 1)
+
+```bash
+cd /opt/bloodbowl-league && git fetch origin --tags
+git reset --hard v2.1.0 && npm install && npm run build
+pm2 restart bloodbowl-league
+sleep 5 && curl -fsS http://127.0.0.1:3002/api/health
+npm run maintenance:off
+```
+
+The database is not restored: 2.1.0 runs on the migrated schema, and every rehearsal checks that it does.
+Three things to know after a rollback:
+
+- **A technical reason blocks 2.1.0.** If one was set all the same, 2.1.0 cannot write a played result
+  over that pairing: 017's CHECK refuses it. 017's header says to clear the reasons first
+  (`UPDATE season_pairings SET technical_reason = NULL`).
+- **Do not push to `main`.** Any push deploys 3.0 again.
+  - The next attempt is a fix, then a PR to `main`, deployed in the next window.
+  - An urgent 2.1 fix before then goes on a branch `hotfix/2.1.x` from `v2.1.0`. On the server:
+    `git fetch && git reset --hard origin/hotfix/2.1.x && npm install && npm run build && pm2 restart bloodbowl-league`.
+- **Coming back to 3.0 later.** Players who died in a post-match finished under 2.1.0 in the meantime
+  are not in `team_fallen_players`, and 015 does not run again (it is already in `schema_migrations`). Run
+  the `INSERT … SELECT` of `server/db/migrations/015_backfill_fallen_players.sql` by hand. It adds nobody
+  twice (`NOT EXISTS`).
+
+### Full restore (scenario 3, only for a catastrophe in the first hours)
+
+This is the owner's decision: everything written after the move is lost. `backup:db` takes a dump of
+that state first, even if it looks broken. It is the only copy of what is about to be overwritten, and it
+is what a later repair of single rows starts from.
+
+```bash
+cd /opt/bloodbowl-league && npm run maintenance:on -- --kind unplanned
+pm2 stop bloodbowl-league
+npm run backup:db
+DUMP=/var/backups/bloodbowl-league/<day X's dump>.dump   # the one taken at T+2, not the one just taken
+docker cp "$DUMP" gata-league-postgres:/tmp/restore.dump
+docker exec gata-league-postgres dropdb -U gata_admin --force gata_league
+docker exec gata-league-postgres createdb -U gata_admin gata_league
+docker exec gata-league-postgres pg_restore -U gata_admin -d gata_league /tmp/restore.dump
+docker exec gata-league-postgres rm -f /tmp/restore.dump
+git reset --hard v2.1.0 && npm install && npm run build
+npm run db:migrate -- --check     # database is up to date (2.1.0's migrations are the dump's)
+pm2 start bloodbowl-league && sleep 5 && curl -fsS http://127.0.0.1:3002/api/health
+npm run maintenance:off
+```
+
+The code goes back to `v2.1.0` because the restored database has no migrations 009–017, and 3.0 does
+not start on it.
+
+By default, do a repair of single rows instead:
+
+1. Restore the same dump next to production, into `gata_league_recover`
+   (`createdb … gata_league_recover`, then `pg_restore -d gata_league_recover`).
+2. Carry the damaged rows over with an SQL query that Claude prepares for that particular damage.
+
+### After
+
+#### T+1 day
+
+`npm run backup:status` is OK, and the night's dump was taken on the 3.0 schema.
+
+#### T+14 days
+
+```bash
+# Mac
+rm -P ~/gata-dumps/*.dump
+docker exec gata-league-postgres dropdb -U gata_admin --if-exists gata_rehearsal
+# server
+ls /var/backups/bloodbowl-league/*premigrate*   # check the list, then
+rm /var/backups/bloodbowl-league/gata_league-premigrate-*.dump
+```
+
+#### Then
+
+Write the date of the move and the real downtime into this file, in a PR to `main`.

@@ -1,0 +1,272 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "H1",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "click": [
+        "[data-row-key^=\"p2#\"]"
+      ],
+      "run": [
+        "(() => {",
+        "  // The pair of actions brought into view: under his counters on a phone, at the panel's foot on a desk.",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('.g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "H2",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "H3",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"0\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ]
+    },
+    {
+      "id": "H4",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"3\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ]
+    },
+    {
+      "id": "H5",
+      "url": "http://localhost:5177/#/t/t5/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "H6",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"0\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "})()"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S1",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "S2",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p8#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "S3",
+      "url": "http://localhost:5177/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"r1#\"]"
+      ]
+    },
+    {
+      "id": "S4",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "M1",
+      "url": "http://localhost:5177/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "(() => {",
+        "  // The pair of actions brought into view: under his counters on a phone, at the panel's foot on a desk.",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('.g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:3073/#/t/x/roster",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "W1",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('[data-hire-key=\"0\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-hire [data-hire-buy]').click();",
+        "  await wait(800);",
+        "  // The new player, last of the active roster, brought into view under the message.",
+        "  const rows = document.querySelector('table.g-rtable').querySelectorAll('tbody.g-rtable__player');",
+        "  rows[rows.length - 1].scrollIntoView({ block: 'center' });",
+        "})()"
+      ],
+      "runWaitMs": 1200
+    },
+    {
+      "id": "W2",
+      "url": "http://localhost:5177/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  // A shot before this one (the other palette) sold p2: the next player is sold in her place.",
+        "  const key = document.querySelector('[data-row-key^=\"p2#\"]') ? 'p2' : 'p3';",
+        "  document.querySelector(`[data-row-key^=\"${key}#\"]`).click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-sell [data-sell-send]').click();",
+        "})()"
+      ],
+      "runWaitMs": 1200
+    }
+  ]
+}

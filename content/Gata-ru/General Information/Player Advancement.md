@@ -19,6 +19,7 @@
 - Claws + Mighty Blow: +15 тыс.
 - Guard + Defensive: +15 тыс.
 - Wrestle + Evasive: +15 тыс.
+- Sneaky Git + Dirty Player: +15 тыс.
 
 ## Таблица повышений
 

@@ -1134,20 +1134,20 @@
       "costs": {
         "playersCount": 5,
         "totalPlayersCount": 6,
-        "playersCost": 695,
+        "playersCost": 735,
         "staffCost": 180,
         "rerollCost": 180,
-        "total": 875,
-        "remaining": -275
+        "total": 915,
+        "remaining": -315
       },
       "costsWithFans": {
         "playersCount": 5,
         "totalPlayersCount": 6,
-        "playersCost": 695,
+        "playersCost": 735,
         "staffCost": 190,
         "rerollCost": 190,
-        "total": 885,
-        "remaining": -285
+        "total": 925,
+        "remaining": -325
       },
       "totalSpp": 133,
       "team": {
@@ -1204,7 +1204,7 @@
         {
           "name": "Black Orc 4",
           "position": "Black Orc",
-          "cost": 130,
+          "cost": 170,
           "skills": [
             "Brawler",
             "Grab",
@@ -1217,7 +1217,7 @@
         {
           "name": "Trained Troll 5",
           "position": "Trained Troll",
-          "cost": 165,
+          "cost": 205,
           "skills": [
             "Always Hungry",
             "Loner (3+)",
@@ -3036,20 +3036,20 @@
       "costs": {
         "playersCount": 3,
         "totalPlayersCount": 4,
-        "playersCost": 380,
+        "playersCost": 420,
         "staffCost": 220,
         "rerollCost": 220,
-        "total": 600,
-        "remaining": 0
+        "total": 640,
+        "remaining": -40
       },
       "costsWithFans": {
         "playersCount": 3,
         "totalPlayersCount": 4,
-        "playersCost": 380,
+        "playersCost": 420,
         "staffCost": 230,
         "rerollCost": 230,
-        "total": 610,
-        "remaining": -10
+        "total": 650,
+        "remaining": -50
       },
       "totalSpp": 40,
       "team": {
@@ -3095,7 +3095,7 @@
         {
           "name": "Pestigor 3",
           "position": "Pestigor",
-          "cost": 170,
+          "cost": 190,
           "skills": [
             "Horns",
             "Plague Ridden",
@@ -3112,7 +3112,7 @@
         {
           "name": "Pestigor 4",
           "position": "Pestigor",
-          "cost": 140,
+          "cost": 160,
           "skills": [
             "Horns",
             "Plague Ridden",
@@ -3573,20 +3573,20 @@
       "costs": {
         "playersCount": 5,
         "totalPlayersCount": 5,
-        "playersCost": 450,
+        "playersCost": 490,
         "staffCost": 410,
         "rerollCost": 410,
-        "total": 860,
-        "remaining": -260
+        "total": 900,
+        "remaining": -300
       },
       "costsWithFans": {
         "playersCount": 5,
         "totalPlayersCount": 5,
-        "playersCost": 450,
+        "playersCost": 490,
         "staffCost": 430,
         "rerollCost": 430,
-        "total": 880,
-        "remaining": -280
+        "total": 920,
+        "remaining": -320
       },
       "totalSpp": 91,
       "team": {
@@ -3664,7 +3664,7 @@
         {
           "name": "Goblin Lineman 5",
           "position": "Goblin Lineman",
-          "cost": 40,
+          "cost": 80,
           "skills": [
             "Dodge",
             "Evasive",
@@ -4398,20 +4398,20 @@
       "costs": {
         "playersCount": 6,
         "totalPlayersCount": 9,
-        "playersCost": 825,
+        "playersCost": 905,
         "staffCost": 140,
         "rerollCost": 140,
-        "total": 965,
-        "remaining": -365
+        "total": 1045,
+        "remaining": -445
       },
       "costsWithFans": {
         "playersCount": 6,
         "totalPlayersCount": 9,
-        "playersCost": 825,
+        "playersCost": 905,
         "staffCost": 170,
         "rerollCost": 170,
-        "total": 995,
-        "remaining": -395
+        "total": 1075,
+        "remaining": -475
       },
       "totalSpp": 156,
       "team": {
@@ -4438,7 +4438,7 @@
         {
           "name": "Elf Thrower 2",
           "position": "Elf Thrower",
-          "cost": 180,
+          "cost": 220,
           "skills": [
             "Pass",
             "Hail Mary Pass",
@@ -4463,7 +4463,7 @@
         {
           "name": "Elf Lineman 4",
           "position": "Elf Lineman",
-          "cost": 60,
+          "cost": 100,
           "skills": [
             "Sure Hands"
           ],
@@ -4524,7 +4524,7 @@
         {
           "name": "Elf Thrower 9",
           "position": "Elf Thrower",
-          "cost": 200,
+          "cost": 240,
           "skills": [
             "Pass",
             "Hail Mary Pass",
@@ -5090,20 +5090,20 @@
       "costs": {
         "playersCount": 5,
         "totalPlayersCount": 6,
-        "playersCost": 620,
+        "playersCost": 700,
         "staffCost": 190,
         "rerollCost": 190,
-        "total": 810,
-        "remaining": -210
+        "total": 890,
+        "remaining": -290
       },
       "costsWithFans": {
         "playersCount": 5,
         "totalPlayersCount": 6,
-        "playersCost": 620,
+        "playersCost": 700,
         "staffCost": 200,
         "rerollCost": 200,
-        "total": 820,
-        "remaining": -220
+        "total": 900,
+        "remaining": -300
       },
       "totalSpp": 124,
       "team": {
@@ -5118,7 +5118,7 @@
         {
           "name": "Kroxigor 1",
           "position": "Kroxigor",
-          "cost": 180,
+          "cost": 220,
           "skills": [
             "Bone Head",
             "Thick Skull",
@@ -5151,7 +5151,7 @@
         {
           "name": "Chameleon Skink 3",
           "position": "Chameleon Skink",
-          "cost": 160,
+          "cost": 200,
           "skills": [
             "Dodge",
             "Evasive",

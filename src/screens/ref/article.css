@@ -1,0 +1,529 @@
+/*
+ * The reference's articles (screens/ref/article.mjs): the kicker, the title, the vault's own text in
+ * the prose frame (prose.css) and the way on to the article before and after; the two bodies that are
+ * not the vault's text (screens/ref/bodies.mjs), Leagues and the Skill Table; and the panel of a skill
+ * or a trait (screens/ref/skill.mjs). A team's rules have a sheet of their own (team.css).
+ *
+ * Up to 900px an article is the page itself, with no frame; the way up is the link at its top. From
+ * 901px it is a card beside the table of contents, in columns that shrink with the window and never
+ * wrap (the contents as wide as a list's, the card the rest), its text no wider than a line can be read
+ * (the Skill Table's table, which is not text, takes the card's whole width).
+ * The Skill Table draws its columns twice, as a list for each category and as the vault's table, and the
+ * width shows one: the lists up to 900px, the table from 901px.
+ */
+.g-article {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.55 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-article__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.g-article__kicker {
+  margin: 0;
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.g-article__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+  text-transform: none;
+}
+
+/* What the page is for, under its title (the legal notice has one). */
+.g-article__sub {
+  margin: var(--space-4) 0 0;
+  color: var(--ink-2);
+  font: 400 16px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The vault's text starts where the title ends, whatever it opens with; an overview card opens with a section. */
+.g-article .g-prose > :first-child,
+.g-article .g-prose > section:first-child > :first-child {
+  margin-top: 0;
+}
+
+/* The article before and the article after: one at each end, or the one there is, at its own end. */
+.g-article__pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--line);
+}
+
+.g-article__prev,
+.g-article__next {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-article__next {
+  margin-left: auto;
+  text-align: right;
+}
+
+/* The arrows are decoration: where the engine reads the alternative after the slash it says nothing for them. */
+.g-article__prev::before {
+  content: "←";
+  content: "←" / "";
+}
+.g-article__next::after {
+  content: "→";
+  content: "→" / "";
+}
+
+/* A link the bodies draw: a skill, a team, a star player. Its ring is src/ui/base.css's, for it has a g- class. */
+.g-ref-link {
+  color: var(--accent-text);
+  font: inherit;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-transform: none;
+}
+
+/* Leagues: a section for each league, set off by a line, with how many teams and stars it has under its name. */
+.g-ref-leagues {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-ref-league {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-20) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+.g-ref-league:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.g-ref-league h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 600 24px/1.25 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-league__sum {
+  margin: var(--space-4) 0 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-league h3 {
+  margin: var(--space-16) 0 var(--space-4);
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* The names run together, a comma after each. They are links in a line of text, so the line is about 28px (15px at 1.9) and they rely on WCAG 2.5.8's exception for inline links; it is not touch height. */
+.g-ref-links {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 15px/1.9 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+  text-transform: none;
+}
+.g-ref-links--none {
+  color: var(--muted);
+}
+
+/*
+ * The Skill Table's die: the categories, the die and what it showed, the button. It is a box with a
+ * padding of its own because its chip row scrolls, and a scrolling row clips the keyboard ring of the
+ * chips at its edge (ui/filter-chips.css makes room for it inside the row; the box keeps that room
+ * inside the page, whose column clips what sticks out).
+ */
+.g-ref-roller {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  padding: var(--space-16);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-roller__throw {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  min-width: 0;
+}
+.g-ref-roller .g-die {
+  flex: none;
+}
+
+.g-ref-roller__result {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/* The same height for the hint and for a skill, so that a throw does not move the button. */
+.g-ref-roller__skill {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  color: var(--ink);
+  font: 700 22px/1.2 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+.g-ref-roller__skill .g-ref-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font: 700 22px/1.2 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-roller__hint {
+  color: var(--ink-2);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The table by category: a list for each, a skill to a line, each line numbered by its face on the die. */
+.g-ref-skilltable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-skilltable__group {
+  min-width: 0;
+}
+
+.g-ref-skilltable h2 {
+  margin: 0 0 var(--space-4);
+  color: var(--ink);
+  font: 600 22px/1.25 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-skilltable ol {
+  margin: 0;
+  padding: 0 0 0 28px;
+  list-style: decimal outside;
+}
+
+.g-ref-skilltable li {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-ref-skilltable li::marker {
+  color: var(--muted);
+  font: 700 13px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.g-ref-skilltable li .g-ref-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font: 500 16px/1.3 var(--font-body);
+  text-decoration: none;
+}
+
+/*
+ * The panel of a skill or a trait (screens/ref/skill.mjs): its letter and name, the rule, the face that
+ * rolls it and who in the coach's team has it. Up to 900px it is the page itself, shown where the list
+ * was; from 901px it is a card in the third column.
+ */
+.g-skill-detail {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.55 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* In a panel too narrow for the letter and the name side by side (a small window) the name goes under the letter, whole. */
+.g-skill-detail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-10) var(--space-14);
+  min-width: 0;
+}
+
+.g-skill-detail__title {
+  display: flex;
+  flex: 1 1 120px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-skill-detail__name {
+  margin: 0;
+  color: var(--ink);
+  font: 700 34px/1 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+  text-transform: none;
+}
+
+.g-skill-detail__caption {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The rule starts where the name ends, whatever it opens with. */
+.g-skill-detail .g-prose > :first-child {
+  margin-top: 0;
+}
+
+/*
+ * The roll and the elite combination, as DeskRef draws them: one rule above the pair, each line over its
+ * own (the row's border-bottom, ui/list-row.css), 15px, the label quiet and the value 700. No gap between
+ * the two: they are one block of the panel's column. A long value wraps under itself.
+ */
+.g-skill-detail__facts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+
+.g-skill-detail__facts .g-kv {
+  font-size: 15px;
+}
+
+.g-skill-detail__facts .g-kv__label {
+  color: var(--muted);
+}
+
+.g-skill-detail__facts .g-kv__value {
+  font-weight: 700;
+}
+
+.g-skill-detail__ours {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.g-skill-detail__ours-title {
+  margin: 0;
+  color: var(--muted);
+  font: 700 13px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.g-skill-detail__holders {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The player's number on a round badge, then the name with the position under it, as a caption. */
+.g-skill-detail__holder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 44px;
+  min-width: 0;
+}
+
+.g-skill-detail__num {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  font: 700 15px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-skill-detail__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The name is one line; a name longer than the panel is cut short rather than wrapped. */
+.g-skill-detail__who {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.g-skill-detail__pos {
+  min-width: 0;
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.g-skill-detail__none {
+  margin: 0;
+  color: var(--muted);
+  font: 400 15px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A phone has the lists; the vault's table is for the desktop. */
+@media (max-width: 900px) {
+  .g-ref-skilltable__desk {
+    display: none;
+  }
+
+  /* A skill rolled as short as «Leap» is still a thumb's 44 across (D2; the word alone gave 41). */
+  .g-ref-roller__skill .g-ref-link {
+    min-width: var(--size-touch);
+    justify-content: center;
+  }
+}
+
+@media (min-width: 901px) {
+  .g-ref--article .g-ref__body {
+    display: grid;
+    grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .g-article {
+    padding: 32px 40px;
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+
+  .g-article__head,
+  .g-article .g-prose,
+  .g-article__pager {
+    max-width: 820px;
+  }
+
+  .g-article__title {
+    font: 700 44px/1 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /*
+   * The vault's Skill Table is seven columns, not a text to read: it takes the card's whole width, and
+   * its cells are snug enough that at 1440px none of them hides behind the table's own scroll (the
+   * natural width is about 810px of the 842px the card has). On a narrower desktop it scrolls sideways.
+   * Out-specifies the 820px of .g-article .g-prose above, and prose.css's first-column width of 48px.
+   */
+  .g-article .g-prose.g-ref-skilltable__desk {
+    max-width: none;
+  }
+
+  .g-article .g-ref-skilltable__desk th,
+  .g-article .g-ref-skilltable__desk td {
+    padding-right: var(--space-6);
+    padding-left: var(--space-6);
+  }
+
+  .g-article .g-ref-skilltable__desk .numbered-table th:first-child,
+  .g-article .g-ref-skilltable__desk .numbered-table td:first-child {
+    width: auto;
+    min-width: 0;
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+
+  .g-ref-skilltable {
+    display: none;
+  }
+
+  .g-skill-detail {
+    padding: var(--space-24);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+}

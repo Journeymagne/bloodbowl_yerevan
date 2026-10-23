@@ -14,6 +14,7 @@ import crypto from "node:crypto";
 
 import { pool } from "../db/pool.mjs";
 import { isAdminUser } from "../api/serializers.mjs";
+import { forgetExpiredLoginAttempts } from "./rate-limit.mjs";
 
 const sessionDays = Number(process.env.SESSION_DAYS || 30);
 
@@ -94,15 +95,27 @@ export async function purgeExpiredSessions(query = (text) => pool.query(text)) {
  * this has to work on a laptop too. `unref()` so it never keeps the process
  * alive — a sweep is not a reason to refuse to shut down.
  *
- * @param {{intervalMs?: number, purge?: () => Promise<number>, log?: (message: string) => void}} [options]
+ * The same timer forgets the counts of wrong logins whose window has passed
+ * (`forget`): nothing else did, and every name somebody tried and nobody holds
+ * stayed in the limiter's map until a restart. Each half is tried whatever
+ * became of the other.
+ *
+ * @param {{intervalMs?: number, purge?: () => Promise<number>, forget?: () => unknown,
+ *   log?: (message: string) => void}} [options]
  * @returns {{stop: () => void}}
  */
 export function startSessionSweeper({
   intervalMs = Number(process.env.SESSION_SWEEP_MS || 6 * 60 * 60 * 1000),
   purge = purgeExpiredSessions,
+  forget = forgetExpiredLoginAttempts,
   log = console.log,
 } = {}) {
   const sweep = async () => {
+    try {
+      forget();
+    } catch (error) {
+      console.error(`[sessions] forgetting old login attempts failed: ${error.message}`);
+    }
     try {
       const removed = await purge();
       if (removed > 0) log(`[sessions] removed ${removed} expired session(s)`);

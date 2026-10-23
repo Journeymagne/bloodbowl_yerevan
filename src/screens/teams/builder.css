@@ -1,0 +1,517 @@
+/*
+ * The builder (screens/teams/builder-view.mjs), the second step of
+ * `#/teams/new` (the first, the name and the race, is new.css's): the head and
+ * the budget, the team and the players here; the numbers, the staff and the
+ * save in builder-roster.css, imported right after this sheet.
+ *
+ * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
+ * has no padding in it, so `.g-build` brings its own: 16px at the sides on a
+ * phone, DeskBuilder.html's 24 32 40 on a desk.
+ *
+ * Up to 900px: one column in the order of the markup. The head and the budget
+ * are one dark band (--header), the budget a card in it; the save is a bar at
+ * the foot of the screen. From 901px: two columns, 1fr and 360px, under the
+ * head. The players and the staff are cards on the left; the budget, the save,
+ * the team and the numbers on the right. The columns are laid out by grid
+ * placement alone, never by reordering the markup, so the keyboard's focus order
+ * on a desk jumps between the columns (budget, team, players, numbers, staff,
+ * save); every block makes sense by itself, which is what lets it.
+ */
+.g-build {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-16) var(--space-24);
+  border: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A heading, a paragraph or a list takes none of the browser's margins: the builder spaces its parts itself. */
+.g-build :where(p, dl, dd, dt, h1, h2) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---- The head ---- */
+.g-build__head {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "back titles chip" ". restart restart";
+  align-items: center;
+  gap: var(--space-10);
+  margin: 0 calc(-1 * var(--space-16));
+  padding: var(--space-10) var(--space-16) var(--space-14);
+  background: var(--header);
+  color: var(--header-ink);
+}
+.g-build__head :focus-visible { outline-color: var(--header-ink); }
+
+.g-build__head > .g-icon-btn {
+  grid-area: back;
+  background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+  color: var(--header-ink);
+}
+.g-build__titles {
+  grid-area: titles;
+  min-width: 0;
+}
+.g-build__head > .g-status { grid-area: chip; }
+.g-build__head > .g-btn { grid-area: restart; }
+
+.g-build__title {
+  color: var(--header-ink);
+  font: 600 22px/1.15 var(--font-display);
+  overflow-wrap: anywhere;
+}
+/* The screen focuses it on arrival: a place the keyboard starts from, not a control. */
+.g-build__title:focus { outline: none; }
+
+.g-build__sub {
+  margin-top: 2px;
+  color: var(--header-muted);
+  font: 400 13px/1.35 var(--font-body);
+}
+
+/* The one quiet button of the head, in the ring every outline button has, on the dark colour. */
+.g-build__head .g-btn {
+  justify-self: start;
+  border-color: color-mix(in srgb, var(--header-ink) 40%, transparent);
+  background: transparent;
+  color: var(--header-ink);
+}
+
+/* ---- The budget ---- */
+.g-build__budget {
+  box-sizing: border-box;
+  margin: 0 calc(-1 * var(--space-16)) var(--space-4);
+  padding: 0 var(--space-16) var(--space-14);
+  background: var(--header);
+}
+
+.g-build__budget-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8) var(--space-10);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.g-build__figures {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  white-space: nowrap;
+}
+.g-build__figures b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.g-build__remains {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.g-build__remains--over { color: var(--danger); }
+
+.g-build__left {
+  color: inherit;
+  font: 700 28px/1.05 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.g-build__left-label {
+  color: inherit;
+  font: 600 12px/1.3 var(--font-body);
+}
+
+/* The bar is a track; its fill is the ::before, as wide as the step class says (no inline width, the CSP). */
+.g-build__bar {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--line);
+  overflow: hidden;
+}
+/* The fill is the accent's words' colour: 3:1 on the --line track in every palette (--accent was 2.48:1 in night). */
+.g-build__bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent-text);
+}
+.g-build__bar--over::before { background: var(--danger); }
+.g-build__bar--0::before { width: 0; }
+.g-build__bar--10::before { width: 10%; }
+.g-build__bar--20::before { width: 20%; }
+.g-build__bar--30::before { width: 30%; }
+.g-build__bar--40::before { width: 40%; }
+.g-build__bar--50::before { width: 50%; }
+.g-build__bar--60::before { width: 60%; }
+.g-build__bar--70::before { width: 70%; }
+.g-build__bar--80::before { width: 80%; }
+.g-build__bar--90::before { width: 90%; }
+.g-build__bar--100::before { width: 100%; }
+
+/* The three sums are the desk's; a phone has the two figures and what is left. */
+.g-build__totals { display: none; }
+
+/* ---- Sections ---- */
+.g-build__team,
+.g-build__players,
+.g-build__roster,
+.g-build__staff {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-build__sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-10);
+  padding: 18px 0 var(--space-4);
+}
+.g-build__h {
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+}
+
+.g-build__count {
+  color: var(--muted);
+  font: 600 12px/1.3 var(--font-body);
+  text-align: right;
+}
+.g-build__count--short { color: var(--danger); }
+
+/* ---- The team ---- */
+.g-build__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 52px;
+  border-bottom: 1px solid var(--line);
+}
+.g-build__row--logo { min-height: 60px; }
+
+.g-build__label {
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+}
+.g-build__value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-10);
+  min-width: 0;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-align: right;
+}
+.g-build__value b {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.g-build__change { flex: none; }
+
+.g-build__logo-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.g-build__logo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+  color: var(--faint);
+  overflow: hidden;
+}
+.g-build__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-build__logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-build__logo-name {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+}
+.g-build__hint {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+
+.g-build__logo-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+/* The input is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
+.g-build__file:focus-visible + .g-build__upload {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+.g-build__upload { cursor: pointer; }
+
+/* ---- The players ---- */
+.g-hire {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 72px;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-hire__avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  border-radius: var(--radius-full);
+  background: var(--pos-lineman);
+  color: var(--on-accent);
+  font: 700 17px/1 var(--font-display);
+}
+.g-hire__avatar--lineman { background: var(--pos-lineman); }
+.g-hire__avatar--thrower { background: var(--pos-thrower); }
+.g-hire__avatar--catcher { background: var(--pos-catcher); }
+.g-hire__avatar--blitzer { background: var(--pos-blitzer); }
+.g-hire__avatar--big { background: var(--pos-big); }
+
+.g-hire__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-hire__name {
+  overflow: hidden;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-hire__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+.g-hire__price {
+  color: var(--accent-text);
+  font: 700 15px/1.3 var(--font-body);
+}
+.g-hire__limit {
+  color: var(--muted);
+  font: 600 12px/1.3 var(--font-body);
+}
+/* A position at its limit: a pill on the warning tint, the pair the warning is drawn in everywhere else. */
+.g-hire__limit--max {
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+}
+.g-hire__stats {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+.g-hire__skills {
+  color: var(--ink-2);
+  font: 400 12px/1.4 var(--font-body);
+}
+
+.g-hire__stepper {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.g-hire__btn {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-hire__inc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* Dearer than what is left: still bought, and drawn as the money's refusal would be, quieter than the accent. */
+.g-hire__inc--poor {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+/* A refusal that explains itself (aria-disabled) looks like the plain one (:disabled): the rule says why. */
+.g-hire__btn:disabled,
+.g-hire__btn[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+.g-hire__inc:disabled,
+.g-hire__inc[aria-disabled="true"] { background: var(--surface-3); }
+
+.g-hire__count {
+  min-width: 30px;
+  color: var(--ink);
+  font: 700 20px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---- A desk ---- */
+@media (min-width: 901px) {
+  /* DeskBuilder.html's main: 24 32 40. The numbers, the staff and the save take their places in builder-roster.css. */
+  .g-build {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    column-gap: var(--space-20);
+    align-items: start;
+    padding: var(--space-24) 32px 40px;
+    background: transparent;
+  }
+
+  /* The head is a band across the page: it reaches the page's edges over the padding. */
+  .g-build__head {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: calc(-1 * var(--space-24)) -32px var(--space-24);
+    padding: 18px 32px;
+  }
+  .g-build__head > .g-status { margin-left: auto; }
+  .g-build__head > .g-btn { margin-left: 0; }
+  .g-build__title { font-size: 28px; line-height: 1.1; }
+  .g-build__sub { font-size: 14px; }
+
+  /* Row gaps are margins, so the budget and the save can meet as one card. */
+  .g-build__budget {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-bottom: 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    background: var(--surface);
+  }
+  .g-build__budget-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-20) var(--space-24) var(--space-14);
+    border-radius: 0;
+  }
+  .g-build__remains { margin-left: auto; }
+  .g-build__bar { flex: 1 0 100%; margin-top: var(--space-8); }
+  .g-build__totals {
+    display: flex;
+    flex: 1 0 100%;
+    flex-direction: column;
+    margin-top: var(--space-6);
+    font-size: 14px;
+  }
+  .g-build__totals > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+  .g-build__totals > div:last-child { border-bottom: 0; }
+  .g-build__totals dt {
+    color: var(--muted);
+    font: 400 14px/1.3 var(--font-body);
+  }
+  .g-build__totals dd {
+    color: var(--ink);
+    font: 700 14px/1.3 var(--font-body);
+  }
+
+  .g-build__team,
+  .g-build__players,
+  .g-build__roster,
+  .g-build__staff {
+    padding: var(--space-4) var(--space-24) var(--space-20);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-build__team {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: var(--space-20);
+  }
+  /* The players' card runs down beside the budget, the save and the team; the row they share is the one that gives way. */
+  .g-build__players {
+    grid-column: 1;
+    grid-row: 2 / 5;
+  }
+  /* The first band's two cards end on one line, whichever of the two is the taller. */
+  .g-build__players,
+  .g-build__team { align-self: stretch; }
+
+  .g-hire__count,
+  .g-build__count { font-size: 13px; }
+}

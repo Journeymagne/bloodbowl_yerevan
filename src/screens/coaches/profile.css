@@ -1,0 +1,284 @@
+/*
+ * A coach's profile (screens/coaches/profile.mjs): CoachProfile.html up to 900px, DeskCoachProfile.html from 901px.
+ * Colours are tokens: the letter's and the tiles' maroon has none, so they are the header's. Long names wrap; nothing is
+ * cut with «…» (the switcher's one line is its own). A thumb's targets are 44 high (D2).
+ */
+.g-coach {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-coach :where(h2, p) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The letter in its circle, the login, «Coach since 2025 · teams: 2». */
+.g-coach__id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  min-width: 0;
+}
+.g-coach__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-coach__login {
+  color: var(--ink);
+  font: 700 28px/1 var(--font-display);
+  overflow-wrap: anywhere;
+}
+.g-coach__line {
+  color: var(--muted);
+  font: 400 14px/1.35 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-coach__line b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* A phone's card of the contact. */
+.g-coach__tgcard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.g-coach__tgrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+}
+.g-coach__tgtext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-coach__tglabel {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+}
+.g-coach__handle {
+  color: var(--ink);
+  font: 700 16px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+/* «Write»: the prototype's 40 raised to a thumb's 44 (D2). */
+.g-coach__write {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-body);
+  text-decoration: none;
+}
+.g-coach__note {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+}
+
+.g-coach__caption {
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* His teams: a card of rows, each a link 44 high (54 apart, as the prototype's 40 and 14). */
+.g-coach__teams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.g-coach__team {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.g-coach__team > .g-icon {
+  flex: none;
+  color: var(--muted);
+}
+.g-coach .g-teamface__tile {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+}
+.g-coach .g-teamface__name,
+.g-coach .g-teamface__line {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.g-coach .g-teamface__name { font: 700 16px/1.3 var(--font-body); }
+.g-coach .g-teamface__line { font: 400 13px/1.3 var(--font-body); }
+
+/* «Your meetings»: a card of lines, the outcome at the right in its tone. */
+.g-coach__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.g-coach__meetings { gap: 0; }
+.g-coach__meeting {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 44px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+  font: 400 15px/1.25 var(--font-body);
+}
+.g-coach__match {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-coach__when {
+  color: var(--muted);
+  font: 400 15px/1.25 var(--font-body);
+}
+.g-coach__vs {
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-coach__outcome {
+  flex: none;
+  font: 600 15px/1.25 var(--font-body);
+  text-align: right;
+}
+.g-coach__outcome--w { color: var(--on-accent-tint); }
+.g-coach__outcome--l { color: var(--danger); }
+.g-coach__outcome--d { color: var(--ink-2); }
+.g-coach__none {
+  padding: var(--space-6) 0;
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+}
+
+/* «Challenge to a friendly»: the prototype's 48 and 15px, not the call to action's 52 and 17. */
+.g-coach__challenge { display: flex; }
+.g-coach .g-btn--primary {
+  height: auto;
+  min-height: 48px;
+  font: 700 15px/1.2 var(--font-body);
+}
+
+/* An admin's way to the coach's page in the administration. */
+.g-coach__admin {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  /* CoachProfile.html's page is grey to its edges, 16 16 28 in: it takes back the frame's padding by its own figures. */
+  .g-coach--phone {
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom));
+    padding: var(--space-16) var(--space-16) 28px;
+    background: var(--surface-2);
+  }
+}
+
+/* ---- A desk (DeskCoachProfile.html): the row of the coach and his buttons, then two cards side by side ---- */
+@media (min-width: 901px) {
+  /* 32 from the edges, as the prototype's main: the frame's 32. */
+  .g-coach--desk {
+    gap: var(--space-20);
+    padding: 0;
+  }
+  .g-coach__id {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .g-coach__letter {
+    width: 72px;
+    height: 72px;
+    font-size: 36px;
+  }
+  .g-coach__who { gap: var(--space-4); }
+  .g-coach__login { font-size: 34px; }
+  .g-coach__line { font-size: 15px; }
+  .g-coach__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    margin-left: auto;
+  }
+  .g-coach__write {
+    min-height: 48px;
+    font-size: 15px;
+  }
+  .g-coach__actions .g-btn--primary {
+    width: auto;
+    padding: 0 var(--space-16);
+  }
+  .g-coach__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    align-items: start;
+    gap: var(--space-20);
+  }
+  .g-coach__card {
+    gap: var(--space-10);
+    padding: 18px var(--space-20);
+  }
+  .g-coach__meetings { gap: 0; }
+  .g-coach__title {
+    color: var(--ink);
+    font: 700 24px/1.2 var(--font-display);
+  }
+  .g-coach__admin { min-height: 24px; }
+}

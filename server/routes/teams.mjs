@@ -11,8 +11,20 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
-import { blockingViolations, checkRoster } from "../domain/roster.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
+import { blockingViolations, checkRoster, normalizeDraft, rosterRefusal, teamBySlug } from "../domain/roster.mjs";
+import { MAX_SPP_EDIT_STEPS, VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
+import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
+import { stageViolations } from "../../src/domain/roster/stage.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
+import { writeLedgerEntries } from "../api/team-ledger.mjs";
+import { refuseSiteRolls, settleRosterRolls } from "../api/dice-rolls.mjs";
+import { UUID_SOURCE } from "../api/team-access.mjs";
+import { writeMatchEvents } from "../season/match-events-store.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
+import { sppEdits } from "../../src/domain/post-match/events.mjs";
+import { handleTeamResourceRoutes } from "./team-resources.mjs";
+
+const TEAM = new RegExp(`^/api/teams/(${UUID_SOURCE})$`, "i");
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -29,6 +41,7 @@ function sendError(response, status, code, params) {
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleTeamRoutes(request, response, url) {
+  if (await handleTeamResourceRoutes(request, response, url)) return true; // /api/teams/:id/...
   if (url.pathname === "/api/teams" && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -43,17 +56,21 @@ export async function handleTeamRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
+    refuseSiteRolls(roster);
+    // Born in `draft` (stage 12, decision 26): the build goes on on the team's pages, Start Re-rolls included, and an
+    // admin moves it to `active`. The create is not held to the stage — what the build bought is the draft's to keep.
     const result = await pool.query(
-      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
+      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster, stage)
+       VALUES ($1, $2, $3, $4, $5, 'draft')
+       RETURNING id`,
       [user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
-    return send(response, 201, { team: publicSavedTeam(result.rows[0]) });
+    // GET's shape, `inActiveSeason` included, which the row of an INSERT cannot say.
+    return send(response, 201, { team: await readPublicTeam(pool, result.rows[0].id) });
   }
 
-  const teamMatch = url.pathname.match(/^\/api\/teams\/([0-9a-f-]+)$/i);
+  // A UUID or no route: anything else would reach `::uuid` and come back as a 500 (22P02).
+  const teamMatch = url.pathname.match(TEAM);
   if (teamMatch && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -72,6 +89,7 @@ export async function handleTeamRoutes(request, response, url) {
     const written = await writeSavedTeam({
       teamId: teamMatch[1], ownerId: user.id,
       name, baseTeamSlug, logoData, roster, revision: body.revision,
+      actor: { id: user.id, admin: false },
     });
     if (!written) return sendError(response, 404, "TEAM_NOT_FOUND");
     if (written.conflict) {
@@ -114,35 +132,100 @@ export async function handleTeamRoutes(request, response, url) {
  * and refusing them would break flows this step is not about. Every path a
  * coach edits through autosaves, and autosave sends it.
  *
+ * It is one transaction: the row is locked for the length of the write, and the
+ * revision is compared against the locked row, so nothing can move it between
+ * the check and the UPDATE. The stage rule is checked on the same row, after
+ * the revision (a stale tab hears "saved elsewhere" before anything else), and
+ * only for a coach — `actor.admin` is the admin route, which is not held to it.
+ * The site rolls the roster refers to are settled next, for a coach and an admin
+ * alike (`settleRosterRolls`): a new reference uses its roll, a dropped one frees
+ * it, and a roll that does not fit, is used already, or is taken or given back out
+ * of its turn refuses the save. The
+ * treasury change is journaled in the same transaction (team_ledger), after
+ * the write and before the commit, so a refused or stale save leaves no line
+ * and a line never outlives its save — nor does a roll's `used_at`. The SPP
+ * change goes in after it on the same terms, as settled match events without
+ * a match (`sppEdits`, actor included): an edit outside a match, which the blob
+ * takes as it is saved and the player's history shows. A change of more than
+ * MAX_SPP_EDIT_STEPS steps is refused before anything is written, the rolls
+ * included. The team the save answers with, like the one a conflict shows, is
+ * read in the transaction (`readPublicTeam`), after the writes: GET's shape,
+ * `inActiveSeason` included. While the team plays a match, a coach's write is refused (TEAM_IN_MATCH, stage 09a)
+ * — after the revision, so a stale tab still hears it was saved elsewhere; the admin's is not (the repair path).
+ *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
+ * @param {{id?: string, admin?: boolean}} [actor] who is writing
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
+ * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids;
+ *   a 422 ROSTER_BREAKS_THE_RULES (SPP_EDIT_TOO_LARGE) for an SPP change too large for one save;
+ *   a 422 DICE_ROLL_MISMATCH or 409 DICE_ROLL_USED for a site roll the save cannot take;
+ *   a 422 TEAM_IN_MATCH for a coach's save while the team plays a match
  */
-export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision }) {
+export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision, actor = {} }) {
   const expected = Number.isInteger(revision) ? revision : null;
   const owner = ownerId ?? null;
-  const result = await pool.query(
-    `UPDATE saved_teams
-        SET name = $3,
-            base_team_slug = $4,
-            logo_data = $5,
-            roster = $6,
-            revision = revision + 1,
-            updated_at = now()
-      WHERE id = $1
-        AND ($2::uuid IS NULL OR user_id = $2::uuid)
-        AND ($7::int IS NULL OR revision = $7::int)
-      RETURNING *`,
-    [teamId, owner, name, baseTeamSlug, logoData, serializeRosterForStorage(roster), expected],
-  );
-  if (result.rows[0]) return { team: publicSavedTeam(result.rows[0]) };
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const locked = (await client.query(
+      `SELECT roster, stage, revision, base_team_slug FROM saved_teams
+        WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid) FOR UPDATE`,
+      [teamId, owner],
+    )).rows[0];
+    if (!locked) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    if (expected !== null && locked.revision !== expected) {
+      const current = await readPublicTeam(client, teamId);
+      await client.query("ROLLBACK");
+      return { conflict: current };
+    }
+    if (!actor.admin) await refuseWhilePlaying(client, teamId);
+    const before = normalizeDraft(locked.roster);
+    if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
+    const edits = sppEditsWithin(before, roster);
+    await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), raceBefore: teamBySlug(locked.base_team_slug), before, after: roster });
+    await client.query(
+      `UPDATE saved_teams
+          SET name = $2,
+              base_team_slug = $3,
+              logo_data = $4,
+              roster = $5,
+              revision = revision + 1,
+              updated_at = now()
+        WHERE id = $1`,
+      [teamId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
+    );
+    // The race is what prices a sale; after a race change the old squad has no price here.
+    const race = locked.base_team_slug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
+    const entries = classifyTreasuryChange(race, before, roster, { admin: Boolean(actor.admin) });
+    await writeLedgerEntries(client, { teamId, opening: before.treasury, entries, actorId: actor.id ?? null });
+    await writeMatchEvents(client, { teamId, pairingId: null, events: edits, actorId: actor.id ?? null, settled: true });
+    const team = await readPublicTeam(client, teamId);
+    await client.query("COMMIT");
+    return { team };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
-  // No row: either the team is not there, or the revision moved under us.
-  const current = await pool.query(
-    `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)`,
-    [teamId, owner],
-  );
-  if (!current.rows[0]) return null;
-  return { conflict: publicSavedTeam(current.rows[0]) };
+/** A save's SPP change as the rows it writes, or the refusal of one with more steps than one save may make. */
+function sppEditsWithin(before, after) {
+  const edits = sppEdits(before, after);
+  if (edits.length > MAX_SPP_EDIT_STEPS) {
+    throw rosterRefusal([{ code: VALIDATION_CODES.SPP_EDIT_TOO_LARGE, params: { limit: MAX_SPP_EDIT_STEPS } }]);
+  }
+  return edits;
+}
+
+/** The first re-roll the stage does not allow, as the refusal the client translates. */
+function refuseLockedPurchases(before, after, stage) {
+  const [violation] = stageViolations(before, after, stage);
+  if (violation) throw httpError(422, "STAGE_PURCHASE_LOCKED", violation.params);
 }
 
 /**
@@ -161,10 +244,6 @@ export async function readTeamBody(request) {
 
   const { violations, roster } = checkRoster(baseTeamSlug, body.roster ?? {});
   const blocking = blockingViolations(violations);
-  if (blocking.length) {
-    const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
-    error.violations = blocking;
-    throw error;
-  }
+  if (blocking.length) throw rosterRefusal(blocking);
   return { body, name, baseTeamSlug, logoData, roster };
 }

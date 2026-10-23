@@ -1,0 +1,38 @@
+/*
+ * A die.
+ */
+.g-die {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  margin: 0;
+  border-radius: 18px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font: 400 12px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Rolled: the result is on the accent. */
+.g-die--rolled {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.g-die__type {
+  font: 600 12px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-die__value {
+  font: 700 36px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}

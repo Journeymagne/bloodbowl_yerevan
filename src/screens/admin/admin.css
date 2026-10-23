@@ -1,0 +1,231 @@
+/*
+ * The administration's frame (screens/admin/frame.mjs) and what its screens share: the head with the path, the switch
+ * between the coaches and the season, the content under them, the card, the grid of cards, the coach's letter, the
+ * note. DeskAdmin*.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). Colours are tokens; the prototypes'
+ * colour for each coach's letter has none, so every circle is the header's. Long names and paths wrap; nothing is cut
+ * with «…».
+ *
+ * The prototypes' main pads 24 32 40 on a desk and 16 16 28 on a phone, which is the frame's padding of the view
+ * (shell/frame.css): a desk's band goes out over it to the content's edges with its text 32px in, and the switch and
+ * the content stand in it, 32px from the edges and 24px under the band; a phone's 16px from them.
+ */
+
+/* ---- The head: the title, its line, the path ---- */
+.g-admin__head {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  max-width: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+
+/* DeskAdminUser.html: «Administration → Coaches → orc_boss», 14px under the title. */
+.g-admin__crumbs {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+/*
+ * A part of the path that leads somewhere («Coaches», «orc_boss»): 24px or more from 901px (D2), a thumb's 44 up to
+ * 900px, over its 14/1.4 line (19.6px). The room is a padding above and below that a margin as large takes back, so
+ * the line keeps its height and the path its place (as a.g-adminentries__team).
+ */
+.g-admin__crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: calc(9.8px - 12px) 0;
+  padding: calc(12px - 9.8px) 0;
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* ---- The switch between the sections ---- */
+.g-admin__switch {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The refusal for a viewer who is no admin (frame.mjs): the head, then the callout that says why, in the content. */
+.g-admin__refusal {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* ---- The content under them ---- */
+.g-admin__main {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.35 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ---- A card: «Account», «Teams», a round ---- */
+.g-admin__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: 18px var(--space-20);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 15px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A card's title and what stands at its right («+ Team», «Show»). */
+.g-admin__cardhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  /* The prototypes' h2 has no line height of its own: `normal`, 36px for Oswald 24. */
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-admin__cardhead :where(h2, h3) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* DeskAdminUser.html: «Account» and «Teams» side by side while they fit. */
+.g-admin__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-items: start;
+  gap: var(--space-20);
+  min-width: 0;
+}
+
+/* A rule, a reason, a hint under a card's controls. */
+.g-admin__note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- A phone (AdminMobile.html) ---- */
+@media (max-width: 900px) {
+  .g-admin__head .g-pagehead--phone { margin: 0; }
+  .g-admin__crumbs a {
+    min-height: var(--size-touch);
+    margin: calc(9.8px - var(--size-touch) / 2) 0;
+    padding: calc(var(--size-touch) / 2 - 9.8px) 0;
+  }
+  .g-admin__head .g-pagehead--phone .g-pagehead__title { font-size: 24px; }
+
+  /* Two buttons side by side, 48 high and 8 apart: the shown section filled, the other ringed. */
+  .g-admin__switch .g-seg {
+    gap: var(--space-8);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .g-admin__switch .g-seg__item {
+    min-height: 48px;
+    padding: 0 var(--space-16);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink);
+    font: 700 15px/1.2 var(--font-body);
+  }
+  .g-admin__switch .g-seg__item[aria-current="page"] {
+    background: var(--accent);
+    box-shadow: none;
+    color: var(--on-accent);
+  }
+
+  .g-admin__card { padding: var(--space-14) var(--space-16); }
+  .g-admin__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+
+/* ---- A desk (DeskAdmin*.html) ---- */
+@media (min-width: 901px) {
+  /* The band across the top of the content, over the frame's padding by its figures, as ui/page-head.css's. */
+  .g-admin__head {
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .g-admin__head .g-pagehead {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  /* DeskAdminSeason.html's segments: 420 wide, 38 high, 14px. */
+  .g-admin__switch {
+    max-width: 420px;
+    margin: 0 0 var(--space-20);
+  }
+  .g-admin__switch .g-seg__item {
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  .g-admin__main { gap: var(--space-20); }
+}

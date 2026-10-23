@@ -55,6 +55,7 @@ export const API_ERRORS = Object.freeze({
   FRIENDLY_TEAMS_FIXED: "The teams were chosen when this challenge was accepted.",
   TEAM_IN_FRIENDLY_GAMES: "This team belongs to a friendly pairing and cannot be deleted.",
   USER_IN_FRIENDLY_GAMES: "This coach belongs to friendly pairings and cannot be deleted.",
+  USER_IN_SEASON: "This coach has a team with a season history and cannot be deleted.",
   MATCH_ACTION: "Unknown preparation action.",
   MATCH_DICE: "Enter an integer between 1 and {maximum}.",
   MATCH_JOURNEYMEN: "Choose a Lineman position. Journeymen can only bring the available roster up to seven players.",
@@ -70,6 +71,8 @@ export const API_ERRORS = Object.freeze({
   MATCH_STARTED: "This match has already started. Its preparation is read-only.",
   MATCH_ROSTER_CHANGED: "A team has changed. Reload and confirm the new match roster.",
   MATCH_REVISION: "The preparation changed on another device. Review the latest version.",
+  ADMIN_PASSWORD_FROM_ENV: "This administrator's password is set in the server's settings and cannot be changed here.",
+  ADMIN_PROFILE_FROM_ENV: "This administrator's login, Telegram and rights are set in the server's settings and cannot be changed here.",
   ADMIN_REQUIRED: "Admin access required.",
   BASE_TEAM_REQUIRED: "Base team is required.",
   BODY_TOO_LARGE: "Request body is larger than {limitKb} KB.",
@@ -77,8 +80,20 @@ export const API_ERRORS = Object.freeze({
   COACH_ALREADY_COMMITTED: "This coach already has a committed team.",
   COACH_NOT_FOUND: "Coach not found.",
   COACH_REQUIRED: "Coach is required.",
+  CURRENT_PASSWORD_WRONG: "The current password is wrong.",
+  DICE_CATEGORY: "A random skill can only be rolled in one of the player's primary categories.",
+  DICE_NO_SKILL: "The player already has every skill in this category.",
+  DICE_ROLL_MISMATCH: "This advancement does not match its roll on the site.",
+  DICE_ROLL_USED: "This roll has already been used for an advancement.",
+  DICE_ROLL_WAITING: "This player has a roll waiting for another type of advancement. Use it before rolling again.",
   ENTRY_ALREADY_COMMITTED: "This coach or team is already committed to the season.",
   ENTRY_NOT_FOUND: "Season entry not found.",
+  EVENT_BELOW_ZERO: "This counter is already at zero, there is nothing to take back.",
+  EVENT_SIDE_LOCKED: "This match's statistics are already saved in your post-match. Change them on its Players step.",
+  FALLEN_FROM_MATCH: "This death was recorded by a match's post-match. Only an administrator can undo it.",
+  FALLEN_NOT_FOUND: "Fallen player not found.",
+  FALLEN_NOT_RESTORABLE: "This fallen player cannot be put back on this roster: the roster cannot read him as he was kept.",
+  FIELD_INVALID: "The field {field} is missing or has a value the site does not accept.",
   FIXTURE_NOT_YOURS: "This fixture does not belong to your team.",
   FIXTURE_NOT_PLAYER_SUBMITTABLE: "This fixture cannot receive a player-submitted result.",
   GAME_NOT_FOUND: "Game not found.",
@@ -86,6 +101,7 @@ export const API_ERRORS = Object.freeze({
   LOGIN_ALREADY_REGISTERED: "This login is already registered.",
   LOGIN_TOO_SHORT: "Login must be at least 3 characters.",
   LOGO_TOO_LARGE: "Logo is too large.",
+  MATCH_NOT_LIVE: "There is no match in progress to record this in.",
   NEED_A_COMMITTED_TEAM: "Add at least one committed team first.",
   NEED_A_PAIRING: "Add at least one non-empty pairing before starting the round.",
   NOT_AUTHORIZED: "Not authorized.",
@@ -96,6 +112,7 @@ export const API_ERRORS = Object.freeze({
   PLAYER_NOT_FOUND: "Player not found.",
   PROPOSER_CANNOT_CONFIRM: "You proposed this result; your opponent has to confirm it.",
   RESULT_ALREADY_CONFIRMED: "This result is already confirmed.",
+  RESULT_NOT_TECHNICAL: "Only a confirmed technical result has a reason.",
   RESULT_NEEDS_BOTH_TEAMS: "Enter touchdowns and casualties for both teams.",
   ROSTER_BREAKS_THE_RULES: "This roster breaks the league's rules.",
   ROUND_HAS_UNFINISHED_PAIRINGS: "Round {round} has unfinished pairings.",
@@ -109,8 +126,10 @@ export const API_ERRORS = Object.freeze({
   SELF_ADMIN_DEMOTE: "You cannot remove admin access from your own account.",
   SELF_PASSWORD_RESET: "Use your account settings to change your own password.",
   SERVER_ERROR: "Server error.",
+  STAGE_PURCHASE_LOCKED: "Starting rerolls can only be bought while the team is being assembled, and Team Rerolls only once it plays in the season.",
   TEAM_IN_SEASON_CANNOT_BE_DELETED:
     "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
+  TEAM_IN_MATCH: "This team is playing a match: changes to the team wait until after the post-match.",
   TEAM_SAVED_ELSEWHERE: "This team was saved somewhere else after you opened it.",
   TEAM_NAME_REQUIRED: "Team name is required.",
   TEAM_NOT_FOUND: "Team not found.",
@@ -135,14 +154,18 @@ function fillMessage(template, params) {
  * @param {number} status
  * @param {string} code a key of API_ERRORS
  * @param {object} [params] values for the message's placeholders
+ * @param {{retryAfterSeconds?: number}} [options] `retryAfterSeconds`: how long until what was refused
+ *   may be tried again. `handleApi` answers with it as the `Retry-After` header and as a field of the
+ *   body, the way the login's own 429 does.
  */
-export function httpError(status, code, params = {}) {
+export function httpError(status, code, params = {}, { retryAfterSeconds } = {}) {
   const template = API_ERRORS[code];
   if (!template) throw new Error(`Unknown API error code: ${code}`);
   const error = new Error(fillMessage(template, params));
   error.status = status;
   error.code = code;
   error.params = params;
+  if (retryAfterSeconds !== undefined) error.retryAfterSeconds = retryAfterSeconds;
   return error;
 }
 

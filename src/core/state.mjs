@@ -7,23 +7,11 @@
  * uses instead of each screen closing over an app.js-local variable, which
  * would make every screen module and app.js import each other.
  */
-import { createDraft } from "../domain/roster/schema.mjs";
 
 export const state = {
   data: null,
   locale: "en",
-  query: "",
-  skillFilters: {
-    category: "all",
-    application: "all",
-  },
-  skillTableRoller: {
-    group: "Agility",
-    result: "",
-    roll: null,
-  },
   auth: {
-    mode: "login",
     currentUser: null,
   },
   myTeams: {
@@ -32,24 +20,13 @@ export const state = {
     loading: false,
     error: "",
   },
+  // The id of one of `myTeams.items`, chosen by data/active-team.mjs; null for a guest or a coach with no team.
+  activeTeamId: null,
   games: { items: [], currentItems: [], loaded: false, loading: false, error: "" },
-  savedRosterUi: {
-    expandedPlayers: new Set(),
-  },
-  admin: {
-    users: [],
-    loaded: false,
-    loading: false,
-    error: "",
-    editingTeams: new Map(),
-  },
   season: {
     data: null,
     loaded: false,
     loading: false,
     error: "",
   },
-  // The shape lives in domain/roster/schema.mjs, which is the only place that
-  // describes it; this used to be a fourth copy that had already drifted.
-  builder: createDraft(),
 };

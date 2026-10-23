@@ -6,16 +6,9 @@ import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { loadTeamReference } from "./domain/roster.mjs";
 import { handleStatic, staticRootLabel } from "./http/static.mjs";
 import { answerMaintenance } from "./http/maintenance.mjs";
-import { sendJson } from "./http/responses.mjs";
-import { errorPayload } from "./http/errors.mjs";
 import { ensureAdminAccount } from "./auth/admin-account.mjs";
 import { startSessionSweeper } from "./auth/session.mjs";
-import { handleAuthRoutes } from "./routes/auth.mjs";
-import { handleTeamRoutes } from "./routes/teams.mjs";
-import { handleAdminRoutes } from "./routes/admin.mjs";
-import { handlePlayerRoutes } from "./routes/players.mjs";
-import { handleGameRoutes } from "./routes/games.mjs";
-import { handleSeasonRoutes } from "./routes/season.mjs";
+import { handleApi } from "./routes/index.mjs";
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
@@ -62,46 +55,6 @@ async function waitForDatabase() {
 async function ensureSchema() {
   await assertMigrationsApplied(pool);
   startupLog("database schema is ready");
-}
-
-/**
- * Every route module, in the order the API is tried.
- *
- * This was one function of 672 lines: every endpoint the site has, in one
- * chain of `if`s, in the order they were written. Step 4.9 turned it into six
- * modules and this list.
- */
-const routes = [
-  handleAuthRoutes,
-  handleTeamRoutes,
-  handleAdminRoutes,
-  handlePlayerRoutes,
-  handleGameRoutes,
-  handleSeasonRoutes,
-];
-
-async function handleApi(request, response, url) {
-  try {
-    // Each module answers and says so; the first that does ends the chain.
-    // The paths do not overlap, so the order is the order somebody would look
-    // for a route in, not the order the old if-chain happened to grow.
-    for (const route of routes) {
-      if (await route(request, response, url)) return;
-    }
-    return sendJson(response, 404, errorPayload("ROUTE_NOT_FOUND"));
-  } catch (error) {
-    const status = Number(error.status) || 500;
-    if (status >= 500) {
-      console.error(error);
-    }
-    // A 500 says nothing about itself: that belongs in the log, not in a
-    // stranger's browser. Anything else carries its code.
-    const payload = status >= 500
-      ? errorPayload("SERVER_ERROR")
-      : errorPayload(error.code ?? "SERVER_ERROR", error.params ?? {}, error.message);
-    if (Array.isArray(error.violations)) payload.violations = error.violations;
-    return sendJson(response, status, payload);
-  }
 }
 
 await waitForDatabase();

@@ -1,0 +1,350 @@
+/*
+ * «Coach» (screens/admin/coach.mjs) and its windows (coach-sheets.mjs): DeskAdminUser.html and DeskAdminReset.html
+ * from 901px; up to 900px the same cards in one column and every target 44 (no prototype draws a phone's). The frame —
+ * the head, the switch, the card, the grid of cards, the coach's letter, the note — is admin.css's; the password's box
+ * and the race's choice are coaches.css's, as «Coach with a team» draws them. Colours are tokens; the prototype's
+ * colour for each team's tile has none, so every tile is the header's. Logins, names, lines and reasons wrap; nothing
+ * is cut with «…», nothing is kept to one line.
+ */
+
+/* The page under the head: a phone's form is `--phone` (drawn by the width, as the 900px query reads it). */
+.g-acoach { min-width: 0; }
+
+/* ---- The coach: his letter, the login, since when and the last sign-in (DeskAdminUser) ---- */
+.g-acoach__id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  min-width: 0;
+}
+/* The words beside the letter take what is left and wrap there, rather than fall under it. */
+.g-acoach__who {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-acoach__login {
+  margin: 0;
+  padding: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-acoach__line {
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- What a card says of the last write: a refusal, or the news ---- */
+.g-acoach__alert:empty,
+.g-acoach__status:empty { display: none; }
+.g-acoach__status {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* ---- «Account» ---- */
+/* A fact read and not edited (Telegram; the server's admin's login): its word as a field's, its value 15px. */
+.g-acoach__fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.g-acoach__factlabel {
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-acoach__factvalue {
+  color: var(--ink);
+  font: 400 15px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* «Administrator»: a row of 56 over its rule, 15px, its rule under it 12px. */
+.g-acoach__account .g-toggle {
+  min-height: 56px;
+  padding: 0;
+}
+.g-acoach__account .g-toggle__label {
+  font-size: 15px;
+  font-weight: 600;
+}
+.g-acoach__account .g-toggle__caption { font-size: 12px; }
+/*
+ * One's own switch, and the server's admin's, are closed: the rule under them («Your own admin rights cannot be taken
+ * away») is what the admin reads there, so it keeps its colour; the closed state is the track's alone (toggle.css dims
+ * the whole button, the words to about 2.5:1).
+ */
+.g-acoach__account .g-toggle:disabled { opacity: 1; }
+.g-acoach__account .g-toggle:disabled .g-toggle__track { opacity: .6; }
+
+/* «Save» and «Reset password…»: 48 high, 12 round, 15px bold, 8 apart; the reset in the button's ring. */
+.g-acoach__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+.g-acoach__actions .g-btn {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-acoach__actions .g-btn--primary {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--on-accent);
+}
+
+/* ---- «Teams» ---- */
+.g-acoach__teamscard { gap: var(--space-10); }
+
+/* «+ Team»: 40 on a desk, 44 to a thumb; 12 round, 14px bold, in the button's ring. */
+.g-acoach__teamscard .g-admin__cardhead .g-btn {
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-acoach__teams {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/*
+ * A team: its tile, its name over its line, «Edit» and «Delete»; a row of 64 over its rule. With room the buttons stand
+ * on the name's line, as DeskAdminUser draws them; on a narrow card (two cards side by side from a main area of 700,
+ * phones) they drop under the name rather than squeeze it, so the row wraps at every width. The name keeps 140 before
+ * they drop: a card of 1280 holds the line in Russian (442 inside: 40 + 12 + 150 + 12 + 228 of the buttons), one
+ * of ~1260 and less wraps. Its 8 above and below change nothing on one line (40 in 64) and keep a wrapped row's
+ * buttons off its rule.
+ */
+.g-acoach__team {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 64px;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-acoach__tile {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 700 16px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-acoach__teamtext {
+  display: flex;
+  flex: 1 1 140px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-acoach__teamname {
+  color: var(--ink);
+  font: 700 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-acoach__teamline {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-acoach__teambtns {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+/*
+ * «Edit», «Delete»: 40 on a desk, 44 to a thumb; 12 round, 14px bold, in the button's ring. An open «Delete» says so
+ * in the danger's colour; a closed one is the prototype's grey well, its words in the muted ink (the prototype's
+ * #A9B3AE over #F3F6F4 does not hold 4.5:1).
+ */
+.g-acoach__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  cursor: pointer;
+}
+.g-acoach__btn--delete {
+  padding: 0 var(--space-12);
+  color: var(--danger);
+}
+.g-acoach__btn[aria-disabled="true"] {
+  background: var(--surface-2);
+  box-shadow: none;
+  color: var(--muted);
+  cursor: default;
+}
+
+/* No team yet. */
+.g-acoach__none {
+  margin: 0;
+  padding: var(--space-16) 0;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* «Delete the coach» under its rule: the words in the danger's colour, why under them, the button at the right. */
+.g-acoach__danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--line);
+}
+.g-acoach__dangertext {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-acoach__dangertitle {
+  color: var(--danger);
+  font: 700 15px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-acoach__dangerwhy {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-acoach__danger .g-acoach__btn { padding: 0 var(--space-14); }
+
+/* ---- «Temporary password» (DeskAdminReset): the box of the password, the note, «Done» ---- */
+.g-coachreset .g-sheet__body { gap: var(--space-14); }
+.g-coachreset .g-sheet__foot { gap: var(--space-8); }
+.g-coachreset .g-sheet__foot .g-btn {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A phone's form: the cards in one column (admin.css), the login 26 beside its letter (the page's title is 24 there). */
+.g-acoach--phone .g-acoach__login { font-size: 26px; }
+
+/* ---- Up to 900px ---- */
+@media (max-width: 900px) {
+  .g-coachreset .g-sheet__foot .g-btn { width: 100%; }
+}
+
+/* ---- From 901px ---- */
+@media (min-width: 901px) {
+  .g-acoach__btn { min-height: 40px; }
+  .g-acoach__teamscard .g-admin__cardhead .g-btn { min-height: 40px; }
+
+  /* A window of 520, 20 round (DeskAdminReset), over sheet.css's 480; 110 from the top is sheet.css's own. */
+  dialog.g-sheet.g-coachreset {
+    width: min(520px, calc(100% - 32px));
+    border-radius: 20px;
+  }
+  .g-coachreset .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-coachreset .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-coachreset .g-sheet__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .g-coachreset .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-coachreset .g-sheet__body { padding: var(--space-16) var(--space-24); }
+  .g-coachreset .g-sheet__foot {
+    justify-content: flex-end;
+    padding: var(--space-12) var(--space-24) var(--space-20);
+    border-top: 0;
+  }
+}
