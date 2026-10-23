@@ -23,63 +23,41 @@ jobs:
             import { execFileSync } from 'node:child_process';
             import { pool } from './server/db/pool.mjs';
             import { scoreLeagueResult } from './server/season/scoring.mjs';
+            import { updateSeasonPairing } from './server/season/games.mjs';
+            import { publicSeasonPairing } from './server/api/serializers.mjs';
             
             const APPLY = false;
             const dir = '/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
             const entryId = '0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2';
             const seasonId = '3b147bf3-31b5-4ebb-8fb3-76d66d5dbfa3';
-            const darkElfId = 'e26605d5-4da2-4c47-b05d-a9520448bbea';
-            const ids = ['db1117f0-2a10-45e5-85f9-d268002569d2', '618aa388-0a10-4a97-9f13-f9e06bd881e4'];
-            const read = async name => JSON.parse(await fs.readFile(`${dir}/${name}`, 'utf8'));
-            const hash = value => crypto.createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
+            const round1Id = 'db1117f0-2a10-45e5-85f9-d268002569d2';
+            const round2Id = '618aa388-0a10-4a97-9f13-f9e06bd881e4';
+            const targets = [
+              { id: '65b628bd-031f-4979-957f-f17aff3cc3e7', round: 3,
+                roundId: '4fc25927-68e6-4707-9800-501d23abcc12',
+                opponentId: 'b647faac-b4b5-48c4-9183-c90e03de553e', opponent: 'Приморец' },
+              { id: '53a7d8d4-6b5f-4764-80e5-65ba262b4ea0', round: 4,
+                roundId: 'c6284b95-4096-4ff5-8652-f254f10fdc6c',
+                opponentId: 'c8d9cdde-d3df-4a35-ac07-6c6e0958ff9a', opponent: 'Seven Inches of Glory' },
+            ];
+            const evidence = {
+              source: 'User confirmation in Codex chat, 2026-10-23',
+              statement: 'Все проиграл 1-0, победил только Spartak Arabkir 1-0. Каз не знаю, да и не важно.',
+              round1: 'Correct the archived 2-0 to the user-confirmed 1-0; retain recovered CAS 2-1.',
+              rounds3and4: 'Reconstructed fixture IDs and home/away orientation. TD confirmed by user; CAS 0-0 is an unknown-data placeholder, not recovered statistics. No CAS bonus awarded.',
+              dates: 'New fixture timestamps record restoration, not the unknown dates of play.',
+            };
+            const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
             let client;
             let committed = false;
             try {
-              const incident = await read('incident-records.json');
-              const decoded = await read('decoded-fragments.json');
-              assert.equal(incident.source.sha256, '013d801ba37329405f6f6dac5abb6c235fa153bc9e39f7d7abde6cd615e07401');
-              assert.equal(hash(await fs.readFile(incident.source.file, 'utf8')), incident.source.sha256);
-              assert.equal(decoded.validated, 28);
-              const recovered = decoded.found.filter(row => row.xmin === 3081 && row.xmax === 3105 && row.start === 2080);
-              assert.equal(recovered.length, 2);
-              assert.deepEqual(new Set(recovered.map(row => row.origin)), new Set(['current', 'archive']));
-              assert.deepEqual(recovered[0].row, recovered[1].row);
-              for (const source of recovered) assert.equal(source.status.xmin, 'committed');
-              const entry = incident.entries.find(row => row.id === entryId);
-              assert.equal(entry.season_id, seasonId);
-              assert.equal(entry.user_id, '3556860a-fe0f-4980-964c-ccfa64b394ff');
-              assert.equal(entry.saved_team_id, '239e7fe0-8799-4fda-b5d1-3ed9d2be5871');
-              const pairs = [structuredClone(incident.pairs.find(row => row.id === ids[0])), structuredClone(recovered[0].row)];
-              // The August SQL dump preserves the original creation timestamp at microsecond precision.
-              pairs[1].created_at = incident.pairs.find(row => row.id === ids[1]).created_at;
-              const expected = [
-                ['002e1935-8f84-463b-ba2b-d9f716f2c403', 'cbb8b652-637d-47ce-a267-7c9bfb2e3a82', 2, 0, 2, 1, 4, 0],
-                ['89f24dd7-a340-4d95-b8eb-a33b94997f58', 'd72f5b1c-34c7-4dd3-bff7-ba4489567d08', 0, 1, 3, 2, 1, 4],
-              ];
-              const scoreKeys = ['home_touchdowns', 'away_touchdowns', 'home_casualties', 'away_casualties'];
-              for (const [index, pair] of pairs.entries()) {
-                assert.equal(pair.id, ids[index]);
-                assert.equal(pair.away_entry_id, entryId);
-                assert.equal(pair.result_type, 'played');
-                assert.equal(pair.result_status, 'confirmed');
-                assert.deepEqual([pair.round_id, pair.home_entry_id, ...scoreKeys.map(key => Number(pair[key]))], expected[index].slice(0, 6));
-                for (const key of [...scoreKeys, 'table_number', 'proposed_home_touchdowns', 'proposed_away_touchdowns', 'proposed_home_casualties', 'proposed_away_casualties']) {
-                  if (pair[key] != null) pair[key] = Number(pair[key]);
-                }
-                const points = scoreLeagueResult({ homeTouchdowns: pair.home_touchdowns, awayTouchdowns: pair.away_touchdowns,
-                  homeCasualties: pair.home_casualties, awayCasualties: pair.away_casualties, kind: 'league', resultType: 'played' });
-                assert.deepEqual([points.homePoints, points.awayPoints], expected[index].slice(6));
-                pair.home_points = points.homePoints;
-                pair.away_points = points.awayPoints;
-                pair.match_kind = 'league';
-                pair.preparation_status = 'not_started';
-              }
-              const migration = (await pool.query("SELECT checksum, xmin::text AS transaction_id FROM schema_migrations WHERE name = '004_recalculate_active_season_points.sql'")).rows[0];
-              assert.deepEqual(migration, { checksum: '6de364661b146f550b1d271b2d716532b488b9699f78ad08d3b0d38cb4057e72', transaction_id: '3105' });
+              const previous = JSON.parse(await fs.readFile(`${dir}/restore-result.json`, 'utf8'));
+              assert.equal(previous.mode, 'applied');
+              assert.ok(previous.inserted.pairings.includes(round1Id) && previous.inserted.pairings.includes(round2Id));
               let backup = null;
               if (APPLY) {
-                backup = execFileSync('node', ['scripts/backup-db.mjs', '--label', 'before-snotling-restore'], {
-                  env: { ...process.env, BACKUP_DIR: `${dir}/before-restore` }, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
+                backup = execFileSync('node', ['scripts/backup-db.mjs', '--label', 'before-snotling-completion'], {
+                  env: { ...process.env, BACKUP_DIR: `${dir}/before-completion` }, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
                 }).trim();
                 assert.match(backup, /^backup ok:/);
               }
@@ -95,64 +73,78 @@ jobs:
                 rosters: (await client.query('SELECT id, user_id, roster, revision, updated_at FROM saved_teams ORDER BY id')).rows,
               });
               const before = await snapshot();
-              const newEntry = before.entries.find(row => row.id === darkElfId);
-              assert.ok(newEntry && newEntry.withdrawn_at === null, 'Dark Elf participant must remain active');
-              assert.equal(newEntry.saved_team_id, '8547f9e2-5ad9-4b91-a0f0-56311a34bbcc');
-              const team = (await client.query('SELECT user_id, name, base_team_slug FROM saved_teams WHERE id = $1', [entry.saved_team_id])).rows[0];
-              assert.equal(team?.name, 'MeatGang');
-              assert.equal(team?.user_id, entry.user_id);
-              assert.equal(team?.base_team_slug, 'teams/snotling');
-              const insert = async (table, row) => {
-                assert.ok(['season_entries', 'season_pairings'].includes(table));
-                const columns = (await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1", [table])).rows.map(row => row.column_name);
-                const keys = Object.keys(row);
-                assert.ok(keys.every(key => /^[a-z_]+$/.test(key) && columns.includes(key)));
-                return (await client.query(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map((_, index) => '$' + (index + 1)).join(', ')}) RETURNING id`, keys.map(key => row[key]))).rows[0].id;
-              };
-              const inserted = { entries: [], pairings: [] };
-              const existingEntry = before.entries.find(row => row.id === entryId);
-              if (existingEntry) {
-                assert.ok(existingEntry.withdrawn_at, 'Recovered entry must be historical');
-                for (const key of ['season_id', 'user_id', 'saved_team_id']) assert.equal(existingEntry[key], entry[key]);
-              } else {
-                inserted.entries.push(await insert('season_entries', { ...entry, withdrawn_at: new Date().toISOString() }));
+              const entry = before.entries.find(row => row.id === entryId);
+              assert.equal(entry?.season_id, seasonId);
+              assert.equal(entry?.saved_team_id, '239e7fe0-8799-4fda-b5d1-3ed9d2be5871');
+              assert.ok(entry.withdrawn_at, 'MeatGang must remain historical');
+              const replacement = before.entries.find(row => row.id === 'e26605d5-4da2-4c47-b05d-a9520448bbea');
+              assert.ok(replacement && replacement.withdrawn_at === null, 'Dark Elf replacement must remain active');
+              const first = before.pairings.find(row => row.id === round1Id);
+              assert.equal(first?.away_entry_id, entryId);
+              assert.equal(first?.home_entry_id, 'cbb8b652-637d-47ce-a267-7c9bfb2e3a82');
+              assert.ok([1, 2].includes(first.home_touchdowns));
+              assert.deepEqual([first.away_touchdowns, first.home_casualties, first.away_casualties, first.home_points, first.away_points], [0, 2, 1, 4, 0]);
+              assert.equal(first.result_status, 'confirmed');
+              const second = before.pairings.find(row => row.id === round2Id);
+              assert.deepEqual([second?.home_touchdowns, second?.away_touchdowns, second?.home_casualties, second?.away_casualties], [0, 1, 3, 2]);
+              const updated = [];
+              if (first.home_touchdowns !== 1) {
+                await updateSeasonPairing(seasonId, round1Id, { homeTouchdowns: 1 }, true, '', client);
+                updated.push(round1Id);
               }
+              const inserted = [];
               const planned = [];
-              for (const [index, source] of pairs.entries()) {
-                const pair = { ...source };
-                const round = (await client.query('SELECT season_id, round_number, status FROM season_rounds WHERE id = $1', [pair.round_id])).rows[0];
-                assert.equal(round.season_id, seasonId);
-                assert.equal(round.round_number, index + 1);
-                assert.ok(['started', 'completed'].includes(round.status));
-                assert.ok(before.entries.some(row => row.id === pair.home_entry_id && row.season_id === seasonId));
-                const existing = before.pairings.find(row => row.id === pair.id);
+              for (const target of targets) {
+                const round = (await client.query('SELECT * FROM season_rounds WHERE id = $1', [target.roundId])).rows[0];
+                assert.equal(round?.season_id, seasonId);
+                assert.equal(round?.round_number, target.round);
+                assert.equal(round?.status, 'completed');
+                const opponent = (await client.query('SELECT e.season_id, t.name FROM season_entries e JOIN saved_teams t ON t.id = e.saved_team_id WHERE e.id = $1', [target.opponentId])).rows[0];
+                assert.equal(opponent?.season_id, seasonId);
+                assert.equal(opponent?.name, target.opponent);
+                const points = scoreLeagueResult({ homeTouchdowns: 1, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0 });
+                assert.deepEqual([points.homePoints, points.awayPoints], [4, 0]);
+                let existing = before.pairings.find(row => row.id === target.id);
                 if (existing) {
-                  for (const key of ['round_id', 'home_entry_id', 'away_entry_id', ...scoreKeys, 'home_points', 'away_points', 'result_type', 'result_status', 'match_kind']) {
-                    assert.equal(existing[key], pair[key], `Existing result differs: ${pair.id} ${key}`);
-                  }
+                  for (const [key, value] of Object.entries({ round_id: target.roundId, home_entry_id: target.opponentId, away_entry_id: entryId,
+                    home_touchdowns: 1, away_touchdowns: 0, home_casualties: 0, away_casualties: 0, home_points: 4, away_points: 0,
+                    result_type: 'played', result_status: 'confirmed', match_kind: 'league' })) assert.equal(existing[key], value);
                 } else {
-                  const sameRound = before.pairings.filter(row => row.round_id === pair.round_id);
-                  assert.ok(!sameRound.some(row => [row.home_entry_id, row.away_entry_id].some(id => [pair.home_entry_id, pair.away_entry_id].includes(id))), 'Participant already has a pairing in this round');
-                  if (sameRound.some(row => row.table_number === pair.table_number)) pair.table_number = Math.max(...sameRound.map(row => row.table_number), 0) + 1;
-                  inserted.pairings.push(await insert('season_pairings', pair));
+                  const other = before.pairings.filter(row => row.round_id === target.roundId);
+                  assert.ok(!other.some(row => [row.home_entry_id, row.away_entry_id].some(id => [entryId, target.opponentId].includes(id))), 'Participant already paired in target round');
+                  let table = 1;
+                  while (other.some(row => row.table_number === table)) table++;
+                  existing = (await client.query(`INSERT INTO season_pairings
+                    (id, round_id, table_number, home_entry_id, away_entry_id, home_touchdowns, away_touchdowns,
+                     home_casualties, away_casualties, home_points, away_points, result_type, result_status,
+                     match_kind, preparation_status, confirmed_at)
+                    VALUES ($1, $2, $3, $4, $5, 1, 0, 0, 0, $6, $7, 'played', 'confirmed', 'league', 'not_started', now()) RETURNING *`,
+                  [target.id, target.roundId, table, target.opponentId, entryId, points.homePoints, points.awayPoints])).rows[0];
+                  inserted.push(target.id);
                 }
-                planned.push({ id: pair.id, round: index + 1, homeEntryId: pair.home_entry_id, awayEntryId: pair.away_entry_id,
-                  td: [pair.home_touchdowns, pair.away_touchdowns], cas: [pair.home_casualties, pair.away_casualties], points: [pair.home_points, pair.away_points] });
+                assert.equal(publicSeasonPairing({ ...existing, round_number: target.round, round_status: 'completed' }).resultStatus, 'confirmed');
+                planned.push({ ...target, td: [1, 0], casPlaceholder: [0, 0], points: [4, 0], table: existing.table_number });
               }
               const after = await snapshot();
-              assert.deepEqual(after.entries.filter(row => !inserted.entries.includes(row.id)), before.entries);
-              assert.deepEqual(after.pairings.filter(row => !inserted.pairings.includes(row.id)), before.pairings);
+              assert.deepEqual(after.entries, before.entries);
               assert.deepEqual(after.rosters, before.rosters);
-              assert.equal(after.entries.filter(row => row.withdrawn_at === null).length, before.entries.filter(row => row.withdrawn_at === null).length);
-              const result = { mode: APPLY ? 'applied' : 'dry-run', inserted, planned, backup,
-                counts: { entries: after.entries.length, active: after.entries.filter(row => row.withdrawn_at === null).length, pairings: after.pairings.length },
-                verification: { existingEntriesUnchanged: true, existingPairingsUnchanged: true, rosterHash: hash(after.rosters) },
-                evidence: { sqlBackup: incident.source, round2: { xmin: 3081, xmax: 3105, copies: ['current', 'archive'], validatedRows: decoded.validated } },
-              };
-              await fs.writeFile(`${dir}/${APPLY ? 'restore-pending' : 'restore-plan'}.json`, JSON.stringify(result, null, 2), { mode: 0o600 });
+              assert.deepEqual(after.pairings.filter(row => !inserted.includes(row.id) && row.id !== round1Id), before.pairings.filter(row => row.id !== round1Id));
+              const corrected = after.pairings.find(row => row.id === round1Id);
+              assert.equal(corrected.home_touchdowns, 1);
+              const untouchedFirst = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['home_touchdowns', 'confirmed_at', 'updated_at'].includes(key)));
+              assert.deepEqual(untouchedFirst(corrected), untouchedFirst(first));
+              const games = after.pairings.filter(row => [row.home_entry_id, row.away_entry_id].includes(entryId));
+              assert.equal(games.length, 4);
+              assert.equal(games.filter(row => row.away_touchdowns > row.home_touchdowns).length, 1);
+              assert.equal(games.reduce((total, row) => total + row.away_points, 0), 4);
+              const result = { mode: APPLY ? 'applied' : 'dry-run', inserted, updated, planned, backup, evidence,
+                counts: { pairings: after.pairings.length, MeatGangGames: games.length, MeatGangPoints: 4 },
+                verification: { entriesUnchanged: true, otherPairingsUnchanged: true, rosterHash: hash(after.rosters) },
+                round1Before: first, round1After: corrected };
+              await fs.writeFile(`${dir}/${APPLY ? 'completion-pending' : 'completion-plan'}.json`, JSON.stringify(result, null, 2), { mode: 0o600 });
               await client.query(APPLY ? 'COMMIT' : 'ROLLBACK');
               committed = APPLY;
-              if (APPLY) await fs.rename(`${dir}/restore-pending.json`, `${dir}/restore-result.json`);
+              if (APPLY) await fs.rename(`${dir}/completion-pending.json`, `${dir}/completion-result.json`);
               console.log('RECOVERY_DATA ' + JSON.stringify(result));
             } catch (error) {
               if (client && !committed) await client.query('ROLLBACK').catch(() => {});
