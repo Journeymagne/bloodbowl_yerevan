@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -459,7 +460,8 @@ test("names are text; no inline style; styled; every key in both dictionaries, t
 
 test("the block keeps the prototype's measures: 48px fields and button, 40px on a desk and 44px on a phone; readable; nothing cut", () => {
   const px = (value) => Number.parseFloat(value);
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   assert.deepEqual(valuesOf(CSS, ".g-adminteam__treasury .g-btn--primary", "height"), ["48px"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminteam__btn", "min-height"), ["40px"]);
   assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-adminteam__btn", "min-height")[0]) >= 44);

@@ -1,8 +1,5 @@
 /*
- * Skill chips and the list they sit in. Font, border, background,
- * text-transform, font-weight and border-radius are set here on purpose: the
- * 2.x globals (button { font: inherit }, :focus-visible { border-radius })
- * outlive this sheet until stage 13.
+ * Skill chips and the list they sit in.
  */
 .g-skills {
   display: flex;
@@ -67,4 +64,13 @@
   font: 400 13px/1.35 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
+}
+
+/* D2: on a phone a chip is a finger's target — 44 high and wide, as the opponent's (stage 10); the row grows. */
+@media (max-width: 900px) {
+  .g-skill {
+    justify-content: center;
+    min-width: var(--size-touch);
+    min-height: var(--size-touch);
+  }
 }

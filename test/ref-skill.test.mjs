@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaText, outsideMedia } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -420,13 +421,8 @@ test("in Russian the labels are Russian and the names stay the vault's", () => {
 
 const ARTICLE = "src/screens/ref/article.css";
 const REF = "src/screens/ref/ref.css";
-const bare = (file) => read(file).replace(/\/\*[\s\S]*?\*\//g, "");
-/** The part of a sheet that is for 901px and up (it is the last block of the file), and the part that is not. */
-const split = (file) => {
-  const css = bare(file);
-  const wide = css.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  return { wide, rest: css.replace(wide, "") };
-};
+/** The part of a sheet that is for 901px and up, and the part that is not. */
+const split = (file) => ({ wide: mediaText(file, "min-width: 901px"), rest: outsideMedia(file, "min-width: 901px") });
 
 test("the panel's badge is 52px, its name 700 34px in the display face, its caption quiet; none in capitals", () => {
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "width"), ["52px"]);
@@ -444,7 +440,7 @@ test("up to 900px the panel is the page itself; from 901px it is a card of the s
   const { wide, rest } = split(ARTICLE);
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\b(box-shadow|padding)\s*:/.test(rest), "a phone's panel has no frame");
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "and no card");
-  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*24px;/);
+  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*var\(--space-24\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*border-radius:\s*var\(--radius-2xl\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*background:\s*var\(--surface\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*box-shadow:\s*var\(--ring\);/);
@@ -484,11 +480,9 @@ test("from 901px the split page's columns never wrap, and its panel stays in vie
   assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__body", "flex-flow"), []);
   assert.ok(split(REF).wide.includes(".g-ref--split .g-ref__body"), "the columns are the desktop's");
   assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
-  // Sticking needs the frame's box not to be one that scrolls: `overflow-x: hidden` makes it one, which never scrolls, so nothing would stick.
-  assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), ["clip"]);
-  assert.ok(split(REF).wide.includes(".g-main:has(.g-ref)"), "and only where the panel is: from 901px");
-  // Temporary, with the scoped rule above: the 2.x `.builder-summary` sticky went in stage 12; stage 13 puts `clip` into frame.css for every screen.
-  assert.equal(valuesOf("src/shell/frame.css", ".g-main", "overflow-x")[0], "hidden", "the frame's other screens stay as they were");
+  // Sticking needs the frame's box not to be one that scrolls: the frame clips sideways for every screen (stage 13), so no rule of the reference's own does it.
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), []);
 });
 
 test("a panel taller than the window scrolls in itself, so that its foot (who in the team has the skill) is not out of reach while it is stuck", () => {
@@ -508,7 +502,7 @@ test("every class the panel draws is styled, and the sheets reach the page", () 
   state.myTeams.items = [TEAM];
   state.activeTeamId = "t1";
   renderReferencePage("skills/evasive");
-  assertStyled(view, REF, ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, REF, "page-head.css", ARTICLE, "list-row.css", "search-field.css", "filter-chips.css");
   const styles = read("src/styles.css");
   assert.ok(styles.includes('@import url("screens/ref/ref.css");') && styles.includes('@import url("screens/ref/article.css");'));
 });

@@ -1,8 +1,6 @@
 /*
- * A row with a count and a − / + cluster. Font, border, background,
- * text-transform, font-weight and border-radius are set here on purpose: the
- * 2.x globals outlive this sheet until stage 13. The buttons are 44px, the
- * touch size, where the prototype draws 34px.
+ * A row with a count and a − / + cluster. The buttons are 44px, the touch
+ * size, where the prototype draws 34px.
  */
 .g-resource {
   box-sizing: border-box;

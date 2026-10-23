@@ -1,7 +1,5 @@
 /*
- * The state of a match: a few words and a dot. Font, border, background,
- * text-transform and border-radius are set here on purpose: the 2.x globals
- * outlive this sheet until stage 13.
+ * The state of a match: a few words and a dot.
  */
 .g-status {
   box-sizing: border-box;

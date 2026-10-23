@@ -26,7 +26,7 @@ const FALLEN_READ = "GET /api/teams/t1/fallen";
 const LIST_READ = "GET /api/teams";
 const callsTo = (key) => api.calls.filter((call) => call.key === key);
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
-const lastToastIsError = () => /toast-error/.test(document.querySelectorAll("output").at(-1).className);
+const lastToastIsError = () => /g-toast--error/.test(document.querySelectorAll("output").at(-1).className);
 const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
 const screen = () => view.querySelector('[data-screen="team-player"]');
 const title = () => view.querySelector("h1");

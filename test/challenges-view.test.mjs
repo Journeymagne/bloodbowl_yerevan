@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const { challengesModel } = await import("../src/screens/matches/challenges-model.mjs");
@@ -88,7 +89,7 @@ test("a phone's page in the prototype's order: the title with played, the note, 
   assert.deepEqual(all(screen, "h2"), ["Incoming · 1", "Outgoing · 1", "Accepted", "Challenge history · 2"]);
 
   const incoming = screen.querySelector('.g-friendly__section[aria-labelledby="friendly-incoming-title"] .g-friendly__item');
-  assert.deepEqual([words(incoming.querySelector(".g-friendly__letter")), words(incoming.querySelector(".g-friendly__login")), words(incoming.querySelector(".g-friendly__line"))],
+  assert.deepEqual([words(incoming.querySelector(".g-coach-letter--44")), words(incoming.querySelector(".g-friendly__login")), words(incoming.querySelector(".g-friendly__line"))],
     ["O", "orc_boss", "Grimtusk Raiders · Orc · challenge yesterday"]);
   const accept = incoming.querySelector("[data-friendly-accept]");
   assert.deepEqual([words(accept), accept.getAttribute("data-friendly-accept"), accept.getAttribute("aria-haspopup")], ["Accept…", "c1", "dialog"]);
@@ -284,7 +285,7 @@ test("a write on its way: the decline or cancel pressed is busy, «Challenge», 
 test("styled", () => {
   for (const phone of [true, false]) {
     for (const over of [{}, { payload: null, readError: "No connection", games: [], gamesError: "offline" }, { payload: null }, { payload: { challenges: [], opponents: [] } }]) {
-      assertStyled(page(over, { phone, historyOpen: true }), CSS, "page-head.css", "button.css", "status-chip.css", "callout.css");
+      assertStyled(page(over, { phone, historyOpen: true }), CSS, "page-head.css", "button.css", "status-chip.css", "callout.css", "coach-letter.css");
     }
   }
   // The order of the stage's sheets, not the end of the file: a stage merged later appends its sheets after them.
@@ -295,7 +296,7 @@ test("styled", () => {
   assert.ok(at("screens/matches/challenges.css") > styles.lastIndexOf('@import url("ui/'), "after every ui/ sheet it overrides");
   const css = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(css, /ellipsis|text-overflow|line-clamp|nowrap/, "no «…»: long names wrap");
-  assert.doesNotMatch(css, /@media \((?!max-width: 900px|min-width: 901px)/, "the 900/901 breakpoints only");
+  assertBreakpoints(CSS);
   assert.doesNotMatch(css, /#[0-9a-f]{3,6}\b|rgba?\(/i, "colours are tokens");
   for (const selector of [".g-friendly__login", ".g-friendly__line", ".g-friendly__side", ".g-friendly__pair", ".g-friendly__past"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
@@ -311,14 +312,19 @@ test("the prototypes' Oswald titles at Oswald's own line height: the phone's tit
 });
 
 test("a desk's band: its title on the cards' edge, 32 in, and the line under it 4 below, the band 94 high as the prototype's", () => {
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin"), ["-28px -32px var(--space-4)"], "the band to the edges");
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "padding-inline"), ["32px"], "page-head.css pads 28");
+  // Stage 13: the view pads 24 32 40 as DeskChallenges.html's main, and the band reaches the edges by the frame's own
+  // figures (page-head.css); the page keeps only the 24 under the band (4 and its gap of 20).
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin"), [], "the band's margin is page-head.css's");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "margin-bottom"), ["var(--space-4)"], "24 to the first card");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk > .g-pagehead", "padding-inline"), [], "page-head.css pads the frame's 32");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk", "padding"), [], "the view's 32 is the prototype's");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-friendly--desk", "gap"), ["var(--space-20)"]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "margin"), ["var(--space-4) 0 0"], "not the page's reset");
   assert.deepEqual(valuesOf(CSS, ".g-friendly .g-pagehead__sub", "line-height"), ["normal"]);
 });
 
 test("a phone's page is grey to the view's edges at any width up to 900, 16 in", () => {
-  // The view pads 26 20 40 up to 900px and 20 16 32 up to 600 (site-matchday.css): it gives that up for the page.
+  // The view pads 16 16 28 up to 900px (shell/frame.css): it gives that up for the page, which is grey to the edges.
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-friendly--phone)", "padding"), ["0"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "margin"), [], "no margin taking back one width's padding");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-friendly--phone", "padding"), ["var(--space-16) var(--space-16) 28px"]);
@@ -333,8 +339,8 @@ test("readable: the muted words, the chips, the letter on its circle, in every p
   assertContrast("--on-warn-tint", ["--warn-tint"], 4.5);
   assertContrast("--ink-2", ["--surface-3"], 4.5);
   assertContrast("--header-ink", ["--header"], 4.5);
-  assert.deepEqual(valuesOf(CSS, ".g-friendly__letter", "background"), ["var(--header)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-friendly__letter", "color"), ["var(--header-ink)"]);
+  // The coach's circle is the kit's (ui/coach-letter.mjs): Challenges.html's 44, the letter 22, on --header.
+  assert.deepEqual([valuesOf("src/ui/coach-letter.css", ".g-coach-letter--44", "width"), valuesOf("src/ui/coach-letter.css", ".g-coach-letter--44", "font-size")], [["44px"], ["22px"]]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly__link", "color"), ["var(--accent-text)"]);
   assert.deepEqual(valuesOf(CSS, ".g-friendly__pastlink", "color"), ["var(--accent-text)"]);
   assertContrast("--accent-text", ["--surface"], 4.5);

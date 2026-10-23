@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -14,6 +15,7 @@ import {
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 const { droppedWords } = await import("../src/screens/team/roster/market.mjs");
 const { clearAbsence, markAbsence } = await import("../src/domain/roster/absence.mjs");
+const { initLocale, t } = await import("../src/core/i18n.mjs");
 
 // Stage 07c, Task 5: the «+» beside «Player» in the active roster's header (StatsHire.html, DeskRosterHire.html) and the
 // cart it opens: the race's positions with their limits, the treasury and what the cart leaves of it, and «Buy», one
@@ -34,6 +36,7 @@ const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", post
 const CLOSED = "Hiring and selling — after the post-match";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
 const OGRE_MAX = "Ogre: maximum is 1.";
+const ROSTER_FULL = "A team has at most 14 players (now 14).";
 const MARKET = "src/screens/team/roster/market.css";
 
 const hireButton = () => view.querySelector("[data-roster-hire]");
@@ -61,13 +64,6 @@ const stepOfTheRoster = () => {
   fireEvent(toggle("p5#0"), "click");
   fireEvent(aside().querySelector("[data-roster-return]"), "click");
   fireEvent(toggle("p1#0"), "click");
-};
-/** The parts of `file` inside its `@media (<query>)` block. */
-const mediaBlock = (file, query) => {
-  const css = text(file).replace(/\/\*[\s\S]*?\*\//g, "");
-  const start = css.indexOf(`@media (${query}) {`);
-  assert.ok(start >= 0, `${file} has no @media (${query})`);
-  return css.slice(start, css.indexOf("\n}", start));
 };
 
 test("the «+» stands right after «Player» in the active roster's header, on a phone and on a desk; the other tables have none", async () => {
@@ -387,11 +383,11 @@ test("a position at its maximum, and a full roster, refuse the + and say why; mo
     assert.equal(hireSheet().querySelector(".g-sheet__sub").textContent, "Human · on the roster 14 of 14 · places left: 0");
     for (const rowIndex of [0, 1, 2, 3, 4]) {
       assert.equal(plusOf(rowIndex).getAttribute("aria-disabled"), "true", rowIndex);
-      assert.equal(plusOf(rowIndex).getAttribute("title"), "A Sevens roster should not exceed 14 players (currently 14).");
+      assert.equal(plusOf(rowIndex).getAttribute("title"), ROSTER_FULL);
     }
     assert.equal(plusOf(5).getAttribute("title"), OGRE_MAX);
     fireEvent(plusOf(4), "click");
-    assert.equal(toasts().at(-1), "A Sevens roster should not exceed 14 players (currently 14).");
+    assert.equal(toasts().at(-1), ROSTER_FULL);
     assert.equal(countOf(4), null);
   });
 });
@@ -575,6 +571,33 @@ test("a purchase refused after a 422 whose read failed reads the roster again; o
   });
 });
 
+// 07c T5-3 (stage 13): the words a 422 left in the cart are of the roster it refused; the read that takes that roster's
+// place takes them too. A read that fails takes nothing.
+test("an old refusal is gone once a read the server answered takes its place: the cart's", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    stepOfTheRoster();
+    await settle();
+    openCart(0);
+    fireEvent(buyButton(), "click");
+    await settle();
+    assert.match(refusalLine().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply(TEAM_READ, 200, { team: rich({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(buyButton(), "click");
+    assert.match(refusalLine().textContent, /Ann/, "said again at the press");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(hireSheet()?.isModal, "the sheet stays, the cart in it");
+    assert.equal(countOf(0), "1");
+    assert.ok(!refusalLine(), "the words said of the roster before it are gone");
+    assert.equal(patches().length, 1, "nothing bought meanwhile");
+  });
+});
+
 test("a match begun while the cart is open closes it, the focus back on the «+»", async () => {
   await withoutTimers(async () => {
     coach({ teamAnswer: rich() });
@@ -606,7 +629,7 @@ test("on a phone: no «Cancel», the + alone, a 44px target", async () => {
       assert.ok(card(0).querySelector(".g-market__stepper"));
       assertStyled(view, ...STYLES);
     });
-    const phone = mediaBlock(MARKET, "max-width: 900px");
+    const phone = mediaText(MARKET, "max-width: 900px");
     assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone (K7)");
     assert.match(phone, /\.g-market__addword \{\s*display: none;\s*\}/, "the + alone");
     // A phone's targets are a thumb wide (D2): the «+» a 26px circle in its 44px.
@@ -740,7 +763,7 @@ test("a lone shut «Sell» keeps the second place of the pair", async () => {
     }
     const lone = ".g-roster__actions > [data-roster-sell]:only-child";
     assert.deepEqual(valuesOf(MARKET, lone, "grid-column"), ["-2 / -1"], "the last column: the second of two, the only one of one");
-    for (const query of ["max-width: 900px", "min-width: 901px"]) assert.ok(!mediaBlock(MARKET, query).includes(lone), `not only ${query}`);
+    for (const query of ["max-width: 900px", "min-width: 901px"]) assert.ok(!mediaText(MARKET, query).includes(lone), `not only ${query}`);
   });
 });
 
@@ -828,8 +851,8 @@ test("the sheet on a phone: his card, the same lines, one red button", async () 
       assert.ok(sendButton().classList.contains("g-btn--danger"));
       assertStyled(view, ...STYLES);
     });
-    const phone = mediaBlock(MARKET, "max-width: 900px");
-    const desk = mediaBlock(MARKET, "min-width: 901px");
+    const phone = mediaText(MARKET, "max-width: 900px");
+    const desk = mediaText(MARKET, "min-width: 901px");
     assert.match(desk, /\.g-market__who \{\s*display: none;\s*\}/, "no card on a desk: the sub says who");
     assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone: the cross");
     assert.match(phone, /#roster-sell \.g-sheet__sub \{\s*display: none;\s*\}/, "no sub on a phone: the card says who");
@@ -1209,6 +1232,30 @@ test("a sale refused after a 422 whose read failed reads the roster again; once 
   });
 });
 
+// 07c T5-3 (stage 13): the sale's sheet loses the 422's words as the cart does.
+test("an old refusal is gone once a read the server answered takes its place: the sale's", async () => {
+  await withoutTimers(async () => {
+    await drawFor(null);
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    fireEvent(toggle("p5#0"), "click");
+    fireEvent(aside().querySelector("[data-roster-return]"), "click");
+    await settle();
+    fireEvent(toggle("p8#0"), "click");
+    fireEvent(sellIn(aside()), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.match(saleRefusal().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply(TEAM_READ, 200, { team: forSale(SALE_PLAYERS, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(sellSheet()?.isModal, "the sheet stays");
+    assert.ok(!saleRefusal(), "the words said of the roster before it are gone");
+  });
+});
+
 test("a fallen player has no «Sell»", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
@@ -1257,7 +1304,7 @@ test("a hire and a sale that waited for the network are given up when a match be
     assert.equal(namesIn(tables()[0]).length, 4, "the new Lineman is drawn at once");
     await matchBegins(rich({ revision: 5 }));
     assert.equal(toasts().at(-1), MARKET_DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.deepEqual(warnings(), [MARKET_DROPPED], "neither SPP nor marks waited");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);
@@ -1298,7 +1345,7 @@ test("SPP, a mark and a hire given up together: each in its own words, SPP first
     await matchBegins(rich({ revision: 5 }));
     assert.deepEqual(warnings(), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
     assert.deepEqual(toasts().slice(-3), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
-    for (const output of document.querySelectorAll("output").slice(-3)) assert.match(output.className, /toast-error/);
+    for (const output of document.querySelectorAll("output").slice(-3)) assert.match(output.className, /g-toast--error/);
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(patches().length, tried, "the tries before the network went, and none in the match");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");
@@ -1349,7 +1396,7 @@ test("the name and the skills are text", async () => {
 
 // K6: D2's compact sizes from 901px, as DeskRosterHire.html and DeskRosterSell.html draw them, never under 24px.
 test("D2: the market's compact controls on a desk are the prototype's and 24px or more", () => {
-  const desk = mediaBlock(MARKET, "min-width: 901px");
+  const desk = mediaText(MARKET, "min-width: 901px");
   const px = (value) => Number(String(value).replace(/px$/, ""));
   const sizes = [
     [/\.g-roster__hire \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/, [24, 24], "the «+»"],
@@ -1395,8 +1442,7 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     const css = text(MARKET);
     assert.doesNotMatch(css, /\bstyle\s*=/);
     assert.doesNotMatch(css, /--focus-ring/);
-    const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
+    assert.ok(assertBreakpoints(MARKET).length >= 2, "only the stage's two breakpoints, both");
     // Each new block says its font, border, background, case, spacing and weight (the 2.x globals outlive it, stage 13).
     for (const selector of [".g-market__label", ".g-market__value", ".g-market__name", ".g-market__price", ".g-market__stats", ".g-market__meta", ".g-market__numbers", ".g-market__refusal", ".g-market__prep", ".g-market__lines"]) {
       for (const property of ["font", "letter-spacing", "text-transform"]) assert.equal(valuesOf(MARKET, selector, property).length, 1, `${selector} ${property}`);
@@ -1504,4 +1550,66 @@ test("a 409 that refuses a roll's turn is said and the roster read again, as a 4
     assert.equal(patches().length, 1, "never sent again");
     assert.ok(!view.textContent.includes("The roster was changed on another device"));
   });
+});
+
+// ---------------------------------------------------------------------------
+// Stage 13 (decision 21; hand-off 07c T5-4, «−» on zero from 06 and 07c; the roster limit's words, spec 3.0 «слова
+// правит этап 13»).
+// ---------------------------------------------------------------------------
+
+test("the cart's count and sum are a polite live region: what «Buy» says is said aloud as it changes, the focus left on the card", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    fireEvent(hireButton(), "click");
+    const said = () => hireSheet().querySelector("[data-hire-said]");
+    const region = said();
+    assert.ok(region, "the region is there from the start: one added with the change is not heard");
+    assert.equal(region.getAttribute("role"), "status", "polite: it waits for the screen reader's turn");
+    assert.ok(!region.hasAttribute("aria-live") && !region.hasAttribute("aria-hidden"));
+    assert.ok(region.classList.contains("g-sr-only"), "heard, not shown twice: «Buy» shows the same words");
+    assert.equal(region.textContent, "The cart is empty");
+    const add = plusOf(0);
+    add.focus();
+    fireEvent(add, "click");
+    fireEvent(plusOf(0), "click");
+    assert.ok(said() === region, "the same node, changed: a live region announces a change, not a new node");
+    assert.equal(region.textContent, "Buy for 100k · players: 2");
+    assert.equal(region.textContent, buyButton().textContent);
+    assert.ok(document.activeElement === plusOf(0), "the focus stays where the coach pressed");
+    fireEvent(plusOf(1), "click");
+    assert.equal(region.textContent, "Not enough: 60k", "a cart the treasury does not pay says so");
+    fireEvent(minusOf(1), "click");
+    fireEvent(minusOf(0), "click");
+    assert.equal(region.textContent, "Buy for 50k · players: 1");
+  });
+});
+
+test("a − that empties the cell keeps the focus on the cell: the cart's, on «+ To the cart» of the same card", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    openCart(0, 1);
+    const minus = minusOf(1);
+    minus.focus();
+    fireEvent(minus, "click");
+    assert.equal(countOf(1), null, "the Thrower's stepper gave way to «+ To the cart»");
+    assert.ok(document.activeElement === plusOf(1), "the Thrower's «+ To the cart», not the Lineman's stepper nor the sheet's cross");
+    assert.ok(card(1).querySelector(".g-market__add") === plusOf(1));
+    assert.equal(countOf(0), "1", "the other card is left as it was");
+  });
+});
+
+test("the roster's limit is said as the league's rules say it: a team of at most fourteen players", () => {
+  assert.match(text("content/Gata/Rules/2. Team Creation.md"), /The team size is limited to 14 players\./);
+  assert.match(text("content/Gata-ru/Rules/2. Team Creation.md"), /Размер команды ограничен 14 игроками\./);
+  const words = { en: "A team has at most 14 players (now 15).", ru: "Игроков в команде — не больше 14 (сейчас 15)." };
+  for (const [locale, sentence] of Object.entries(words)) {
+    initLocale(locale);
+    try {
+      assert.equal(t("validation.ROSTER_MAX_PLAYERS", { max: 14, count: 15 }), sentence, locale);
+    } finally {
+      initLocale("en");
+    }
+  }
 });

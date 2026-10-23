@@ -1,11 +1,10 @@
 /*
- * A guest's front page (screens/home/guest.mjs). Font, border, background, text-transform, letter-spacing
- * and weight are set here on purpose: the 2.x globals (h1 to h6, a, the buttons) outlive this sheet until
- * stage 13.
+ * A guest's front page (screens/home/guest.mjs).
  *
  * Up to 900px it is one column: the lead and what the league is, the two ways in side by side, the
- * table's card, the reference's card with its four tiles. The league's band is a desktop's (a phone's
- * header already names the league and the season). From 901px the band runs across the top, the lead
+ * table's card, the reference's card with its four tiles. The league's band is the page head
+ * (ui/page-head.mjs), a desktop's: a phone's header already names the league and the season, so a phone
+ * does not draw it, for a screen reader either. From 901px the band runs across the top, the lead
  * stands in a ribbon in the header's colours with the ways in beside it (turned over: the filled button
  * is the header's ink), and the two cards stand side by side, one under the other where they would be
  * narrower than 360px.
@@ -24,23 +23,18 @@
   letter-spacing: 0;
 }
 
-/* The band is the desktop's. */
-.g-guest__head { display: none; }
-
-.g-guest__brand {
-  margin: 0;
-  color: var(--ink);
-  font: 700 32px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-guest__season {
-  margin: 0;
-  color: var(--muted);
-  font: 400 14px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
+/*
+ * The band is the desktop's. Guest.html's page is grey to its edges up to 900px: the page reaches over the frame's
+ * padding (16 16 28, Guest.html's main; shell/frame.css) and takes the same figures back inside its grey, the cards
+ * white in their ring on it.
+ */
+@media (max-width: 900px) {
+  .g-guest > .g-pagehead { display: none; }
+  .g-guest {
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom));
+    padding: var(--view-top) var(--view-side) var(--view-bottom);
+    background: var(--surface-2);
+  }
 }
 
 .g-guest__hero {
@@ -202,32 +196,18 @@
 }
 
 @media (min-width: 901px) {
-  /* The band and the ribbon run to the edges the page gives them, so the 2.x padding of the screen (stage 13 takes it away) is given up and the parts keep their own. */
-  #app-view:has(> .g-guest) { padding: 0; }
-  #app-view > .g-guest {
-    max-width: none;
-    margin: 0;
-    gap: 0;
-  }
-
-  .g-guest__head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-20) 32px;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--surface);
-    text-transform: none;
-    letter-spacing: 0;
-  }
+  /*
+   * DeskGuest.html: the page head's band, then its main's 24 32 40 — the frame's padding, which the band goes out
+   * over — with the ribbon and the cards 20 apart in it.
+   */
+  .g-guest { gap: 0; }
 
   /* The lead and the ways in beside it, the ways in under it where the lead would be squeezed below 420px. */
   .g-guest__hero {
     flex-flow: row wrap;
     align-items: center;
     gap: var(--space-24);
-    margin: var(--space-24) 32px 0;
+    margin: 0;
     padding: 28px 32px;
     border-radius: 20px;
     background: var(--header);
@@ -271,7 +251,7 @@
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     align-items: start;
     gap: var(--space-20);
-    margin: var(--space-20) 32px 40px;
+    margin: var(--space-20) 0 0;
   }
   .g-guest__card { padding: 18px var(--space-20); }
   .g-guest__title { font: 700 24px/1.15 var(--font-display); }

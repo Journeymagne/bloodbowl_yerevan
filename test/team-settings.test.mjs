@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText, outsideMedia } from "./helpers/css.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -399,8 +400,7 @@ test("on a desk the settings are a card in the right column, under the history; 
   assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "the 1fr row stretches neither the history nor the card");
   assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources", "grid-area"), ["resources"]);
   // The card's area is the settings' own sheet's; from 901px, as the columns are.
-  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
+  const desk = mediaText(SETTINGS, "min-width: 901px");
   assert.match(desk, /\.g-manage__cols > \.g-team-settings \{ grid-area: settings; \}/);
   assert.deepEqual(valuesOf(SETTINGS, ".g-manage__cols > .g-team-settings", "grid-area"), ["settings"]);
 });
@@ -409,8 +409,7 @@ test("on a desk the settings are a card in the right column, under the history; 
 // kit's ring in --line-strong (the plan's token map, L9); its heading `padding: 18px 0 4px`, Oswald 700 22px. Builder.html
 // draws the same rows with no frame, in the screen's body.
 test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over the heading's 18, a radius of 16 in the kit's ring", () => {
-  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
+  const desk = mediaText(SETTINGS, "min-width: 901px");
   const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
   const valueIn = (property) => rule.match(new RegExp(`(?:^|\\s)${property}: ([^;]+);`))?.[1];
   assert.deepEqual(["padding", "border-radius", "background", "box-shadow"].map(valueIn), ["var(--space-4) var(--space-24) var(--space-20)", "var(--radius-2xl)", "var(--surface)", "var(--ring)"]);
@@ -643,8 +642,7 @@ test("on a desk the settings' address puts the card in view again once the reads
 });
 
 test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () => {
-  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const phone = css.slice(css.indexOf("@media (max-width: 900px) {"), css.indexOf("@media (min-width: 901px) {"));
+  const phone = mediaText(SETTINGS, "max-width: 900px");
   for (const selector of [".g-team-settings-screen", ".g-team-settings-screen__head", ".g-team-settings-screen__back", ".g-team-settings-screen__title", ".g-team-settings-screen__body"]) {
     assert.ok(phone.includes(`${selector} {`), `${selector}: a phone's alone`);
   }
@@ -667,7 +665,8 @@ test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () =>
   assertReadable(SETTINGS, ".g-team-settings-screen__back", "color", ["--header"], 4.5);
   // The page reaches the screen's edges, the head sticking in a main that does not scroll (K3), as the profile's.
   assert.deepEqual(valuesOf(SETTINGS, ".g-frame #app-view:has(> .g-team-settings-screen)", "padding"), ["0"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-main:has(.g-team-settings-screen)", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"], "the shell's main, for every screen (stage 13)");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-main:has(.g-team-settings-screen)", "overflow-x"), []);
   // The row of the phone's page is framed as the history's card is.
   const entry = (property) => valuesOf(SETTINGS, ".g-team-settings-entry", property);
   assert.deepEqual([entry("padding"), entry("border"), entry("border-radius"), entry("background")], [["0 var(--space-16)"], ["1px solid var(--line)"], ["var(--radius-lg)"], ["var(--surface)"]]);
@@ -1315,9 +1314,7 @@ test("readable: the labels and notes in --muted, the violations in --danger, the
 // Builder's «Загрузить»: `min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: #FFFFFF;
 // box-shadow: inset 0 0 0 1px #C9D3CE`, 14/600 #3E4A44. D2: a finger's 44px up to 900px.
 test("a row's button is Builder's «Upload»: the ring inside it, 14/600 --ink-2; 36px at a desk, 44px up to 900px", () => {
-  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const start = css.indexOf("@media (min-width: 901px) {");
-  const [phone, desk] = [css.slice(0, start), css.slice(start)];
+  const [phone, desk] = [outsideMedia(SETTINGS, "min-width: 901px"), mediaText(SETTINGS, "min-width: 901px")];
   const heightIn = (text) => text.match(/\.g-team-settings__btn \{[^}]*min-height: ([^;]+);/)?.[1];
   const tokens = read("src/styles/tokens.css");
   const token = (name) => tokens.match(new RegExp(`${name}: ([^;]+);`))[1];
@@ -1346,9 +1343,7 @@ test("a long team name wraps; nothing is cut with «…»; breakpoints only 900/
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__actions", "flex"), ["0 1 auto"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row > .g-team-settings__logo-line", "flex"), ["1 1 0"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__logo-line", "min-width"), []);
-  for (const query of [...css.matchAll(/@media[^{]+/g)].map(([found]) => found.trim())) {
-    assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/);
-  }
+  assertBreakpoints(SETTINGS);
   const styles = read("src/styles.css");
   const at = (path) => styles.indexOf(`@import url("${path}");`);
   assert.ok(at("screens/team/roster/fix.css") >= 0 && at("screens/team/manage/settings.css") > at("screens/team/roster/fix.css"));

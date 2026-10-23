@@ -1,8 +1,5 @@
 /*
- * A − / count / + cell for SPP actions. Font, border, background,
- * text-transform, font-weight and border-radius are set here on purpose: the
- * 2.x globals (button { font: inherit }, :focus-visible { border-radius },
- * the uppercase label rules) outlive this sheet until stage 13.
+ * A − / count / + cell for SPP actions.
  */
 .g-stepper {
   box-sizing: border-box;
@@ -150,10 +147,14 @@
   width: 14px;
   height: 14px;
 }
-/* 17px in a 95px tile (DeskRosterLive's), 13.5px in the narrowest (81px): a straight line between, never under 13px. */
+/*
+ * 17px in a 95px tile (DeskRosterLive's), 13.5px in the narrowest (81px): a straight line between, never under 13px.
+ * A browser without container query units drops the clamp whole and keeps the 15px before it (the 07-desk handoff).
+ */
 .g-stepper--tile .g-stepper__value {
   flex: none;
   margin-inline: 1px;
+  font-size: 15px;
   font-size: clamp(13px, calc(26cqi - 7.6px), 17px);
   white-space: nowrap;
 }

@@ -26,13 +26,12 @@ import { t } from "../../core/i18n.mjs";
 import { newTeamUrl, refUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { patchWithModal } from "../../components/dialog.mjs";
 import { onSessionChange } from "../../data/session.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
-import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
+import { patchWithModal, renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { mountSheetHost } from "../team/manage/sheet-host.mjs";
@@ -85,7 +84,7 @@ export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, 
   const footHtml = renderButton({ kind: "primary", label: createLabel(trimmed, raceChosen), disabled: !trimmed || !raceChosen, data: { newTeamCreate: true } });
   // The way back is the head's «‹» on a phone and the foot's button on a desk; new.css shows each where it belongs.
   const footStartHtml = back ? renderButton({ label: t("newTeam.backToTeams"), data: { newTeamBack: true } }) : "";
-  return renderSheet({ id: NEW_TEAM_SHEET_ID, title: t("newTeam.title"), sub: seasonName || t("shell.league"), canGoBack: back, className: "g-new-sheet", bodyHtml, footHtml, footStartHtml });
+  return renderSheet({ id: NEW_TEAM_SHEET_ID, title: t("newTeam.title"), sub: seasonName || t("shell.league"), canGoBack: back, className: "g-new-sheet", at: 64, bodyHtml, footHtml, footStartHtml });
 }
 
 /** The host, made and wired at the first opening. @type {Element|null} */

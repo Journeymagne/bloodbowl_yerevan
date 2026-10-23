@@ -319,7 +319,7 @@ test("the page follows the team, the games and the history while it is on screen
   await withoutTimers(() => fireEvent(view.querySelector("[data-treasury-fix]"), "click"));
   assert.equal(document.body.querySelector("dialog#treasury-fix"), null);
   assert.deepEqual(toasts().map(({ text }) => text), ["After the match's post-match", "After the match's post-match"], "each press says why");
-  assert.ok(toasts().every(({ tone }) => /toast-error/.test(tone)));
+  assert.ok(toasts().every(({ tone }) => /g-toast--error/.test(tone)));
   releaseCurrentScreen();
   view.innerHTML = "<p>next</p>";
   setMyTeams(state.myTeams.items);
@@ -540,7 +540,7 @@ test("a write that lands after the coach went to another team says whose it was 
     await settle();
   });
   assert.equal(toasts().at(-1).text, `Ashgrove Wardens: ${en["error.STAGE_PURCHASE_LOCKED"]}`);
-  assert.match(toasts().at(-1).tone, /toast-error/);
+  assert.match(toasts().at(-1).tone, /g-toast--error/);
 });
 
 test("every word of the page is in both dictionaries, the phases too; nothing unstyled, nothing the CSP refuses", () => {
@@ -563,7 +563,9 @@ test("the phone has the card and no strip, the desk the strip and two columns; t
   const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(valuesOf(sheet, ".g-manage__card", "display").includes("none"), "from 901px the strip says the treasury");
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-manage__card \{ display: none; \}/);
-  assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.g-manage \.g-pagehead__sub \{ display: none; \}/, "on a phone the value is in the card");
+  // On a phone the value is in the card: the head keeps its line off a phone by its prop (stage 13, decision 9).
+  assert.doesNotMatch(css, /\.g-pagehead__sub/);
+  assert.ok(mount(manageMarkup(model("t1", { phone: true }))).querySelector("header.g-pagehead.g-pagehead--phone.g-pagehead--nosub-phone .g-pagehead__sub"));
   assert.ok(valuesOf(sheet, ".g-manage__cols", "grid-template-areas").length > 0);
   assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
   for (const [selector, area] of [[".g-manage__resources", "resources"], [".g-manage__side", "side"], [".g-manage__history", "history"]]) {

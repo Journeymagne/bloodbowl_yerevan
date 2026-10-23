@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { blocks } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { state } from "../src/core/state.mjs";
 
 const RETIRED = /\.(catalog-|team-catalog-card|star-catalog-card|reference-|skill-roll-|skill-table-|team-roster-|league-reference-|league-link-list|league-star-list|overview-card|overview-detail|overview-list|detail-layout|content-body|filter-panel|compact-panel|meta-line)/;
@@ -28,7 +29,7 @@ test("the stage's stylesheets set their own type on every heading and break at 9
       assert.match(body, /(^|;|\s)font:/, `${file}: ${selectors.join(", ")}`);
       assert.match(body, /(^|;|\s)text-transform:\s*\S/, `${file}: ${selectors.join(", ")}`); // explicit, not necessarily none: a group title is uppercase on purpose
     }
-    for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.match(query.trim(), /^\((max-width: 900px|min-width: 901px)\)$/, file);
+    assertBreakpoints(file);
   }
 });
 

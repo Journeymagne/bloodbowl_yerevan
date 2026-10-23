@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 
 const SHEET = "src/screens/ref/prose.css";
 const css = readFileSync(new URL(`../${SHEET}`, import.meta.url), "utf8");
@@ -17,10 +18,29 @@ test("the build's four table classes are styled here, on 3.0 tokens, not borrowe
   assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll table:not(.fit-table)", "width"), ["max-content"]);
 });
 
-test("cells draw their own background and lines: the 2.x th and td rules do not show through", () => {
+test("cells draw their own background and lines, one rule each", () => {
   for (const [selector, property] of [[".g-prose th", "background"], [".g-prose td", "background"], [".g-prose th", "border"], [".g-prose td", "border"], [".g-prose th", "padding"]]) {
     assert.equal(valuesOf(SHEET, selector, property).length, 1, `${selector} ${property}`);
   }
+});
+
+// What season.css and responsive.css gave the build's tables, kept here when they went (stage 13, Task 23: not a pixel
+// moved): a head cell's text at its top, the Skill Table's 48px number column centred, a scroll box that never scrolls
+// up and down and keeps a sideways swipe to itself, and the 8px bar of an engine that styles only the webkit scrollbar,
+// rounded.
+test("what the 2.x table rules drew is drawn here: head cells at the top, the numbered column, the scroll box", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-prose th", "vertical-align"), ["top"]);
+  for (const cell of ["th", "td"]) {
+    const selector = `.g-prose .numbered-table ${cell}:first-child`;
+    assert.deepEqual(valuesOf(SHEET, selector, "width"), ["48px"], selector);
+    assert.deepEqual(valuesOf(SHEET, selector, "min-width"), ["48px"], selector);
+    assert.deepEqual(valuesOf(SHEET, selector, "text-align"), ["center"], selector);
+    assert.deepEqual(valuesOf(SHEET, selector, "color"), ["var(--muted)"], selector);
+  }
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "overflow-y"), ["hidden"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "overscroll-behavior-inline"), ["contain"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll::-webkit-scrollbar", "height"), ["8px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll::-webkit-scrollbar-thumb", "border-radius"), ["999px"]);
 });
 
 test("text, links, head cells and a missing link read on the article and on the page, in every palette", () => {
@@ -38,7 +58,7 @@ test("every heading sets its own face and case, and the sheet breaks at 900/901 
     assert.match(body, /(^|;|\s)font:/, selectors.join(", "));
     assert.match(body, /text-transform:\s*none/, selectors.join(", "));
   }
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.match(query.trim(), /^\((max-width: 900px|min-width: 901px)\)$/);
+  assertBreakpoints(SHEET);
 });
 
 test("the headings the build writes are h2 to h5 at 24, 22, 18 and 16px, and none of them is left to the 2.x h1-h6 rule", () => {
@@ -65,7 +85,7 @@ test("the sheet reaches only what sits inside .g-prose", () => {
   }
 });
 
-test("a scrolling table wears the page's scrollbar, not the 2.x gold one, and it shows on the card", () => {
+test("a scrolling table wears the page's scrollbar, and it shows on the card", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "scrollbar-color"), ["var(--faint) transparent"]);
   assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "scrollbar-width"), ["thin"]);
   assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll::-webkit-scrollbar-track", "background"), ["transparent"]);
@@ -73,12 +93,8 @@ test("a scrolling table wears the page's scrollbar, not the 2.x gold one, and it
   assertContrast("--faint", ["--surface"], 3, { what: "the scrollbar thumb" });
 });
 
-test("a link in an article shows keyboard focus with the ring base.css draws, which .g-prose a does not reach for want of a g- class", () => {
-  const ring = ':where([class^="g-"], [class*=" g-"]):focus-visible';
-  for (const property of ["outline", "outline-offset"]) {
-    assert.deepEqual(valuesOf(SHEET, ".g-prose a:focus-visible", property), valuesOf("src/ui/base.css", ring, property), property);
-    assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", property).length, 1, property);
-  }
-  assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", "outline")[0], "3px solid var(--accent-text)");
+test("a link in an article shows keyboard focus with the ring base.css draws for every element, and draws none of its own", () => {
+  for (const property of ["outline", "outline-offset"]) assert.deepEqual(valuesOf(SHEET, ".g-prose a:focus-visible", property), [], property);
+  assert.deepEqual(valuesOf("src/ui/base.css", ":where(:focus-visible)", "outline"), ["3px solid var(--accent-text)"]);
   assertContrast("--accent-text", ["--surface", "--page"], 3, { what: "the focus ring" });
 });

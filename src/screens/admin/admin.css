@@ -1,14 +1,13 @@
 /*
  * The administration's frame (screens/admin/frame.mjs) and what its screens share: the head with the path, the switch
  * between the coaches and the season, the content under them, the card, the grid of cards, the coach's letter, the
- * note. DeskAdmin*.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). Font, border, background,
- * text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until
- * stage 13. Colours are tokens; the prototypes' colour for each coach's letter has none, so every circle is the
- * header's. Long names and paths wrap; nothing is cut with «…».
+ * note. DeskAdmin*.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). Colours are tokens; the prototypes'
+ * colour for each coach's letter has none, so every circle is the header's. Long names and paths wrap; nothing is cut
+ * with «…».
  *
- * The prototypes' page has no padding of its own; the 2.x view pads 28px from 901px (site-matchday.css) and 16px at
- * the sides of a phone. The numbers below are the prototypes' as they land inside it: a desk's band edge to edge with
- * its text 32px in, the switch and the content 32px from the edges and 24px under the band; a phone's 16px from them.
+ * The prototypes' main pads 24 32 40 on a desk and 16 16 28 on a phone, which is the frame's padding of the view
+ * (shell/frame.css): a desk's band goes out over it to the content's edges with its text 32px in, and the switch and
+ * the content stand in it, 32px from the edges and 24px under the band; a phone's 16px from them.
  */
 
 /* ---- The head: the title, its line, the path ---- */
@@ -65,6 +64,12 @@
   padding: 0;
   border: 0;
   background: none;
+}
+
+/* The refusal for a viewer who is no admin (frame.mjs): the head, then the callout that says why, in the content. */
+.g-admin__refusal {
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* ---- The content under them ---- */
@@ -144,39 +149,6 @@
   min-width: 0;
 }
 
-/* ---- A coach's letter in its circle ---- */
-.g-admin__avatar {
-  box-sizing: border-box;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font-family: var(--font-display);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.g-admin__avatar--36 {
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-}
-.g-admin__avatar--40 {
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-}
-.g-admin__avatar--64 {
-  width: 64px;
-  height: 64px;
-  font-size: 32px;
-}
-
 /* A rule, a reason, a hint under a card's controls. */
 .g-admin__note {
   margin: 0;
@@ -192,12 +164,6 @@
 
 /* ---- A phone (AdminMobile.html) ---- */
 @media (max-width: 900px) {
-  /*
-   * AdminMobile.html is white: the 2.x view's wash (site-matchday.css's .view::after, the accent's tint fading over
-   * 320px) is off under the administration's screens, as under the league's (league.css); a desk's stand on its grey.
-   * The team's edit is the roster's and keeps the roster's.
-   */
-  #app-view:has(> .g-admin__head, > .g-adminseason, .g-admin__refusal)::after { display: none; }
   .g-admin__head .g-pagehead--phone { margin: 0; }
   .g-admin__crumbs a {
     min-height: var(--size-touch);
@@ -237,10 +203,10 @@
 
 /* ---- A desk (DeskAdmin*.html) ---- */
 @media (min-width: 901px) {
-  /* The band across the top of the content, over the view's padding as the page head's own (ui/page-head.css). */
+  /* The band across the top of the content, over the frame's padding by its figures, as ui/page-head.css's. */
   .g-admin__head {
-    margin: -28px -28px var(--space-24);
-    padding: var(--space-20) 32px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
     border-bottom: 1px solid var(--line);
     background: var(--surface);
   }
@@ -254,15 +220,12 @@
   /* DeskAdminSeason.html's segments: 420 wide, 38 high, 14px. */
   .g-admin__switch {
     max-width: 420px;
-    margin: 0 var(--space-4) var(--space-20);
+    margin: 0 0 var(--space-20);
   }
   .g-admin__switch .g-seg__item {
     min-height: 38px;
     font-size: 14px;
   }
 
-  .g-admin__main {
-    gap: var(--space-20);
-    padding: 0 var(--space-4);
-  }
+  .g-admin__main { gap: var(--space-20); }
 }

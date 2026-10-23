@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -282,7 +283,7 @@ test("the markup the two bodies draw is styled by the reference's sheets", () =>
   setRoller({ category: "Strength", face: 8, skill: "Mighty Blow" });
   for (const slug of ["leagues", "skill-table"]) {
     renderReferencePage(slug);
-    assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css", "filter-chips.css", "die.css", "button.css");
+    assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css", "filter-chips.css", "die.css", "button.css");
   }
 });
 
@@ -300,26 +301,20 @@ test("the 2.x Leagues module is gone, and nothing names it", () => {
 
 const SHEET = "src/screens/ref/article.css";
 
-/** The part of the sheet that is for 901px and up, the part for 900px and down, and the rest. */
-function parts(css) {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  const narrow = [...bare.replace(wide, "").matchAll(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/g)].map((match) => match[1]).join("\n");
-  return { wide, narrow };
-}
+/** The part of a sheet that is for 901px and up, and the part for 900px and down. */
+const parts = (file) => ({ wide: mediaText(file, "min-width: 901px"), narrow: mediaText(file, "max-width: 900px") });
 
 test("the Skill Table's two shapes: up to 900px the lists, from 901px the vault's table, never both", () => {
-  const { wide, narrow } = parts(read(SHEET));
+  const { wide, narrow } = parts(SHEET);
   assert.match(narrow, /\.g-ref-skilltable__desk\s*\{[^}]*display:\s*none/);
   assert.match(wide, /\.g-ref-skilltable\s*\{[^}]*display:\s*none/);
   assert.ok(!/\.g-ref-skilltable__desk\s*\{[^}]*display:\s*none/.test(wide), "the table shows on a desktop");
   assert.ok(!/\.g-ref-skilltable\s*\{[^}]*display:\s*none/.test(narrow), "the lists show on a phone");
-  const queries = [...read(SHEET).matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  for (const query of queries) assert.match(query, /^\((max-width: 900px|min-width: 901px)\)$/);
+  assertBreakpoints(SHEET);
 });
 
 test("from 901px the vault's Skill Table has the card's whole width, past the article's 820px, with snug cells so seven columns fit at 1440", () => {
-  const { wide } = parts(read(SHEET));
+  const { wide } = parts(SHEET);
   const rules = blocks(wide);
   const classes = (selector) => (selector.match(/\./g) ?? []).length;
   const declared = (selector, property) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g"))].map((match) => match[1].trim()));
@@ -330,8 +325,8 @@ test("from 901px the vault's Skill Table has the card's whole width, past the ar
   assert.ok(classes(desk) > classes(cap), "and it wins by specificity, not by coming later");
   for (const part of ["th", "td"]) {
     const cell = `.g-article .g-ref-skilltable__desk ${part}`;
-    assert.deepEqual(declared(cell, "padding-left"), ["6px"], cell);
-    assert.deepEqual(declared(cell, "padding-right"), ["6px"], cell);
+    assert.deepEqual(declared(cell, "padding-left"), ["var(--space-6)"], cell);
+    assert.deepEqual(declared(cell, "padding-right"), ["var(--space-6)"], cell);
     const first = `.g-article .g-ref-skilltable__desk .numbered-table ${part}:first-child`;
     assert.deepEqual(declared(first, "min-width"), ["0"], "the 2.x 48px of the number column gives way");
     assert.deepEqual(declared(first, "width"), ["auto"], first);
@@ -365,4 +360,8 @@ test("a heading the bodies draw sets its own type, and a link in them is 44px to
   }
   assert.deepEqual(valuesOf(SHEET, ".g-ref-skilltable li .g-ref-link", "min-height"), ["44px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-roller__skill .g-ref-link", "min-height"), ["44px"]);
+  // …and as wide on a phone, a skill as short as «Leap» too (D2; fidelity N3: 41×44 before).
+  const phone = mediaText(SHEET, "max-width: 900px");
+  assert.match(phone, /\.g-ref-roller__skill \.g-ref-link \{[^}]*min-width: var\(--size-touch\);[^}]*justify-content: center;/);
+  assert.match(read("src/styles/tokens.css"), /--size-touch: 44px;/);
 });

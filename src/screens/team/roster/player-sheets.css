@@ -8,9 +8,8 @@
  * edit's own: the number and the name side by side, the «C» before «Team captain», a desk's SPP tiles (owner's D3);
  * `#player-unadvance` the undo's: its lines, its words, its foot as PlayerDeadConfirm.html's.
  *
- * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
- * letter-spacing and font-weight are set on purpose: the 2.x globals (h2, h3, p, input, button) outlive this sheet until
- * stage 13. A long name or refusal wraps; nothing is cut with «…».
+ * Where the prototypes give no line height, the font's own (`normal`). A long name or refusal wraps; nothing is cut with
+ * «…».
  */
 
 /* The title over its context 2px apart, the context at the font's own height; the body's parts 14px apart. */
@@ -265,11 +264,8 @@
  * name, 12 apart; its «C» 26px.
  */
 @media (min-width: 901px) {
-  dialog.g-sheet.g-player-sheet {
-    max-height: min(86dvh, calc(100dvh - 152px));
-    margin: 120px auto auto;
-    border-radius: 20px;
-  }
+  /* 120px from the top is sheet.css's (`at: 120`; the advancement's 64). */
+  dialog.g-sheet.g-player-sheet { border-radius: 20px; }
   .g-player-sheet .g-sheet__head {
     gap: var(--space-16);
     padding: 18px var(--space-20) 18px var(--space-24);

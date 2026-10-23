@@ -338,7 +338,7 @@ test("a list that did not load is read again here, and the screen is the list on
   assert.equal(api.calls.length, 0, "a list that never loaded has its retry; a read begun behind it would clear its reason");
   assert.equal(view.querySelector(".g-team-empty__text").textContent, "The server did not answer.");
   fireEvent(view.querySelector("button[data-teams-retry]"), "click");
-  assert.equal(view.querySelector(".loading").textContent, "Loading teams...");
+  assert.equal(view.querySelector('.g-loading[role="status"]').textContent, "Loading teams...");
   await settle();
   assert.ok(view.querySelector("button[data-teams-retry]"), "it failed again, and says so again");
   api.reply("GET /api/teams", 200, { teams: TEAMS });

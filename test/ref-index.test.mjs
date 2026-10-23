@@ -4,7 +4,8 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
-import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, blocks, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -31,7 +32,7 @@ test("the reference opens on its four groups, each row a link with its descripti
   assert.ok(skills.querySelector(".g-list-row__desc").textContent.length > 0);
   assert.equal(view.querySelector(".g-ref-toc"), null, "the index is its own table of contents");
   assertCspSafe(view);
-  assertStyled(view, "src/screens/ref/ref.css", "list-row.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "list-row.css", "search-field.css");
 });
 
 test("the league rules count the overview's cards ahead of the regulation pages", () => {
@@ -220,19 +221,27 @@ test("drawScreen starts the page over for another screen, and for that alone", (
   assert.equal(view.querySelector("[data-screen]").textContent, "no window to scroll", "without scrollTo (a test, a prerender) it only draws");
 });
 
-test("the head names the screen, the league and the search; off the index the title is a paragraph", () => {
+// Stage 13 (decision 9, pre-flight L13): one band. The index's head is drawn on a phone too (Ref.html); any other
+// reference screen's is a desk's, as the phone's prototypes (RefSkills, RefTeam, RefAdvancement) have none.
+test("the reference's band is the page head: its title (h1 on the index, a paragraph elsewhere), the league's line and the search at the right, drawn on a phone too", () => {
   const index = draw(refHeadMarkup({ isIndex: true, query: "da<ng>er" }));
-  assert.equal(index.querySelector("h1.g-ref-head__title").textContent, "Reference");
-  assert.equal(index.querySelector(".g-ref-head__sub").textContent, "Gata League · Blood Bowl Sevens");
-  const field = index.querySelector("#ref-query");
+  assert.ok(index.querySelector("header.g-pagehead.g-pagehead--phone h1.g-pagehead__title"));
+  assert.equal(index.querySelector("h1").textContent, "Reference");
+  assert.equal(index.querySelector(".g-pagehead__text .g-pagehead__sub").textContent, "Gata League · Blood Bowl Sevens");
+  const field = index.querySelector(".g-pagehead__meta .g-search #ref-query");
   assert.equal(field.getAttribute("value"), "da<ng>er");
   assert.equal(field.hasAttribute("data-search-all"), true);
   assert.equal(index.querySelector('label[for="ref-query"]').textContent, "Search the reference");
+  assertStyled(index, "page-head.css", "search-field.css");
   const inner = draw(refHeadMarkup({ isIndex: false }));
   assert.equal(inner.querySelector("h1"), null);
-  assert.equal(inner.querySelector("p.g-ref-head__title").textContent, "Reference");
+  assert.equal(inner.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
+  assert.equal(inner.querySelector("p.g-pagehead__title").hasAttribute("tabindex"), false);
+  assert.equal(inner.querySelector(".g-pagehead--phone"), null, "a phone's reference screen has no head but the index's");
+  assert.ok(inner.querySelector(".g-pagehead__meta #ref-query"));
   assertCspSafe(inner);
-  assertStyled(inner, "src/screens/ref/ref.css", "search-field.css");
+  assertStyled(inner, "page-head.css", "search-field.css");
+  assert.doesNotMatch(read(SHEET), /g-ref-head/, "the reference's own band is gone");
 });
 
 test("the way back is a link with an arrow and a name; the name is text", () => {
@@ -262,15 +271,17 @@ test("the search field is wired by its attribute, and unwires", () => {
 
 const SHEET = "src/screens/ref/ref.css";
 
-test("the head is the index's up to 900px and a band from 901px, the title 32px in the display face", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-head", "display"), ["none"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--index .g-ref-head", "display"), ["flex"]);
-  // The band's rule names the page too, or the index's own (0,2,0) would keep the phone's column on a desktop.
-  assert.deepEqual(valuesOf(SHEET, ".g-ref .g-ref-head", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref .g-ref-head", "background"), ["var(--surface)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref .g-ref-head", "border-bottom"), ["1px solid var(--line)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref .g-ref-head", "grid-template-columns"), ["minmax(max-content, 1fr) minmax(0, 420px)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-head__title", "font"), ["700 32px/1 var(--font-display)"]);
+test("the head is the index's up to 900px, its title 32 and the search 20 under its line (Ref.html); a band from 901px", () => {
+  const phone = (selector, property) => inMedia(SHEET, "max-width: 900px", selector, property);
+  assert.deepEqual(phone(".g-ref--index .g-pagehead__title", "font-size"), ["32px"]);
+  assert.deepEqual(phone(".g-ref--index .g-pagehead__title", "line-height"), ["1"]);
+  assert.deepEqual(phone(".g-ref--index .g-pagehead__meta", "margin-top"), ["var(--space-20)"]);
+  // The page's gap is the room under the head, as Ref.html's main's 20.
+  assert.deepEqual(phone(".g-ref > .g-pagehead", "margin-bottom"), ["0"]);
+  // Not even for a screen reader: the h1 is the article's or the list's, and its search field would be a stop nobody sees.
+  assert.deepEqual(phone(".g-ref:not(.g-ref--index) > .g-pagehead", "display"), ["none"]);
+  // From 901px the band is the page head's own (ui/page-head.css): nothing of the reference's.
+  assert.doesNotMatch(mediaText(SHEET, "min-width: 901px"), /g-pagehead/);
 });
 
 test("the table of contents is the desktop's: 48px links, the current one on the surface in bold", () => {
@@ -302,16 +313,15 @@ test("the index is a column on a phone and two columns of groups from 901px", ()
 
 test("the sheet breaks at 900/901 only, gives the screen its edge-to-edge band, and sets the case wherever it sets a font", () => {
   const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
-  assert.deepEqual(valuesOf(SHEET, "#app-view:has(> .g-ref)", "padding"), ["0"]);
+  assertBreakpoints(SHEET);
+  // The band goes out over the frame's padding (stage 13, pre-flight L3), which the page no longer gives up.
+  assert.deepEqual(valuesOf(SHEET, "#app-view:has(> .g-ref)", "padding"), []);
   for (const { selectors, body } of blocks(css)) {
     if (/(?:^|[;\s])font\s*:/.test(body)) assert.match(body, /text-transform\s*:/, `${selectors}: a font without its case`);
   }
 });
 
 test("the head, the groups and the table of contents are readable in every palette", () => {
-  assertReadable(SHEET, ".g-ref-head__sub", "color", ["--page", "--surface"], 4.5);
-  assertReadable(SHEET, ".g-ref-head__title", "color", ["--page", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-group__title", "color", ["--page", "--desk", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-found", "color", ["--page", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-empty", "color", ["--page", "--surface"], 4.5);

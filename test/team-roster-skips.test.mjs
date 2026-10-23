@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { inMedia } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -128,6 +129,12 @@ test("a fallen row: a grey number, grey numbers and «Fallen · cause»; open on
     const profile = row.querySelector("a.g-btn");
     assert.equal(profile.textContent, "Player's profile");
     assert.equal(profile.getAttribute("href"), teamPlayerUrl("t1", "d1"));
+    // StatsInjured.html: a fallen player's way to his profile is white in its ring, the words --ink, the long chevron 14
+    // (the dark button is a living player's; fidelity N8).
+    assert.equal(profile.getAttribute("class"), "g-btn g-btn--block");
+    assert.deepEqual([profile.querySelector("svg path").getAttribute("d"), profile.querySelector("svg").getAttribute("width")], ["M9 5l7 7-7 7", "14"]);
+    assert.deepEqual(valuesOf("src/screens/team/roster/marks.css", ".g-fallen__rowpanel .g-btn", "color"), ["var(--ink)"]);
+    assertReadable("src/screens/team/roster/marks.css", ".g-fallen__rowpanel .g-btn", "color", ["--surface"], 4.5);
     assert.ok(words(row).includes("The mark can be undone in the profile"));
     assert.ok(!row.querySelector("[data-action-key]"), "no counters for the dead");
     assert.ok(!pike.querySelector("[data-action-key]"));
@@ -411,6 +418,14 @@ test("a section stands 18px under the table before it, as in StatsInjured and De
   assert.deepEqual([valuesOf(frame, ".g-roster__sections .g-roster__section", "margin-top"), valuesOf(frame, ".g-roster__sections .g-roster__section", "gap")], [["0"], ["0"]]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__bar", "padding"), ["18px var(--space-16) var(--space-8)"]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__heading", "font"), ["700 20px/1.1 var(--font-display)"]);
+});
+
+test("the desk's card of tables holds its positioned parts, so a 901px page does not scroll sideways", () => {
+  // At 901px the card scrolls its tables (692px inside 245px); the hidden headers and the number badges are positioned,
+  // and with no positioned card they took the page's block and widened it to 915px (stage 13, fidelity N1).
+  const frame = "src/screens/team/roster/frame.css";
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "position"), ["relative"]);
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "overflow-x"), ["auto"]);
 });
 
 test("the fallen are grey and readable: their cells, the line under the name and the characteristics of the profile", () => {
@@ -847,6 +862,35 @@ test("a mark or a return refused after a 422 whose read failed reads the roster 
   });
 });
 
+// 07c T5-3 (stage 13), as the cart does it: the words a 422 left in the mark's sheet are of the roster it refused; the
+// read that takes that roster's place takes them too, and the choice stays. A read that fails takes nothing.
+test("an old refusal is gone once a read the server answered takes its place: the mark's", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail("GET /api/teams/t1");
+    stepOfTheRoster();
+    await settle();
+    fireEvent(toggle("p1#0"), "click");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    const refusal = () => markSheet().querySelector(".g-roster__markrefusal");
+    assert.match(refusal().textContent, /Ann/, "the read after the press failed: the words stand");
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(markSheet()?.isModal, "the sheet stays");
+    assert.ok(!refusal(), "the words said of the roster before it are gone");
+    assert.equal(markOption("miss").getAttribute("aria-checked"), "true", "the choice stays");
+    assert.equal(patches().length, 1, "nothing marked meanwhile");
+  });
+});
+
 test("a sheet whose match began closes, and the focus goes back to the row", async () => {
   await withoutTimers(async () => {
     coach();
@@ -905,7 +949,7 @@ test("a mark that waited for the network is given up when a match begins, and th
     await invalidateGames();
     await settle();
     assert.equal(toasts().at(-1), MATCH_DROPPED_MARKS);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(!toasts().some((said) => said.startsWith("A match has begun, so the edits")), "no SPP step was given up");
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(patches().length, 1, "the one try before the network went");
@@ -1384,7 +1428,7 @@ test("a death whose answer was lost: the sheet closes, the roster and the fallen
       assert.equal(teamReads(), 2, `${label}: read back once`);
       assert.equal(toasts().at(-1), said, label);
       if (said === DEAD_LOST) {
-        assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+        assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
         assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], label);
       } else {
         assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"], label);
@@ -1425,7 +1469,7 @@ test("a lost death whose read is split is read once more; still split, the coach
     assert.equal(teamReads(), 3);
     assert.equal(deaths().length, 1);
     assert.equal(toasts().at(-1), UNKNOWN);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
   });
   // A read that fails says why, and that the death's fate is not known.
   await withoutTimers(async () => {
@@ -1514,7 +1558,7 @@ test("a death's refusal whose sheet is gone is said in a message, never with «p
     assert.equal(teamReads(), 2, "read again");
     assert.ok(!markSheet(), "the read took her away, and the sheet with her");
     assert.equal(toasts().at(-1), "Player not found.", "the words stay with the coach");
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
   });
   // Another device's save without her: the read takes the sheet away too.
   await withoutTimers(async () => {
@@ -1554,7 +1598,7 @@ test("another device marked the same death first: read again she is among the fa
   const told = () => {
     assert.equal(toasts().at(-1), MARKED);
     assert.ok(!toasts().some((said) => said.includes("not marked")), "no words that she was not marked");
-    assert.doesNotMatch(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.doesNotMatch(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(namesIn(tables().at(-1)).includes("Ann"), "she stands among the fallen");
   };
   // The sheet open: the read takes her into «Fallen», and the sheet with her.

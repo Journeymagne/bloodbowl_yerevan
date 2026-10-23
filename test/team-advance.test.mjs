@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -110,7 +111,7 @@ test("«Advancement» opens the types, each with its price by the rank and what 
       assert.equal(button.tagName, "BUTTON");
       assert.equal(button.getAttribute("aria-haspopup"), "dialog");
       assert.ok(sheet()?.isModal, "dialog#player-advance, open");
-      assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+      assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-64 g-player-sheet", "in the frame a player's sheets share, 64 from the top on a desk (stage 13)");
       assert.equal(title(), "Advancement");
       assert.equal(sub(), "30 SPP available · advancement 1 of 6");
       assert.equal(dots(), "Step 1 of 3");
@@ -484,7 +485,7 @@ test("on a desk the same advancement in three columns: the type, the category, t
     const button = aside().querySelector("[data-player-advance]");
     assert.equal(button.textContent, "Advance");
     assert.ok(sheet()?.isModal);
-    assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet");
+    assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-64 g-player-sheet", "64 from the top, as DeskRosterAdv puts it (stage 13)");
     const badge = sheet().querySelector(".g-sheet__head .g-num");
     assert.equal(badge.textContent, "3");
     assert.ok(badge.getAttribute("class").includes("g-num--catcher"));
@@ -609,7 +610,7 @@ test("an advancement that waited for the network is given up when a match begins
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "19", "drawn at once");
     await matchBegins(withOne(ADVANCED, { revision: 5 }));
     assert.equal(toasts().at(-1), DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.ok(!sheet(), "R8: the window closes with the match");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "27", "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);
@@ -829,8 +830,7 @@ test("every key in both dictionaries; styled; readable", () => {
   }
   const css = text(ADVANCE);
   assert.doesNotMatch(css, /--focus-ring/);
-  const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+  assert.deepEqual(mediaQueries(ADVANCE), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform.
   for (const selector of ["#player-advance .g-option__title", "#player-advance .g-option__sub", "#player-advance .g-option__pill", "#player-advance .g-advance__cat",
     "#player-advance .g-advance__letter", "#player-advance .g-advance__catname", "#player-advance .g-advance__free", "#player-advance .g-advance__hint",
@@ -906,15 +906,9 @@ test("every key in both dictionaries; styled; readable", () => {
 });
 
 test("D2: up to 900px the types 64px or more, the skills 48px, the button 52px; from 901px the skills 40px, the buttons 48px", () => {
-  const css = text(ADVANCE).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (query) => {
-    const start = css.indexOf(`@media (${query}) {`);
-    assert.ok(start >= 0, `advance.css has no @media (${query})`);
-    return css.slice(start, css.indexOf("\n}", start));
-  };
   const px = (found) => (found ? found.slice(1).map(Number) : []);
-  const phone = block("max-width: 900px");
-  const desk = block("min-width: 901px");
+  const phone = mediaText(ADVANCE, "max-width: 900px");
+  const desk = mediaText(ADVANCE, "min-width: 901px");
   assert.deepEqual(valuesOf("src/ui/option-card.css", ".g-option", "min-height"), ["64px"], "a type's card, on both");
   assert.deepEqual(px(phone.match(/#player-advance \.g-advance__skill \{[^}]*min-height: (\d+)px;/)), [48], "a phone's skills");
   // A phone's button is the frame's (player-sheets.css), which this sheet does not resize.

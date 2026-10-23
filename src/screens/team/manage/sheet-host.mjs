@@ -7,16 +7,18 @@
  * whoever opens it mounts and takes away again with the screen.
  *
  * `sheetController` is what every sheet of the page does the same way: the form it holds while it is open, the
- * redraw that keeps the focus and the caret, the close that gives the focus back to the button that opened it,
- * and one press that sends one write, with what the sheet says while it waits and when it is refused.
+ * redraw that keeps the focus and the caret (and keeps it in the sheet when what the page holds shuts the control it
+ * was on), the close that gives the focus back to the button that opened it, and one press that sends one write, with
+ * what the sheet says while it waits and when it is refused.
  */
-import { patchWithModal } from "../../../components/dialog.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { focusLost } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
 import { isWriting } from "../../../data/treasury.mjs";
+import { patchWithModal } from "../../../ui/sheet.mjs";
+import { teamOf } from "./team-of.mjs";
 
 /**
  * A toast about a write of `teamId`. A write can land after the coach has gone to another team's page (a sheet, a
@@ -24,7 +26,7 @@ import { isWriting } from "../../../data/treasury.mjs";
  * @param {string} teamId @param {string} text @param {object} [options] the toast's own
  */
 export function teamToast(teamId, text, options) {
-  const team = teamId === state.activeTeamId ? null : state.myTeams.items.find((item) => item.id === teamId);
+  const team = teamId === state.activeTeamId ? null : teamOf(teamId);
   toast(team ? t("treasury.otherTeam", { team: team.name, text }) : text, options);
 }
 
@@ -60,6 +62,9 @@ function giveFocusBack(back, openerKey) {
   }
 }
 
+/** Whether the focus is on nothing a keyboard can go on from: lost (`focusLost`), or on a control that is disabled now. */
+const shut = (active) => focusLost(active) || active.hasAttribute?.("disabled") === true;
+
 /**
  * One sheet in one host. The form is the sheet's own object (`teamId`, `pending` and `refusal` among its fields);
  * the controller never looks inside it but for those three, and `markup(form)` draws it from whatever the page holds
@@ -91,10 +96,16 @@ export function sheetController(host, { id, markup, openerKey = "" }) {
   /**
    * What the page holds moved (the team, the games): the sheet is drawn again from it. The note that another save
    * of the team is on its way goes once that save is no longer on its way, or it would ask the coach to wait for nothing.
+   * What moved may shut the control the focus is on — a match that went live disables the sheet's button, and Chrome
+   * drops a focus on a button that turns disabled, to the body, out of the open sheet: it goes to the sheet's cross,
+   * which every sheet has (08 N3; pre-flight L19: the sheet's title takes no focus). A focus the redraw leaves on an
+   * open control, or one outside the sheet, stays where it is.
    */
   function follow() {
     if (form?.refusal === t("treasury.writing") && !isWriting(form.teamId)) form = { ...form, refusal: "" };
+    const held = host.contains(document.activeElement);
     redraw();
+    if (held && shut(document.activeElement)) host.querySelector("[data-sheet-close]")?.focus();
   }
 
   /** The form is forgotten, the dialog goes, and the focus goes back to the button that opened it (`giveFocusBack`). */

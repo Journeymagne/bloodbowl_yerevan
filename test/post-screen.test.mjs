@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertCspSafe, document } from "./helpers/ui.mjs";
@@ -33,7 +34,7 @@ Date.now = () => clock;
 const later = (ms = 1000) => {
   clock += ms;
 };
-// What the coach answers when asked first (components/dialog.mjs asks the browser where there is no <dialog>).
+// What the coach answers when asked first (ui/sheet.mjs confirmAction asks the browser where there is no <dialog>).
 const asked = [];
 let yes = true;
 globalThis.confirm = (message) => {
@@ -188,12 +189,14 @@ it("a post-match that cannot be read says why, with «Read again»", async () =>
   api.reset();
   view.innerHTML = "";
   state.auth.currentUser = COACH;
+  state.activeTeamId = "t-home";
   crossingWindow(true);
   api.reply(READ, 404, { error: { code: "GAME_NOT_FOUND", message: "Game not found" } });
   await renderPostMatch("g1", "");
   await flush();
   assert.equal(alertText(), t("after.unread", { reason: t("error.GAME_NOT_FOUND") }));
-  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), gameUrl("g1"));
+  // Back to the team's matches, not to the game, which sends the coach straight back here (stage 13, pre-flight L11).
+  assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), teamUrl("t-home", "matches"));
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(polls.ticks.size, 0, "no poll for a post-match not read");
   const retry = view.querySelector("[data-after-retry]");
@@ -611,6 +614,16 @@ it("reopen and reset-side ask first", async () => {
   assert.deepEqual(asked.splice(0), [t("after.resetAsk")]);
   assert.deepEqual(writes().map((call) => call.body.action), [{ type: "reset-side" }]);
   api.assertAnswered();
+  // In the 3.0 window the two resets are the red action, named as their opener without its «…» (review of Task 9b);
+  // «Change the score…», which only opens the steppers, stays a plain confirmation.
+  const wire = readFileSync(new URL("../src/screens/matches/post-wire.mjs", import.meta.url), "utf8");
+  assert.match(wire, /const ask = \(message, reset = ""\) => confirmAction\(reset \? \{ message, confirmLabel: reset\.replace\(\/…\$\/, ""\), destructive: true \} : \{ message \}\);/);
+  assert.match(wire, /\["after\.reopenAsk", "after\.reopen"\] : \["after\.resetAsk", "after\.reset"\]/);
+  assert.match(wire, /await ask\(t\("after\.changeAsk"\)\)/);
+  for (const locale of ["en", "ru"]) {
+    const words = JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
+    for (const key of ["after.reopen", "after.reset"]) assert.ok(words[key].replace(/…$/, "").trim().length > 3, `${locale} ${key}`);
+  }
 });
 
 it("«Finish the match» pressed twice is one request; a finish answered completed draws the summary read only", async () => {

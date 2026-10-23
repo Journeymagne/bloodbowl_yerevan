@@ -23,8 +23,6 @@ import { teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { patchWithModal } from "../../components/dialog.mjs";
-import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { isTeamListRead, onActiveTeamChange } from "../../data/active-team.mjs";
 import { loadGames } from "../../data/games.mjs";
@@ -35,7 +33,7 @@ import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { classNames } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
-import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
+import { patchWithModal, renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { noTeamMarkup, unreadMarkup } from "../team/empty.mjs";
@@ -123,7 +121,7 @@ function draw() {
 async function retry() {
   const mine = visit;
   mine.retrying = true;
-  view.innerHTML = `<div class="loading">${escapeHtml(t("myTeams.loadingTeams"))}</div>`;
+  view.innerHTML = `<p class="g-loading" role="status">${escapeHtml(t("myTeams.loadingTeams"))}</p>`;
   await loadMyTeams(true);
   mine.retrying = false;
   if (visit === mine) draw();
@@ -184,8 +182,6 @@ async function confirmDelete() {
 }
 
 export function renderTeams() {
-  setActiveNav("my-teams");
-  setViewSection("teams");
   const mine = { open: true, deleting: null, retrying: false };
   const group = listenerGroup(view);
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.

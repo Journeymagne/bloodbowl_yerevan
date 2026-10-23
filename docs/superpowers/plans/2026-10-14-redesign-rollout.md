@@ -258,7 +258,7 @@ gh pr merge <номер> --merge
 | [x] **M3** | — | 09c, 10 | репетиция №2, полный матч | — |
 | [x] 12 | `rd/12-admin` | M3 | этап 12 | все четыре |
 | [x] **M4** | — | 12 | репетиция №3 | — |
-| [ ] 13 | `rd/13-release` | M4 | этап 13 | все четыре |
+| [ ] 13 | `rd/13-cleanup` | M4 (владелец: этап шёл, не дожидаясь M4) | этап 13 | все пять (с `smoke:admin`) |
 | [ ] **M5** | — | 13 | финальная репетиция, go / no-go | — |
 
 ### Дополнения к этапам (обязательный охват детального плана)
@@ -306,8 +306,8 @@ WHERE NOT EXISTS (
 - Callout: кнопка действия не переносится (`nowrap`) — подписи действий короткие.
 - `renderKpiGrid` бросает на нечётном и нулевом числе плиток: этап, который первым рисует плитки из данных (05 или 06), решает, что показать вместо дыры.
 - Проверка словаря в `test/ui-kit.test.mjs` видит только `t("…")`: ключи из шаблонных строк (`` t(`stats.${stat}`) ``) проверять отдельно.
-- Тесты `test/legacy-screens.test.mjs` уходят вместе с таблицей стилей 2.x, которую проверяют (06–12), остаток — с `legacy-aliases.css` на этапе 13.
-- Оставшиеся taupe/olive-литералы 2.x (разделитель `.player-stat-editor` в `roster.css:1527`, рамка `.season-status-pill[data-status="started"]`), литералы `border-radius: 0`, лишний `color` в `site-matchday.css:114`, пустое `.league-hero-copy p` в `pages.css` и мёртвое `.badge.warning` в `catalog.css` уходят вместе со своими таблицами.
+- Тесты `test/legacy-screens.test.mjs` уходят вместе с таблицей стилей 2.x, которую проверяют (06–12), остаток — с `legacy-aliases.css` на этапе 13. — Сделано этапом 13: `test/legacy-screens.test.mjs` удалён вместе с `legacy-aliases.css` (Task 23); его список «ушло» — в `test/no-legacy-classes.test.mjs` (Task 28).
+- Оставшиеся taupe/olive-литералы 2.x (разделитель `.player-stat-editor` в `roster.css:1527`, рамка `.season-status-pill[data-status="started"]`), литералы `border-radius: 0`, лишний `color` в `site-matchday.css:114`, пустое `.league-hero-copy p` в `pages.css` и мёртвое `.badge.warning` в `catalog.css` уходят вместе со своими таблицами. — Ушли со своими таблицами (последние — этапом 13, Task 23).
 
 **M1.** Из 03: отчёт репетиции считает составы дампа прода с повторяющимися id игроков и со счётчиками SPP вне целых 0…999 (такие команды 03 отклонит при следующем сохранении, пока админ не поправит состав) и проходит маршрутом `GET …/players/:pid/history` по каждой команде и игроку дампа: везде 200, ни одного 500.
 
@@ -386,9 +386,9 @@ ActionStepper со значением и приростом читается «4
   - Бросок админа в итогах (решение 22 плана 09b): сейчас админ на сайте не бросает; если владелец захочет — одно условие в `rollInPostMatch`. — Этап 12 его не добавил: админ отмечает прокачку «за столом» и в итогах, и в «Составе» в режиме админа (решение 23 плана 12).
 
 **13.**
-- Удалить старые экраны, CSS, временные алиасы, Comfortaa и Nunito, `docs/redesign/handoff-0.9.1/`, `docs/redesign/reports/`; ужать бюджеты.
-- Версия `3.0.0`, CHANGELOG, README, глоссарий.
-- `DEPLOYMENT.md` → раздел «Moving to 3.0»: команды фазы X этого плана, переведённые в стиль файла (английский).
+- Удалить старые экраны, CSS, временные алиасы, Comfortaa и Nunito, `docs/redesign/handoff-0.9.1/`, `docs/redesign/reports/`; ужать бюджеты. — **Сделано этапом 13:** страница игры 2.x (Task 5), таблицы стилей и алиасы, Comfortaa и Nunito, модули без читателя (Tasks 22, 23, 28), ключи без читателя (Task 24), бюджеты по факту и CSS в счёте (Task 25); пакет и отчёты уходят последним коммитом перед PR `redesign → main`, после замечаний владельца к M3–M5.
+- Версия `3.0.0`, CHANGELOG, README, глоссарий. — **Сделано этапом 13** (Tasks 18, 19; дату `[3.0.0]` ставит PR `redesign → main`).
+- `DEPLOYMENT.md` → раздел «Moving to 3.0»: команды фазы X этого плана, переведённые в стиль файла (английский). — **Сделано этапом 13** (Task 19; пять smoke с `smoke:admin`, пункт дня X о причинах прошлых технических результатов).
 
 ---
 
@@ -470,11 +470,13 @@ npm run rehearsal:check -- --after
 
 С M4 (этап 12) отчёт `rehearsal:check -- --after` несёт ещё два раздела — `## Technical results` (каждый технический результат, лиговый и товарищеский: сезон, тур, команды, счёт, очки, причина; до `017` — «reason: none — read as other») и `## Rosters over 8 re-rolls` (составы, у которых Start и Team Re-rolls вместе больше 8, по правилу `REROLLS_MAX`). Пусто — «- none». Они ничего не решают (`compareSnapshots`, вердикт и код выхода их не видят): оба списка идут в отчёт вехи как вопросы владельцу (**M4.**). Миграций в репетиции с этапа 12 — девять (009–017, `017` последней).
 
-5. **M5 дополнительно:** собранный сайт под боевым CSP. Локально, не коммитя, добавить в `writeResponse` (`server/http/responses.mjs`) заголовок `Content-Security-Policy` ровно из `deploy/caddy/bloodbowlyerevan.shitpostsoftware.com.conf`, пройти все экраны и состояния из `SCREENS.md`, `read_console_messages` — ноль нарушений CSP; затем `git checkout server/http/responses.mjs`.
+5. **M5 дополнительно:** собранный сайт под боевым CSP. Локально, не коммитя, добавить в `writeResponse` (`server/http/responses.mjs`) заголовок `Content-Security-Policy` ровно из `deploy/caddy/bloodbowlyerevan.shitpostsoftware.com.conf`, пройти все экраны и состояния `docs/redesign/screens/rd-13.json` (весь 3.0, этап 13), `read_console_messages` — ноль нарушений CSP; затем `git checkout server/http/responses.mjs`. Отчёт M5 — в теле PR `redesign → main`, не `docs/redesign/reports/M5.md` (ответ владельца на вопрос 5 плана 13).
 
 ---
 
 ## Фаза X · День X (runbook)
+
+То же по-английски, с командами, — `DEPLOYMENT.md`, раздел «Moving to 3.0» (этап 13); Claude присылает его владельцу за день до окна.
 
 Все серверные команды — владелец под `sudo -i`; Claude в чате проверяет вывод каждого шага. Первой командой в сессии на сервере определить сокращение для запросов к базе:
 

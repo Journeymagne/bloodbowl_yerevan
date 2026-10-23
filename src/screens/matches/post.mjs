@@ -27,26 +27,24 @@
  *
  * The footer's button keeps its place (`data-key="prep-cta"`): «Confirm the summary» turns into «Finish the match» on
  * the same node once the opponent has confirmed. So the footer's action is armed only `FOOTER_ARM_MS` after it appears
- * — on the first draw too, and whenever the page gives it the focus —: the second click of a double click finishes
- * nothing, an Enter held down presses it once (post-wire.mjs). A draw that takes the focused control away gives the
- * focus to the footer's button, else to the title, never to the page's body.
+ * (visit-common.mjs, as the preparation's) — on the first draw too, and whenever the page gives it the focus —: the
+ * second click of a double click finishes nothing, an Enter held down presses it once (post-wire.mjs). A draw that
+ * takes the focused control away gives the focus to the footer's button, else to the title, never to the page's body.
  *
- * What it polls: the post-match every six seconds while the tab is seen, no write or read is on its way and no sheet
- * or dialog is open; another revision is drawn — over a draft kept only when it leaves this side and the score as
- * they were, so the draft still stands on it (a treasury waiting on the opponent's Players opens with its dice kept).
- * A followed side whose records a tap changed is said (`after.tapsChanged`: the domain took the advancements chosen
- * off). A read that fails waits longer each time (up to a minute); a refusal for good (403, 404) and a finished
- * post-match stop the poll. Leaving stops the poll, takes the listeners off and closes the sheets. A post-match that
- * cannot be read is said with a way to read it again; arriving from another screen's frame (the preparation's), the
- * reading is said.
+ * What it polls (visit-common.mjs's poll, as the preparation's): the post-match every six seconds while the tab is
+ * seen, no write or read is on its way and no sheet or dialog is open; another revision is drawn — over a draft kept
+ * only when it leaves this side and the score as they were, so the draft still stands on it (a treasury waiting on the
+ * opponent's Players opens with its dice kept). A followed side whose records a tap changed is said
+ * (`after.tapsChanged`: the domain took the advancements chosen off). A read that fails waits longer each time (up to a
+ * minute); a refusal for good (403, 404) and a finished post-match stop the poll. Leaving stops the poll, takes the
+ * listeners off and closes the sheets. A post-match that cannot be read is said with a way to read it again; arriving
+ * from another screen's frame (the preparation's), the reading is said.
  */
 import { toast } from "../../components/toast.mjs";
-import { patchWithModal } from "../../components/dialog.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { API_ERROR, errorText } from "../../core/api.mjs";
-import { delegate, escapeHtml, focusLost } from "../../core/dom.mjs";
+import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -58,9 +56,11 @@ import { PLAYERS_STAGE } from "../../domain/post-match/rules.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
+import { patchWithModal } from "../../ui/sheet.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
+import { placeholderBack } from "./game-model.mjs";
 import { prepFrameMarkup } from "./prep-frame.mjs";
 import { financeDraft, financeStep, nextDraft, nextStep } from "./post-money.mjs";
 import { postModel } from "./post-model.mjs";
@@ -70,18 +70,7 @@ import { completedMarkup, reviewStep } from "./post-review.mjs";
 import { HIRE_SHEET, SELL_SHEET, hireSheetMarkup, rosterStep, sellSheetMarkup } from "./post-roster.mjs";
 import { fansDraft, fansStep, opponentLeadMarkup, resultAction, resultDraft, resultStep } from "./post-steps.mjs";
 import { wirePost } from "./post-wire.mjs";
-
-/** How often the open post-match is read again, as 2.x did. */
-const POLL_MS = 6000;
-
-/** The most ticks a poll waits out after reads that failed: a minute between reads at most. */
-const POLL_WAIT_MOST = 9;
-
-/** A poll refused for good: the post-match is not there, or not the coach's. */
-const POLL_STOPS = new Set([403, 404]);
-
-/** How long the footer's button waits after it turns into another action: a double click on «Confirm the summary» finishes nothing. */
-const FOOTER_ARM_MS = 600;
+import { armFooter, focusGone, startPoll, takeFooter } from "./visit-common.mjs";
 
 /** The drafts a step keeps on the page, by the step that sends them. */
 const DRAFTS = Object.freeze({ result: resultDraft, fans: fansDraft, finance: financeDraft, next: nextDraft });
@@ -111,13 +100,13 @@ const finishes = (payload, next) => payload?.postMatch.status !== "completed" &&
  * One visit of the page: the game, the step the address names, the post-match last read and the side shown; what the
  * page keeps (`ui`: a write on its way, the refusal said, the drafts, the other players shown, the sheet open and what
  * opened it, the score unlocked to change; `here` with the visit's, for the advancement's sheet, whose answers it asks
- * — pre-flight L3), the poll's state, the footer's arming.
+ * — pre-flight L3), the way to stop its poll (`startPoll` keeps the poll's state), the footer's arming.
  */
 function createVisit(gameId, step) {
   return { gameId, step, path: `/api/games/${encodeURIComponent(gameId)}`, here: true, payload: null, sideName: "home", writes: 0, release: () => {},
     ui: { busy: false, error: "", drafts: { result: null, fans: null, players: null, finance: null, next: null }, playersWaiting: false,
       open: false, sheet: null, opener: null, unlocked: false, here: true },
-    poll: { timer: 0, polling: false, failures: 0, wait: 0 }, footerAction: "", footerAfter: 0 };
+    stopPoll: () => {}, footerAction: "", footerAfter: 0 };
 }
 
 /** What the post-match says to the side shown. */
@@ -203,27 +192,6 @@ function screenOf(visit, model = modelOf(visit)) {
 /** What the footer's button does when pressed: its action, "" for none (a link on, a closed button, no footer). */
 const footerAction = (footer) => (footer.disabled || footer.kind === "none" ? "" : footer.action ?? "");
 
-/** Arm the footer's action `FOOTER_ARM_MS` from now: a press before then is the rest of an earlier gesture. */
-const armFooter = (visit) => {
-  visit.footerAfter = Date.now() + FOOTER_ARM_MS;
-};
-
-/** The footer's action as the page draws it: armed when it appears (none before it, or another one). */
-function takeFooter(visit, footer) {
-  const action = footerAction(footer);
-  if (action && action !== visit.footerAction) armFooter(visit);
-  visit.footerAction = action;
-}
-
-/** A focus left on nothing, or on a control a draw has just closed (`disabled` takes no press and no key). */
-const focusGone = (active) => focusLost(active) || Boolean(active?.hasAttribute?.("disabled"));
-
-/** The poll stops for good: a finished post-match changes no more, one refused stays refused. */
-function stopPoll(visit) {
-  clearInterval(visit.poll.timer);
-  visit.poll.timer = 0;
-}
-
 /**
  * Draw the page again over what is there: the focus stays where the coach put it, a sheet open stays open. A footer's
  * action that appears is armed `FOOTER_ARM_MS` later. A focus the page held that the draw left on nothing goes to the
@@ -238,9 +206,10 @@ function draw(visit, { refocus = true } = {}) {
   const cell = page.activeElement?.closest?.("[data-action-key]")?.getAttribute("data-action-key") ?? "";
   const screen = screenOf(visit);
   if (!screen.sheet) Object.assign(visit.ui, { sheet: null, opener: null });
-  takeFooter(visit, screen.footer);
+  takeFooter(visit, footerAction(screen.footer));
   patchWithModal(view, screen.markup, screen.modal);
-  if (visit.payload.postMatch.status === "completed") stopPoll(visit);
+  // A finished post-match changes no more: its poll stops for good.
+  if (visit.payload.postMatch.status === "completed") visit.stopPoll();
   if (!refocus || !held || !focusGone(page.activeElement)) return;
   if (screen.sheet) {
     const sheet = view.querySelector(screen.modal);
@@ -384,7 +353,7 @@ async function send(visit, action, { finish = false } = {}) {
 const dialogOpen = () => Boolean(globalThis.document?.querySelector?.("dialog[open]"));
 
 /** Whether the poll may read now: the page is seen, nothing is on its way, no sheet or dialog is open. */
-const mayPoll = (visit) => visit.here && !visit.ui.busy && !visit.poll.polling && !globalThis.document?.hidden && !dialogOpen();
+const mayPoll = (visit) => visit.here && !visit.ui.busy && !globalThis.document?.hidden && !dialogOpen();
 
 /**
  * Whether a read may be drawn over the drafts kept: none is kept, or they still stand on it — this side and the score
@@ -396,42 +365,26 @@ function standsOn(visit, next) {
 }
 
 /**
- * The post-match read again by the timer: another revision is drawn, unless a write went out, a sheet or a dialog
- * opened since it was asked for, or it would take a draft kept away. A tap that changed a side following the records is
- * said. A read that fails waits out more ticks each time (1, 3, 7, then 9), a read that answers none; a refusal for good
- * (403, 404) stops the poll.
+ * The post-match read again by the poll (`startPoll`, which waits out the reads that failed and stops on a refusal for
+ * good): another revision is drawn, unless a write went out, a sheet or a dialog opened since it was asked for, or it
+ * would take a draft kept away. A tap that changed a side following the records is said.
  */
-async function poll(visit) {
-  const { poll: timer } = visit;
-  if (timer.wait > 0) {
-    timer.wait -= 1;
-    return;
-  }
-  if (!mayPoll(visit)) return;
-  timer.polling = true;
+async function pollRead(visit) {
   const writes = visit.writes;
-  try {
-    const next = await apiRequest(`${visit.path}/post-match`);
-    timer.failures = 0;
-    if (visit.here && !visit.ui.busy && visit.writes === writes && !dialogOpen() && next.postMatch.revision !== visit.payload.postMatch.revision && standsOn(visit, next)) {
-      const taken = take(visit, next);
-      if (taken.tapped) toast(t("after.tapsChanged"));
-      settle(visit, taken);
-      draw(visit);
-    }
-  } catch (error) {
-    if (POLL_STOPS.has(error?.status)) stopPoll(visit);
-    timer.failures += 1;
-    timer.wait = Math.min(2 ** timer.failures - 1, POLL_WAIT_MOST);
-  } finally {
-    timer.polling = false;
+  const next = await apiRequest(`${visit.path}/post-match`);
+  if (visit.here && !visit.ui.busy && visit.writes === writes && !dialogOpen() && next.postMatch.revision !== visit.payload.postMatch.revision && standsOn(visit, next)) {
+    const taken = take(visit, next);
+    if (taken.tapped) toast(t("after.tapsChanged"));
+    settle(visit, taken);
+    draw(visit);
   }
 }
 
-/** The page while there is no post-match to draw: «‹» back to the game, the title, and what is said under it. */
+/** The page while there is no post-match to draw: «‹» back to the matches (`placeholderBack`), the title, and what is said under it. */
 function placeholderMarkup(gameId, noticeHtml) {
   const phone = isPhone();
-  const back = `<a class="g-prep__back" href="${escapeHtml(gameUrl(gameId))}" aria-label="${escapeHtml(t("prep.back"))}">${icon("back", 18)}</a>`;
+  const href = placeholderBack(gameId, { viewer: state.auth.currentUser, activeTeamId: state.activeTeamId ?? null, games: state.games.items });
+  const back = `<a class="g-prep__back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("prep.back"))}">${icon("backShort", 18)}</a>`;
   const title = `<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(t("after.title"))}</h1></span>`;
   const head = phone ? `<header class="g-prep__head"><div class="g-prep__bar">${back}${title}</div></header>` : `<header class="g-prep__band">${back}${title}</header>`;
   return `<div class="g-prep g-prep--${phone ? "phone" : "desk"}" data-screen="${SCREEN}">${head}<div class="g-prep__notices">${noticeHtml}</div></div>`;
@@ -478,13 +431,13 @@ async function openVisit(visit) {
   visit.payload = payload;
   visit.sideName = payload.viewerSide === "away" ? "away" : "home";
   const screen = screenOf(visit);
-  takeFooter(visit, screen.footer);
+  takeFooter(visit, footerAction(screen.footer));
   view.innerHTML = screen.markup;
   view.querySelector("h1")?.focus();
   visit.release = wirePost(visit, { model: () => modelOf(visit), draw: (options) => draw(visit, options), send: (action, options) => send(visit, action, options),
     players: (change) => pressPlayers(visit, change), keep: (key, draft) => keepDraft(visit, key, draft),
     playersOf: (model) => playersOf(visit, model), draftOf: (key, model) => draftOf(visit, key, model), readAgain: () => readAgain(visit) });
-  if (payload.postMatch.status !== "completed") visit.poll.timer = setInterval(() => void poll(visit), POLL_MS);
+  if (payload.postMatch.status !== "completed") visit.stopPoll = startPoll(visit, { read: pollRead, mayPoll });
 }
 
 /**
@@ -502,7 +455,7 @@ export async function renderPostMatch(gameId, requestedStep = "") {
   onScreenLeave("post-match", () => {
     visit.here = false;
     visit.ui.here = false;
-    clearInterval(visit.poll.timer);
+    visit.stopPoll();
     visit.release();
     for (const dialog of view.querySelectorAll("dialog")) if (dialog.open) dialog.close();
   });

@@ -5,6 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 
 // The client takes `fetch` when it loads (helpers/fake-api.mjs): the fake one first, then the modules that ask it.
 const api = installFakeApi();
@@ -15,7 +16,8 @@ const routes = await import("../src/core/routes.mjs");
 const { shellModel } = await import("../src/shell/navigation.mjs");
 const { adminRequest, readAdminUser, readAdminUsers, readAwaiting, seasonWrite } = await import("../src/data/admin.mjs");
 const { loadSeason } = await import("../src/screens/season/season-data.mjs");
-const { adminHeadMarkup, adminRefusalMarkup, avatarMarkup, crumbsMarkup, isAdminViewer } = await import("../src/screens/admin/frame.mjs");
+const { adminHeadMarkup, adminRefusalMarkup, crumbsMarkup, isAdminViewer } = await import("../src/screens/admin/frame.mjs");
+const { renderCoachLetter } = await import("../src/ui/coach-letter.mjs");
 
 const { adminCoachUrl, adminSeasonUrl, adminTeamEditUrl, adminTeamPlayerUrl, adminUrl, matchRoute, routeFromHash } = routes;
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -111,16 +113,9 @@ test("a coach who is no admin is shown the banner home, and only the admin is an
   assert.equal(page.querySelector(".g-admin__switch"), null, "no way into the sections");
 });
 
-test("a coach's letter in its circle: three sizes, the first letter in capitals", () => {
-  for (const size of [36, 40, 64]) {
-    const avatar = mount(avatarMarkup("orc_boss", size)).querySelector(".g-admin__avatar");
-    assert.ok(avatar.classList.contains(`g-admin__avatar--${size}`));
-    assert.equal(avatar.textContent, "O");
-    assert.equal(avatar.getAttribute("aria-hidden"), "true", "the login beside it is what is read");
-  }
-  assert.equal(mount(avatarMarkup("  élan", 40)).querySelector(".g-admin__avatar").textContent, "É");
-  assert.equal(mount(avatarMarkup("", 40)).querySelector(".g-admin__avatar").textContent, "?");
-  assert.throws(() => avatarMarkup("orc_boss", 48), RangeError);
+// A coach's letter in its circle is the kit's one since stage 13 (ui/coach-letter.mjs; test/ui-coach-letter.test.mjs).
+test("the administration draws no circle of its own", () => {
+  assert.doesNotMatch(readFileSync(new URL(`../${CSS}`, import.meta.url), "utf8"), /g-admin__avatar/);
 });
 
 // ---------------------------------------------------------------------------
@@ -326,13 +321,13 @@ test("the reads: the coaches, a coach, the scores awaiting; a refusal in its wor
 test("a name is text; no inline style; styled", () => {
   const crumbsHtml = crumbsMarkup([{ label: HOSTILE, href: adminCoachUrl(HOSTILE) }, { label: HOSTILE }]);
   for (const phone of [true, false]) {
-    const page = mount(adminHeadMarkup({ title: HOSTILE, sub: HOSTILE, crumbsHtml, section: "coaches", phone }) + avatarMarkup(HOSTILE, 64) + adminRefusalMarkup());
+    const page = mount(adminHeadMarkup({ title: HOSTILE, sub: HOSTILE, crumbsHtml, section: "coaches", phone }) + renderCoachLetter({ initial: HOSTILE, size: 64 }) + adminRefusalMarkup());
     assert.equal(page.querySelector("img"), null);
     assert.equal(page.querySelector("h1").textContent, HOSTILE);
     assert.equal(page.querySelector(".g-admin__crumbs").textContent, `${HOSTILE} → ${HOSTILE}`);
-    assert.equal(page.querySelector(".g-admin__avatar").textContent, "<");
+    assert.equal(page.querySelector(".g-coach-letter").textContent, HOSTILE);
     assertCspSafe(page);
-    assertStyled(page, CSS, "page-head.css", "segmented-control.css", "callout.css");
+    assertStyled(page, CSS, "page-head.css", "segmented-control.css", "callout.css", "coach-letter.css");
   }
   const styles = text("src/styles.css");
   const at = (file) => styles.indexOf(`@import url("${file}");`);
@@ -341,7 +336,8 @@ test("a name is text; no inline style; styled", () => {
 });
 
 test("nothing wraps into «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   for (const selector of [".g-admin__crumbs", ".g-admin__note", ".g-admin__cardhead"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }
@@ -355,8 +351,12 @@ test("the prototypes' measures: the band, the switch, the card, the grid", () =>
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__switch .g-seg__item", "min-height"), ["48px"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__switch .g-seg__item", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", '.g-admin__switch .g-seg__item[aria-current="page"]', "background"), ["var(--accent)"]);
-  // The band of DeskAdminUser.html: 20 32 on the card colour over a rule, the path under the title.
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "padding"), ["var(--space-20) 32px"]);
+  // The band of DeskAdminUser.html: 20 32 on the card colour over a rule, the path under the title; its 32 is the frame's.
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "padding"), ["var(--space-20) var(--view-side)"]);
+  // DeskAdmin*.html's main pads 24 32 40, which the frame gives (stage 13): the switch, the tabs and the content add none.
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__switch", "margin"), ["0 0 var(--space-20)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__main", "padding"), []);
+  assert.deepEqual(inMedia("src/screens/admin/season.css", "min-width: 901px", ".g-adminseason__tabs", "margin"), ["0 0 var(--space-20)"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-admin__head", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-admin__card", "box-shadow"), ["var(--ring)"]);
   assert.deepEqual(valuesOf(CSS, ".g-admin__card", "border-radius"), ["var(--radius-2xl)"]);
@@ -364,9 +364,6 @@ test("the prototypes' measures: the band, the switch, the card, the grid", () =>
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__card", "padding"), ["var(--space-14) var(--space-16)"]);
   assert.deepEqual(valuesOf(CSS, ".g-admin__grid", "grid-template-columns").slice(0, 1), ["repeat(auto-fit, minmax(340px, 1fr))"]);
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__grid", "grid-template-columns"), ["minmax(0, 1fr)"]);
-  for (const [size, font] of [[36, "18px"], [40, "20px"], [64, "32px"]]) {
-    assert.deepEqual([valuesOf(CSS, `.g-admin__avatar--${size}`, "width"), valuesOf(CSS, `.g-admin__avatar--${size}`, "font-size")], [[`${size}px`], [font]]);
-  }
 });
 
 test("D2: a thumb's switch 44 and more, a desk's 24 and more; the path's links too, the line keeping its height", () => {
@@ -384,10 +381,10 @@ test("D2: a thumb's switch 44 and more, a desk's 24 and more; the path's links t
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-admin__crumbs a", "margin"), ["calc(9.8px - var(--size-touch) / 2) 0"]);
 });
 
-test("a phone's administration is white: the 2.x wash is off under its screens and its refusal, not under the team's roster", () => {
-  const rule = "#app-view:has(> .g-admin__head, > .g-adminseason, .g-admin__refusal)::after";
-  assert.deepEqual(inMedia(CSS, "max-width: 900px", rule, "display"), ["none"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", rule, "display"), [], "a desk's page is the desk's grey");
+// AdminMobile.html is white. The 2.x view's wash went with the view at stage 13, and with it the rule that took it away here.
+test("no stylesheet draws a wash under the view", () => {
+  assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /#app-view[^{}]*::after/, "nothing to take away");
+  assert.doesNotMatch(text("index.html"), /class="[^"]*\bview\b/, "the 2.x view is gone");
 });
 
 test("a card's title stands at the prototypes' line height: `normal`, 36px for Oswald 24", () => {
@@ -397,7 +394,6 @@ test("a card's title stands at the prototypes' line height: `normal`, 36px for O
 test("readable: the letter on its circle, the muted words, the path's links, the switch, in every palette", () => {
   assertContrast("--header-ink", ["--header"], 4.5);
   assertContrast("--muted", ["--surface"], 4.5);
-  assertReadable(CSS, ".g-admin__avatar", "color", ["--header"], 4.5);
   assertReadable(CSS, ".g-admin__crumbs", "color", ["--surface", "--page"], 4.5);
   assertReadable(CSS, ".g-admin__crumbs a", "color", ["--surface", "--page"], 4.5);
   assertReadable(CSS, ".g-admin__note", "color", ["--surface", "--surface-2"], 4.5);

@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaText, outsideMedia } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -121,7 +122,7 @@ test("an address that is not a page is not echoed: the article says only that it
 
 test("not found keeps the reference around it: the head, the table of contents, nothing lit", () => {
   renderReferencePage("no-such-page");
-  assert.ok(view.querySelector(".g-ref--article .g-ref-head"));
+  assert.ok(view.querySelector(".g-ref--article header.g-pagehead"));
   assert.equal(view.querySelectorAll(".g-ref-toc__link").length, refGroups(referenceData("en")).flatMap((group) => group.items).length);
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]'), null);
   assert.equal(view.querySelector(".g-article__kicker"), null, "there is no group to name");
@@ -132,7 +133,7 @@ test("not found keeps the reference around it: the head, the table of contents, 
 test("an article is the page's one h1; the band above it keeps its title as a paragraph", () => {
   renderReferencePage("weather");
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Weather"]);
-  assert.equal(view.querySelector(".g-ref-head__title").tagName, "P");
+  assert.equal(view.querySelector(".g-pagehead__title").tagName, "P");
   assert.ok(view.querySelector(".g-ref--article .g-ref__body .g-ref-toc"));
   assert.ok(view.querySelector(".g-ref__main article.g-article"));
 });
@@ -326,11 +327,11 @@ test("the dictionary has the kicker and the pager's name in both languages", () 
 
 test("the markup an article draws is styled by the reference's sheets", () => {
   renderReferencePage("casualties");
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
   renderOverviewArticle("code-of-conduct");
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
   renderLegal();
-  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "search-field.css");
 });
 
 test("the router draws these screens, and the 2.x detail, legal and not-found screens are gone from src", () => {
@@ -357,15 +358,11 @@ test("the league overview keeps its cards as data: the finders stay, the drawing
 
 const SHEET = "src/screens/ref/article.css";
 
-/** The part of the sheet that is for 901px and up, and the part that is not. */
-function split(css) {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)?.[1] ?? "";
-  return { wide, rest: bare.replace(wide, "") };
-}
+/** The part of a sheet that is for 901px and up, and the part that is not. */
+const split = (file) => ({ wide: mediaText(file, "min-width: 901px"), rest: outsideMedia(file, "min-width: 901px") });
 
 test("up to 900px an article has no frame; from 901px it is a card of the surface, 16px round, in the ring", () => {
-  const { wide, rest } = split(read(SHEET));
+  const { wide, rest } = split(SHEET);
   for (const property of ["box-shadow", "padding"]) {
     assert.ok(!new RegExp(`\\.g-article\\s*\\{[^}]*\\b${property}\\s*:`).test(rest), `.g-article has no ${property} on a phone`);
   }
@@ -392,7 +389,7 @@ test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px, 44px 
   assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)", "700 44px/1 var(--font-display)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none", "none"], "on the phone's rule and on the desktop's");
   assert.deepEqual(valuesOf(SHEET, ".g-article__title", "letter-spacing"), ["0", "0"]);
-  assert.ok(split(read(SHEET)).wide.includes("700 44px/1 var(--font-display)"), "the 44px title is the desktop's");
+  assert.ok(split(SHEET).wide.includes("700 44px/1 var(--font-display)"), "the 44px title is the desktop's");
 });
 
 test("the pager's links are 44px tall, 600 15px in the accent; the arrows are drawn by the sheet", () => {
@@ -407,17 +404,17 @@ test("the pager's links are 44px tall, 600 15px in the accent; the arrows are dr
 });
 
 test("from 901px the content stands at most 820px wide inside the card", () => {
-  const { wide } = split(read(SHEET));
+  const { wide } = split(SHEET);
   assert.match(wide, /max-width:\s*820px/);
 });
 
 test("from 901px an article is columns that never wrap: the contents as wide as a list's, the card the rest", () => {
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "align-items"), ["start"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "flex-flow"), [], "not a wrapping row");
-  assert.ok(split(read(SHEET)).wide.includes(".g-ref--article .g-ref__body"), "the columns are the desktop's");
+  assert.ok(split(SHEET).wide.includes(".g-ref--article .g-ref__body"), "the columns are the desktop's");
 });
 
 test("the prose does not open with a margin of its own, and no .g-prose is inside a .content-panel", () => {

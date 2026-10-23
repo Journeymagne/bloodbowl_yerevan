@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -131,7 +132,7 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         assert.ok(!editSheet(), "the same draw closes the edit");
         const sheet = fixSheet();
         assert.ok(sheet?.isModal, "dialog#player-fix, open");
-        assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet.getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet.querySelector("h2").textContent, "Fix by hand");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, SUB);
         // Cade's Frenzy: the last block, «Advancements», holds the undo of it (Task 23; test/team-advance-undo.test.mjs).
@@ -687,8 +688,7 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
     const css = text(FIX);
     assert.doesNotMatch(css, /--focus-ring/);
     assert.doesNotMatch(css, /text-overflow/, "a long name wraps; nothing is cut with «…»");
-    const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+    assert.deepEqual(mediaQueries(FIX), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
     for (const selector of [".g-player-fix__title", ".g-player-fix__name", ".g-player-fix__note", ".g-player-fix__toggle", ".g-player-fix__value", "#player-edit .g-player-edit__fix"]) {
       for (const property of ["font", "letter-spacing", "text-transform", "border", "background"]) {
         assert.ok(valuesOf(FIX, selector, property).length >= 1, `${selector} ${property}`);
@@ -730,15 +730,9 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
 });
 
 test("D2: up to 900px the toggles 44px and the line to the fix 52px; from 901px 32px and 44px", () => {
-  const css = text(FIX).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (query) => {
-    const start = css.indexOf(`@media (${query}) {`);
-    assert.ok(start >= 0, `fix.css has no @media (${query})`);
-    return css.slice(start, css.indexOf("\n}", start));
-  };
   const px = (found) => found.slice(1).map(Number);
-  const phone = block("max-width: 900px");
-  const desk = block("min-width: 901px");
+  const phone = mediaText(FIX, "max-width: 900px");
+  const desk = mediaText(FIX, "min-width: 901px");
   assert.deepEqual(px(phone.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [44], "a phone's toggles");
   assert.deepEqual(px(phone.match(/#player-edit \.g-player-edit__fix \{[^}]*min-height: (\d+)px;/)), [52], "a phone's line");
   assert.deepEqual(px(desk.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [32], "a desk's toggles, 24 or more");

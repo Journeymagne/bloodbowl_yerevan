@@ -1,8 +1,5 @@
 /*
- * The rows of a list: navigation, key–value and ranked. Font, border,
- * background, text-transform and border-radius are set here on purpose: the
- * 2.x globals (a { color: inherit }, :focus-visible { border-radius })
- * outlive this sheet until stage 13.
+ * The rows of a list: navigation, key–value and ranked.
  */
 
 /* A link to a deeper screen: the text, the count behind it, a chevron. */

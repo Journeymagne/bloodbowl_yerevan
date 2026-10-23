@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
 // Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change; the test is the page.
@@ -1486,8 +1487,7 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   assert.doesNotMatch(css, /\bstyle\s*=/);
   assert.doesNotMatch(css, /\.g-new(?:__card|__head|__titles|__title|__sub|__body|__foot)?\b(?!__label|__ref|-sheet)/, "the rules of the page that was are gone");
   assert.doesNotMatch(css, /text-overflow|white-space:\s*nowrap/);
-  const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
+  assert.ok(assertBreakpoints(NEW_CSS).length >= 2, "only the stage's two breakpoints, both");
   // The races: 44px, 10 round, 0 12 in, 14px 500 on --surface in the ring; the chosen one on --accent-tint-soft in the 2px ring, 700.
   assert.deepEqual(valuesOf(NEW_CSS, ".g-races__item", "min-height"), ["44px"]);
   assert.deepEqual(["border", "border-radius", "padding", "background", "box-shadow", "font"].map((property) => valuesOf(NEW_CSS, ".g-races__item", property)),
@@ -1512,7 +1512,10 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   // A desk (DeskTeamNew): a window of 760px, 64px from the top, 20px round; the head 20 24, the title 28px/1 over a 14px line.
   const desk = (selector, property) => inMedia(NEW_CSS, "min-width: 901px", selector, property);
   assert.deepEqual(["width", "margin", "border-radius", "max-height"].map((property) => desk("dialog.g-sheet.g-new-sheet", property)),
-    [["min(760px, calc(100% - 32px))"], ["64px auto auto"], ["20px"], ["min(86dvh, calc(100dvh - 96px))"]]);
+    [["min(760px, calc(100% - 32px))"], [], ["20px"], []]);
+  // 64 from the top and 32 under it on a short window: sheet.css's, which the sheet asks for (`at: 64`, stage 13, Task 7).
+  assert.deepEqual(["margin", "max-height"].map((property) => inMedia("src/ui/sheet.css", "min-width: 901px", "dialog.g-sheet.g-sheet--at-64", property)),
+    [["64px auto auto"], ["min(86dvh, calc(100dvh - 96px))"]]);
   assert.deepEqual([phone(".g-new-sheet .g-sheet__titles", "gap"), desk(".g-new-sheet .g-sheet__titles", "gap")], [[], []], "one rule for both widths");
   assert.deepEqual(desk("dialog.g-sheet.g-new-sheet", "box-shadow"), ["var(--shadow-window)"], "DeskTeamNew's window stands over the page on its shadow");
   assert.deepEqual(valuesOf("src/styles/tokens.css", ":root", "--shadow-window"), ["0 12px 32px rgba(20, 32, 26, 0.28)"], "the prototype's 0 12px 32px rgba(20, 32, 26, .28), a token as the thumb's shadow is");

@@ -1,6 +1,6 @@
 {
   "name": "bloodbowl-sevens-reference",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -36,7 +36,8 @@
     "rehearsal:check": "node scripts/rehearsal-check.mjs",
     "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs",
     "rehearsal:transitions": "node scripts/rehearsal-transitions.mjs",
-    "screens": "node scripts/screenshots.mjs"
+    "screens": "node scripts/screenshots.mjs",
+    "screens:diff": "node scripts/screenshots-diff.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"

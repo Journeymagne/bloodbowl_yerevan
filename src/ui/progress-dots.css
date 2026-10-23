@@ -1,7 +1,6 @@
 /*
  * Counted progress. The dots are plain boxes; the caption is what a screen
- * reader hears. Font, text-transform and border-radius are set here on
- * purpose: the 2.x globals outlive this sheet until stage 13.
+ * reader hears.
  */
 .g-progress {
   display: flex;

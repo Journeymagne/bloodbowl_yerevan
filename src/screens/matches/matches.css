@@ -1,7 +1,6 @@
 /*
- * The matches page (screens/matches/index.mjs): Matches.html, MatchesLive.html, MatchesPrePlus.html. Font, border,
- * background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this
- * sheet until stage 13. The page's own margins (Matches.html's 16 16 28) are the shell's view's until then.
+ * The matches page (screens/matches/index.mjs): Matches.html, MatchesLive.html, MatchesPrePlus.html. The page's
+ * own margins (Matches.html's 16 16 28) are the frame's (shell/frame.css).
  *
  * Long lines wrap: an opponent's name, a race, a reason; nothing is cut with «…» (the owner's answer on wrapping).
  */
@@ -74,15 +73,20 @@
 .g-matches .g-match__mid { color: var(--muted); }
 .g-matches .g-match__mid--score { color: var(--ink); }
 
-/* The opponent's name leads to his team: a thumb's height over the same line (D2), the room taken from the gap around it. */
+/*
+ * The opponent's name leads to that team. The name keeps its own lines (match-card.css: 20px/1.1), so a name in two
+ * lines pushes the login under it down. The thumb's height (D2) is a box drawn over the name, 11px above and below:
+ * 44 for one line, more for two.
+ */
 .g-matches a.g-match__name {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--size-touch);
-  margin: -11px 0;
+  position: relative;
   color: inherit;
   text-decoration: none;
+}
+.g-matches a.g-match__name::after {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
 }
 
 /* Both CTVs, and the inducements' tile beside them. */
@@ -407,7 +411,7 @@
 
 /*
  * A desk's page (DeskSeason.html, without its table until stage 10): the board the whole width, the calendar under it,
- * 20 apart. The board is match-board.css's; its main's own margins (24 32 40) are the shell's view's until stage 13.
+ * 20 apart. The board is match-board.css's; its main's own margins (24 32 40) are the frame's (shell/frame.css).
  */
 .g-matches--desk { gap: var(--space-20); }
 

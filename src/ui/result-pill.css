@@ -1,8 +1,6 @@
 /*
  * The outcome of a match: a coloured square with its letter. The letter says
- * it and the colour only reinforces it. Font, border, background,
- * text-transform and border-radius are set here on purpose: the 2.x globals
- * outlive this sheet until stage 13.
+ * it and the colour only reinforces it.
  */
 .g-result {
   /* The word for screen readers is positioned, so it is placed against the pill and not the page. */

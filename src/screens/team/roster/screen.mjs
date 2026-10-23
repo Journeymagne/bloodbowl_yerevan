@@ -11,10 +11,10 @@
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
-import { patchWithModal } from "../../../components/dialog.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
+import { patchWithModal } from "../../../ui/sheet.mjs";
 import { fallenWriting } from "./fallen.mjs";
 import { sessionSppOf } from "./memory.mjs";
 import { fallenLines, rosterLines, rosterMode, sortLines } from "./model.mjs";

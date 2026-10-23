@@ -20,8 +20,6 @@
  * Each palette block also answers to [data-palette-preview="<key>"], so the
  * ThemePicker (screens/settings/theme-picker.css) can draw a palette's card in
  * its own colours whichever palette the page wears.
- *
- * The 2.x variable names live in legacy-aliases.css until stage 13.
  */
 :root {
   color-scheme: light;

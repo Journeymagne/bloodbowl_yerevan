@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
 // The API is installed before anything that asks it is imported: the client takes `fetch` when it loads.
@@ -163,7 +164,7 @@ test("the model: the round on, the rounds before, the pairs' statuses and scores
   assert.equal(model.nextNumber, 8);
   assert.equal(model.canGenerate, "Pairs left: 2", "the pair with a score sent and the one not played; a bye has no opponent to wait for");
   assert.deepEqual(model.current.lines.map(({ table, status, score }) => [table, status, score]), [
-    [1, "confirmed", "2–1 · CAS 3:1"], [2, "awaiting", "1–1 · CAS 2:2"], [3, "pending", "—"], [4, "bye", "tech. +2"],
+    [1, "confirmed", "2–1 · CAS 3:1"], [2, "awaiting", "1–1 · CAS 2:2"], [3, "pending", "—"], [4, "bye", "—"],
   ]);
   assert.deepEqual(model.current.lines[1].proposal, { home: 1, away: 1, homeCas: 2, awayCas: 2, by: "cinder" });
   assert.deepEqual([model.current.lines[3].home.team, model.current.lines[3].away, model.current.lines[3].bye], ["Mudfoot Boyz", null, true]);
@@ -179,6 +180,13 @@ test("the model: the round on, the rounds before, the pairs' statuses and scores
   // A bye the server gave points to says them; a draft round closes the generation first.
   const scoredBye = seasonWith([round(7, "started", [live(1, "e7", null, { homeTouchdowns: 2, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0, homePoints: 4, awayPoints: 0, resultStatus: "confirmed" })])]);
   assert.equal(seasonRoundsModel({ seasonData: scoredBye }).current.lines[0].score, "tech. +4");
+  // The bye keeps 2.x's scoring (the owner, 2026-10-22: «как в коде пока что»): its label says only the points the server
+  // holds — a bye scored 0 says «+0» — and «—» before a result is saved, never the house rules' technical win.
+  const zeroBye = seasonWith([round(7, "started", [live(1, null, "e7", { homeTouchdowns: 0, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0, homePoints: 0, awayPoints: 0, resultStatus: "confirmed" })])]);
+  assert.equal(seasonRoundsModel({ seasonData: zeroBye }).current.lines[0].score, "tech. +0", "the away side's points");
+  const unscored = seasonWith([round(7, "started", [live(1, "e7", null, {})])]);
+  assert.equal(seasonRoundsModel({ seasonData: unscored }).current.lines[0].score, "—");
+  assert.doesNotMatch(readFileSync(new URL("../src/screens/admin/season-rounds.mjs", import.meta.url), "utf8"), /seasonPoints/);
   const drafted = seasonRoundsModel({ seasonData: seasonWith([...PAST, round(7, "draft", [])]) });
   assert.deepEqual([drafted.current, drafted.draft.number, drafted.canGenerate, drafted.nextNumber], [null, 7, "First start or delete round 7", 7],
     "while a draft round stands, it is the round a generation would make");
@@ -256,7 +264,7 @@ it("the round under way: its pairs in the prototype's columns, the generation cl
     ["1", "Ashgrove Wardens", "Silverbrook Rangers", "2–1 · CAS 3:1", "Confirmed", "Result… · table 1"],
     ["2", "Cinderpeak Ash", "Grimtusk Raiders", "1–1 · CAS 2:2", "Awaiting confirmation", "Result… · table 2"],
     ["3", "Duskspire Knives", "Ratwharf Gnawers", "—", "Not played", "Result… · table 3"],
-    ["4", "Mudfoot Boyz", "— BYE —", "tech. +2", "Bye", "Result… · table 4"],
+    ["4", "Mudfoot Boyz", "— BYE —", "—", "Bye", "Result… · table 4"],
   ]);
   assert.deepEqual(rows.slice(1).map((row) => row.querySelector(".g-adminseason__status").getAttribute("class").split(" ").at(-1)),
     ["g-adminseason__status--confirmed", "g-adminseason__status--awaiting", "g-adminseason__status--pending", "g-adminseason__status--bye"]);
@@ -762,7 +770,8 @@ test("readable: the statuses and the words on the cards, in every palette", () =
 });
 
 test("nothing is cut with «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   for (const selector of [".g-adminseason__cell", ".g-adminseason__waittext", ".g-adminseason__title", ".g-resultsheet__sent"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }

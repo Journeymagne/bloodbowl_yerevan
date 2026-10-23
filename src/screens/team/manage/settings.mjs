@@ -21,7 +21,7 @@ import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/lo
 import { teamUrl } from "../../../core/routes.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules } from "../../../data/teams.mjs";
+import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, refusalWords } from "../../../data/teams.mjs";
 import { isWriting, readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { byNumber, rosterViolations, withFans, withFavoured, withLeague } from "../../../domain/roster/team-edits.mjs";
@@ -39,6 +39,7 @@ import { onSaveState, saveState } from "../roster/save.mjs";
 import { matchLock } from "./model.mjs";
 import { FANS_MAX, NAME_FIELD_ID, SETTINGS_KINDS, SETTINGS_SHEET_ID, draftOf, settingsCheck, settingsSheetMarkup } from "./settings-sheet.mjs";
 import { mountSheetHost, sheetController, teamToast, unmountSheetHost } from "./sheet-host.mjs";
+import { teamOf } from "./team-of.mjs";
 
 const LOGO_ID = "team-settings-logo";
 /**
@@ -160,10 +161,10 @@ function logoRow({ logoData, held }) {
     + `<span class="g-team-settings__actions">${file}${remove}</span></div>`;
 }
 
-/** What the roster breaks of the rules, a line each, as the 2.x editor listed it; nothing when it breaks none. */
+/** What the roster breaks of the rules, a line each, in the words every refusal of a rule has (`refusalWords`); nothing when it breaks none. */
 function checkMarkup(violations) {
   if (!violations.length) return "";
-  const lines = violations.map(({ code, params }) => `<li class="g-team-settings__violation">${escapeHtml(t(`validation.${code}`, params))}</li>`);
+  const lines = violations.map((rule) => `<li class="g-team-settings__violation">${escapeHtml(refusalWords(rule))}</li>`);
   return `<div class="g-team-settings__check" data-key="team-settings-check"><span class="g-team-settings__label" id="team-settings-check-label">${escapeHtml(t("teamSettings.check"))}</span>`
     + `<ul class="g-team-settings__violations" aria-labelledby="team-settings-check-label">${lines.join("")}</ul></div>`;
 }
@@ -207,8 +208,6 @@ export function settingsMarkup({ teamId, settings }, { titled = true } = {}) {
   return `<section class="g-team-settings" aria-labelledby="team-settings-title" data-key="team-settings">${title}`
     + `${heldCallout(teamId, settings)}${prepCallout(settings)}${rows.join("")}${checkMarkup(settings.violations)}</section>`;
 }
-
-const teamOf = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
 
 /** The section's model of a team as the page holds it now; null for a team no longer on the list. */
 function nowOf(teamId) {

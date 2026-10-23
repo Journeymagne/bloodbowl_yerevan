@@ -1,8 +1,6 @@
 /*
  * The five characteristics of a player. dl and dd come with browser margins,
- * which are taken off here. Font, text-transform and border-radius are set
- * on purpose, as in every src/ui sheet: the 2.x globals outlive this sheet
- * until stage 13.
+ * which are taken off here.
  */
 .g-stats {
   display: grid;

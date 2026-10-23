@@ -8,7 +8,7 @@ import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.m
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
 import { careerCounters, eventsDiff, followEvents, sameValues, sideFollowsEvents } from '../src/domain/post-match/events.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
-import { playerCurrentCost } from '../src/domain/roster/costs.mjs';
+import { favouredSkillCost, playerCurrentCost } from '../src/domain/roster/costs.mjs';
 import { normalizeRosterPlayer } from '../src/domain/roster/players.mjs';
 import { matchRoute, postMatchUrl } from '../src/core/routes.mjs';
 
@@ -267,14 +267,18 @@ test('technical results normalize the unplayed match score and CAS', () => {
   assert.deepEqual(f.state.result.away, { touchdowns: 0, casualties: 0 });
 });
 
-test('Favoured bonus uses manual D8, costs no extra SPP or value and may be declined', () => {
+test('Favoured bonus uses manual D8, costs no extra SPP, adds a skill\'s price to the value and may be declined', () => {
   const f = fanSteps(agreed(fixture('Favoured of Nurgle')));
   f.state.home.baseRoster.favouredChoice = 'Nurgle'; f.state.home.baseRoster.players[0].spp.bonus = 20;
   savePlayers(f, 'home');
   const action = { type: 'advance', playerId: 'home-0', advancementType: 'primary', grant: { skill: 'Block' }, favouredRoll: 7, favouredSkill: 'Tentacles' };
   const next = applyPostAction(f.state, 'home', action, f.data), player = projectPostRoster(next, 'home', f.data).players[0];
   assert.equal(player.advancements.length, 1); assert.deepEqual(player.favouredSkills, [{ name: 'Tentacles', access: 'favoured' }]);
-  assert.equal(playerAvailableSpp(next.home.reference, player), 19); assert.equal(playerCurrentCost(f.row, player), 70);
+  assert.equal(playerAvailableSpp(next.home.reference, player), 19);
+  // 50k, Block +20k, and the god's Tentacles a skill's price for him (the owner, 2026-10-22): +40k, as his position (a
+  // Human Lineman's G primary) has no Mutation among its primary categories.
+  assert.equal(favouredSkillCost(f.row), 40);
+  assert.equal(playerCurrentCost(f.row, player), 110);
   const declined = applyPostAction(f.state, 'home', { ...action, favouredSkill: '' }, f.data);
   assert.deepEqual(projectPostRoster(declined, 'home', f.data).players[0].favouredSkills, []);
   assert.throws(() => applyPostAction(f.state, 'home', { ...action, favouredSkill: 'Dodge' }, f.data), { code: 'POST_FAVOURED' });

@@ -7,6 +7,7 @@ import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 // The client takes `fetch` when it loads (helpers/fake-api.mjs): the fake one first, then the modules that ask it.
@@ -159,7 +160,7 @@ test("a desk's coaches: the head with its counts, the search, the table in the p
   assert.equal(cells[0].querySelector(".g-coaches__login").textContent, "Lilit");
   const open = cells[4].querySelector("a.g-coaches__open");
   assert.deepEqual([open.getAttribute("href"), open.getAttribute("aria-label")], ["#/administration/users/u3", "Open Lilit"]);
-  assert.equal(cells[0].querySelector(".g-admin__avatar--36").textContent, "L");
+  assert.equal(cells[0].querySelector(".g-coach-letter--36").textContent, "L");
   // The search at the left, «+ Coach with a team» at the right; no «Import as a list» (question 4).
   const search = view.querySelector('.g-coaches__tools input[type="search"]');
   assert.equal(search.getAttribute("placeholder"), "Login or Telegram");
@@ -220,7 +221,7 @@ test("a phone's administration: the two links, the round's card, the rows with t
     ["#/administration/users/u2", "orc_boss", "@orc_boss · teams: 1"],
     ["#/administration/users/u3", "Lilit", "@lilit_bb · teams: 1"],
   ]);
-  assert.equal(items[0].querySelector(".g-admin__avatar--40").textContent, "F");
+  assert.equal(items[0].querySelector(".g-coach-letter--40").textContent, "F");
   assert.ok(items[0].querySelector("svg"), "AdminMobile's chevron");
   assert.equal(view.querySelector(".g-coaches__row"), null, "a desk's table is not a phone's");
   // AdminMobile's order: the round, the search, the coaches, «+ Coach with a team» the whole width.
@@ -672,7 +673,7 @@ test("styled; no inline style or handler", async () => {
   for (const phone of [true, false]) {
     await visit({}, { phone });
     assertCspSafe(view);
-    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "search-field.css", "button.css", "status-chip.css");
+    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "search-field.css", "button.css", "status-chip.css", "coach-letter.css");
     click("[data-coach-new]");
     assertCspSafe(sheet());
     assertStyled(sheet(), CSS, ADMIN_CSS, "sheet.css", "button.css", "text-field.css", "toggle.css", "callout.css");
@@ -690,7 +691,8 @@ test("styled; no inline style or handler", async () => {
 });
 
 test("nothing is cut with «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis/);
+  assertBreakpoints(CSS);
   // `nowrap` only on the admin's chip (decision: the chip and the numbers).
   assert.deepEqual([...text(CSS).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{[^{}]*white-space:\s*nowrap/g)].map(([, selector]) => selector.trim()), [".g-coaches__who .g-status"]);
   for (const selector of [".g-coaches__login", ".g-coaches__tg", ".g-coaches__edited", ".g-coaches__itemlogin", ".g-coaches__itemline", ".g-coachnew__password", ".g-coachnew__race", ".g-coaches__none"]) {

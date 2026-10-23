@@ -1,7 +1,5 @@
 /*
- * Buttons. Font, border, background, text-transform and border-radius are
- * set here on purpose: the 2.x globals (button { font: inherit },
- * :focus-visible { border-radius }) outlive this sheet until stage 13.
+ * Buttons.
  */
 
 /* Outline is the base look: the secondary, or state-toggling, action. */
@@ -52,11 +50,6 @@
   color: var(--on-danger-fill);
 }
 
-.g-btn--danger-outline {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 /* An action that leaves (Log out): red words in the ring every outline button has, not a red border. */
 .g-btn--danger-quiet {
   border-color: var(--control-border);
@@ -84,6 +77,42 @@
   border-color: var(--disabled);
   background: var(--disabled);
   opacity: 1;
+}
+/*
+ * In a dark palette that grey fill read as one more button (the owner, M2; stage 13's answer 3): a closed main button
+ * there is drawn as closed, a dashed ring with no fill and the muted label (4.5:1 on --page and --surface), undimmed.
+ * This sheet owns that look for every way a main button is closed: `disabled`, or `aria-disabled` while it stays in reach
+ * to say why (not while a press is on its way, `aria-busy`), and the two main buttons a screen draws without .g-btn —
+ * the preparation's and post-match's footer (`.g-prep__cta`) and the administration's «Generate round» — whose own
+ * sheets keep the grey fill for the light palettes only, as their rules lose to these. The mode is data-mode on <html>,
+ * or the system's dark when theme-boot.js did not run (tokens.css's fallback): the two blocks are one rule and say the
+ * same.
+ */
+:root[data-mode="dark"] .g-btn--primary:disabled,
+:root[data-mode="dark"] .g-btn--danger:disabled,
+:root[data-mode="dark"] .g-btn--primary[aria-disabled="true"]:not([aria-busy="true"]),
+:root[data-mode="dark"] .g-btn--danger[aria-disabled="true"]:not([aria-busy="true"]),
+:root[data-mode="dark"] .g-prep__cta:disabled,
+:root[data-mode="dark"] .g-adminseason__btn--go[aria-disabled="true"]:not([aria-busy="true"]) {
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  opacity: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]) .g-btn--primary:disabled,
+  :root:not([data-mode]) .g-btn--danger:disabled,
+  :root:not([data-mode]) .g-btn--primary[aria-disabled="true"]:not([aria-busy="true"]),
+  :root:not([data-mode]) .g-btn--danger[aria-disabled="true"]:not([aria-busy="true"]),
+  :root:not([data-mode]) .g-prep__cta:disabled,
+  :root:not([data-mode]) .g-adminseason__btn--go[aria-disabled="true"]:not([aria-busy="true"]) {
+    border: 1.5px dashed var(--line-strong);
+    background: transparent;
+    box-shadow: none;
+    color: var(--muted);
+    opacity: 1;
+  }
 }
 
 /* The round close or back button of a sheet. */

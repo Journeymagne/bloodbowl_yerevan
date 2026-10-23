@@ -283,6 +283,42 @@ test("status walks from dirty through saving to saved", async () => {
   assert.deepEqual(seen, [SAVE_STATUS.IDLE, SAVE_STATUS.DIRTY, SAVE_STATUS.SAVING, SAVE_STATUS.SAVED]);
 });
 
+// Stage 13 (07a's hand-off): a screen's listener that throws is that screen's failure, never the queue's.
+test("a listener that throws stops neither the others nor the next save", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(harness.store);
+  const failures = [];
+  const said = console.error;
+  console.error = (error) => failures.push(error.message);
+  try {
+    // Quiet at rest; from the first edit on, every state it hears throws.
+    harness.store.subscribe("team-1", ({ status }) => {
+      if (status !== SAVE_STATUS.IDLE) throw new Error(`broken at ${status}`);
+    });
+    const heard = [];
+    harness.store.subscribe("team-1", ({ status }) => heard.push(status));
+
+    draft.teamName = "First";
+    harness.store.saveChange("team-1");
+    await flushMicrotasks();
+    assert.equal(harness.calls.length, 1, "sent, though a listener threw as each state was announced");
+    await harness.settleAll();
+    draft.teamName = "Second";
+    harness.store.saveChange("team-1");
+    await flushMicrotasks();
+    await harness.settleAll();
+
+    assert.deepEqual(harness.calls.map((call) => call.request.name), ["First", "Second"], "the next save is not left behind the first");
+    const { IDLE, DIRTY, SAVING, SAVED } = SAVE_STATUS;
+    assert.deepEqual(heard, [IDLE, DIRTY, SAVING, SAVED, DIRTY, SAVING, SAVED], "the other listener hears every state");
+    assert.equal(harness.store.statusOf("team-1"), SAVED);
+    assert.equal(harness.store.hasPendingChanges(), false);
+    assert.deepEqual(failures, [DIRTY, SAVING, SAVED, DIRTY, SAVING, SAVED].map((status) => `broken at ${status}`), "each failure said in the console");
+  } finally {
+    console.error = said;
+  }
+});
+
 test("a failed save keeps the edit, reports offline, and retries successfully", async () => {
   const harness = createHarness({ autoResolve: false });
   const { draft } = trackTeam(harness.store);

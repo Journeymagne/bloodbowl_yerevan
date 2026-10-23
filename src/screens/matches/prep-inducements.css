@@ -1,8 +1,7 @@
 /*
  * The inducements' step (screens/matches/prep-inducements.mjs, prep-effects.mjs): PreInducements.html and
- * DeskPreInducements.html. Font, border, background, text-transform, letter-spacing and font-weight are set here on
- * purpose: the 2.x globals outlive this sheet until stage 13. The counters are ui/resource-counter's, in the
- * prototype's look: a white − and + on the grey well, 44px up to 900px (D2) and the prototype's 34px from 901px.
+ * DeskPreInducements.html. The counters are ui/resource-counter's, in the prototype's look: a white − and + on the
+ * grey well, 44px up to 900px (D2) and the prototype's 34px from 901px.
  *
  * The bar's width is a class, a tenth at a time: the CSP allows no style attribute.
  */

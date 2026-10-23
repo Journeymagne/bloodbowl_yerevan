@@ -4,6 +4,7 @@ import test from "node:test";
 import { assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -1306,8 +1307,7 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.doesNotMatch(css, /--focus-ring/);
   assert.doesNotMatch(css, /g-advance__dierow|g-advance__dieside/, "no die beside the button: the pair stands above it");
   assert.doesNotMatch(css, /attempt/, "no attempts in the sheet: nothing to press, nothing to list");
-  const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-  assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+  assert.deepEqual(mediaQueries(ROLLS), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
   for (const selector of ["#player-advance .g-advance__note", "#player-advance .g-advance__result", "#player-advance .g-advance__face", "#player-advance .g-advance__facenum",
     "#player-advance .g-advance__d8face", "#player-advance .g-advance__stat", "#player-advance .g-advance__instead", "#player-advance .g-advance__pick",
     "#player-advance .g-advance__picktag", "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub",
@@ -1329,7 +1329,9 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces", "column-gap"), ["var(--space-10)", "var(--space-8)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces--shown", "list-style"), ["none"], "the site's list, reset (K10)");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces--shown", "padding"), ["0"]);
-  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))", "repeat(4, minmax(0, 1fr))"]);
+  // Four faces to a row at every width: eight in a phone's 358px column are 41px across, under a thumb's 44 (fidelity N3).
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(4, minmax(0, 1fr))"]);
+  assert.ok((358 - 3 * 4) / 4 >= 44, "four faces and three 4px gaps in a 358px column");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8face", "font"), ["700 18px/normal var(--font-display)", "700 17px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__table", "font"), ["400 13px/1.45 var(--font-body)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__table", "font"), ["400 13px/1.6 var(--font-body)"]);
@@ -1369,9 +1371,7 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assertReadable("src/screens/team/roster/player-sheets.css", ".g-player-sheet .g-player-sheet__refusal", "color", ["--surface", "--surface-2"], 4.5);
   assertReadable(ROLLS, "#player-advance .g-advance__info", "color", ["--surface", "--surface-2"], 4.5);
   // D2: up to 900px what is pressed is 44px or more; from 901px as the prototypes, never under 24px.
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (query) => bare.slice(bare.indexOf(`@media (${query}) {`), bare.indexOf("\n}", bare.indexOf(`@media (${query}) {`)));
-  const height = (query, selector) => Number(block(query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
+  const height = (query, selector) => Number(mediaText(ROLLS, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
   for (const selector of ["#player-advance .g-advance__face", "#player-advance .g-seg__item", "#player-advance .g-advance__d8face"]) {
     assert.ok(height("max-width: 900px", selector) >= 44, `${selector} on a phone`);
   }
@@ -1385,7 +1385,7 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.ok(phonePick >= 44, "a card of the pair on a phone");
   assert.ok(deskPick >= 24, "a card of the pair on a desk");
   assert.ok(Number.parseInt(valuesOf(ROLLS, "#player-advance .g-advance__roll--d16 .g-btn--primary", "min-height")[0], 10) >= 24, "«Roll two D16» on a desk");
-  // Imported after advance.css (K5: a relative order); the roster's chain stays in order (test/team-roster.test.mjs).
+  // Imported after advance.css (K5: a relative order); the roster's chain stays in order (test/team-roster-look.test.mjs).
   const styles = text("src/styles.css");
   const at = (name) => styles.indexOf(`@import url("screens/team/roster/${name}");`);
   assert.ok(at("profile.css") >= 0 && at("player-sheets.css") > at("profile.css") && at("advance.css") > at("player-sheets.css") && at("rolls.css") > at("advance.css"));

@@ -26,6 +26,7 @@ import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
@@ -70,7 +71,7 @@ function stateMarkup(model) {
 
 /** The coach's letter in its circle, his login, the line under it, and on a phone the chip at the right. */
 function whoMarkup(row, chip = "") {
-  return `<div class="g-friendly__who"><span class="g-friendly__letter" aria-hidden="true">${escapeHtml(row.initial)}</span>`
+  return `<div class="g-friendly__who">${renderCoachLetter({ initial: row.initial, size: 44 })}`
     + `<span class="g-friendly__id"><b class="g-friendly__login">${escapeHtml(row.login)}</b><span class="g-friendly__line">${escapeHtml(row.line)}</span></span>${chip}</div>`;
 }
 
@@ -151,7 +152,7 @@ function historyMarkup(model, options) {
   if (!model.history.length) return "";
   const open = options.historyOpen === true;
   const toggle = `<button type="button" class="g-friendly__fold" aria-expanded="${open ? "true" : "false"}" aria-controls="${HISTORY_ID}" data-friendly-history="">`
-    + `<span>${escapeHtml(t("friendly.history", { count: model.history.length }))}</span>${icon("chevron", 16)}</button>`;
+    + `<span>${escapeHtml(t("friendly.history", { count: model.history.length }))}</span>${icon("chevronShort", 16)}</button>`;
   const list = `<ul class="g-friendly__history${options.phone ? " g-friendly__card" : ""}" id="${HISTORY_ID}"${open ? "" : " hidden"}>${model.history.map(pastMarkup).join("")}</ul>`;
   return sectionMarkup("history", headingMarkup("history", toggle, options) + list, options);
 }

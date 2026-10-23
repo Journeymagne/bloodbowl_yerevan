@@ -5,6 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
@@ -118,7 +119,7 @@ test("a skill names its category for a screen reader and wears its colour; a tra
   assert.equal(trait.querySelector(".g-sr-only").textContent, "Trait");
   assert.equal(trait.querySelector(".g-ref-row__meta"), null, "a trait with no Active or Passive tag has no type to show");
   assert.equal(view.querySelector('a.g-ref-row[href="#/traits/throw-team-mate"] .g-ref-row__meta').textContent, "Passive");
-  assertStyled(view, "src/screens/ref/ref.css", "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
 });
 
 test("the categories are the skill groups' in their order, each with the skills that carry the tag", () => {
@@ -236,7 +237,7 @@ test("a phone gets the way back up to the reference; the table of contents and t
   renderRefSection("teams");
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("href"), "#/ref");
   assert.equal(view.querySelector("a.g-ref-back").textContent, "Reference");
-  assert.equal(view.querySelector("p.g-ref-head__title").textContent, "Reference");
+  assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
   assert.ok(view.querySelector("nav.g-ref-toc"));
   setRefQuery("dodge");
   renderRefSection("teams");
@@ -400,18 +401,31 @@ test("on a phone a split page is two screens: the list, or — with something ch
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "display"), ["none"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__main", "display"), ["none"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__panel", "display"), ["block"]);
-  const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
+  const phone = mediaText(SHEET, "max-width: 900px");
   for (const selector of [".g-ref--split .g-ref__panel", ".g-ref--split.g-ref--open .g-ref__main", ".g-ref--split.g-ref--open .g-ref__panel"]) {
-    const phone = css.match(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)[1];
     assert.ok(phone.includes(selector), `${selector} is a phone rule`);
   }
 });
 
 test("from 901px a list is columns that never wrap: the contents, the list and, with a panel, the panel up to 440px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns"), ["clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px)"]);
+  // The columns at a window's width (the side nav 232, the page's 32 each side, two gaps of 20): DeskRef's at 1440 —
+  // contents ≈ 254–260, panel 402, the list one column of rows —, and a list of 300 and more at 1024 (fidelity N6).
+  const clamp = (text, width) => {
+    const [, low, vw, minus, high] = text.match(/^clamp\((\d+)px, (\d+)vw - (\d+)px, (\d+)px\)$/);
+    return Math.min(Number(high), Math.max(Number(low), (Number(vw) * width) / 100 - Number(minus)));
+  };
+  const [contents, , panel] = valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns")[0].split(/ (?=clamp|minmax)/);
+  const columns = (width) => {
+    const [left, right] = [clamp(contents, width), clamp(panel, width)];
+    return [left, width - 232 - 64 - 40 - left - right, right].map(Math.round);
+  };
+  assert.deepEqual(columns(1440), [260, 442, 402]);
+  assert.ok(columns(1024)[1] >= 300, `the list at 1024: ${columns(1024)}`);
+  assert.ok(columns(901)[1] >= 220, `the list at 901: ${columns(901)}`);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
   for (const selector of [".g-ref--list .g-ref__body", ".g-ref--split .g-ref__body"]) {
@@ -431,7 +445,7 @@ test("from 901px the rows are a grid of 220px columns in a framed card that scro
 
 test("the list sheet breaks at 900/901 only, and sets the case wherever it sets a font", () => {
   const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(SHEET);
   for (const { selectors, body } of blocks(css)) {
     if (/(?:^|[;\s])font\s*:/.test(body)) assert.match(body, /text-transform\s*:/, `${selectors}: a font without its case`);
     if (/(?:^|[;\s])font\s*:/.test(body)) assert.match(body, /letter-spacing\s*:/, `${selectors}: a font without its tracking`);

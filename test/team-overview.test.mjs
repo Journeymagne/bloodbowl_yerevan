@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
 import { renderCrest } from "../src/shell/crest.mjs";
@@ -418,7 +419,7 @@ test("the figures and the head's field as DeskOverview.html and Team.html draw t
   // Readable: the grey second part on a desk's card and on a phone's tile, the accent on the card.
   assertReadable(tile, ".g-kpi__rest", "color", ["--surface", "--surface-2"], 4.5);
   assertReadable(tile, ".g-kpi--accent .g-kpi__v", "color", ["--surface"], 4.5);
-  for (const file of [css, tile]) for (const [, query] of text(file).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
+  for (const file of [css, tile]) assertBreakpoints(file);
   assert.doesNotMatch(bare, /--focus-ring/);
 });
 
@@ -1519,7 +1520,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assertReadable(LISTS_CSS, ".g-overview__leaderpos", "color", ["--surface", "--page"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadertag", "color", ["--surface", "--page"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadername", "color", ["--surface", "--page"], 4.5);
-  for (const [, query] of text(LISTS_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(LISTS_CSS);
   assert.doesNotMatch(bare, /--focus-ring/);
 });
 
@@ -1755,7 +1756,7 @@ test("a long name in «Ready to advance» wraps; nothing is cut with «…» (th
   }
   for (const selector of [".g-overview__readywho", ".g-overview__readyname", ".g-overview__readypos"]) assert.deepEqual(valuesOf(READY_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
   assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readyrow", "align-items"), ["center"]);
-  for (const [, query] of text(READY_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(READY_CSS);
   assert.doesNotMatch(source, /--focus-ring/);
 });
 
@@ -1863,7 +1864,7 @@ test("a desk's row is no link: the round's word is the match's, stretched over t
   assert.deepEqual(["content", "position", "inset"].map((property) => desk(".g-overview__match::after", property)), [['""'], ["absolute"], ["0"]]);
   assert.deepEqual([own(".g-overview__match", "text-decoration"), own(".g-overview__match", "position")], [["none"], []]);
   // base.css's ring, written out on the ::after: the whole row is ringed, as when the row was the link; the word draws none.
-  assert.match(text("src/ui/base.css"), /:focus-visible \{\s*outline: 3px solid var\(--accent-text\);\s*outline-offset: 0;\s*\}/);
+  assert.match(text("src/ui/base.css"), /:where\(:focus-visible\) \{\s*outline: 3px solid var\(--accent-text\);\s*outline-offset: 0;\s*\}/);
   assert.deepEqual([desk(".g-overview__match:focus-visible::after", "outline"), desk(".g-overview__match:focus-visible::after", "outline-offset")], [["3px solid var(--accent-text)"], ["0"]]);
   assert.deepEqual(desk(".g-overview__match:focus-visible", "outline"), ["0"]);
   assert.doesNotMatch(bareOf(LISTS_CSS), /--focus-ring/);
@@ -2140,6 +2141,41 @@ test("a cold start reads the records once, after the games have answered; a team
   assert.ok(sent("GET /api/teams/t4/events") >= 1, "a build that plays reads its records");
   releaseCurrentScreen();
   api.assertAnswered();
+});
+
+// Stage 13 (07e's hand-off, N1): records newer than the list read it again only while the coach is here — one who left
+// while the records were on their way sends no read of the list.
+test("leaving during the records read sends no list read", async () => {
+  coach();
+  api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+  api.reply(LIST, 200, listAt(5));
+  const records = api.hold(EVENTS);
+  await renderTeamOverview("t1");
+  await turns();
+  assert.equal(sent(EVENTS), 1, "the records are on their way");
+  releaseCurrentScreen();
+  view.innerHTML = "<p>next</p>";
+  records.release();
+  await turns();
+  assert.equal(sent(LIST), 0, "records past the list, answered after the coach left: no read of the list");
+  assert.equal(view.querySelector("p").textContent, "next");
+  api.assertAnswered();
+});
+
+// Stage 13 (07e's hand-off, N3): the server sends whole revisions; a list that holds one as text is not compared.
+test("a list revision as text is not newer than the team's", async () => {
+  for (const listed of ["4", "3"]) {
+    coach();
+    state.myTeams = { ...state.myTeams, items: state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, revision: listed } : team)) };
+    api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+    await renderTeamOverview("t1");
+    await turns();
+    assert.equal(sent(EVENTS), 1, listed);
+    assert.equal(sent(LIST), 0, `records at 5 and a list at "${listed}": no read of the list`);
+    assert.deepEqual(leaderWords(), ROSTER, `"${listed}": the roster's numbers`);
+    releaseCurrentScreen();
+    api.assertAnswered();
+  }
 });
 
 // Review M3, pre-flight L11: the records are taken only with a whole revision, the answer's and the list's alike.

@@ -8,6 +8,254 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [3.0.0] — unreleased
+
+The redesign. Every screen is new, built from the 0.9.1 design handoff on a
+design system of its own (Golos Text and Oswald, eight palettes, the components
+in `src/ui`), and a coach now runs a team through a whole season on the site:
+the roster and its match records, the treasury, the dead, advancement with
+dice rolled on the site, a match from preparation to post-match step by step,
+friendly challenges, the league table, and the administration. The rules are the
+league's own (`content/Gata/Rules`), in English and Russian, everywhere on the
+site. Nothing of 2.x is left in the frontend.
+
+Breaking, for a coach: old links still open, at their new addresses; a team
+half-built in the 2.x builder is not carried over; the quick score form is gone
+(results go through the post-match); a new team starts in the draft and the
+administrator moves it into the season; once a match starts, a team's roster,
+treasury and dead stay as they are until its post-match is finished, the
+match's own records aside. Nobody has to sign in again. For an operator:
+nine migrations, applied in one window with the site in maintenance — see
+**Operators** below.
+
+### Added
+
+- **Shell and sign-in.** On the phone a header with tabs that shrinks as the
+  page scrolls; on the desktop a side navigation with the current match (next
+  match, match in play, a score waiting to be confirmed). A team switcher keeps
+  the section when the team changes. Signing in and registering are screens of
+  their own (`#/login`, `#/register`) instead of a dialog; a lockout names the
+  minutes to wait, and every outcome is put in words. A guest who opened a
+  coach's link is taken back there after signing in.
+- **Settings** (`#/settings`). The account (Telegram, the password changed with
+  the current one), the language, and the look: light, dark or the system's,
+  with a palette for each. A guest gets the look, the language and the way to
+  sign in. The administrator from the server's env file sees that account read
+  only.
+- **Teams and the draft.** My Teams (`#/teams`), with deletion after a
+  confirmation; a team in a season or with friendlies cannot be deleted. A new
+  team (`#/teams/new`) is a name and a race, then the draft: a 600k budget,
+  positions with their limits, numbers, names, the captain and the staff of the
+  race. A plus that cannot go up says why, and an overspend shows and blocks the
+  save. A double click, a lost answer or a timeout never makes two teams.
+- **Team overview** (`#/t/:id`). Place, points and W/D/L, team value and
+  treasury; on the desktop TD and CAS difference, a search in the band and a
+  mini-table. The season's match board with the rounds, the opponent and what
+  the match phase asks for; team leaders by career; recent results with the MVP.
+- **Roster** (`#/t/:id/roster`). A sortable table of the players: number,
+  captain, the five characteristics (a changed one said in words), career SPP.
+  On the phone a row opens; on the desktop the player opens in a panel beside
+  it, with a search in the band.
+  - SPP counters outside a match, one save per step, with the save's state in
+    view, a conflict to resolve and an offline queue.
+  - **Match records:** during a match each tap is a record of that match, and an
+    injury is recorded the same way; an edit outside the match goes to the
+    career instead. The post-match takes its statistics from the records.
+  - **Missing the next match** with its reason (an injury of the Casualty
+    Table, with its effect on the player, a death, or another reason), and
+    back into the roster.
+  - **The fallen:** a section of their own, marking a death with its cause, and
+    undoing a mark made by mistake. A death from a match is undone only by the
+    administrator.
+  - **Hiring** from a cart (treasury, cart, what is left; free numbers for the
+    rookies), **selling** at half the player's value, and cancelling a purchase
+    before the next match for the full price.
+  - **Player profile** (`#/t/:id/roster/:playerId`): number, name and captain;
+    a fix by hand (lasting injuries, characteristics, skills, the last
+    advancement undone).
+  - **Advancement:** a skill by category, a characteristic, a skill instead of a
+    characteristic, rolled on the site or at the table. A random skill is two
+    D16 rolled at once, both usable and different, and the coach picks one; the
+    site's dice are the server's, and each roll is taken once.
+  - **Career by match:** each match the player played, with its events and SPP,
+    a match awaiting its post-match, and a veteran's line for the time before
+    the site's records.
+- **Treasury and resources** (`#/t/:id/team`). The treasury and the Coach's
+  Safe; re-rolls, Dedicated Fans, bribes and the medicine the race may hire
+  (Apothecary, Mortuary Assistant, Plague Doctor), each by the rules of the
+  team's stage and race, with the reason a plus is closed. The treasury's
+  history line by line. Credit or debit with a reason, and a fix by hand.
+  During a match everything here is closed; during a preparation a purchase
+  says which steps it resets.
+- **Team settings** (`#/t/:id/settings`): the name and the logo; the race is read
+  only.
+- **Matches** (`#/t/:id/matches`). The next match, results, the rest of the
+  season; on the desktop the season: the board, the table and the calendar.
+  «Before the match» shows each side's inducement budget (petty cash, the tier
+  bonus, the treasury) and who misses the match and why.
+  - **Preparation** (`#/games/:id/pre-match`): fans, weather, the roster and
+    journeymen, inducements and effects, then the start. The start cannot be set
+    off by a double click or a held Enter.
+  - **Match in play:** the roster records the match, as above.
+  - **Post-match** (`#/games/:id/post-match`), seven steps: score (with a
+    concession or a technical result and its reason), income, players (events,
+    the MVP, injuries from the records), roster, treasury, next match, review.
+    Advancement works inside it, with the site's dice; the players who died go to
+    the team's fallen. «Finish the match» applies once, however often pressed.
+  - **The match page** (`#/games/:id`): a coach of either side is taken to where
+    the match is now; anyone else gets the match card, and the coach who
+    receives a score sent before 3.0 confirms or rejects it there.
+- **Friendly challenges** (`#/t/:id/challenges`): a challenge sent with a search
+  over coaches and their teams and the recent opponents, accepted by choosing
+  one's own team, then played through the same preparation and post-match.
+- **League table** (`#/season`), for guests too: your own row marked, the form of
+  the last five, the points rule, the playoff zone, and the season calendar.
+- **Opponents and coaches.** An opponent's team (`#/coaches/:uid/teams/:tid`):
+  place, form, team value, TD and CAS difference, our meeting, the coach and
+  their Telegram, the roster with the skills its dice rolled. A coach's profile
+  (`#/coaches/:uid`): teams, «Challenge», your meetings.
+- **Reference** (`#/ref`), in four groups (the match, players, teams, the
+  league) with one search over every page, section and the league overview.
+  Skills and traits filter by category; a skill's panel shows its category, its
+  D16 face, the elite combination it belongs to and the players of your team
+  who have it. Articles read with a table of contents and turn from one to the
+  next; team rules list positions, costs, skills and the teams of that race in
+  the league.
+- **A guest's home** (`#/`): the league, signing in and registering, the top five
+  of the table, the reference. A coach's home is the active team's overview.
+- **Administration** (`#/administration`).
+  - Coaches: a search; «Coach with a team» makes both at once, the team in the
+    draft with 600k, and a temporary password from the server shown once;
+    resetting a password; deleting a coach, refused while the coach has a team
+    in the season.
+  - The season: rounds and pairings, a manual result (played, or technical with
+    its reason), the scores waiting to be confirmed; the entries, moving a team
+    into the season or withdrawing it, and the number of playoff places.
+  - Any team, edited in the roster's own screen in the administrator's mode:
+    the treasury with a reason, the staff, the fallen added afterwards, the name
+    and the logo.
+- **Eight palettes**, four light and four dark, each with its mood: Perfect
+  Conditions, Sweltering Heat, Blizzard, Imperial Nobility, Under the
+  Floodlights, Dark Elves, Flames of Chaos, Pouring Rain.
+- Everything new is in English and Russian.
+
+### Changed
+
+- **Addresses.** `#/my-teams` → `#/teams` (a team: its roster),
+  `#/players/…` → `#/coaches/…`, `#/my-games` → `#/t/:id/matches`,
+  `#/builder` → `#/teams/new`, `#/skills` and the other reference lists →
+  `#/ref/…`, `#/season/administration` → `#/administration/season`,
+  `#/season/registration` → `#/season`. The old ones lead to the new ones
+  without a step in the history.
+- **The coach's quick score form is gone.** A league or friendly result goes
+  through the post-match; the administrator enters a manual result. A score
+  sent before 3.0 and not yet confirmed is still confirmed by the coach who
+  received it, or entered by the administrator.
+- **A team has a stage.** A new team, the coach's or the administrator's, starts
+  in the draft, buys Start Re-rolls (60k), and enters the season when the
+  administrator moves it; a team in the season buys Team Re-rolls (120k).
+  Existing teams are sorted by what they have done: a team in a running season
+  or with a match played is in the season, every other one is in the draft.
+- **Re-rolls:** Start and Team Re-rolls together are at most 8, on every save of
+  a roster.
+- **A team in a match is held.** From the start of a match until its post-match
+  is finished, the team's own roster, treasury, deaths and rolls are refused
+  (`TEAM_IN_MATCH`); the administrator's pages are the way to fix one.
+- **A technical result carries its reason:** a win when the opponent could not
+  field a team is 2 + 2 = 4 points, any other technical win 2. The same rule in
+  the post-match, the administrator's manual result and a change of reason. A
+  technical result from before 3.0 counts as the other reason, 2 points, as it
+  did.
+- **Favoured of… rolls a D8 on every advancement**, in the roster and in the
+  post-match, as the league's rules say; a player who has every skill of the god
+  skips it.
+- **A god's skill (Favoured of…) adds to the player's value** what a skill of its
+  category costs him: +20k when his position has Mutation among its primary
+  categories, +40k otherwise. It still does not raise his rank. A player who
+  already has a god's skill is worth 20k or 40k more, and so is his team.
+- The 14-player limit counts everyone on the roster, the players missing the next
+  match included.
+- Raise Dead is available to a side with a Plague Ridden player as well.
+- Only a `401` ends a session; a refused request (`403`) no longer signs a coach
+  out, and neither does a lost connection. Sessions and the token are as they
+  were.
+- The look, the active team and the language are kept with the account, so they
+  follow a coach to another device; the browser keeps a copy for the first frame.
+  A 2.x theme is carried to its nearest palette.
+- A team's race cannot be changed once the team exists.
+
+### Fixed
+
+- The built CSS no longer loses `calc(a + b)`, so a match's bottom bar and the
+  hire window keep their room above the iPhone's home indicator.
+- The Russian weather table is read in the preparation.
+- Skill links in rosters find their page by one rule: Animosity (All), Hatred
+  (Troll) and nine more link again.
+- The elite combinations' 15k surcharge compares skills by their name in the
+  rules, so a skill with a parameter, such as Mighty Blow (+1), counts. A team
+  value may rise by 15k for such a player.
+- A post-match retried after a revision conflict compares the states by value,
+  not by their JSON text.
+- `npm run build` removes from `dist/` what it no longer writes, once the new
+  files are in place: a file deleted from the repository is not served after
+  the next deploy.
+
+### Removed
+
+- **Every 2.x screen and its styles:** the builder and the saved-roster editor,
+  My Games, the game page's checklists, the season screens and the 2.x
+  administration, the reference's search bar, the home page; `src/styles/*`
+  except the tokens, and the temporary aliases of the 2.x CSS variables.
+- **Comfortaa and Nunito.** The site uses Golos Text and Oswald only.
+- **The builder's draft in the browser.** A half-built team was kept in
+  `localStorage`; the key is erased when `#/teams/new` opens and is not imported.
+- The 2.x administration's routes `POST /api/season/admin/coaches` and
+  `POST /api/season/admin/create-team`; the administration's own replace them.
+
+### Migrations
+
+Nine, `009`–`017`, in `server/db/migrations/`. Existing rows are not rewritten,
+except the stage `009` gives every team; `015` adds rows. A rehearsal on a copy
+of production (`npm run rehearsal:*`) checks every column that existed before.
+
+- `009_team_stage.sql` — a team's stage (`draft` or `active`) and when it was
+  activated; existing teams sorted by what they have done.
+- `010_team_ledger.sql` — `team_ledger`, every change of a team's treasury line by
+  line; it starts empty, so the history begins on day X.
+- `011_fallen_players.sql` — `team_fallen_players`, the players who died, kept
+  after they leave the roster.
+- `012_dice_rolls.sql` — `dice_rolls`, the dice the site rolled for a player,
+  kept until an advancement takes them.
+- `013_user_preferences.sql` — `users.preferences`, the look, the active team and
+  the language kept with the account.
+- `014_match_events.sql` — `match_events`, one row per tap made during a match;
+  the post-match counts its statistics from them.
+- `015_backfill_fallen_players.sql` — the players who died in a 2.x post-match,
+  carried into `team_fallen_players`.
+- `016_match_event_mvps.sql` — the MVP among the counters of the match records,
+  so an MVP corrected by hand reaches the player's history.
+- `017_season_admin.sql` — `seasons.playoff_places` and
+  `season_pairings.technical_reason`; the view `match_pairing_context` is
+  recreated with the new column. Rolling back to 2.1.0 once reasons are set
+  first needs `UPDATE season_pairings SET technical_reason = NULL`.
+
+### Operators
+
+- The day-X runbook is **Moving to 3.0** in `DEPLOYMENT.md`: the preparation,
+  the maintenance window (dump, snapshot, merge, migrations, schema and data
+  check, tunnel check, decision), the rollback before the point of no return,
+  the full restore, and what follows.
+- Deploy the frontend and the API together. `npm run deploy:migrate` applies the
+  nine migrations after a fresh backup.
+- If production has technical results by then, the administrator sets their
+  reasons on day X.
+- New commands: `npm run rehearsal:restore|check|migrate|transitions` (a
+  migration and the states open at the move, on an anonymized copy of
+  production), `npm run smoke:admin` (the administration on a running server;
+  it needs an administrator's login and password), `npm run screens` and
+  `npm run screens:diff` (screenshots of app states, and two sets compared pixel
+  by pixel).
+
 ## [2.1.0] — 2026-10-15
 
 Groundwork for the 3.0 move: the site can now close itself for maintenance

@@ -25,6 +25,7 @@ import { view } from "../../core/view.mjs";
 import { readAdminUsers } from "../../data/admin.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { coachInitial, renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
@@ -32,7 +33,7 @@ import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { closeCoachNew, openCoachNew } from "./coach-new.mjs";
-import { adminHeadMarkup, adminRefusalMarkup, avatarMarkup, isAdminViewer } from "./frame.mjs";
+import { adminHeadMarkup, adminRefusalMarkup, isAdminViewer } from "./frame.mjs";
 
 /** Text as it is searched: no case, one blank between words, none around. */
 const searchable = (text) => String(text ?? "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -107,7 +108,7 @@ function rowMarkup(row) {
   const chip = row.isAdmin ? renderStatusChip({ label: t("administration.adminChip"), tone: "live" }) : "";
   const open = link(row.href, "g-coaches__open", escapeHtml(t("administration.open")), t("administration.openLabel", { login: row.login }));
   return '<div class="g-coaches__row" role="row">'
-    + `<span class="g-coaches__who" role="cell">${avatarMarkup(row.login, 36)}<b class="g-coaches__login">${escapeHtml(row.login)}</b>${chip}</span>`
+    + `<span class="g-coaches__who" role="cell">${renderCoachLetter({ initial: coachInitial(row.login), size: 36 })}<b class="g-coaches__login">${escapeHtml(row.login)}</b>${chip}</span>`
     + `<span class="g-coaches__tg" role="cell">${escapeHtml(row.telegram)}</span>`
     + `<span class="g-coaches__count" role="cell">${row.teams}</span>`
     + `<span class="g-coaches__edited" role="cell">${escapeHtml(row.edited)}</span>`
@@ -126,14 +127,14 @@ function tableMarkup(model) {
     + `<div class="g-coaches__rows" role="rowgroup">${model.rows.map(rowMarkup).join("")}</div></div></div>`;
 }
 
-/** AdminMobile's rows: each a link to the coach, his letter, the login over «@orc_boss · teams: 2», a chevron. */
+/** AdminMobile's rows: each a link to the coach, his letter, the login over «@orc_boss · teams: 2», its short chevron. */
 function itemsMarkup(model) {
   if (!model.rows.length) return noneMarkup(model);
   return model.rows.map((row) => {
     const line = [row.telegram, t("administration.teamsCount", { teams: row.teams })].filter(Boolean).join(" · ");
     const text = `<span class="g-coaches__itemtext"><b class="g-coaches__itemlogin">${escapeHtml(row.login)}</b>`
       + `<span class="g-coaches__itemline">${escapeHtml(line)}</span></span>`;
-    return link(row.href, "g-coaches__item", `${avatarMarkup(row.login, 40)}${text}${icon("chevron", 16)}`);
+    return link(row.href, "g-coaches__item", `${renderCoachLetter({ initial: coachInitial(row.login), size: 40 })}${text}${icon("chevronShort", 16)}`);
   }).join("");
 }
 

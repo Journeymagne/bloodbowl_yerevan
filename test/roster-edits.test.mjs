@@ -324,14 +324,16 @@ test("the players an edit, a fix or an advancement changes, a mark's injury left
 test("Favoured of Nurgle: the trigger, the list, what he has, and whether the coach picks or rolls", () => {
   const draft = roster([ROTTER, ROTSPAWN], NURGLE), [rotter, rotspawn] = draft.players;
   const skills = (...held) => ["Tentacles", "Monstrous Mouth", "Bone Hook"].map((name, at) => ({ name, held: held[at] ?? false }));
-  assert.deepEqual(favouredBonus(nurgle, draft, nurgleRows[0], rotter), { alignment: "Nurgle", trigger: 7, random: false, skills: skills() });
-  assert.deepEqual(favouredBonus(nurgle, draft, nurgleRows[3], rotspawn), { alignment: "Nurgle", trigger: 7, random: true, skills: skills(true) });
+  // `cost`: what the god's skill adds to his value, a skill's price by his Mutation access (the owner, 2026-10-22): a
+  // Rotter Lineman's is primary (+20k), a Rotspawn's secondary (+40k).
+  assert.deepEqual(favouredBonus(nurgle, draft, nurgleRows[0], rotter), { alignment: "Nurgle", trigger: 7, random: false, cost: 20, skills: skills() });
+  assert.deepEqual(favouredBonus(nurgle, draft, nurgleRows[3], rotspawn), { alignment: "Nurgle", trigger: 7, random: true, cost: 40, skills: skills(true) });
   assert.equal(favouredBonus(human, roster(), rows[0], PLAYERS[0]), null, "no Favoured of…");
   assert.equal(favouredBonus(nurgle, { ...draft, favouredChoice: "" }, nurgleRows[0], rotter), null, "none chosen");
   assert.equal(favouredBonus(nurgle, { ...draft, favouredChoice: "Khorne" }, nurgleRows[0], rotter), null, "not this race's");
   const chosen = race("teams/chaos-chosen"), minotaur = rowsForTeam(chosen)[4];
   assert.deepEqual(favouredBonus(chosen, { favouredChoice: "khorne" }, minotaur, { id: "m1", rowIndex: 4 }),
-    { alignment: "Khorne", trigger: 8, random: false,
+    { alignment: "Khorne", trigger: 8, random: false, cost: 20,
       skills: [{ name: "Horns", held: true }, { name: "Iron Hard Skin", held: false }, { name: "Prehensile Tail", held: false }] });
   assert.deepEqual(addFavouredSkill(nurgle, draft, nurgleRows[0], rotter, "Tentacles"), { applied: true });
   assert.deepEqual(rotter.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);

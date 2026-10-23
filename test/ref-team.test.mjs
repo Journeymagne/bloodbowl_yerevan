@@ -6,6 +6,7 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaText, outsideMedia } from "./helpers/css.mjs";
 import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 // The fake API comes first: api-client.mjs picks `fetch` up when it loads.
@@ -304,13 +305,12 @@ test("the markup a team draws is styled by its own sheet, the article's (the ski
 });
 
 test("a phone has the cards and a desktop the table; the table is not cut to the prose's width", () => {
-  const bare = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
-  const wide = bare.match(/@media\s*\(min-width: 901px\)\s*\{([\s\S]*)\n\}/)[1];
-  const narrow = bare.match(/@media\s*\(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)[1];
+  const wide = mediaText(SHEET, "min-width: 901px");
+  const narrow = mediaText(SHEET, "max-width: 900px");
   assert.match(narrow, /\.g-ref-roster\s*\{[^}]*display:\s*none;/);
   assert.match(wide, /\.g-ref-positions\s*\{[^}]*display:\s*none;/);
   assert.match(wide, /\.g-article \.g-ref-roster\s*\{[^}]*max-width:\s*none;/);
-  const outside = bare.replace(/@media\s*\(max-width: 900px\)\s*\{[\s\S]*?\n\}/, "");
+  const outside = outsideMedia(SHEET, "max-width: 900px");
   assert.ok(!/\.g-ref-roster\s*[,{][^}]*display:/.test(outside), "nothing outside the phone's rule hides the table");
 });
 

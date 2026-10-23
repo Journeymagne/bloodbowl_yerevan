@@ -3,9 +3,6 @@
  * header colour, and the row of tabs under it. `#app-header` carries
  * `g-appbar`; the shell's `g-appbar--compact` folds it once the page scrolls.
  * Which viewport shows it (up to 900px) is the frame's, not this sheet's.
- * Font, border, background, text-transform and font-weight are set here on
- * purpose: the 2.x globals (a { color: inherit }, button { font: inherit })
- * outlive this sheet until stage 13.
  *
  * The team is a button that opens the switcher (a link for a guest), so its
  * rule resets what a button brings and a link does not. Everything pressable

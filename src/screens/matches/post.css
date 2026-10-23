@@ -2,8 +2,7 @@
  * The post-match 3.0 (screens/matches/post-model.mjs, post-steps.mjs and the steps after them): PostResult.html …
  * PostReview.html on a phone, DeskPostResult.html … DeskPostReview.html on a desk, in the preparation's frame
  * (prep.css). What every step shares is here — the card, its label, a row «label — value», a note, a big figure — and
- * the score's and the income's own parts. Font, border, background, text-transform, letter-spacing and font-weight are
- * set on purpose: the 2.x globals outlive this sheet until stage 13.
+ * the score's and the income's own parts.
  *
  * Long lines wrap — a team's name over the steppers, a row's label —; nothing is cut with «…» (the owner's answer).
  */

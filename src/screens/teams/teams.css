@@ -1,8 +1,6 @@
 /*
  * My teams (screens/teams/index.mjs). The face of a team in a row, its tile,
- * name and line, is the switcher's (shell/team-switcher.css). Font, border,
- * background, text-transform and font-weight are set here on purpose: the 2.x
- * global rules (ul, a, p, h1) outlive this sheet until stage 13.
+ * name and line, is the switcher's (shell/team-switcher.css).
  *
  * A row is a card: the link to the team's overview takes its width, a bin or
  * a chip stands at the right. The active team's row is tinted like the

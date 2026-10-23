@@ -1,14 +1,12 @@
 /*
  * The builder (screens/teams/builder-view.mjs), the second step of
  * `#/teams/new` (the first, the name and the race, is new.css's): the head and
- * the budget, the team, the players, the numbers, the staff and the save. Font,
- * border, background, text-transform and font-weight are set here on purpose:
- * the 2.x global rules (h1 at weight 800, a { color: inherit }, p and dl
- * margins, bare inputs) outlive this sheet until stage 13.
+ * the budget, the team and the players here; the numbers, the staff and the
+ * save in builder-roster.css, imported right after this sheet.
  *
  * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
  * has no padding in it, so `.g-build` brings its own: 16px at the sides on a
- * phone, 28px on a desk.
+ * phone, DeskBuilder.html's 24 32 40 on a desk.
  *
  * Up to 900px: one column in the order of the markup. The head and the budget
  * are one dark band (--header), the budget a card in it; the save is a bar at
@@ -34,7 +32,7 @@
   text-transform: none;
 }
 
-/* The 2.x globals give a heading a weight of 800 and a paragraph or a list its margins. */
+/* A heading, a paragraph or a list takes none of the browser's margins: the builder spaces its parts itself. */
 .g-build :where(p, dl, dd, dt, h1, h2) {
   margin: 0;
   padding: 0;
@@ -42,13 +40,6 @@
   text-transform: none;
   letter-spacing: 0;
 }
-
-/*
- * The sticky save needs the page itself to be the one that scrolls; the frame clips sideways with
- * overflow-x: hidden, which makes .g-main the container a sticky element sticks in, and it never scrolls.
- * Scoped to this screen with :has() for now. Stage 13 makes it global in frame.css and removes this rule.
- */
-.g-main:has(.g-build) { overflow-x: clip; }
 
 /* ---- The head ---- */
 .g-build__head {
@@ -161,13 +152,14 @@
   background: var(--line);
   overflow: hidden;
 }
+/* The fill is the accent's words' colour: 3:1 on the --line track in every palette (--accent was 2.48:1 in night). */
 .g-build__bar::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 0;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--accent-text);
 }
 .g-build__bar--over::before { background: var(--danger); }
 .g-build__bar--0::before { width: 0; }
@@ -424,165 +416,16 @@
   text-align: center;
 }
 
-/* ---- Numbers, names and the captain ---- */
-.g-build__roster-title { display: none; }
-
-.g-build__roster-toggle {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 48px;
-  margin: var(--space-10) 0 0;
-  padding: 0 var(--space-14);
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface-2);
-  color: var(--ink);
-  font: 600 14px/1.3 var(--font-body);
-  text-align: left;
-  text-transform: none;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-.g-build__roster-toggle[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
-
-.g-build__roster-list {
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--space-4);
-}
-
-.g-roster-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-10);
-  min-height: 60px;
-  padding: var(--space-6) 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.g-roster-row__num {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-4);
-  color: var(--muted);
-  font: 400 13px/1 var(--font-body);
-}
-.g-roster-row__number,
-.g-roster-row__name {
-  box-sizing: border-box;
-  height: var(--size-touch);
-  margin: 0;
-  padding: 0 var(--space-8);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--ink);
-  letter-spacing: 0;
-  text-transform: none;
-  appearance: none;
-}
-.g-roster-row__number {
-  width: 52px;
-  padding: 0 var(--space-4);
-  font: 700 16px/1 var(--font-display);
-  text-align: center;
-  -moz-appearance: textfield;
-}
-.g-roster-row__number::-webkit-inner-spin-button,
-.g-roster-row__number::-webkit-outer-spin-button { appearance: none; }
-.g-roster-row__name {
-  width: 100%;
-  min-width: 0;
-  font: 600 15px/1.2 var(--font-body);
-}
-.g-roster-row__name::placeholder { color: var(--muted); }
-
-.g-roster-row__who {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.g-roster-row__position {
-  padding-left: var(--space-8);
-  color: var(--muted);
-  font: 400 12px/1.3 var(--font-body);
-}
-
-.g-roster-row__captain {
-  box-sizing: border-box;
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-touch);
-  height: var(--size-touch);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--control-border);
-  color: var(--muted);
-  font: 700 16px/1 var(--font-display);
-  text-transform: none;
-  cursor: pointer;
-}
-.g-roster-row__captain[aria-checked="true"] {
-  background: var(--crest-gold);
-  box-shadow: none;
-  color: var(--pitch-900);
-}
-
-/* ---- The staff ---- */
-.g-build__reroll-note {
-  margin-top: var(--space-12);
-  color: var(--muted);
-  font: 400 12px/1.45 var(--font-body);
-}
-
-/* ---- The save ---- */
-.g-build__cta {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  background: var(--surface);
-}
-.g-build__note {
-  color: var(--muted);
-  font: 400 12px/1.4 var(--font-body);
-  text-align: center;
-}
-
-/* ---- A phone ---- */
-@media (max-width: 900px) {
-  .g-build__roster-list--shut { display: none; }
-
-  /* The save is a bar at the foot of the screen, the width of the page, over the 24px the page leaves under it. */
-  .g-build__cta {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin: auto calc(-1 * var(--space-16)) calc(-1 * var(--space-24));
-    padding: var(--space-10) var(--space-16) 18px;
-    border-top: 1px solid var(--line);
-  }
-}
-
 /* ---- A desk ---- */
 @media (min-width: 901px) {
+  /* DeskBuilder.html's main: 24 32 40. The numbers, the staff and the save take their places in builder-roster.css. */
   .g-build {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
     grid-template-rows: auto auto auto minmax(0, 1fr) auto;
     column-gap: var(--space-20);
     align-items: start;
-    padding: var(--space-24) 28px 40px;
+    padding: var(--space-24) 32px 40px;
     background: transparent;
   }
 
@@ -593,7 +436,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 14px;
-    margin: calc(-1 * var(--space-24)) -28px var(--space-24);
+    margin: calc(-1 * var(--space-24)) -32px var(--space-24);
     padding: 18px 32px;
   }
   .g-build__head > .g-status { margin-left: auto; }
@@ -646,21 +489,6 @@
     font: 700 14px/1.3 var(--font-body);
   }
 
-  .g-build__cta {
-    position: static;
-    grid-column: 2;
-    grid-row: 3;
-    gap: var(--space-8);
-    padding: 0 var(--space-24) var(--space-20);
-    border: 1px solid var(--line-strong);
-    border-top: 0;
-    border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
-  }
-  .g-build__note {
-    font-size: 13px;
-    text-align: left;
-  }
-
   .g-build__team,
   .g-build__players,
   .g-build__roster,
@@ -683,23 +511,7 @@
   /* The first band's two cards end on one line, whichever of the two is the taller. */
   .g-build__players,
   .g-build__team { align-self: stretch; }
-  .g-build__roster {
-    grid-column: 2;
-    grid-row: 5;
-    margin-top: var(--space-20);
-  }
-  .g-build__staff {
-    grid-column: 1;
-    grid-row: 5;
-    margin-top: var(--space-20);
-  }
 
   .g-hire__count,
   .g-build__count { font-size: 13px; }
-  /* The count after the title would take the 312px of the column to a second line at 26px. */
-  .g-build__roster .g-build__h { font-size: 22px; }
-
-  /* The list of numbers is always there on a desk, with a heading of its own in place of the button. */
-  .g-build__roster-toggle { display: none; }
-  .g-build__roster-title { display: flex; }
 }

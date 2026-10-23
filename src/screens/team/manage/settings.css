@@ -2,10 +2,8 @@
  * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder, DeskBuilder): a card in the
  * right column of a desk, a screen's body on a phone (settings-screen.mjs, under Builder.html's head; owner,
  * 2026-10-20), and the row of the phone's team page that leads there — and the lines the sheets add to sheet.css's
- * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x globals (button { font: inherit }, p, h1, h2, ul)
- * outlive this sheet until stage 13. The keyboard ring is base.css's. A long name, a long note or a long rule wraps:
- * nothing here is cut with «…».
+ * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. The keyboard ring is base.css's. A long
+ * name, a long note or a long rule wraps: nothing here is cut with «…».
  */
 
 .g-team-settings {
@@ -293,14 +291,12 @@
  * team page with the card), so every rule is up to 900px. Where Builder.html gives no line height, the font's own.
  */
 @media (max-width: 900px) {
-  /* The screen reaches the view's edges, as the head does: the view's own padding gives way to it. */
+  /* The screen reaches the view's edges, as the head does: the frame's padding gives way to it. */
   .g-frame #app-view:has(> .g-team-settings-screen) {
     display: flex;
     flex-direction: column;
     padding: 0;
   }
-  /* What .g-main's overflow-x: hidden would do without making it a scroll box, which would hold the head's sticking (K3). */
-  .g-main:has(.g-team-settings-screen) { overflow-x: clip; }
 
   .g-team-settings-screen {
     box-sizing: border-box;

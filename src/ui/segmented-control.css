@@ -1,7 +1,5 @@
 /*
  * Two or three segments on a track; the shown one is lifted onto a card.
- * Font, border, background, text-transform and border-radius are set here on
- * purpose: the 2.x globals outlive this sheet until stage 13.
  */
 .g-seg {
   box-sizing: border-box;

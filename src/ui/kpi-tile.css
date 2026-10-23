@@ -1,8 +1,6 @@
 /*
  * Figures: a label over a value, two to a row; a row of tiles wraps by 180px
- * from 901px (the overview's figures, DeskOverview). Font, border, background,
- * text-transform and border-radius are set here on purpose: the 2.x globals
- * outlive this sheet until stage 13.
+ * from 901px (the overview's figures, DeskOverview).
  */
 .g-kpis {
   display: grid;

@@ -6,8 +6,6 @@
  * to all of them. The `g-teamface` is the team as a row shows it; it is its
  * own block so that a list of teams can draw the same face.
  *
- * Font, border, background, text-transform and font-weight are set here on
- * purpose: the 2.x globals (a, button, h2) outlive this sheet until stage 13.
  * Everything pressable is 44px at least; the ring is base.css's.
  */
 

@@ -11,7 +11,7 @@
  */
 import { refusalText } from "../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
-import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
+import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { requestLocale } from "../../core/locale-request.mjs";
 import { authUrl, routeFromHash } from "../../core/routes.mjs";
@@ -20,9 +20,7 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { setThemeChoice, themeChoice } from "../../core/theme.mjs";
 import { view } from "../../core/view.mjs";
-import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
-import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { saveTheme } from "../../data/preferences.mjs";
 import { mergeCurrentUser, signOut } from "../../data/session.mjs";
@@ -32,6 +30,7 @@ import { icon } from "../../ui/icons.mjs";
 import { renderKeyValueRow, renderNavRow } from "../../ui/list-row.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../ui/segmented-control.mjs";
+import { patchWithModal } from "../../ui/sheet.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { changePassword, passwordReady, passwordSheetMarkup, wirePasswordSheet } from "./password-sheet.mjs";
 import { themePickerMarkup, wireThemePicker } from "./theme-picker.mjs";
@@ -93,7 +92,7 @@ function managedHtml(user) {
 
 function accountHtml({ user, teamCount, telegram, telegramError }) {
   const admin = user.isAdmin
-    ? `<div class="g-settings__admin">${renderNavRow({ href: "#/administration", title: t("nav.administration"), desc: t("settings.adminHint") })}</div>`
+    ? `<div class="g-settings__admin">${renderNavRow({ href: "#/administration", title: t("nav.administration"), desc: t("settings.adminHint"), chevron: "chevronShort" })}</div>`
     : "";
   return identityHtml(user, teamCount)
     + (user.managedByServer === true ? managedHtml(user) : editableHtml(user, telegram, telegramError))
@@ -391,8 +390,6 @@ export function renderSettings() {
   }
   screen.open = true;
   screen.telegramError = "";
-  setActiveNav("settings");
-  setViewSection("settings");
   draw();
   releaseSheet = wirePasswordSheet(view, { onInput: typedPassword, onToggleShow: toggleShowPasswords, onSubmit: submitPassword, onClose: closePassword });
   onScreenLeave("settings", () => {

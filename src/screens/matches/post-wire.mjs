@@ -21,7 +21,6 @@
  * - An administrator's side (`prep-side`): the page is the other side's, its drafts dropped. A press on what is closed
  *   (`aria-disabled`) says why. The width crossing 900px draws the other form, the focus kept or on the title.
  */
-import { confirmAction } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { drawKeepingFocus, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -30,7 +29,7 @@ import { wireActionSteppers } from "../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
 import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { wireSegmentedControls } from "../../ui/segmented-control.mjs";
-import { wireSheets } from "../../ui/sheet.mjs";
+import { confirmAction, wireSheets } from "../../ui/sheet.mjs";
 import { wireStepButtons } from "../../ui/stepper.mjs";
 import { wireToggles } from "../../ui/toggle.mjs";
 import { onPhoneChange } from "../team/roster/screen.mjs";
@@ -56,8 +55,12 @@ const within = (value, most) => Math.min(most, Math.max(0, value));
 /** The radio groups under the view: `group` a group's selector, `item` its items' attribute, `onChange(value, group)`. */
 const radios = (group, item, onChange) => wireRadioGroups(view, { group, item: `[${item}]`, attribute: item, onChange });
 
-/** Ask the coach first; the answer is a yes or a no. */
-const ask = (message) => confirmAction({ message });
+/**
+ * Ask the coach first; the answer is a yes or a no. A question before a reset (`reset`: «Change from Income», «Start over
+ * with the current roster») is the red action named as its opener is, without the opener's «…»; «Change the score…»
+ * only opens the steppers, a plain confirmation.
+ */
+const ask = (message, reset = "") => confirmAction(reset ? { message, confirmLabel: reset.replace(/…$/, ""), destructive: true } : { message });
 
 /** The write a frame's button makes: the step's own, from its draft where it keeps one. */
 function actionOf(screen, model, type) {
@@ -87,7 +90,8 @@ async function act(visit, screen, action) {
     return;
   }
   if (action === "reopen" || action === "reset-side") {
-    if (await ask(t(action === "reopen" ? "after.reopenAsk" : "after.resetAsk"))) await screen.send({ type: action });
+    const [message, label] = action === "reopen" ? ["after.reopenAsk", "after.reopen"] : ["after.resetAsk", "after.reset"];
+    if (await ask(t(message), t(label))) await screen.send({ type: action });
     return;
   }
   if (action === "finish") {

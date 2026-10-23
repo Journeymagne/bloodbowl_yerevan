@@ -34,7 +34,7 @@ import { renderResourceCounter, wireResourceCounters } from "../../ui/resource-c
 import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { positionStatsLine } from "../../ui/stat-strip.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
-import { renderStepButton, wireStepButtons } from "../../ui/stepper.mjs";
+import { refocusStep, renderStepButton, wireStepButtons } from "../../ui/stepper.mjs";
 import { renderToggle, wireToggles } from "../../ui/toggle.mjs";
 
 const CHOICE_ID = "new-team-choice";
@@ -90,7 +90,7 @@ function staffRefusal(race, draft, key) {
 // ---------------------------------------------------------------------------
 
 function headMarkup(race, name) {
-  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("backShort", 18)}</a>`;
   const titles = `<div class="g-build__titles"><h1 class="g-build__title" tabindex="-1">${escapeHtml(name || race.title)}</h1>`
     + `<p class="g-build__sub">${escapeHtml(t("newTeam.subtitle", { race: race.title }))}</p></div>`;
   return `<header class="g-build__head" data-key="build-head">${back}${titles}${renderStatusChip({ label: t("teams.stage.draft"), onDark: true })}`
@@ -329,7 +329,7 @@ const HANDLERS = ["onHire", "onStaff", "onToggleStaff", "onRefused", "onRosterTo
  *
  * @param {Element} root
  * @param {object} handlers
- * @param {(rowIndex: number, delta: number) => void} handlers.onHire a position's «+» or «−»
+ * @param {(rowIndex: number, delta: number) => void} handlers.onHire a position's «+» or «−», the screen drawn again before it returns
  * @param {(key: string, delta: number) => void} handlers.onStaff a counted staff's «+» or «−»
  * @param {(key: string, on: boolean) => void} handlers.onToggleStaff a medic's switch
  * @param {(reason: string) => void} handlers.onRefused a «+» the rule refuses, with the rule's words
@@ -352,8 +352,12 @@ export function wireBuilder(root, handlers) {
   }
   const refused = ({ reason }) => handlers.onRefused(reason);
   const offs = [
-    // The row index is a number: it is compared with the players' `rowIndex`, and a string never equals it.
-    wireStepButtons(root, "hire", ({ key, delta }) => handlers.onHire(Number(key), delta), { onRefused: refused }),
+    // The row index is a number: it is compared with the players' `rowIndex`, and a string never equals it. The screen
+    // draws the step at once; a − it left disabled at zero holds no focus, so the focus goes on to the row's + (06).
+    wireStepButtons(root, "hire", ({ key, delta }) => {
+      handlers.onHire(Number(key), delta);
+      refocusStep(root, { hook: "hire", key });
+    }, { onRefused: refused }),
     wireResourceCounters(root, ({ key, delta }) => handlers.onStaff(key, delta), { onRefused: refused }),
     wireToggles(root, (key, on) => handlers.onToggleStaff(key, on)),
     delegate(root, "click", "[data-roster-toggle]", () => handlers.onRosterToggle()),

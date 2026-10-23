@@ -89,10 +89,6 @@ export async function loadReferenceData(locale, { version, fetchFn = fetch, inli
   return data;
 }
 
-export function isReferenceDataLoaded(locale) {
-  return cache.has(locale);
-}
-
 /** Test seam. */
 export function clearReferenceCache() {
   cache.clear();

@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { AWAY, HOME, RECORDS, act, agreed, begin, hurt, modelOf, players, reach } from "./helpers/post-cases.mjs";
 import { formatMoney } from "../src/core/format.mjs";
 import { postMatchUrl } from "../src/core/routes.mjs";
@@ -242,7 +243,7 @@ test("styled as the prototype draws it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /ellipsis|text-overflow|line-clamp|nowrap/);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
   for (const selector of [".g-after__moneyk", ".g-after__why"]) assert.ok(own(selector, "overflow-wrap").includes("anywhere"), selector);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/post-money.css");') > styles.indexOf('@import url("screens/matches/post-players.css");'), "the money's sheet after the players'");
 });

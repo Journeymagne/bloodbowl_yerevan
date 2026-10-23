@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -98,7 +99,7 @@ test("the pencil opens the edit: on a phone a sheet from his profile, on a desk 
         fireEvent(button, "click");
         const sheet = editSheet();
         assert.ok(sheet?.isModal, "dialog#player-edit, open");
-        assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet.getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet.querySelector("h2").textContent, "Edit the player");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, "Catcher · Human");
         assert.equal(sheet.querySelector('label[for="player-edit-number"]').textContent, "Number");
@@ -474,7 +475,7 @@ test("an edit that waited for the network is given up when a match begins, and t
     assert.equal(bodyOf("p3#0").querySelector(".g-num__n").textContent, "12", "drawn at once");
     await matchBegins(team({ revision: 5 }));
     assert.equal(toasts().at(-1), DROPPED);
-    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.match(document.querySelectorAll("output").at(-1).className, /g-toast--error/);
     assert.deepEqual(toasts().filter((said) => said.startsWith("A match has begun")), [DROPPED], "no SPP, marks or market waited");
     assert.equal(bodyOf("p3#0").querySelector(".g-num__n").textContent, "3", "the server's roster");
     assert.equal(save.saveState("t1").waiting, 0);
@@ -562,8 +563,7 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
     const css = text(SHEETS);
     assert.doesNotMatch(css, /--focus-ring/);
     assert.doesNotMatch(css, /text-overflow/, "nothing is cut with «…»");
-    const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+    assert.deepEqual(mediaQueries(SHEETS), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
     // The shared frame on the class every player's sheet wears; the edit's own by its id (fix round 1, M4).
     for (const selector of [`${FRAME} .g-player-edit__note`, `${FRAME} .g-player-sheet__prep`, `${FRAME} .g-player-sheet__refusal`, `${FRAME} .g-toggle`, `${FRAME} .g-sheet__foot .g-btn`,
       "#player-edit .g-player-edit__c", "#player-edit .g-player-edit__spptitle", "#player-edit .g-player-edit__sppnote"]) {
@@ -603,15 +603,9 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
 });
 
 test("D2: up to 900px the fields 48px and the buttons 52px; from 901px the fields and the buttons 44px, the SPP tiles' buttons 24px or more", () => {
-  const css = text(SHEETS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (query) => {
-    const start = css.indexOf(`@media (${query}) {`);
-    assert.ok(start >= 0, `player-sheets.css has no @media (${query})`);
-    return css.slice(start, css.indexOf("\n}", start));
-  };
   const px = (found) => found.slice(1).map(Number);
-  const phone = block("max-width: 900px");
-  const desk = block("min-width: 901px");
+  const phone = mediaText(SHEETS, "max-width: 900px");
+  const desk = mediaText(SHEETS, "min-width: 901px");
   assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [48], "a phone's fields");
   assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-sheet__foot \.g-btn \{[^}]*height: (\d+)px;/)), [52], "a phone's buttons");
   assert.deepEqual(px(desk.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [44], "a desk's fields");

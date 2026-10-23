@@ -18,7 +18,6 @@ import { toast } from "../../../components/toast.mjs";
 import { delegate, listenerGroup } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../../data/teams.mjs";
 import { readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
@@ -28,9 +27,10 @@ import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { renderSheet, wireSheets } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
-import { MAX_ENTRY, matchLock, readAmount } from "./model.mjs";
+import { MAX_ENTRY, readAmount } from "./model.mjs";
 import { previewHtml } from "./money-sheet.mjs";
 import { mountSheetHost, sheetController, teamToast, unmountSheetHost } from "./sheet-host.mjs";
+import { isLive, teamOf } from "./team-of.mjs";
 
 export const FIX_SHEET_ID = "treasury-fix";
 /** The treasury field: where the focus goes when the button it was on is disabled under it. */
@@ -114,8 +114,6 @@ export function fixSheetMarkup({ form, before, locked }) {
   });
 }
 
-const teamOf = (teamId) => state.myTeams.items.find((team) => team.id === teamId);
-const isLive = (teamId) => matchLock(state.games.items, teamId)?.kind === "live";
 const balancesOf = (teamId) => ({ treasury: countToNumber(teamOf(teamId)?.roster?.treasury), safe: countToNumber(teamOf(teamId)?.roster?.coachesSafe) });
 
 const drawn = (form) => fixSheetMarkup({ form, before: balancesOf(form.teamId), locked: isLive(form.teamId) });

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -252,7 +253,8 @@ test("a player's links stay in the administration", async () => {
     await visit();
     assert.equal(openRow().querySelector("a.g-btn--dark").getAttribute("href"), `${EDIT}/p1`, "his profile");
     fireEvent(toggle("fallen-f1"), "click");
-    assert.equal(openRow().querySelector("a.g-btn--dark").getAttribute("href"), `${EDIT}/d1`, "a fallen player's profile");
+    // A fallen player's way to his profile is white in its ring (StatsInjured.html; fidelity N8), not the dark one.
+    assert.equal(openRow().querySelector("a.g-btn").getAttribute("href"), `${EDIT}/d1`, "a fallen player's profile");
     // His page: «‹ Roster» back to the admin's roster; a fallen player's page too; an id the roster holds nowhere too.
     for (const id of ["p1", "d1", "zz"]) {
       admin({ fallen: [PIKE] });
@@ -432,8 +434,13 @@ test("the name and the logo wait for the roster's queue and say so; an empty nam
 test("the name and logo card: the prototype's card, a 48px field and button, 40px buttons on a desk and 44px on a phone; nothing cut", () => {
   const CSS = "src/screens/admin/team.css";
   const px = (value) => Number.parseFloat(value);
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
-  assert.match(text("src/styles.css"), /@import url\("screens\/admin\/team\.css"\);\s*$/, "imported last");
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
+  // After the other administration sheets and the 2.x ones it outweighs; stage 13's match page (screens/matches/game.css,
+  // scoped to `.g-game`) comes after it.
+  const imports = text("src/styles.css").match(/@import url\("[^"]+"\);/g);
+  const at = imports.indexOf('@import url("screens/admin/team.css");');
+  assert.ok(at >= 0 && imports.slice(at + 1).every((line) => !/"(screens\/admin|styles)\//.test(line)), "imported after the other admin sheets and the 2.x ones");
   assert.deepEqual(valuesOf(CSS, ".g-adminteam .g-admin__grid", "grid-template-columns"), ["repeat(auto-fit, minmax(min(340px, 100%), 1fr))"],
     "the prototype's 340px cards, never wider than the roster's column beside a desk's panel");
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminteam__btn", "min-height"), ["40px"]);

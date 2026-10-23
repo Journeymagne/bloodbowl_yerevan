@@ -15,7 +15,6 @@
  * check what the server holds. The width crossing 900px draws the other form, the focus kept or on
  * the title; leaving stops listening.
  */
-import { confirmAction, patchWithModal } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { drawKeepingFocus, escapeHtml, focusLost, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -29,7 +28,7 @@ import { renderCallout } from "../../ui/callout.mjs";
 import { wireOptionLists } from "../../ui/option-card.mjs";
 import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../ui/segmented-control.mjs";
-import { wireSheets } from "../../ui/sheet.mjs";
+import { confirmAction, patchWithModal, wireSheets } from "../../ui/sheet.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { adminHeadMarkup, adminRefusalMarkup, isAdminViewer } from "./frame.mjs";

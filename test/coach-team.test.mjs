@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const api = installFakeApi();
@@ -348,7 +349,8 @@ test("styled", async () => {
   const styles = text("src/styles.css");
   const at = (file) => styles.indexOf(`@import url("${file}");`);
   assert.ok(at("screens/coaches/team.css") > at("screens/season/league.css") && at("screens/season/league.css") > 0, "imported after the stage's sheets before it, at the end");
-  assert.doesNotMatch(text(CSS), /ellipsis|@media \((?!max-width: 900px|min-width: 901px)/, "no «…»; the 900/901 breakpoints only");
+  assert.doesNotMatch(text(CSS), /ellipsis/, "no «…»");
+  assertBreakpoints(CSS);
   for (const selector of [".g-opp__name", ".g-opp__pname", ".g-opp__pline", ".g-opp__meta", ".g-opp__coachname", ".g-opp__tg"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }
@@ -427,7 +429,9 @@ test("the 2.x public team's rules went with it: no sheet keeps a selector no mod
   const sources = (dir) => readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true }).flatMap((entry) => (entry.isDirectory()
     ? sources(`${dir}/${entry.name}`) : entry.name.endsWith(".mjs") || entry.name.endsWith(".js") ? [text(`${dir}/${entry.name}`)] : []));
   const code = sources("src").join("\n");
-  const sheets = ["src/styles/matchday.css", "src/styles/roster.css", "src/styles/responsive.css"].map(text).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Every sheet of the app: the 2.x tables that held these rules went at stage 13 (Task 23).
+  const sheets = readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css"))
+    .map((name) => text(`src/${name}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const name of ["matchday-public", "matchday-readonly-label", "public-team-coach-block", "matchday-player-name", "matchday-player-details"]) {
     assert.ok(!code.includes(name), `${name}: no module draws it`);
     assert.ok(!sheets.includes(`.${name}`), `${name}: no rule left for it`);

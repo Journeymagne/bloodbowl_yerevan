@@ -19,7 +19,7 @@ let region = null;
 function liveRegion() {
   if (region?.isConnected) return region;
   region = document.createElement("div");
-  region.className = "sr-only";
+  region.className = "g-sr-only";
   region.setAttribute("role", "status");
   region.setAttribute("aria-live", "polite");
   document.body.append(region);

@@ -2,9 +2,7 @@
  * A team's rules (screens/ref/team.mjs), the body of the article that article.css frames: its facts as
  * rows, the roster, the special rules, and the league's teams of the race. The roster is drawn twice, as
  * a card for each position and as the vault's kind of table, and the width shows one: the cards up to
- * 900px, the table from 901px. Font, border, background, text-transform and letter-spacing are set here
- * on purpose, as article.css has them: the 2.x globals (h1 to h6, table, th, td) outlive this sheet until
- * stage 13.
+ * 900px, the table from 901px.
  */
 .g-ref-team {
   display: flex;

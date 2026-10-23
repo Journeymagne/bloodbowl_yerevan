@@ -289,7 +289,7 @@ test("a shut button that carries no reason of its own (the phone's treasury card
     fireEvent(root.querySelector("#card"), "click");
   });
   assert.deepEqual(toasts().map((toast) => toast.text), ["After the match's post-match"]);
-  assert.match(toasts()[0].tone, /toast-error/);
+  assert.match(toasts()[0].tone, /g-toast--error/);
   assert.equal(document.querySelector("dialog"), null);
 });
 
@@ -305,7 +305,7 @@ test("a live match: the button is refused with its reason, no sheet opens", asyn
   assert.equal(sheetDialog(), null);
   assert.equal(document.querySelector("dialog"), null);
   assert.deepEqual(toasts().map((toast) => toast.text), ["After the match's post-match"]);
-  assert.match(toasts()[0].tone, /toast-error/);
+  assert.match(toasts()[0].tone, /g-toast--error/);
   assert.equal(api.calls.length, 0);
 });
 

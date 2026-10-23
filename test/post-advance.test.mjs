@@ -434,7 +434,8 @@ it("a Favoured roster's advancement carries the god's D8; on his face the bonus 
   answers(post, action);
   await press(take());
   assert.deepEqual(writes().map(({ action: sent }) => sent), [action]);
-  assert.deepEqual([...sheet().querySelectorAll(".g-favoured__line")].map((line) => line.textContent), [t("teamPlayer.favoured.gained", { face: 8, skill: "Horns" })]);
+  assert.deepEqual([...sheet().querySelectorAll(".g-favoured__line")].map((line) => line.textContent), [t("teamPlayer.favoured.gained", { face: 8, skill: "Horns", cost: 20 })]);
+  assert.match(sheet().querySelector(".g-favoured__line").textContent, /^D8 8: Horns, \+20k to the value$/, "a skill's price to the value: Mutation is among his primary categories");
   // A miss carries its D8 too.
   await visit(post);
   await press(advanceOf("h3"));

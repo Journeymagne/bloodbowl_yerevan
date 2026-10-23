@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertContrast, assertReadable, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, mediaText, outsideMedia } from "./helpers/css.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderCrest } from "../src/shell/crest.mjs";
@@ -86,13 +87,12 @@ test("an empty grid draws nothing, an odd one gives its last tile the row, and a
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "gap"), ["var(--space-12)"]);
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"], "a lone last card is one card, not the row");
   // valuesOf reads every rule whatever its at-rule, so "from 901px" is read from the source text: the row rules are inside that query, and nowhere else.
-  const css = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = css.match(/@media \(min-width: 901px\) \{([\s\S]*?)\n\}/)[1];
+  const desk = mediaText("src/ui/kpi-tile.css", "min-width: 901px");
   assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: row/);
   assert.match(desk, /\.g-kpis--row \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(desk, /\.g-kpis--row > \.g-kpi:last-child:nth-child\(odd\) \{[^}]*grid-column: auto/);
-  assert.ok(!css.replace(desk, "").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
-  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assert.ok(!outsideMedia("src/ui/kpi-tile.css", "min-width: 901px").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
+  assertBreakpoints("src/ui/kpi-tile.css");
 });
 
 test("a tile can say a quieter second part of its figure, and a figure in the accent; both escaped", () => {

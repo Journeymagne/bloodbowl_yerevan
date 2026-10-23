@@ -1,9 +1,8 @@
 /*
  * The post-match's money steps (screens/matches/post-roster.mjs, post-money.mjs, post-review.mjs): PostRoster.html,
  * PostFinance.html, PostNext.html, PostReview.html on a phone, DeskPostReview.html on a desk; their cards are post.css's.
- * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals outlive
- * this sheet until stage 13. Up to 900px every control is a thumb's 44px or more; from 901px the prototype's sizes,
- * never under 24px (D2). Long lines wrap; nothing is cut with «…».
+ * Up to 900px every control is a thumb's 44px or more; from 901px the prototype's sizes, never under 24px (D2). Long
+ * lines wrap; nothing is cut with «…».
  */
 
 /* A row's money: spending in the danger's colour, a gain in the accent's ink. */

@@ -1,10 +1,9 @@
 /*
  * A team's friendlies (screens/matches/challenges-view.mjs): Challenges.html up to 900px, DeskChallenges.html from 901px.
- * Values from Challenges.html and DeskChallenges.html; font, border, background, text-transform, letter-spacing and
- * font-weight are set on purpose (the 2.x globals live until stage 13). Colours are tokens: a coach's circle is the
- * header's (the prototype's maroon and blue have none); the neutral chip's dot and «vs» are --muted. Long logins and
- * team names wrap; nothing is cut with «…» (the prototype cuts the match's names). A thumb's targets are 44 high up to
- * 900px (D2): the prototype's 40 is a desk's.
+ * Values from Challenges.html and DeskChallenges.html. Colours are tokens: a coach's circle is the header's (the
+ * prototype's maroon and blue have none); the neutral chip's dot and «vs» are --muted. Long logins and team names wrap;
+ * nothing is cut with «…» (the prototype cuts the match's names). A thumb's targets are 44 high up to 900px (D2): the
+ * prototype's 40 is a desk's.
  */
 .g-friendly {
   box-sizing: border-box;
@@ -124,20 +123,6 @@
   align-items: center;
   gap: var(--space-12);
   min-width: 0;
-}
-.g-friendly__letter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font: 700 22px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
 }
 .g-friendly__id {
   display: flex;
@@ -300,8 +285,8 @@
 
 @media (max-width: 900px) {
   /*
-   * Challenges.html's page is grey to its edges, 16 in, at any width up to 900: the view gives up its 2.x padding
-   * (site-matchday.css: 26 20 40 up to 900px, 20 16 32 up to 600 — stage 13 takes it away) and the page keeps its own.
+   * Challenges.html's page is grey to its edges, 16 in, at any width up to 900: the view gives up its padding (the
+   * frame's 16 16 28, shell/frame.css) and the page takes the same figures, Challenges.html's main, inside its grey.
    */
   #app-view:has(> .g-friendly--phone) { padding: 0; }
   .g-friendly--phone {
@@ -313,17 +298,12 @@
 /* ---- A desk (DeskChallenges.html): the band, the two cards side by side, accepted the whole width ---- */
 @media (min-width: 901px) {
   /*
-   * 32 from the edges, as the prototype's (the view pads 28); the band still reaches them, 24 over the first card, and
-   * its title stands on the cards' edge, 32 in (page-head.css's band pads 28).
+   * The view pads 24 32 40, as DeskChallenges.html's main, and the band (page-head.css) reaches the edges over it with
+   * its title on the cards' edge, 32 in. Under it, 24 before the first card, as the prototype's main's top: 4 and the
+   * page's gap of 20.
    */
-  .g-friendly--desk {
-    gap: var(--space-20);
-    padding: 0 var(--space-4);
-  }
-  .g-friendly--desk > .g-pagehead {
-    margin: -28px -32px var(--space-4);
-    padding-inline: 32px;
-  }
+  .g-friendly--desk { gap: var(--space-20); }
+  .g-friendly--desk > .g-pagehead { margin-bottom: var(--space-4); }
   .g-friendly__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

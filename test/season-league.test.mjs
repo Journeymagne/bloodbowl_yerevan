@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -24,6 +24,9 @@ const { view } = await import("../src/core/view.mjs");
 const { t } = await import("../src/core/i18n.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+/** Every stylesheet of the app, comments out. */
+const allCss = () => readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css"))
+  .map((name) => text(`src/${name}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
 const data = expandCollections(JSON.parse(text("public/data.en.json")));
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -397,12 +400,12 @@ test("every key in both dictionaries", () => {
   for (const gone of ["season.tab.standings", "season.tab.fixture"]) assert.equal(en[gone], undefined, gone);
 });
 
-test("up to 900px the league's, an opponent's and the matches' pages are white, as their prototypes: the 2.x view's wash is off for them alone", () => {
-  assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), ["none"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), [], "a desk's page is the desk's grey");
-  assert.match(text("src/styles/site-matchday.css"), /\.view::after \{[^}]*var\(--md-wash\)/, "the 2.x pages keep it until stage 13");
-  // The matches' page is matches/index.mjs's .g-matches, a child of the view as the others are.
-  assert.match(text("src/screens/matches/index.mjs"), /<div class="g-matches">/);
+// League.html, OppTeam.html and Matches.html are white: the 2.x view's wash went with the view at stage 13, and with it the
+// rule that took it away under these pages.
+test("no stylesheet draws a wash under the view", () => {
+  assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /#app-view[^{}]*::after/, "nothing to take away");
+  assert.doesNotMatch(allCss(), /\.view\b/, "the 2.x view and its wash are gone");
+  assert.doesNotMatch(text("index.html"), /class="[^"]*\bview\b/, "the 2.x view is gone");
 });
 
 test("the table's rule at the card's head: balanced lines from the left, no word left alone at the right (DeskSeason.html)", () => {
@@ -423,5 +426,5 @@ test("the sizes: the season's row, its two columns, the calendar's targets (D2),
   assert.doesNotMatch(text(CSS), /ellipsis/);
   assert.deepEqual(valuesOf(CSS, ".g-league__team", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(valuesOf(CSS, ".g-league__pair--mine", "background"), ["var(--accent-tint)"]);
-  for (const sheet of ["src/styles/season.css", "src/styles/responsive.css"]) assert.doesNotMatch(text(sheet), /season-table|season-withdrawn-label|fixture-headline|season-score-summary/, sheet);
+  assert.doesNotMatch(allCss(), /season-table|season-withdrawn-label|fixture-headline|season-score-summary/);
 });

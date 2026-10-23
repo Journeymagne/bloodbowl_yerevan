@@ -255,10 +255,11 @@ function listMarkup(race, career, { desk, fallen }) {
 }
 
 /**
- * «Career»: the heading's button — which names the player it is his for — and the chevron, then the list while it is
- * open. On a phone's profile (PlayerCareer.html) the button says «N SPP · by match» (the line's SPP now) and the
- * totals stand under it; in a desk's panel (`desk`, DeskRosterCareer.html) it says «by match», and there are no totals:
- * the table beside it carries TD to MVP. `heading` is the button's heading: «Skills»'s level where the block stands.
+ * «Career»: the heading's button — which names the player it is his for — and the short chevron, turned down while it
+ * is closed (the prototypes' M6 9l6 6 6-6, career.css), then the list while it is open. On a phone's profile
+ * (PlayerCareer.html) the button says «N SPP · by match» (the line's SPP now) and the totals stand under it; in a
+ * desk's panel (`desk`, DeskRosterCareer.html) it says «by match», and there are no totals: the table beside it
+ * carries TD to MVP. `heading` is the button's heading: «Skills»'s level where the block stands.
  *
  * @param {{line: import("./model.mjs").PlayerLine, race: object, career: CareerRead|null, open: boolean, desk?: boolean,
  *   heading?: "h2"|"h3"}} props `career` the visit's read of his
@@ -270,7 +271,7 @@ export function careerMarkup({ line, race, career, open, desk = false, heading =
   const toggle = `<${tag} class="g-career__head"><button type="button" class="g-career__toggle" aria-expanded="${open ? "true" : "false"}"`
     + `${open ? ` aria-controls="${LIST}"` : ""}${dataAttributes({ playerCareer: line.id ?? "" })}><span class="g-career__titles">`
     + `<span class="g-career__title">${escapeHtml(t("teamPlayer.career.title"))}</span>`
-    + `<span class="g-career__sub">${escapeHtml(sub)}</span></span>${icon("chevron", 18)}</button></${tag}>`;
+    + `<span class="g-career__sub">${escapeHtml(sub)}</span></span>${icon("chevronShort", 18)}</button></${tag}>`;
   const totals = desk ? "" : totalsMarkup(line, career);
   return `<section class="${classNames("g-career", desk && "g-career--desk")}">${toggle}${totals}${open ? listMarkup(race, career, { desk, fallen: Boolean(line.fallen) }) : ""}</section>`;
 }

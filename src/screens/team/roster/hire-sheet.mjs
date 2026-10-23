@@ -10,6 +10,7 @@
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { refusalWords } from "../../../data/teams.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
@@ -20,14 +21,6 @@ import { renderStepButton } from "../../../ui/stepper.mjs";
 import { hireClosed, prepResetWords } from "./panel.mjs";
 import { closedMarkup } from "./player-access.mjs";
 import { HIRE_SHEET, footButton } from "./sheets.mjs";
-
-/**
- * A refusal of the domain's (`TRANSFER_REFUSALS`) in the words its code names: «Ogre: maximum is 1.»
- * @param {import("../../../domain/roster/transfers.mjs").TransferRefusal} refusal
- */
-export function refusalWords({ code, params = {} }) {
-  return t(`validation.${code}`, params);
-}
 
 /**
  * The «+» (decision 12): after «Player» in the active roster's header, a round plus named «Hire players», its title
@@ -127,7 +120,10 @@ function refusalOf(quote, refusal) {
  * left, the three tiles, a card for each position, the cart's lines, the numbers the new players get, and in a
  * preparation what a save of the roster resets (R12). «Cancel» beside «Buy» on a desk (market.css hides it on a phone,
  * where the cross closes the sheet). «Buy» waits for a cart, for the money, for the limits — `disabled`, its words say
- * what — and is closed with the screen's reason (`reason`), in reach to say it.
+ * what — and is closed with the screen's reason (`reason`), in reach to say it. What «Buy» says — how many for how
+ * much, what the treasury lacks — is said aloud as well, politely, as a + or a − changes it (07c T5-4): the focus stays
+ * on the card, and the tiles and the button change out of its sight. The region is drawn from the first draw on, so a
+ * screen reader hears its changes, and only heard: the button shows the same words.
  *
  * @param {object} props
  * @param {object} props.race the team's race
@@ -145,12 +141,15 @@ export function hireSheetMarkup({ race, quote, mode, refusal = "", reason = "" }
   const said = refusalOf(quote, refusal);
   const alert = said ? `<p class="g-market__refusal" role="alert">${escapeHtml(said)}</p>` : "";
   const waits = !quote.count || quote.left < 0 || Boolean(quote.refusal);
+  // Keyed: the lines above come and go, and a region the patch matched by place would be a new node, which is not heard.
+  const heard = `<p class="g-sr-only" role="status" data-key="hire-said" data-hire-said>${escapeHtml(buyLabel(quote))}</p>`;
   return renderSheet({
     id: HIRE_SHEET,
+    at: 80,
     title: t("teamRoster.hire.title"),
     sub: t("teamRoster.hire.sub", { race: race.title, players: quote.players, max: quote.max, free: quote.free }),
     wide: true,
-    bodyHtml: `${tilesMarkup(quote)}${cards}${linesMarkup(quote)}<p class="g-market__numbers">${escapeHtml(numbers)}</p>${prep}${alert}`,
+    bodyHtml: `${tilesMarkup(quote)}${cards}${linesMarkup(quote)}<p class="g-market__numbers">${escapeHtml(numbers)}</p>${prep}${alert}${heard}`,
     footStartHtml: renderButton({ label: t("teamRoster.hire.keep"), data: { hireKeep: true } }),
     footHtml: footButton({ label: buyLabel(quote), kind: "primary", data: { hireBuy: true }, disabled: !reason && waits, reason }),
   });

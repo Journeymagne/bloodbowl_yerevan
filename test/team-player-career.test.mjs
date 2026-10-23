@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import {
   LIVE_GAME, PLAYERS, STYLES, api, callKeys, coach, playerPage, releaseCurrentScreen, renderTeamRoster, save, settle, state, text, view, withPlayers,
@@ -369,7 +370,7 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   // Stage 07e: a block of its own, in a sheet of its own with no width — the form is a class.
   const uncommented = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/g-career|g-profile__career/.test(uncommented("src/screens/team/roster/profile.css")), "the profile's sheet holds no career rule");
-  assert.ok(!/@media/.test(uncommented(CAREER)), "no width: the form is a class (a fallen player's page on a desk draws the phone's block, stage 07e)");
+  assert.deepEqual(mediaQueries(CAREER), [], "no width: the form is a class (a fallen player's page on a desk draws the phone's block, stage 07e)");
   // PlayerCareer.html's #DCE3DF is --line-strong: the totals' two rules and the list's ring; a row's #E6EBE8 rule is --line.
   assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border-width"), ["1px 0"]);
@@ -412,6 +413,23 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/text-overflow\s*:\s*ellipsis/.test(css));
   for (const selector of [".g-career__name", ".g-career__events"]) assert.deepEqual(valuesOf(CAREER, selector, "overflow-wrap"), ["anywhere"], selector);
+});
+
+// Stage 13 (07e's hand-off, N2): a nought's cell carries both classes, and the two rules weigh the same (one class each):
+// the grey wins by its place in the file alone, so it is pinned to stand after the value's rule.
+test("the grey zero wins by its place: after the value rule", () => {
+  const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rulesOf = (selector) => [...css.matchAll(/(^|\})\s*([^{}@]+)\{/g)]
+    .filter((match) => match[2].split(",").map((part) => part.trim()).includes(selector))
+    .map((match) => match.index + match[0].length);
+  const [value, zero] = [rulesOf(".g-career__value"), rulesOf(".g-career__zero")];
+  assert.equal(value.length, 1, "one rule for the value");
+  assert.equal(zero.length, 1, "one rule for the nought");
+  assert.ok(zero[0] > value[0], "the nought's rule stands after the value's");
+  for (const query of mediaQueries(CAREER)) assert.doesNotMatch(mediaText(CAREER, query), /\.g-career__(value|zero)/, "neither is set again under a width");
+  assert.doesNotMatch(css, /[^\s,{}]\.g-career__(value|zero)|\.g-career__(value|zero)[^\s,{]/, "neither is weighed by another selector");
+  // The markup gives a nought both, so the order is what paints it.
+  assert.deepEqual(valuesOf(CAREER, ".g-career__zero", "color"), ["var(--muted)"]);
 });
 
 test("the rows: an MVP is «MVP», two are «MVP 2»; a match's injury; a negative edit outside a match; GP counts no match on", () => {

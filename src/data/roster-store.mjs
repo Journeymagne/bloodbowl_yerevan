@@ -27,6 +27,8 @@
  * - tracker/stat changes keep a separate snapshot per action, including rapid
  *   clicks while an earlier request is still being saved;
  * - status is a state, not a sentence, so the interface can translate it;
+ * - each listener hears it on its own: one that throws is said in the console and
+ *   stops neither the others nor the queue (`hear`);
  * - `hasPendingChanges()` says whether anything is still to save. The 2.x editor's beforeunload guard asked it; that
  *   went with the editor in stage 12 (the 3.0 roster asks its own queue, screens/team/roster/save.mjs `guardUnload`).
  *   It stays as test/roster-store.test.mjs's view of the queue emptying, which its interleavings are written against.
@@ -55,9 +57,22 @@ function snapshotOf(entry) {
   };
 }
 
+/**
+ * One listener hears a snapshot. A listener that throws is its own failure, said in the console: it stops neither the
+ * listeners after it nor the save that was announcing a state — a throw out of `setStatus` would leave the request
+ * in the air for good, and every later edit queued behind it.
+ */
+function hear(listener, snapshot) {
+  try {
+    listener(snapshot);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function notify(entry) {
   const snapshot = snapshotOf(entry);
-  for (const listener of entry.listeners) listener(snapshot);
+  for (const listener of entry.listeners) hear(listener, snapshot);
 }
 
 function setStatus(entry, status, error = null) {
@@ -230,7 +245,7 @@ function trackingApi(deps, entries) {
     subscribe(teamId, listener) {
       const entry = entryFor(teamId);
       entry.listeners.add(listener);
-      listener(snapshotOf(entry));
+      hear(listener, snapshotOf(entry));
       return () => entry.listeners.delete(listener);
     },
 

@@ -1,9 +1,8 @@
 /*
- * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs, season-entries.mjs):
- * the season's tabs, the cards of the rounds and their tables, a pair's sheet, the entries and the playoff places.
- * DeskAdminSeason.html and DeskAdminEntries.html from 901px; up to 900px the desk's cards in one column, every target
- * 44px (no prototype). Font, border, background, text-transform, letter-spacing and font-weight are set here on
- * purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens. Long names wrap; nothing is cut with «…».
+ * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs, season-entries.mjs): the
+ * season's tabs, the cards of the rounds and their tables, a pair's sheet, the entries and the playoff places.
+ * DeskAdminSeason.html and DeskAdminEntries.html from 901px; up to 900px the desk's cards in one column, every target 44px
+ * (no prototype). Colours are tokens. Long names wrap; nothing is cut with «…».
  */
 
 .g-adminseason {
@@ -101,7 +100,10 @@
   color: var(--on-accent);
 }
 .g-adminseason__btn--danger { color: var(--danger); }
-/* Closed (it says why on a press) the way the prototype draws «Generate round 8» while a pair is left: the grey fill. */
+/*
+ * Closed (it says why on a press) the way the prototype draws «Generate round 8» while a pair is left: the grey fill, in
+ * a light palette; ui/button.css draws it closed in a dark one (the owner's answer 3).
+ */
 .g-adminseason__btn--go[aria-disabled="true"] {
   background: var(--disabled);
   box-shadow: none;
@@ -528,7 +530,7 @@ a.g-adminentries__team:hover {
   /* The season's tabs: 420 wide, 38 high, 14px, as the section switch above them. */
   .g-adminseason__tabs {
     max-width: 420px;
-    margin: 0 var(--space-4) var(--space-20);
+    margin: 0 0 var(--space-20);
   }
   .g-adminseason__tabs .g-seg__item {
     min-height: 38px;

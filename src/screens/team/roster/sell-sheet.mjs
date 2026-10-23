@@ -106,6 +106,7 @@ export function sellSheetMarkup({ line, race, treasury, mode, refusal = "", reas
   const alert = refusal ? `<p class="g-market__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
   return renderSheet({
     id: SELL_SHEET,
+    at: 120,
     title: cancel ? t("teamRoster.sell.cancelTitle") : t("teamRoster.sell.title"),
     sub: t("teamRoster.sell.sub", { name: line.name, number: line.number, position: line.position }),
     bodyHtml: `${whoMarkup(line)}<dl class="g-market__rows">${factsMarkup(line, cancel, fate)}</dl>${flowMarkup(treasury, line.removal.amount, cancel)}`

@@ -121,7 +121,7 @@ test("mount shows one page at a time", () => {
 });
 
 test("the keyboard focus ring is the text accent, 3:1 on the page and both surfaces in every palette", () => {
-  const [ring] = valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline");
+  const [ring] = valuesOf("src/ui/base.css", ":where(:focus-visible)", "outline");
   const colour = ring?.match(/var\(--[\w-]+\)/)?.[0];
   assert.ok(colour, `no colour in the focus outline: ${ring}`);
   // --accent is 2.68-2.91:1 on the dungeon and night surfaces (WCAG 1.4.11 asks 3:1 of a focus indicator).

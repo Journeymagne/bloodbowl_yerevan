@@ -2,17 +2,13 @@
  * Building markup safely, and listening to it once.
  *
  * The app renders HTML strings and assigns them with innerHTML. That is fine
- * as long as every value that came from a person is escaped — but escaping by
- * remembering to call a function, in seven thousand lines of template literals,
- * is a rule that only has to be forgotten once. A missed escape here is stored
- * XSS, and the session token lives in localStorage.
- *
- * So `html` escapes by default and `raw()` is the way to say "I meant markup".
- * That inverts the failure mode: forgetting produces an escaped, visibly wrong
- * string instead of executable script.
+ * as long as every value that came from a person is escaped: `escapeHtml` on
+ * every interpolation (a component's `…Html` prop is only markup another
+ * render function made). A missed escape here is stored XSS, and the session
+ * token lives in localStorage. (The `html` tagged template and its `raw()`
+ * that this module once offered for it never found a reader in 3.0: they went
+ * with stage 13's clean-up.)
  */
-
-const RAW = Symbol("raw-html");
 
 const ESCAPES = {
   "&": "&amp;",
@@ -25,44 +21,6 @@ const ESCAPES = {
 /** Escape a value for use as HTML text or inside a double-quoted attribute. */
 export function escapeHtml(value = "") {
   return String(value).replace(/[&<>"']/g, (character) => ESCAPES[character]);
-}
-
-/** Mark a string as already-safe markup so `html` will not escape it again. */
-export function raw(markup) {
-  return { [RAW]: String(markup ?? "") };
-}
-
-export function isRaw(value) {
-  return Boolean(value && typeof value === "object" && RAW in value);
-}
-
-function renderValue(value) {
-  if (value === null || value === undefined || value === false) return "";
-  if (isRaw(value)) return value[RAW];
-  if (Array.isArray(value)) return value.map(renderValue).join("");
-  return escapeHtml(value);
-}
-
-/**
- * Tagged template that escapes every interpolation.
- *
- *   html`<h1>${team.name}</h1>`                 // escaped
- *   html`<div>${raw(renderCard(team))}</div>`   // nested markup, on purpose
- *
- * Arrays are joined, so `${items.map(renderItem)}` needs no `.join("")` —
- * as long as renderItem returns raw() or plain text.
- */
-export function html(strings, ...values) {
-  let out = strings[0];
-  for (let index = 0; index < values.length; index += 1) {
-    out += renderValue(values[index]) + strings[index + 1];
-  }
-  return raw(out);
-}
-
-/** The string form, for assigning to innerHTML. */
-export function toHtml(value) {
-  return renderValue(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +37,11 @@ export function toHtml(value) {
  *
  * `patch()` walks the new markup against the live tree and touches only what
  * differs. Nodes carrying `data-key` are matched by that key, so a row can move
- * without being rebuilt; everything else is matched by position and kind.
+ * without being rebuilt; everything else is matched by position and kind. A
+ * node carrying `data-patch-keep` is one the page put in by hand, which no
+ * markup draws (the toasts' region in an open sheet, components/toast.mjs):
+ * patch leaves it where it is, and one inside a node that goes stays on the
+ * page, in the place of the node that went.
  *
  * This is deliberately not a virtual DOM: there is no component model, no
  * state, no scheduling. It is a diff between what is on screen and the string
@@ -87,6 +49,7 @@ export function toHtml(value) {
  */
 
 const KEY_ATTRIBUTE = "data-key";
+const KEEP_ATTRIBUTE = "data-patch-keep";
 const VALUE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 function isElement(node) {
@@ -99,6 +62,19 @@ function isText(node) {
 
 function keyOf(node) {
   return isElement(node) && typeof node.getAttribute === "function" ? node.getAttribute(KEY_ATTRIBUTE) : null;
+}
+
+/** A node no markup draws, which patch never matches, moves or takes away. */
+function isKept(node) {
+  return isElement(node) && typeof node.hasAttribute === "function" && node.hasAttribute(KEEP_ATTRIBUTE);
+}
+
+/** Take a live child away, and leave on the page, under `live`, the kept nodes it held. */
+function dropChild(live, child) {
+  if (isElement(child) && typeof child.querySelectorAll === "function") {
+    for (const kept of [...child.querySelectorAll(`[${KEEP_ATTRIBUTE}]`)]) live.appendChild(kept);
+  }
+  live.removeChild(child);
 }
 
 /** Can `live` be updated into `next`, or does it have to be replaced? */
@@ -140,7 +116,8 @@ function adopt(parent, node) {
 }
 
 /**
- * Match each wanted child to a live one, patch the matches, drop the rest.
+ * Match each wanted child to a live one, patch the matches, drop the rest; a kept
+ * one (`isKept`) is none of these, and stays after them.
  *
  * Keyed children are matched anywhere in the list — that is what lets a row
  * move without being rebuilt. Unkeyed children are matched strictly in order,
@@ -152,7 +129,7 @@ function patchChildren(live, next, activeElement) {
   const keyed = new Map();
   for (const child of liveChildren) {
     const key = keyOf(child);
-    if (key !== null && !keyed.has(key)) keyed.set(key, child);
+    if (key !== null && !keyed.has(key) && !isKept(child)) keyed.set(key, child);
   }
 
   const used = new Set();
@@ -169,7 +146,7 @@ function patchChildren(live, next, activeElement) {
       while (cursor < liveChildren.length) {
         const candidate = liveChildren[cursor];
         cursor += 1;
-        if (used.has(candidate) || keyOf(candidate) !== null) continue;
+        if (used.has(candidate) || keyOf(candidate) !== null || isKept(candidate)) continue;
         if (sameKind(candidate, wanted)) match = candidate;
         break;
       }
@@ -184,7 +161,7 @@ function patchChildren(live, next, activeElement) {
   }
 
   for (const child of liveChildren) {
-    if (!used.has(child)) live.removeChild(child);
+    if (!used.has(child) && !isKept(child)) dropChild(live, child);
   }
   reorder(live, ordered);
 }

@@ -7,6 +7,7 @@ import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 // The client takes `fetch` when it loads (helpers/fake-api.mjs): the fake one first, then the modules that ask it.
@@ -149,7 +150,7 @@ test("a coach's page: the head, the account, the teams with their lines and thei
   assert.equal(view.querySelector(".g-admin__crumbs a").getAttribute("href"), "#/administration");
   assert.equal(view.querySelector('.g-admin__switch a[aria-current="page"]').getAttribute("href"), "#/administration", "a coach is the coaches' section");
   // The coach: the letter in its circle of 64, the login, since when and the last sign-in.
-  assert.equal(view.querySelector(".g-acoach__id .g-admin__avatar--64").textContent, "O");
+  assert.equal(view.querySelector(".g-acoach__id .g-coach-letter--64").textContent, "O");
   assert.equal(view.querySelector(".g-acoach__login").textContent, "orc_boss");
   assert.equal(view.querySelector(".g-acoach__line").textContent,
     `In the league since ${formatDay(ORC_BOSS.createdAt, { year: true })} · last sign-in ${dayOf(LAST_LOGIN)}`);
@@ -711,7 +712,7 @@ test("styled; no inline style or handler", async () => {
   for (const phone of [true, false]) {
     await visit({}, { phone });
     assertCspSafe(view);
-    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "button.css", "text-field.css", "toggle.css", "callout.css");
+    assertStyled(view, CSS, ADMIN_CSS, "page-head.css", "segmented-control.css", "button.css", "text-field.css", "toggle.css", "callout.css", "coach-letter.css");
     click("[data-acoach-team-new]");
     assertCspSafe(sheet(TEAM_NEW_SHEET_ID));
     assertStyled(sheet(TEAM_NEW_SHEET_ID), CSS, COACHES_CSS, ADMIN_CSS, "sheet.css", "button.css", "text-field.css", "callout.css");
@@ -743,7 +744,8 @@ test("the 2.x profile, its sheets and its cards are gone; the router draws the 3
 });
 
 test("nothing is cut with «…»; long lines wrap; the 900/901 breakpoints only", () => {
-  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap/);
+  assertBreakpoints(CSS);
   for (const selector of [".g-acoach__login", ".g-acoach__line", ".g-acoach__factvalue", ".g-acoach__teamname", ".g-acoach__teamline", ".g-acoach__dangerwhy", ".g-acoach__none"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }

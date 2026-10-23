@@ -1,24 +1,13 @@
 /*
- * Site themes, shared controls and component layouts.
- * tokens.css owns fonts/colours; controls.css and overlays.css own common UI.
- * Screen styles specialise layout without repeating those base rules.
+ * The site's one stylesheet: the tokens (palettes, type, sizes) first, then
+ * 3.0's base, then the ui kit's components, the frame's and each screen's own
+ * sheets, which place the kit's parts without repeating their rules. The
+ * faces are assets/fonts/ui/fonts.css, linked before this file in index.html.
  *
  * @import is a request each in development. The build inlines them into one
  * file for dist/, which is what the site serves.
  */
-@import url("styles/fonts.css");
 @import url("styles/tokens.css");
-@import url("styles/legacy-aliases.css");
-@import url("styles/shell.css");
-@import url("styles/pages.css");
-@import url("styles/roster.css");
-@import url("styles/season.css");
-@import url("styles/responsive.css");
-@import url("styles/overlays.css");
-@import url("styles/controls.css");
-@import url("styles/matchday.css");
-@import url("styles/pre-match.css");
-@import url("styles/site-matchday.css");
 @import url("ui/base.css");
 @import url("ui/button.css");
 @import url("ui/segmented-control.css");
@@ -38,15 +27,18 @@
 @import url("ui/result-pill.css");
 @import url("ui/form-strip.css");
 @import url("ui/status-chip.css");
+@import url("ui/coach-letter.css");
 @import url("ui/match-card.css");
 @import url("ui/search-field.css");
 @import url("ui/filter-chips.css");
 @import url("ui/match-board.css");
 @import url("ui/page-head.css");
+@import url("ui/toast.css");
 @import url("screens/team/empty.css");
 @import url("screens/team/overview.css");
 @import url("screens/teams/teams.css");
 @import url("screens/teams/builder.css");
+@import url("screens/teams/builder-roster.css");
 @import url("screens/teams/new.css");
 @import url("screens/settings/settings.css");
 @import url("screens/settings/password.css");
@@ -97,3 +89,4 @@
 @import url("screens/admin/coach.css");
 @import url("screens/admin/season.css");
 @import url("screens/admin/team.css");
+@import url("screens/matches/game.css");

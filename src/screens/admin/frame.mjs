@@ -26,9 +26,6 @@ import { renderSegmentedControl } from "../../ui/segmented-control.mjs";
 /** The administration's two sections; a coach's page and a team's edit are the coaches'. */
 const SECTIONS = ["coaches", "season"];
 
-/** The sizes a coach's letter is drawn at: a desk's table, a phone's rows, a coach's head. */
-const AVATAR_SIZES = new Set([36, 40, 64]);
-
 /** Whether the coach signed in is the league's administrator: the one the administration's screens are for. */
 export function isAdminViewer() {
   return Boolean(state.auth.currentUser?.isAdmin);
@@ -66,16 +63,6 @@ export function adminRefusalMarkup() {
     + `${renderCallout({ title: t("administration.only"), sub: t("administration.onlySub"), href: "#/" })}</div>`;
 }
 
-/**
- * A coach's letter in its circle: the first letter of the login, in capitals. Hidden from a screen reader: the login
- * beside it is what is read.
- * @param {string} login @param {36|40|64} size
- */
-export function avatarMarkup(login, size) {
-  if (!AVATAR_SIZES.has(size)) throw new RangeError(`a coach's letter is drawn 36, 40 or 64 across, not ${size}`);
-  const letter = Array.from(String(login ?? "").trim())[0]?.toUpperCase() ?? "?";
-  return `<span class="g-admin__avatar g-admin__avatar--${size}" aria-hidden="true">${escapeHtml(letter)}</span>`;
-}
 
 /**
  * The path to a screen, for the head: «Administration → orc_boss → Grimtusk Raiders». A part with an `href` is a link

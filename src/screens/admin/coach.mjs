@@ -32,7 +32,6 @@ import { adminTeamEditUrl, adminUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { confirmAction } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { adminRequest, readAdminUser } from "../../data/admin.mjs";
 import { mergeCurrentUser } from "../../data/session.mjs";
@@ -41,12 +40,14 @@ import { loadMyTeams, raceTitleOf } from "../../data/teams.mjs";
 import { refreshShell } from "../../shell/shell.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { coachInitial, renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
+import { confirmAction } from "../../ui/sheet.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { renderToggle, wireToggles } from "../../ui/toggle.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { closeCoachSheets, openReset, openTeamNew } from "./coach-sheets.mjs";
-import { adminHeadMarkup, adminRefusalMarkup, avatarMarkup, crumbsMarkup, isAdminViewer } from "./frame.mjs";
+import { adminHeadMarkup, adminRefusalMarkup, crumbsMarkup, isAdminViewer } from "./frame.mjs";
 
 /** Why a delete is closed, in the order the server tells it (`deleteBlock`): one's own, a season history, friendlies. */
 export const DELETE_BLOCKS = Object.freeze(["self", "server", "season", "friendly"]);
@@ -141,7 +142,7 @@ const noteMarkup = (words, className = "") => `<p class="g-admin__note${classNam
 /** The coach: the letter in its circle, the login, since when and the last sign-in. */
 function idMarkup(model) {
   const line = [model.since, model.lastLogin].filter(Boolean).join(" · ");
-  return `<div class="g-acoach__id">${avatarMarkup(model.login, 64)}<div class="g-acoach__who"><p class="g-acoach__login">${escapeHtml(model.login)}</p>`
+  return `<div class="g-acoach__id">${renderCoachLetter({ initial: coachInitial(model.login), size: 64 })}<div class="g-acoach__who"><p class="g-acoach__login">${escapeHtml(model.login)}</p>`
     + `${line ? `<p class="g-acoach__line">${escapeHtml(line)}</p>` : ""}</div></div>`;
 }
 

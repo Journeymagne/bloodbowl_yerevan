@@ -23,6 +23,7 @@ import { followSessionAcrossTabs, loadSession, onSessionChange, sessionEnded, se
 import { loadSeason } from "./screens/season/season-data.mjs";
 import { openNewTeamSheet } from "./screens/teams/new-sheet.mjs";
 import { mountShell, refreshShell } from "./shell/shell.mjs";
+import { renderCallout } from "./ui/callout.mjs";
 
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
 // and the build stamps that value, so data and i18n fetches reuse it rather
@@ -104,5 +105,5 @@ async function init() {
 
 init().catch((error) => {
   console.error(error);
-  view.innerHTML = `<div class="empty-state">${t("app.dataLoadError")}</div>`;
+  view.innerHTML = renderCallout({ tone: "danger", title: t("app.dataLoadError") });
 });

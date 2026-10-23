@@ -25,7 +25,7 @@ const undos = () => api.calls.filter(({ key }) => key === UNDO);
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
 const teamReads = () => api.calls.filter(({ key }) => key === TEAM_READ).length;
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
-const lastToastIsError = () => /toast-error/.test(document.querySelectorAll("output").at(-1).className);
+const lastToastIsError = () => /g-toast--error/.test(document.querySelectorAll("output").at(-1).className);
 const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
 /** «Undo the mark»: the desk panel's by default. */
 const undoButton = (root = aside()) => root.querySelector("[data-roster-undo]");
@@ -212,7 +212,7 @@ test("an undo the rules refuse is said in the sheet, and nothing changes", async
     await settle();
     assert.ok(undoSheet()?.isModal, "the sheet stays");
     assert.equal(refusal().getAttribute("role"), "alert");
-    assert.match(refusal().textContent, /should not exceed 7 players \(currently 8\)/);
+    assert.match(refusal().textContent, /A team has at most 7 players \(now 8\)\./);
     assert.ok(!restoreButton().hasAttribute("aria-busy") && !restoreButton().hasAttribute("disabled"), "no longer busy");
     assert.ok(document.activeElement === restoreButton(), "the focus is where the coach left it, never on the page behind the sheet");
     api.reply(UNDO, 422, { error: { code: "FALLEN_NOT_RESTORABLE", params: {}, message: "x" } });

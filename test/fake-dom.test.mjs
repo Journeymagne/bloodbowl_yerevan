@@ -437,6 +437,16 @@ test("a block inside a paragraph is a parse error: a browser closes the <p> befo
   assert.doesNotThrow(() => parseHtml(document, '<p><span>a</span><button type="button"><span>b</span></button></p><div>c</div>'));
 });
 
+test("an implicit end tag fails the parse: every element the markup opens it closes itself (07a)", () => {
+  // A browser closes the first <li> when the second opens; reading that as nesting would build a tree it never draws.
+  assert.throws(() => parseHtml(document, "<ul><li>a<li>b</ul>"), /parseHtml: <\/ul> where <li> is still open/);
+  for (const bad of ["<ul><li>a</li><li>b</ul>", "<ul><li>a<li>b</li></ul>", "<dl><dt>a<dd>b</dl>", "<select><option>a<option>b</select>", "<ol><li>a"]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml: .*(still open|never closed)/, bad);
+  }
+  assert.throws(() => parseHtml(document, "<table><tbody><tr><td>a<td>b</td></tr></tbody></table>"), /<td> outside a table row/);
+  assert.doesNotThrow(() => parseHtml(document, "<ul><li>a</li><li>b</li></ul><dl><dt>a</dt><dd>b</dd></dl>"));
+});
+
 test("a row straight in a table, a cell outside a row, a section outside a table are parse errors (07a)", () => {
   assert.throws(() => parseHtml(document, "<table><tr><td>x</td></tr></table>"), /<tbody>/);
   assert.throws(() => parseHtml(document, "<table><tbody><td>x</td></tbody></table>"), /<td>/);

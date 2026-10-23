@@ -56,9 +56,10 @@ export function renderSiteFooter({ generatedAt = "", locale }) {
  * The crest and the name with the line under it. A team that can be switched is a button that opens the
  * switcher (shell/team-switcher.mjs), with a chevron and a hidden hint; a league that cannot is a link to
  * its front page. The name is cut at three lines and the race at one, so each carries itself whole as its title.
+ * The button has no address (the model gives it none); the link's is checked.
  */
 function renderTeamBlock({ name, sideSub, href, switchTeam }) {
-  assertLinkHref(href);
+  if (!switchTeam) assertLinkHref(href);
   const chevron = switchTeam ? renderIcon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   const tag = switchTeam ? "button" : "a";

@@ -1,9 +1,8 @@
 /*
  * «Coaches» (screens/admin/coaches.mjs) and the window «Coach with a team» (coach-new.mjs): DeskAdminUsers.html and
  * DeskAdminCoachNew.html from 901px, AdminMobile.html up to 900px (handoff 0.9.1). The frame — the head, the switch,
- * the card, the coach's letter, the note — is admin.css's. Font, border, background, text-transform, letter-spacing
- * and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens.
- * Logins, contacts and names wrap; nothing is cut with «…»; only the admin's chip keeps to one line.
+ * the card, the coach's letter, the note — is admin.css's. Colours are tokens. Logins, contacts and names wrap;
+ * nothing is cut with «…»; only the admin's chip keeps to one line.
  */
 
 /* ---- The search and «+ Coach with a team» ---- */
@@ -390,11 +389,9 @@
 
   .g-coaches__open { min-height: 36px; }
 
-  /* A window of 720, 110 from the top, 20 round (DeskAdminCoachNew), over sheet.css's 640 of a wide one. */
+  /* A window of 720, 20 round (DeskAdminCoachNew), over sheet.css's 640 of a wide one; 110 from the top is sheet.css's own. */
   dialog.g-sheet.g-coachnew {
     width: min(720px, calc(100% - 32px));
-    max-height: min(86dvh, calc(100dvh - 142px));
-    margin: 110px auto auto;
     border-radius: 20px;
   }
   .g-coachnew .g-sheet__head {

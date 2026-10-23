@@ -389,3 +389,139 @@ further:
   including the Player Advancement table headers), so don't "fix" either side to match the other.
   Skill names and skill categories (Agility, General, Strength…) stay English in the sheet, as
   everywhere.
+
+## 3.0 UI terms (stage 13)
+
+These are the words the 3.0 screens use for their own things, in both languages. Each stage of the redesign
+(05–13) handed its words over to stage 13. The dictionaries (`src/i18n/en.json`, `src/i18n/ru.json`) are
+the source. Each row gives the dictionaries' words. Where a stage's hand-off named a term differently, the
+dictionary's words stand, and a note under the table says so ("as built"). The rules above still hold
+inside these words: skill, position, team and inducement names stay English, and so do TD, CAS, SPP and
+Coach's Safe. When a dictionary word changes, change its row. A new screen's own words get a row too.
+
+"Where" gives the stage that brought the word and the key that holds it.
+
+| English | Russian | Where |
+|---|---|---|
+| Reference | Справочник | 05 · `shell.tab.ref` (the tab and the SideNav item) |
+| Appearance | Оформление | 05 · `settings.appearance` |
+| Palette | Палитра | 05 · `settings.palette` |
+| Settings | Настройки | 05 · `shell.tab.settings`, `settings.title` |
+| Draft (a team's stage) | Набор | 06 · `teams.stage.draft`; see «набор» (12) and note 9 |
+| My teams | Мои команды | 06 · `teams.title` |
+| Team leaders | Лидеры команды | 06 · `teamOverview.leaders` |
+| Recent matches | Последние матчи | 06 · `teamOverview.results` |
+| Active roster | Активный состав | 07a · `teamRoster.heading` |
+| Match records | Записи матча | 07a, 09a · `shell.match.records`, `teamRoster.records`, `matches.records` |
+| Edit outside the match | Правка вне матча | 07a · `teamRoster.match.outside` |
+| manual edit | ручная правка | 07a · `teamRoster.sppLine`, `teamPlayer.edit.spp`; note 1 |
+| TTM | TTM | 07a · `teamRoster.counter.throws`; TD, KO, CAS, INT, MVP and COMP stay English too |
+| Landing | Призем. | 07a · `teamRoster.counter.landings` (the full word: «приземление», `teamRoster.counterName.landings`) |
+| Bonus | Бонус | 07a · `teamRoster.counter.bonus` |
+| Missing the match | Пропускают матч | 07b · `teamRoster.skips.heading`; "Miss the match" in `matches.before.missing`; note 2 |
+| Fallen | Погибшие | 07b · `teamRoster.fallen.heading` |
+| Mark the death | Отметить гибель | 07b · `teamRoster.mark.sendDead` |
+| Undo the mark | Отменить отметку | 07b · `teamRoster.fallen.undo` |
+| Temporarily retired for the season | Временный уход до конца сезона | 07b · `teamRoster.skips.retired`; note 2 |
+| Hire players | Нанять игроков | 07c · `teamRoster.hire.title`, `teamRoster.hire.open` |
+| Cart | Корзина | 07c · `teamRoster.hire.cart` |
+| Cancel the purchase | Отменить покупку | 07c · `teamRoster.sell.cancelTitle` (its button: "Cancel purchase", `teamRoster.sell.cancelOpen`) |
+| Sell the player | Продать игрока | 07c · `teamRoster.sell.title` (the post-match says "Sell a player", `after.sellTitle`) |
+| Advancement | Прокачка | 07d · `teamAdvance.title`, `teamPlayer.advance` |
+| Random primary skill | Случайный основной навык | 07d · `teamAdvance.type.random` (the other types: the last item of "New-UI translation sweep" above) |
+| Rolled at the table | Бросил за столом | 07d · `teamAdvance.via.table` |
+| Skill in place of a characteristic | Навык вместо характеристики | 07d · `teamAdvance.insteadTitle`; note 3 |
+| Bonus skill | Бонусный навык | 07d · `teamPlayer.favoured.label` |
+| Two D16s · Roll two D16 | Два D16 · Бросить два D16 | 07d · `teamAdvance.rollResult`, `teamAdvance.rollD16`; note 3 |
+| The skills rolled | Выпавшие навыки | 07d · `teamAdvance.pairLabel`; note 3 |
+| Career · by match | Карьера · по матчам | 07e · `teamPlayer.career.title`, `teamPlayer.career.byMatch`; note 4 |
+| Before the site's records | До записей на сайте | 07e · `teamPlayer.career.before` |
+| waits for the post-match | ждёт итогов | 07e · `teamPlayer.career.pending` |
+| Edits outside a match | Правки вне матча | 07e · `teamPlayer.career.outside` |
+| Treasury and resources | Казна и ресурсы | 08 · `treasury.title` |
+| Add · Take | Зачислить · Списать | 08 · `treasury.money.signIn`, `treasury.money.signOut`; note 5 |
+| Building the team | Набор команды | 08 · `treasury.phase.draft`; note 5 |
+| Correct by hand · Fix by hand | Исправить вручную | 08 · `treasury.fix.title` (the treasury); 07d · `teamPlayer.fix.title` (a player); note 1 |
+| Coach's Safe | Coach's Safe | 08, 09b · `treasury.safeTitle`, `after.safe`; the plain word "safe" is «сейф» (`after.toSafe`) |
+| Bribes | Bribes · Взятки | 08 · `treasury.strip.bribes` (English in both); 06, 12 · `savedRoster.bribes`, `adminTeam.staff.bribes`; note 5 |
+| Before the match | Перед матчем | 09a · `prep.title`, `matches.before.title`, `guestHome.tile.match` |
+| Inducements | Индьюсменты | 09a · `pre.step.inducements`, `matches.inducements`, `prep.ind.title`; note 6 |
+| Journeymen | Journeymen | 09a · `prep.roster.journeymen`; note 6 |
+| Post-match | Итоги матча | 09b · `shell.match.postMatch` |
+| From the match records | Из записей матча | 09b · `after.records` |
+| Stood out | Отличились | 09b · `after.mvpTop` |
+| Veterans after conceding | Ветераны после сдачи | 09b · `after.departures` ("… · D6"); note 7 |
+| The god's D8 | D8 бога | 09b · `teamPlayer.favoured.d8Label`; note 7 |
+| Season calendar | Календарь сезона | 10 · `league.calendar` |
+| entry withdrawn | заявка отозвана | 10 · `league.withdrawn` |
+| Next opponent | Следующий соперник | 10 · `opponent.next` |
+| Our meeting | Наша встреча | 10 · `opponent.meeting` |
+| Your meetings | Ваши встречи | 10 · `coach.meetings` |
+| Before and during a match | Перед матчем и в игре | 11 · `ref.group.match` (the reference's groups, in their order) |
+| Players | Игроки | 11 · `ref.group.players` |
+| Teams | Команды | 11 · `ref.group.teams` |
+| League | Лига | 11 · `ref.group.league` |
+| League Rules | Правила лиги | 11 · `section.rulesTitle` |
+| In brief · Full text | Кратко · Полный текст | 11 · `ref.rules.brief`, `ref.rules.full`; note 8 |
+| Playing in the league | В лиге играют | 11 · `ref.team.inLeague`; note 8 |
+| In your team | В нашей команде | 11 · `ref.skill.ours`; note 8 |
+| Coach with a team | Тренер с командой | 12 · `administration.coachNew.title` |
+| Temporary password | Временный пароль | 12 · `administration.password` |
+| Move into the season | Перевести в сезон | 12 · `adminSeason.activate` |
+| build · in the build | набор · в наборе | 12 · `adminSeason.entryDraft`, `administration.team.draft`, `administration.inDraft`; note 9 |
+| Playoff zone: places 1–{places} | Зона плей-офф: места 1–{places} | 12 · `league.zone` (`league.zoneOne`, `league.zoneRanks`); the season's setting is "Playoff places" / «Мест в плей-офф» (`adminSeason.playoffPlaces`) |
+| Technical win | Техническая победа | 12 · `league.technical.other`, `after.technicalIncome` |
+| The opponent could not field a team | Соперник не смог выставить команду | 12 · `adminSeason.reason.no_team`, `after.reason.no_team`; in lower case inside a line (`league.technical.no_team`) |
+| A fallen player, afterwards | Погибший задним числом | 12 · `adminTeam.fallen.sheetTitle`; its section is "Fallen, added afterwards" / «Погибшие задним числом» (`adminTeam.fallen.title`) |
+| Friendlies | Товарищеские | 09c · `friendly.title`; note 10 |
+| Challenge | Бросить вызов | 09c · `friendly.send`; 10 · `coach.challengeDesk` |
+| Challenge sent | Вызов отправлен | 09c · `friendly.busy` |
+| Recent opponents | Недавние соперники | 09c · `friendly.recent` |
+| Challenge history · {count} | История вызовов · {count} | 09c · `friendly.history` |
+| Match | Матч | 13 · `gamePage.title`; note 11 |
+| Confirm the score · Reject | Подтвердить счёт · Отклонить | 13 · `gamePage.confirm`, `gamePage.reject` |
+
+**As built — where a hand-off and the dictionaries differ:**
+
+1. **«Ручная правка».** Stage 07a handed it over as "Fix by hand". In the dictionaries, «ручная правка» is
+   "manual edit": the SPP line that a hand edit leaves. "Fix by hand" is the player's sheet, «Исправить
+   вручную». The treasury's sheet says "Correct by hand" in English and «Исправить вручную» in Russian. The
+   line it leaves in the history says «ручная правка» again (`treasury.kind.manual`, "Treasury corrected
+   by hand" / «Ручная правка казны»).
+2. **07b.** "Miss the next match" is "Missing the match" on the roster and "Miss the match" in the
+   before-the-match sheet; both are «Пропускают матч». "Temporary retirement until the end of the season"
+   is "Temporarily retired for the season".
+3. **07d.**
+   - "Skill instead of a characteristic" is "Skill in place of a characteristic · {cost} SPP".
+   - "Two D16" is "Two D16s on the category's table", and its button is "Roll two D16".
+   - "Skills rolled" is "The skills rolled".
+4. **07e.** «Карьера по матчам» is two words on the screen: the section's title «Карьера», and «по
+   матчам» beside it.
+5. **08.**
+   - "Credit / Debit" are "Add" / "Take", and "Team draft" is "Building the team".
+   - **Bribes is written two ways.** The treasury's strip writes "Bribes" in both languages, like the
+     strip's other short English labels (as the prototype does, stage 08). The builder (06) and the
+     admin's staff (12) say «Взятки».
+   - The content's inducement is "Bribe" (`content/Gata/Inducements/Bribe.md`). The rule "Inducement
+     names used as UI labels elsewhere" above keeps that name English. Stage 13 does not settle this:
+     the words stay as built.
+6. **09a.**
+   - **Inducements.** The match screens say «Индьюсменты» in Russian: the step, the tile, the card and
+     the category switch. This is a deliberate UI exception to "Inducements" staying English, like the
+     advancement types. The reference's section (`nav.inducements`) and every inducement's own name stay
+     English.
+   - **Journeymen** stay English in the preparation. The server's refusal `error.MATCH_JOURNEYMEN` still
+     says «Джорнимены» and «лайнмена».
+7. **09b.** "Veterans after a concession" is "Veterans after conceding · D6". "D8 of the god" is "The
+   god's D8".
+8. **11.**
+   - "Short" is "In brief", and "Played in the league" is "Playing in the league".
+   - "In our team" is "In your team" in English but «В нашей команде» in Russian: here the two
+     dictionaries differ in person.
+9. **«набор» (12).** The administration says "build" / "in the build". The team's stage chip says
+   "Draft" (06). Russian says «набор» in both places. A round that has not started is something else:
+   "draft" / «черновик» (`adminSeason.roundDraft`).
+10. **09c.** Its five rows were read from `rd/09c-challenges` (70d729e) before it was merged, and checked
+    against the merged dictionaries at the merge of stage 13's wave 1: each says what `en.json` and
+    `ru.json` say.
+11. **13.** The `gamePage.*` keys come with stage 13's match page (`#/games/:id`).

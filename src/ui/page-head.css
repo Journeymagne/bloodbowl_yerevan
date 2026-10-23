@@ -1,12 +1,11 @@
 /*
- * The head of a screen (ui/page-head.mjs). Font, border, background,
- * text-transform and font-weight are set here on purpose: the 2.x global rules
- * (shell.css h1 at weight 800) outlive this sheet until stage 13.
+ * The head of a screen (ui/page-head.mjs).
  *
  * Up to 900px the title is for a screen reader (the shell's header names the
- * screen) unless the head is `--phone`, which stands as a title and its line.
- * From 901px it is a band on the card colour over a rule, the width of the
- * content.
+ * screen) unless the head is `--phone`, which stands as a title and its line
+ * (and keeps the line off when it is `--nosub-phone`). From 901px it is a band
+ * on the card colour over a rule, the width of the content. The title is an h1
+ * or a paragraph (ui/page-head.mjs); the rules name the class, never the tag.
  */
 .g-pagehead {
   box-sizing: border-box;
@@ -44,6 +43,11 @@
   gap: var(--space-8);
   margin-top: var(--space-8);
 }
+/* A search that is the slot's own fills it: the line under the title on a phone, the band's right end on a desk. */
+.g-pagehead__meta > .g-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 @media (max-width: 900px) {
   .g-pagehead:not(.g-pagehead--phone) {
@@ -58,11 +62,14 @@
     white-space: nowrap;
     border: 0;
   }
+
+  /* The line is said elsewhere on a phone (the team's value, in its card: TeamManage.html). */
+  .g-pagehead--nosub-phone .g-pagehead__sub { display: none; }
 }
 
 /*
- * The band reaches the content's edges over the view's own padding: `.view` pads 28px from 901px
- * (site-matchday.css, 2.x), and so does the offset here. It goes with that padding at stage 13.
+ * The band reaches the content's edges over the view's padding (24 above, 32 at the sides from 901px), by the frame's
+ * own figures (shell/frame.css), and keeps its words where the content's edge is: DeskOverview.html's 20 32.
  */
 @media (min-width: 901px) {
   .g-pagehead {
@@ -71,8 +78,8 @@
     justify-content: space-between;
     gap: var(--space-16);
     max-width: none;
-    margin: -28px -28px var(--space-24);
-    padding: var(--space-20) 28px;
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) var(--space-24);
+    padding: var(--space-20) var(--view-side);
     border-bottom: 1px solid var(--line);
     background: var(--surface);
   }
@@ -80,4 +87,19 @@
   .g-pagehead__title { font: 700 32px/1 var(--font-display); }
 
   .g-pagehead__meta { margin-top: 0; }
+
+  /*
+   * A search that is the slot's own (DeskRef.html): at the right, up to 420 wide and 44 tall, in 15px. Where the band
+   * is short of room the field gives way, not the title and its line, which keep their one line each. A screen that
+   * wraps its field in a box of its own sizes it there (the overview's).
+   */
+  .g-pagehead:has(> .g-pagehead__meta > .g-search) > .g-pagehead__text { flex: none; }
+  .g-pagehead__meta:has(> .g-search) {
+    flex: 0 1 420px;
+    min-width: 0;
+  }
+  .g-pagehead__meta > .g-search .g-search__input {
+    height: 44px;
+    font-size: 15px;
+  }
 }

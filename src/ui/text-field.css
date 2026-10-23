@@ -1,8 +1,6 @@
 /*
- * A labelled input. Font, border, background, text-transform and
- * border-radius are set here on purpose: the 2.x globals (input { font:
- * inherit }, :focus-visible { border-radius }) outlive this sheet until
- * stage 13. The keyboard ring is base.css's outline, so none is set here.
+ * A labelled input. The keyboard ring is base.css's outline, so none is
+ * set here.
  */
 .g-field {
   display: flex;
@@ -46,6 +44,31 @@
   appearance: none;
 }
 .g-field__input::placeholder { color: var(--muted); }
+
+/*
+ * A field of several lines (a death's cause), with the line's ring and colours. StatsMngDead.html
+ * on a phone: from 64px of content (84 with its 10px 12px, as this sheet's border-box counts it),
+ * radius 12, not resized by hand; its 15px is 16 here, the field's own size, or iPhone's Safari zooms
+ * the page into the field when it takes the focus (a deviation of 1px, stage 13). DeskRosterDeath.html
+ * from 901px: from 60px of content (80), radius 10, 14/1.4, taller by hand. Two rows fit in either.
+ */
+.g-field__input--area {
+  display: block;
+  height: auto;
+  min-height: 84px;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-lg);
+  font: 400 16px/1.4 var(--font-body);
+  resize: none;
+}
+@media (min-width: 901px) {
+  .g-field__input--area {
+    min-height: 80px;
+    border-radius: var(--radius-md);
+    font: 400 14px/1.4 var(--font-body);
+    resize: vertical;
+  }
+}
 
 /* The input and the control beside it (a "save" button): the input takes what the control leaves. */
 .g-field__control {

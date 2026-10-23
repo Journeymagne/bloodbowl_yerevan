@@ -74,6 +74,9 @@ test("the frame's words: a phone's title and sub, a desk's band, back to the tea
   const admin = postModel(payloadOf(state, { isAdmin: true }), "away", "", { data, userId: "admin" });
   assert.equal(admin.back, gameUrl("g1"), "an administrator who is not this side's coach goes back to the game");
   assert.equal(postModel(payloadOf(state, { isAdmin: true }), "home", "", { data, userId: "u-home" }).back, teamUrl("t-home", "matches"));
+  // An administrator who plays home and looks at the away side: his own matches, not the match page, which would send
+  // him straight back into this post-match (review of stage 13).
+  assert.equal(postModel(payloadOf(state, { isAdmin: true }), "away", "", { data, userId: "u-home" }).back, teamUrl("t-home", "matches"));
   // Drawn in the preparation's frame: its own steps' label, seven dots, the head's words, «‹».
   const phone = frame(model);
   assert.equal(phone.querySelector("h1").textContent, "After the match");

@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { mediaQueries, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -298,13 +299,13 @@ test("one h1 in every state of the address: waiting, a read that failed, gone, f
 test("the head stays at the top while the page scrolls, as the prototype's", () => {
   assert.deepEqual(valuesOf(PROFILE, ".g-profile__head", "position"), ["sticky"]);
   assert.deepEqual(valuesOf(PROFILE, ".g-profile__head", "top"), ["0"]);
-  // K3: the shell's .g-main hides what goes past its sides, which makes it a scroll box the head would stick in: clip it instead.
-  assert.deepEqual(valuesOf(PROFILE, ".g-main:has(.g-profile)", "overflow-x"), ["clip"]);
-  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["hidden"]);
+  // K3: the head sticks to the window, because the shell's .g-main clips what goes past its sides without being a scroll box (stage 13, every screen).
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
+  assert.deepEqual(valuesOf(PROFILE, ".g-main:has(.g-profile)", "overflow-x"), []);
   // The view's 2.x padding gives way: the head is the screen's width, as Player.html draws it.
   assert.deepEqual(valuesOf(PROFILE, ".g-frame #app-view:has(> .g-profile)", "padding"), ["0"]);
   // WCAG 2.4.11: what the keyboard reaches stands clear of the head, which is taller than the shell's.
-  const phone = text("src/shell/frame.css").match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  const phone = mediaText("src/shell/frame.css", "max-width: 900px");
   assert.match(phone, /:root:has\(\.g-frame\[data-drill\]\) \{ scroll-padding-top: 150px; \}/);
 });
 
@@ -774,8 +775,7 @@ test("every key is in both dictionaries; everything drawn is styled; the head's 
     assertReadable(PROFILE, selector, "color", ["--surface"], 4.5);
   }
   assertReadable(PROFILE, ".g-profile__availn", "color", ["--surface"], 3, { what: "44px" });
-  const breakpoints = [...text(PROFILE).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
-  assert.deepEqual(breakpoints, ["@media (max-width: 900px)"], "a phone's page: no rule of a desk's");
+  assert.deepEqual(mediaQueries(PROFILE), ["(max-width: 900px)"], "a phone's page: no rule of a desk's");
   assert.ok(!/--focus-ring/.test(text(PROFILE)), "the focus ring is base.css's");
   // K5: 07d's sheets come after 07c's market.css, in the order of their tasks; this file need not be the last.
   const styles = text("src/styles.css");

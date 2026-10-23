@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { AWAY, FIXTURE, HOME, RECORDS, act, agreed, begin, modelOf, players, reach, tap } from "./helpers/post-cases.mjs";
 import { postMatchUrl } from "../src/core/routes.mjs";
 import { INJURIES, POST_STATS } from "../src/domain/post-match/rules.mjs";
@@ -345,6 +346,8 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__advance", "background"), ["var(--accent)"]);
   assert.deepEqual(own(".g-after__th", "letter-spacing"), ["0.04em"]);
   assert.deepEqual(own(".g-after__th", "font"), ["700 12px/1.3 var(--font-body)"]);
+  // A label that wraps keeps its neighbours at the top, as 2.x's th rule held them before it went (stage 13, Task 23).
+  assert.deepEqual(own(".g-after__th", "vertical-align"), ["top"]);
   assert.deepEqual(own(".g-after__td", "height"), ["52px"]);
   assert.deepEqual(own(".g-after__table", "font-variant-numeric"), ["tabular-nums"]);
   assert.deepEqual(own(".g-after__star", "color"), ["var(--warn)"]);
@@ -379,7 +382,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /ellipsis|text-overflow|line-clamp|nowrap/);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
   for (const selector of [".g-after__name", ".g-after__line", ".g-after__chip", ".g-after__td--hurt"]) assert.ok(own(selector, "overflow-wrap").includes("anywhere"), selector);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/post-players.css");') > styles.indexOf('@import url("screens/matches/post.css");'), "after the post-match's own sheet");
 });

@@ -1,17 +1,15 @@
 /*
- * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs). Font, border, background,
- * text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, a, the form
- * controls) outlive this sheet until stage 13.
+ * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs).
  *
- * Up to 900px it is one column and the head shows on the index only: the phone's header names every
- * other reference screen, and the table of contents is the index itself, one tap up (the way back is
- * the link at the top of a screen). From 901px the head is a white band across the top with the title
- * at the left and the search at the right, the table of contents stands beside the content, and the
- * index lays its groups out in two columns. A list (list.mjs) is the same page with its own head: up to
- * 900px a column of rows, and a split page (skills, traits) shows either the list or, once one is
- * chosen, its panel; from 901px the contents, the list in a card and, on a split page, the panel stand
- * in columns that shrink with the window and never wrap. The articles and the panel's content are the
- * sheets of the screens that draw them.
+ * The head is the page head (ui/page-head.mjs). Up to 900px it is one column and the head shows on the
+ * index only: the phone's header names every other reference screen, and the table of contents is the
+ * index itself, one tap up (the way back is the link at the top of a screen). From 901px the head is
+ * the page head's band across the top with the title at the left and the search at the right, the
+ * table of contents stands beside the content, and the index lays its groups out in two columns. A
+ * list (list.mjs) is the same page with its own head: up to 900px a column of rows, and a split page
+ * (skills, traits) shows either the list or, once one is chosen, its panel; from 901px the contents,
+ * the list in a card and, on a split page, the panel stand in columns that shrink with the window and
+ * never wrap. The articles and the panel's content are the sheets of the screens that draw them.
  */
 .g-ref {
   box-sizing: border-box;
@@ -26,37 +24,6 @@
   text-transform: none;
   letter-spacing: 0;
 }
-
-/* The head: the title, the league's name under it, then the search. */
-.g-ref-head {
-  box-sizing: border-box;
-  display: none;
-  flex-direction: column;
-  gap: var(--space-4);
-  border: 0;
-  background: none;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.g-ref--index .g-ref-head { display: flex; }
-
-.g-ref-head__title {
-  margin: 0;
-  color: var(--ink);
-  font: 700 32px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-head__sub {
-  margin: 0;
-  color: var(--muted);
-  font: 400 14px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-head .g-search { margin-top: var(--space-16); }
 
 .g-ref__body {
   box-sizing: border-box;
@@ -290,64 +257,32 @@
 /*
  * A split page is two screens on a phone: the list, or (once something is chosen, which the page says
  * with g-ref--open) the panel of the chosen one, whose way back is the link at its top.
+ *
+ * The head on a phone is the index's (Ref.html): the title 32 over the league's line, the search 20 under
+ * it, and the page's gap under that. Any other reference screen has none, not even for a screen reader:
+ * its h1 is the article's or the list's, and the head's search field would be a stop nobody sees.
  */
 @media (max-width: 900px) {
   .g-ref--split .g-ref__panel { display: none; }
   .g-ref--split.g-ref--open .g-ref__main { display: none; }
   .g-ref--split.g-ref--open .g-ref__panel { display: block; }
+
+  .g-ref > .g-pagehead { margin-bottom: 0; }
+  .g-ref--index .g-pagehead__title {
+    font-size: 32px;
+    line-height: 1;
+  }
+  .g-ref--index .g-pagehead__meta { margin-top: var(--space-20); }
+  .g-ref:not(.g-ref--index) > .g-pagehead { display: none; }
 }
 
 @media (min-width: 901px) {
-  /*
-   * The band runs edge to edge, so the 2.x padding of the screen (which stage 13 takes away) is
-   * given up for the reference and the parts keep their own.
-   */
-  #app-view:has(> .g-ref) { padding: 0; }
-  /*
-   * The frame keeps a wide 2.x table from pushing the page sideways with `overflow-x: hidden`, which
-   * makes it a box that scrolls (though it never does) and so the one a sticky panel sticks to: it
-   * would never stick. Cut off with `clip` it is not a box, and the panel sticks to the window. Only
-   * here: the frame's other screens have sticky panels of their own that are held still by it today.
-   *
-   * Temporary: when stage 13 deletes the 2.x `.builder-summary` sticky (styles/responsive.css), the
-   * `overflow-x: clip` belongs on `.g-main` in shell/frame.css and this rule goes (with the pin in
-   * test/ref-skill.test.mjs that frame.css still says `hidden`).
-   */
-  .g-main:has(.g-ref) { overflow-x: clip; }
-  #app-view > .g-ref {
-    max-width: none;
-    margin: 0;
-    gap: 0;
-  }
-
-  .g-ref .g-ref-head {
-    display: grid;
-    grid-template-columns: minmax(max-content, 1fr) minmax(0, 420px);
-    align-items: center;
-    column-gap: var(--space-16);
-    row-gap: var(--space-4);
-    padding: var(--space-20) 32px;
-    border-bottom: 1px solid var(--line);
-    background: var(--surface);
-  }
-  .g-ref-head__title {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .g-ref-head__sub {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .g-ref-head .g-search {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    margin-top: 0;
-  }
+  /* DeskRef.html: the page head's band, then its main's 24 32 40 — the frame's padding, which the band goes out over. */
+  .g-ref { gap: 0; }
 
   .g-ref__body {
     flex-flow: row wrap;
     align-items: flex-start;
-    padding: 24px 32px 40px;
   }
   .g-ref__main {
     flex: 2 1 380px;
@@ -426,15 +361,17 @@
   /*
    * The lists and the split pages are a grid, not a row that wraps: the contents and the panel take
    * what the window gives them between a floor and a ceiling, and the list takes the rest. A row that
-   * wrapped would drop the panel under the list from a window as wide as 1256px.
+   * wrapped would drop the panel under the list from a window as wide as 1256px. At 1440 the columns
+   * are DeskRef's (contents 254–260, panel 402: the list one column of rows, as there); they narrow
+   * faster than the window, so at 1024 the list keeps 300px and more (stage 11: no panel under it).
    */
   .g-ref--list .g-ref__body,
   .g-ref--split .g-ref__body {
     display: grid;
     align-items: start;
   }
-  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr); }
-  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px); }
+  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr); }
+  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px); }
   /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
   .g-ref--split .g-ref__panel {
     position: sticky;

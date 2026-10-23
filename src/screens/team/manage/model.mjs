@@ -19,8 +19,8 @@ import { countToNumber } from "../../../domain/roster/values.mjs";
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from "../../../domain/league-rules.mjs";
 import { sumMoney } from "../../../domain/money.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
+import { currentMatch } from "../../../data/match-phase.mjs";
 import { gameSides } from "../../../data/team-record.mjs";
-import { currentMatch } from "../../../shell/current-match.mjs";
 
 /** The plain counters the page edits, in the order it draws them; the race's medics follow. */
 export const COUNTER_KEYS = Object.freeze(["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes"]);

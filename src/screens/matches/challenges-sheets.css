@@ -1,12 +1,11 @@
 /*
  * The sheets of a team's friendlies (screens/matches/challenges-sheets.mjs): the challenge — ChallengeSend.html and
  * ChallengeSendSearch.html up to 900px, DeskChallenges.html's window of 760px from 901px — and the accept,
- * ChallengeAccept.html (a desk's is sheet.css's window of 480px). Values from those prototypes; font, border,
- * background, text-transform, letter-spacing and font-weight are set on purpose (the 2.x globals live until stage 13).
- * Colours are tokens: a coach's circle is the header's (the prototypes' own colours have none), a selected segment is
- * the segmented control's (--seg-on, --shadow-thumb). Long logins and team names wrap; nothing is cut with «…» (the
- * prototypes cut the coaches' teams and the segments). A thumb's targets are 44 high up to 900px (D2): the
- * prototypes' 36 and 38 are a desk's.
+ * ChallengeAccept.html (a desk's is sheet.css's window of 480px). Values from those prototypes. Colours are tokens: a
+ * coach's circle is the header's (the prototypes' own colours have none), a selected segment is the segmented
+ * control's (--seg-on, --shadow-thumb). Long logins and team names wrap; nothing is cut with «…» (the prototypes cut
+ * the coaches' teams and the segments). A thumb's targets are 44 high up to 900px (D2): the prototypes' 36 and 38 are
+ * a desk's.
  */
 
 /* ---- The challenge: the search over the list, the note of a coach the address named, the refusal ---- */
@@ -144,20 +143,7 @@
 }
 .g-challenge__row[aria-disabled="true"] { cursor: default; }
 
-.g-challenge__letter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: var(--header);
-  color: var(--header-ink);
-  font: 700 17px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
+.g-challenge__letter { font-size: 17px; } /* ChallengeSend's row: the kit's circle of 36 (ui/coach-letter.css), its letter 17. */
 .g-challenge__id {
   display: flex;
   flex: 1 1 auto;
@@ -286,11 +272,6 @@
   background: var(--surface-2);
   box-shadow: var(--ring);
 }
-.g-challenge__card .g-challenge__letter {
-  width: 44px;
-  height: 44px;
-  font-size: 22px;
-}
 .g-challenge__title {
   color: var(--ink);
   font: 700 16px/1.2 var(--font-body);
@@ -383,11 +364,9 @@
 
 /* ---- A desk (DeskChallenges.html's window) ---- */
 @media (min-width: 901px) {
-  /* 760 wide, its top 110 from the window's (the prototype's), its bottom 32 on a short window. */
+  /* 760 wide; its top is sheet.css's 110 from the window's (the prototype's), its bottom 32 on a short window. */
   dialog.g-sheet.g-challenge-send {
     width: min(760px, calc(100% - 32px));
-    max-height: min(86dvh, calc(100dvh - 142px));
-    margin: 110px auto auto;
     border-radius: 20px;
   }
   .g-challenge-send .g-sheet__head {

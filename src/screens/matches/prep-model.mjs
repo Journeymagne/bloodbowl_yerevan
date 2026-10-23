@@ -247,6 +247,17 @@ function matchWords(fixture) {
 }
 
 /**
+ * Where «‹» leads: the viewer's own side's matches when he plays the match — an administrator who plays it too, whichever
+ * side he looks at (the match page would send him straight back in: review of stage 13) —, the match page for an
+ * administrator who plays neither side (it sends nobody on), else the shown side's matches.
+ */
+function backOf({ gameId, isAdmin, userId, own, other }) {
+  const mine = [own, other].find((side) => side.userId && side.userId === userId);
+  if (mine) return teamUrl(mine.teamId, "matches");
+  return isAdmin ? gameUrl(gameId) : teamUrl(own.teamId, "matches");
+}
+
+/**
  * What the preparation says to `sideName`.
  *
  * @param {{preparation: object, snapshots: object, viewerSide: "home"|"away", isAdmin: boolean, fixture: object}} payload
@@ -283,7 +294,7 @@ export function prepModel(payload, sideName, step, ui = {}) {
     steps: stepsOf({ gameId, current, shown, prep, own, other, data }),
     title: t("prep.title"), deskTitle: t("prep.titleDesk", { match: words.desk }),
     sub: t("prep.sub", { match: words.phone, ...versus }), deskSub: t("prep.versus", versus),
-    back: isAdmin && ui.userId !== own.userId ? gameUrl(gameId) : teamUrl(own.teamId, "matches"),
+    back: backOf({ gameId, isAdmin, userId: ui.userId, own, other }),
     readonly, readonlyWhy, own, other, sides: { home: versus.home, away: versus.away },
     opponent,
     footer: footerOf({ key, index: shown, current, prep, own, gameId, readonly, inducements }),

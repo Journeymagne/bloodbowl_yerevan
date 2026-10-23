@@ -28,6 +28,7 @@ import { raceTitleOf } from "../../data/teams.mjs";
 import { telegramUrl } from "../../domain/account.mjs";
 import { renderTeamFace } from "../../shell/team-switcher.mjs";
 import { renderButton } from "../../ui/button.mjs";
+import { coachInitial, renderCoachLetter } from "../../ui/coach-letter.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { assertLinkHref, classNames } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
@@ -96,7 +97,7 @@ export function coachModel({ user, teams, seasonData, games = [], viewerId, acti
   return {
     userId: user.id,
     login: user.login ?? "",
-    initial: Array.from(String(user.login ?? "").trim())[0]?.toUpperCase() ?? "?",
+    initial: coachInitial(user.login),
     since: sinceOf(user.createdAt),
     teamsLine: t("coach.teamsCount", { count: user.savedTeamCount ?? teams.length }),
     telegram: { handle: user.telegram ?? "", href: telegramUrl(user.telegram) },
@@ -125,7 +126,7 @@ function idMarkup(model, { phone }) {
   const parts = [model.since, model.teamsLine].filter(Boolean).map(escapeHtml);
   if (!phone && model.telegram.handle) parts.push(`${escapeHtml(t("coach.telegram"))} <b>${escapeHtml(model.telegram.handle)}</b>`);
   const actions = phone ? "" : [writeMarkup(model, "coach.writeDesk"), model.challengeHref ? renderButton({ label: t("coach.challengeDesk"), kind: "primary", href: model.challengeHref }) : ""].join("");
-  return `<div class="g-coach__id"><span class="g-coach__letter" aria-hidden="true">${escapeHtml(model.initial)}</span><div class="g-coach__who">`
+  return `<div class="g-coach__id">${renderCoachLetter({ initial: model.initial, size: 64, className: "g-coach__letter" })}<div class="g-coach__who">`
     + `<p class="g-coach__login">${escapeHtml(model.login)}</p><p class="g-coach__line">${parts.join(" · ")}</p></div>`
     + `${actions ? `<div class="g-coach__actions">${actions}</div>` : ""}</div>`;
 }
@@ -138,8 +139,8 @@ function telegramCardMarkup(model) {
     + `<p class="g-coach__note">${escapeHtml(t("coach.contactNote"))}</p></div>`;
 }
 
-/** His teams: each a link to its page, the tile of its letters, its name and line, a chevron. */
-const teamsMarkup = (teams) => `<div class="g-coach__teams">${teams.map((team) => link(team.href, "g-coach__team", `${renderTeamFace(team)}${icon("chevron", 16)}`)).join("")}</div>`;
+/** His teams: each a link to its page, the tile of its letters, its name and line, the short chevron CoachProfile draws. */
+const teamsMarkup = (teams) => `<div class="g-coach__teams">${teams.map((team) => link(team.href, "g-coach__team", `${renderTeamFace(team)}${icon("chevronShort", 16)}`)).join("")}</div>`;
 
 /** «Your meetings»: «Round 3 · league» over «Ours — Theirs», the outcome at the right in its tone; the words when there are none. */
 function meetingsMarkup(model, heading) {

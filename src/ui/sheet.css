@@ -5,10 +5,7 @@
  * footer's button sits at its right. Nothing here sets `display` on the
  * dialog, so a closed one stays hidden by the browser's own rule. The team
  * switcher is an `anchored` sheet: the same from the bottom up to 900px, a
- * 300px panel by the SideNav from 901px. Font, border, background,
- * text-transform, font-weight and border-radius are set on purpose: the 2.x
- * globals (h2 { font: 800 … }, :focus-visible { border-radius }) outlive this
- * sheet until stage 13.
+ * 300px panel by the SideNav from 901px.
  */
 dialog.g-sheet {
   box-sizing: border-box;
@@ -120,12 +117,29 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
   dialog.g-sheet {
     width: min(480px, calc(100% - 32px));
     max-width: none;
-    /* The top margin is 112px; leave the bottom its 32px as well on a short window. */
-    max-height: min(86dvh, calc(100dvh - 144px));
-    margin: 112px auto auto;
+    /* 110px from the top, as most prototypes' windows stand (DeskOverview, DeskSeason, DeskOppTeam, DeskAdminReset); the bottom keeps 32px on a short window. */
+    max-height: min(86dvh, calc(100dvh - 142px));
+    margin: 110px auto auto;
     border-radius: var(--radius-2xl);
   }
   dialog.g-sheet.g-sheet--wide { width: min(640px, calc(100% - 32px)); }
+  /*
+   * A window its prototype stands higher or lower (renderSheet's `at`): the advancement and a new team 64 (DeskRosterAdv,
+   * DeskTeamNew), the hiring 80 (DeskRosterHire), the sale, a player's edit and the password 120 (DeskRosterSell,
+   * DeskRosterEdit, DeskCoachPassword); each keeps 32px under it on a short window.
+   */
+  dialog.g-sheet.g-sheet--at-64 {
+    max-height: min(86dvh, calc(100dvh - 96px));
+    margin: 64px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-80 {
+    max-height: min(86dvh, calc(100dvh - 112px));
+    margin: 80px auto auto;
+  }
+  dialog.g-sheet.g-sheet--at-120 {
+    max-height: min(86dvh, calc(100dvh - 152px));
+    margin: 120px auto auto;
+  }
   /* The team switcher: a panel at the left, by the SideNav's team block, not a modal in the middle; its bottom keeps 24px from the window's edge. */
   dialog.g-sheet.g-sheet--anchored {
     width: 300px;
@@ -181,4 +195,80 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
     font-size: 15px;
   }
   .g-sheet__foot-start { margin-right: auto; }
+}
+
+/*
+ * A question before something that cannot be taken back (`confirmAction`, ui/sheet.mjs): the caller's words,
+ * then «Cancel» and the action. Up to 900px PlayerDeadConfirm.html's sheet: the words 15/1.5 in --ink-2, the body
+ * 10 16 12; «Cancel» and the action in two halves under the foot's rule, 8 apart. From 901px DeskAdminReset.html's
+ * window: 520 wide, 20 round, 110 from the top (the sheet's own, no `at`); the head 18 20 18 24, 16 between the title
+ * (28) and the 40px cross; the body 16 24; «Cancel» and the action at the right, 8 apart, 12 24 20 around them, as
+ * DeskAdminCoachNew's. Both: 48px buttons, 12 round, 15px bold. Their colours are button.css's own — «Cancel» the
+ * outline (white in its ring, here in --ink as the prototypes'), the action the primary or the red one.
+ */
+.g-confirm .g-sheet__body { gap: var(--space-14); }
+
+.g-confirm__text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 400 15px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-confirm .g-sheet__foot .g-btn {
+  height: auto;
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-confirm .g-sheet__foot .g-btn[data-confirm="no"] { color: var(--ink); }
+
+@media (max-width: 900px) {
+  .g-confirm .g-sheet__body { padding: var(--space-10) var(--space-16) var(--space-12); }
+  .g-confirm .g-sheet__foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-16) var(--space-24);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: 100%;
+    padding: 0 var(--space-10);
+  }
+}
+
+@media (min-width: 901px) {
+  dialog.g-sheet.g-confirm {
+    width: min(520px, calc(100% - 32px));
+    border-radius: 20px;
+  }
+  .g-confirm .g-sheet__head {
+    gap: var(--space-16);
+    padding: 18px var(--space-20) 18px var(--space-24);
+  }
+  .g-confirm .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-confirm .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .g-confirm .g-sheet__body { padding: var(--space-16) var(--space-24); }
+  .g-confirm .g-sheet__foot {
+    justify-content: flex-end;
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24) var(--space-20);
+  }
+  .g-confirm .g-sheet__foot .g-btn {
+    width: auto;
+    padding: 0 var(--space-16);
+  }
 }

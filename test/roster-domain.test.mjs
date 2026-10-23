@@ -5,11 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describeCase, stableJson } from "./helpers/roster-cases.mjs";
-import { calculateRosterCosts, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
+import { calculateRosterCosts, favouredSkillCost, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, positionKind, selectedRosterPlayers, skillNamesForPlayer, skillsForPlayer } from "../src/domain/roster/players.mjs";
 import { playerAvailableSpp, playerSppTotal, playerLevelRank } from "../src/domain/roster/progression.mjs";
-import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
-import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
+import { teamFavouredOptions, teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
+import { costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam } from "../src/domain/roster/values.mjs";
 import { advancementStatCosts, builderStaffCosts } from "../src/domain/league-rules.mjs";
 import { validateRoster as validateRosterSync } from "../src/domain/roster/validate.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
@@ -173,7 +173,6 @@ test("a player who skips the next game is left out of cost and count", () => {
 test("skill and stat surcharges follow the league rules table", () => {
   assert.equal(skillModCost({ name: "Block", access: "primary" }), 20);
   assert.equal(skillModCost({ name: "Block", access: "secondary" }), 40);
-  assert.equal(skillModCost({ name: "Block", access: "favoured" }), 0);
   for (const [stat, cost] of Object.entries(advancementStatCosts)) {
     assert.equal(statModCost(stat, 1), cost);
     assert.equal(statModCost(stat, 2), cost * 2);
@@ -456,4 +455,93 @@ test("a position's kind is read from its tags: a big guy, a thrower, a catcher, 
   assert.equal(positionKind({ tags: ["Human", "Blocker"] }), "lineman");
   assert.equal(positionKind({}), "lineman");
   assert.equal(positionKind({ tags: ["Thrower", "Big Guy"] }), "big", "a big guy comes first, as the order of the tags in the list says");
+});
+
+// ---------------------------------------------------------------------------
+// Stage 13 (decision 20): one rule, one place — what an advancement costs at a rank, and who sits the next match out.
+// ---------------------------------------------------------------------------
+
+const source = (file) => fs.readFile(path.join(rootDir, file), "utf8");
+
+test("a price at a rank is one function: the league's table, rank by rank, and nothing off it", async () => {
+  const { advancementCostAt } = await import("../src/domain/roster/progression.mjs");
+  const { advancementRanks } = await import("../src/domain/league-rules.mjs");
+  assert.equal(advancementCostAt(0, "random"), 3, "Experienced, a random skill");
+  assert.equal(advancementCostAt(5, "stat"), 38, "Legend, a characteristic");
+  advancementRanks.forEach(({ costs }, index) => {
+    for (const [type, cost] of Object.entries(costs)) assert.equal(advancementCostAt(index, type), cost, `${index} ${type}`);
+  });
+  for (const [index, type] of [[advancementRanks.length, "random"], [-1, "primary"], [0, "favoured"], [0, undefined]]) {
+    assert.equal(advancementCostAt(index, type), 0, `${index} ${type}: off the table`);
+  }
+  // The content's table (Team Management, «Advancement Costs»): rank by rank, Primary, Secondary and Stat in SPP.
+  const content = await source("content/Gata/Rules/3. Team Management.md");
+  const start = content.indexOf("No\n\nRank\n\nPrimary\n\nSecondary\n\nStat\n\n");
+  assert.ok(start >= 0, "the content's table was found");
+  const cells = content.slice(start, content.indexOf("\nd8\n", start)).split("\n").filter(Boolean).slice(5);
+  assert.equal(cells.length, advancementRanks.length * 5);
+  for (let row = 0; row < advancementRanks.length; row += 1) {
+    const [number, rank, ...spp] = cells.slice(row * 5, row * 5 + 5);
+    assert.deepEqual([Number(number), rank], [row + 1, advancementRanks[row].rank]);
+    assert.deepEqual(["primary", "secondary", "stat"].map((type) => `${advancementCostAt(row, type)} SPP`), spp, rank);
+  }
+  // No copy of the lookup is left: the roster's model asks the domain, and the domain asks it once.
+  assert.doesNotMatch(await source("src/screens/team/roster/model.mjs"), /advancementRanks\[/);
+  assert.equal((await source("src/domain/roster/progression.mjs")).match(/\.costs\b/g)?.length, 1, "progression.mjs reads a rank's costs in advancementCostAt alone");
+});
+
+test("one sitsOut: the roster's players read the schema's, and the absence module hands the same one on", async () => {
+  const schema = await import("../src/domain/roster/schema.mjs");
+  const absence = await import("../src/domain/roster/absence.mjs");
+  const players = await import("../src/domain/roster/players.mjs");
+  assert.equal(absence.sitsOut, schema.sitsOut, "absence.mjs re-exports it: its readers are unchanged");
+  assert.doesNotMatch(await source("src/domain/roster/players.mjs"), /skipNextGame \|\| player\.temporarilyRetired/, "no copy of the rule");
+  const team = teamBySlug.get("teams/human");
+  const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
+  const rows = rowsForTeam(team);
+  const marked = { code: "miss" };
+  const retired = players.normalizeRosterPlayer({ id: "p1", rowIndex: 0, temporarilyRetired: true, absence: marked }, rows);
+  assert.deepEqual([retired.skipNextGame, retired.absence], [true, marked], "retired for the season: he sits out, and why stays");
+  const playing = players.normalizeRosterPlayer({ id: "p2", rowIndex: 0, absence: marked }, rows);
+  assert.deepEqual([playing.skipNextGame, playing.absence], [false, null], "a player who plays has no absence, whatever the blob holds");
+  const viewed = players.rosterPlayerView(team, { id: "p3", rowIndex: 0, temporarilyRetired: true, absence: marked });
+  assert.deepEqual([viewed.skipNextGame, viewed.absence], [true, marked]);
+  assert.equal(players.rosterPlayerView(team, { id: "p4", rowIndex: 0, skipNextGame: 0 }).skipNextGame, false);
+});
+
+// The owner's answer of 2026-10-22 («по обычной для навыка цене»; content «Team Management»: a god's skill «increases
+// the player's value», the price list knows primary +20k and secondary +40k): a god's skill costs what a skill of its
+// category, Mutation, costs for that player — +20k with Mutation among his position's primary categories, +40k with it
+// among the secondary ones or with no Mutation access at all. It does not raise his rank.
+test("a god's skill («Favoured of…») costs a skill's price for that player, by his position's Mutation access", () => {
+  const rowOf = (slug, position) => {
+    const row = rowsForTeam(teamBySlug.get(slug)).find((candidate) => candidate.position === position);
+    assert.ok(row, `${slug}: ${position}`);
+    return row;
+  };
+  const cases = [
+    [rowOf("teams/chaos-chosen", "Chosen Blocker"), 20, "Mutation primary"],
+    [rowOf("teams/chaos-dwarfs", "Chaos Dwarf Blocker"), 40, "Mutation secondary"],
+    [rowOf("teams/chaos-dwarfs", "Hobgoblin Lineman"), 40, "no Mutation access"],
+  ];
+  for (const [row, cost, what] of cases) {
+    assert.ok(teamFavouredOptions(teamBySlug.get(row === cases[0][0] ? "teams/chaos-chosen" : "teams/chaos-dwarfs")).length, `${what}: a race with a god`);
+    assert.equal(favouredSkillCost(row), cost, what);
+    assert.equal(skillModCost({ name: "Horns", access: "favoured" }, row), cost, what);
+    const plain = { id: "p", rowIndex: 0, extraSkills: [], favouredSkills: [] };
+    const blessed = { ...plain, favouredSkills: [{ name: "Horns", access: "favoured" }] };
+    assert.equal(playerCurrentCost(row, blessed) - playerCurrentCost(row, plain), cost, `${what}: the player's value`);
+    assert.equal(playerLevelRank(blessed), playerLevelRank(plain), `${what}: no rank of it`);
+  }
+  // The team's value follows: a Chosen Blocker with Horns from the god is 20k more in the roster's sum.
+  const chosen = teamBySlug.get("teams/chaos-chosen");
+  const index = rowsForTeam(chosen).findIndex((row) => row.position === "Chosen Blocker");
+  const draft = (favouredSkills) => {
+    const made = { teamSlug: chosen.slug, favouredChoice: "Khorne", players: [{ id: "c1", rowIndex: index, name: "Chosen", number: "1", extraSkills: [], favouredSkills }] };
+    ensureDraftPlayers(chosen, made);
+    return made;
+  };
+  const before = calculateRosterCosts(chosen, draft([])).playersCost;
+  const after = calculateRosterCosts(chosen, draft([{ name: "Horns", access: "favoured" }])).playersCost;
+  assert.equal(after - before, 20);
 });

@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { AWAY, FIXTURE, HOME, RECORDS, act, agreed, begin, modelOf, reach, scored, tap } from "./helpers/post-cases.mjs";
 import { postMatchUrl } from "../src/core/routes.mjs";
 import { TECHNICAL_REASONS, seasonPoints } from "../src/domain/league-rules.mjs";
@@ -463,7 +464,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /--focus-ring|style=/);
   for (const selector of [".g-after__teams", ".g-after__mode", ".g-after__label", ".g-after__reason"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.deepEqual(own(".g-after__rowk", "overflow-wrap"), ["break-word"], "a row's label wraps between its words, never inside one");
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS, { also: ["max-width: 369px"] });
   // Under 370px the score's word goes over its two steppers, the figure narrower; the buttons keep 44px (the final review).
   assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__score > .g-after__counterk", "grid-row"), ["1"]);
   assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__value", "min-width"), ["24px"]);

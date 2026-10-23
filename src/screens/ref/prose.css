@@ -1,9 +1,8 @@
 /*
  * The vault's HTML as the build writes it (scripts/build-data.mjs,
- * scripts/lib/render-table.mjs), drawn on 3.0 tokens inside .g-prose; nothing
- * here leans on roster.css (plan stage 11, decision 6). Font, case and
- * borders are set on purpose: the 2.x table, th, td and .table-scroll globals
- * live until stage 13.
+ * scripts/lib/render-table.mjs), drawn on 3.0 tokens inside .g-prose (plan
+ * stage 11, decision 6). Every cell sets its font, case, borders and
+ * alignment: the page has no table rules of its own.
  */
 .g-prose {
   color: var(--ink);
@@ -12,28 +11,28 @@
 
 /* The build writes # to #### as h2 to h5; an h1 never comes out of a page. */
 .g-prose h2 {
-  margin: 28px 0 10px;
+  margin: 28px 0 var(--space-10);
   font: 600 24px/1.25 var(--font-display);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .g-prose h3 {
-  margin: 24px 0 8px;
+  margin: var(--space-24) 0 var(--space-8);
   font: 600 22px/1.25 var(--font-display);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .g-prose h4 {
-  margin: 20px 0 8px;
+  margin: var(--space-20) 0 var(--space-8);
   font: 600 18px/1.3 var(--font-display);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .g-prose h5 {
-  margin: 16px 0 6px;
+  margin: var(--space-16) 0 var(--space-6);
   font: 600 16px/1.3 var(--font-display);
   letter-spacing: 0;
   text-transform: none;
@@ -42,12 +41,6 @@
 .g-prose a {
   color: var(--accent-text);
   text-decoration: underline;
-}
-
-/* The ring of src/ui/base.css, written out: that rule only reaches a g- class, and a link in an article has none. */
-.g-prose a:focus-visible {
-  outline: 3px solid var(--accent-text);
-  outline-offset: 0;
 }
 
 .g-prose img {
@@ -63,7 +56,7 @@
 /* ol.numbered-list is every ordered list the build writes; the lists never nest. */
 .g-prose ol,
 .g-prose ul {
-  margin: 12px 0;
+  margin: var(--space-12) 0;
   padding: 0 0 0 28px;
 }
 
@@ -76,15 +69,20 @@
 }
 
 .g-prose li {
-  margin: 6px 0;
-  padding: 0 0 0 4px;
+  margin: var(--space-6) 0;
+  padding: 0 0 0 var(--space-4);
 }
 
-/* A table is a card that scrolls sideways when it is wider than the page. */
+/*
+ * A table is a card that scrolls sideways when it is wider than the page, and never up and down; a swipe that reaches
+ * its edge stops there, and is not handed on to the page (or to a browser's swipe back).
+ */
 .g-prose .table-scroll {
-  margin: 16px 0;
+  margin: var(--space-16) 0;
   padding: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
   border-radius: var(--radius-lg);
   box-shadow: inset 0 0 0 1px var(--line-strong);
   background: var(--surface);
@@ -92,21 +90,21 @@
   scrollbar-width: thin;
 }
 
-/* The 2.x fade at the right edge. */
-.g-prose .table-scroll::after {
-  display: none;
+/*
+ * Where scrollbar-color is supported it wins over these; they are for the
+ * engines that still read the webkit pseudo-elements: an 8px bar, a round
+ * thumb. --faint is the one token that reads on --surface (3:1).
+ */
+.g-prose .table-scroll::-webkit-scrollbar {
+  height: 8px;
 }
 
-/*
- * The 2.x scrollbar is a hard-coded gold. Where scrollbar-color is supported
- * it wins over these; they are for the engines that still read the webkit
- * pseudo-elements. --faint is the one token that reads on --surface (3:1).
- */
 .g-prose .table-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .g-prose .table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
   background: var(--faint);
 }
 
@@ -118,7 +116,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Out-specifies the 2.x phone rule, .table-scroll table { min-width: 720px }: a wide table scrolls, a fit table fills the phone. */
+/* A wide table scrolls at its own width; a fit table fills the phone. */
 .g-prose .table-scroll table:not(.fit-table) {
   width: max-content;
   min-width: 100%;
@@ -130,7 +128,7 @@
 }
 
 .g-prose th {
-  padding: 10px 12px;
+  padding: var(--space-10) var(--space-12);
   border: 0;
   background: var(--surface-2);
   color: var(--muted);
@@ -138,10 +136,11 @@
   letter-spacing: 0.06em;
   text-align: left;
   text-transform: uppercase;
+  vertical-align: top;
 }
 
 .g-prose td {
-  padding: 11px 12px;
+  padding: 11px var(--space-12);
   border: 0;
   border-top: 1px solid var(--line);
   background: transparent;
@@ -168,6 +167,11 @@
   white-space: nowrap;
 }
 
+/* The Skill Table's first column: the roll, 48px and centred, quiet. */
+.g-prose .numbered-table th:first-child,
 .g-prose .numbered-table td:first-child {
+  width: 48px;
+  min-width: 48px;
   color: var(--muted);
+  text-align: center;
 }

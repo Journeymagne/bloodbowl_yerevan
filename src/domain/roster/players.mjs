@@ -10,7 +10,7 @@
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
-import { normalizeAbsence } from "./schema.mjs";
+import { normalizeAbsence, sitsOut } from "./schema.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 export function normalizeExtraSkill(skill) {
@@ -77,6 +77,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   const rowIndex = Number(player.rowIndex);
   if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return null;
   const row = rows[rowIndex];
+  const skipNextGame = sitsOut(player);
   return {
     id: String(player.id || makeRosterPlayerId()),
     rowIndex,
@@ -85,7 +86,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     statMods: { ...(player.statMods ?? {}) },
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
+    skipNextGame,
     niglingInjury: Boolean(player.niglingInjury),
     nigglingInjuries: countToNumber(player.nigglingInjuries ?? (player.niglingInjury ? 1 : 0)),
     injuryStatMods: { ...(player.injuryStatMods ?? {}) },
@@ -94,7 +95,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     extendedContracts: countToNumber(player.extendedContracts),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
-    absence: normalizeAbsence(player.absence, Boolean(player.skipNextGame || player.temporarilyRetired)),
+    absence: normalizeAbsence(player.absence, skipNextGame),
     purchased: Boolean(player.purchased),
     ...(player.purchased && player.purchaseRefund != null && isMoneyAmount(player.purchaseRefund)
       ? { purchaseRefund: Number(player.purchaseRefund) } : {}),
@@ -190,7 +191,7 @@ export function canAddRowToDraft(row, rowIndex, draft, enforceMaximum = true) {
 export function rosterPlayerView(team, player, index = 0) {
   const row = rowsForTeam(team)[player.rowIndex];
   if (!row) return null;
-  const skipNextGame = Boolean(player.skipNextGame || player.temporarilyRetired);
+  const skipNextGame = sitsOut(player);
   return {
     ...player,
     key: player.id,

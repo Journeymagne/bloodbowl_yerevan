@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertContrast, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const { acceptModel, sendModel } = await import("../src/screens/matches/challenges-model.mjs");
@@ -223,7 +224,7 @@ test("the search's keyboard ring goes round its box, «Clear» inside it, not ro
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline"), ["3px solid var(--accent-text)"]);
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search:has(.g-search__input:focus-visible)", "outline-offset"), ["0"]);
   assert.deepEqual(valuesOf(CSS, ".g-challenge__search .g-search__input:focus-visible", "outline"), ["none"]);
-  assert.deepEqual(valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
+  assert.deepEqual(valuesOf("src/ui/base.css", ":where(:focus-visible)", "outline"), ["3px solid var(--accent-text)"], "base.css's ring");
 });
 
 test("the accept's body: ChallengeAccept.html's 16 to a phone, the window's 24 from 901px, on the edge of its head and foot", () => {
@@ -284,7 +285,7 @@ test("the accept sheet: the challenger, the coach's teams as one radio group, th
     assert.ok(dialog.matches(".g-sheet.g-challenge-accept"));
     assert.equal(words(dialog.querySelector("h2.g-sheet__title")), "Accept the challenge");
     const card = dialog.querySelector(".g-sheet__body .g-challenge__card");
-    assert.deepEqual([words(card.querySelector(".g-challenge__letter")), words(card.querySelector(".g-challenge__title")), words(card.querySelector(".g-challenge__line"))],
+    assert.deepEqual([words(card.querySelector(".g-coach-letter--44")), words(card.querySelector(".g-challenge__title")), words(card.querySelector(".g-challenge__line"))],
       ["O", "orc_boss · Grimtusk Raiders", model.line]);
     assert.match(model.line, /^Orc · TV [\d,.]+k · Telegram @orc_boss$/);
     assert.equal(words(dialog.querySelector(".g-challenge__caption")), "Which team do you play");
@@ -333,7 +334,7 @@ test("names are text", () => {
 });
 
 test("styled", () => {
-  const SHEETS = [CSS, "sheet.css", "button.css", "search-field.css"];
+  const SHEETS = [CSS, "sheet.css", "button.css", "search-field.css", "coach-letter.css"];
   for (const phone of [true, false]) {
     for (const over of [{ chosenId: "u7" }, { query: "raid" }, { query: "zzz" }, { teams: [T1] }, { presetId: "zz" },
       { payload: { challenges: [challenge("c3", ME, THALION, T1, TODAY("11"))], opponents: OPPONENTS } }]) {
@@ -348,7 +349,7 @@ test("styled", () => {
   assert.ok(at("screens/matches/challenges.css") > 0);
   assert.ok(at("screens/matches/challenges-sheets.css") > styles.lastIndexOf('@import url("ui/'), "after ui/sheet.css, which it overrides");
   const css = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.doesNotMatch(css, /@media \((?!max-width: 900px|min-width: 901px)/, "the 900/901 breakpoints only");
+  assertBreakpoints(CSS);
   assert.doesNotMatch(css, /#[0-9a-f]{3,6}\b|rgba?\(/i, "colours are tokens");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "dialog.g-sheet.g-challenge-send", "height"), ["92dvh"], "ChallengeSend.html's 92%");
   assert.deepEqual(inMedia(CSS, "max-width: 900px", "dialog.g-sheet.g-challenge-send", "max-height"), ["92dvh"]);
@@ -377,8 +378,9 @@ test("readable: the muted words, the chip, the refusal, on what they sit in ever
   assertContrast("--on-warn-tint", ["--warn-tint"], 4.5);
   assert.deepEqual([valuesOf(CSS, ".g-challenge__refusal", "background"), valuesOf(CSS, ".g-challenge__refusal", "color")], [["var(--danger-tint)"], ["var(--on-danger-tint)"]]);
   assertContrast("--on-danger-tint", ["--danger-tint"], 4.5);
-  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "background"), ["var(--header)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "color"), ["var(--header-ink)"]);
+  // The coach's circle is the kit's (ui/coach-letter.mjs) on --header; ChallengeSend's row keeps its 17px letter.
+  assert.deepEqual(valuesOf(CSS, ".g-challenge__letter", "font-size"), ["17px"]);
+  assert.deepEqual(valuesOf("src/ui/coach-letter.css", ".g-coach-letter", "background"), ["var(--header)"]);
   assertContrast("--header-ink", ["--header"], 4.5);
   assertContrast("--ink", ["--seg-on", "--surface-3", "--accent-tint-soft"], 4.5);
 });

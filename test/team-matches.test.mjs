@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 
@@ -687,10 +688,17 @@ test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut wit
   assertReadable(CSS, ".g-matches__next", "color", ["--surface", "--page"], 4.5);
   // D2: every target a thumb's up to 900px — the card's controls, the rows, the opponent's name.
   const px = (value) => ({ "var(--size-touch)": 44, "var(--size-cta)": 52 })[value] ?? parseInt(value, 10);
-  for (const selector of [".g-matches__tile", ".g-matches__miss", ".g-matches__cta", ".g-matches__records", ".g-matches__friendlies", ".g-matches__row", ".g-matches__later", ".g-matches a.g-match__name"]) {
+  for (const selector of [".g-matches__tile", ".g-matches__miss", ".g-matches__cta", ".g-matches__records", ".g-matches__friendlies", ".g-matches__row", ".g-matches__later"]) {
     const [height] = own(selector, "min-height");
     assert.ok(px(height) >= 44, `${selector} ${height}`);
   }
+  // The opponent's name keeps its lines (match-card.css: 20px/1.1, a 22px line), so a name in two lines pushes the login
+  // under it down rather than run over it; its thumb's 44 is a box drawn over it, 11px above and below (stage 13, review of Task 5).
+  const name = ".g-matches a.g-match__name";
+  for (const property of ["min-height", "height", "margin", "padding"]) assert.deepEqual(own(name, property), [], `${name} ${property}`);
+  assert.deepEqual(own(name, "position"), ["relative"]);
+  assert.deepEqual([own(`${name}::after`, "content"), own(`${name}::after`, "position"), own(`${name}::after`, "inset")], [['""'], ["absolute"], ["-11px 0"]]);
+  assert.deepEqual(valuesOf("src/ui/match-card.css", ".g-match__name", "font"), ["700 20px/1.1 var(--font-display)"], "22 + 2 × 11 = 44");
   // Wrapping: the long lines wrap; nothing is cut or held on one line.
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|nowrap|line-clamp/);
@@ -698,7 +706,7 @@ test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut wit
     assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   }
   assert.doesNotMatch(bare, /--focus-ring/);
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS);
   assert.equal(mediaText(CSS, "max-width: 900px").includes("ellipsis"), false);
   const styles = text("src/styles.css").trim().split("\n");
   assert.ok(styles.includes('@import url("screens/matches/matches.css");'), "the sheet reaches the page");

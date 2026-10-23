@@ -20,7 +20,7 @@ test("a coach with a team gets seven tabs and five side items, each to its place
   assert.deepEqual(keys(model.tabs), ["overview", "team", "roster", "matches", "table", "ref", "settings"]);
   assert.deepEqual(model.tabs.map((tab) => tab.href), ["#/t/t1", "#/t/t1/team", "#/t/t1/roster", "#/t/t1/matches", "#/season", "#/ref", "#/settings"]);
   assert.deepEqual(keys(model.side), ["overview", "roster", "season", "ref", "settings"]);
-  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human", href: "#/teams", switchTeam: true });
+  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human", switchTeam: true });
 });
 
 test("a coach with a team: the side item «Season» leads to the team's season; the phone's tab «Table» to the league's", () => {
@@ -83,7 +83,26 @@ test("a coach without a team keeps the league's tabs and a header that leads to 
   const model = shellModel(at("home", { team: null, raceTitle: "", place: null }));
   assert.deepEqual(keys(model.tabs), ["overview", "table", "ref", "settings"]);
   assert.equal(model.tabs[0].href, "#/");
-  assert.equal(model.brand.href, "#/teams");
+  // The header opens the switcher, which offers the first team (stage 06): a button, with no address of its own.
+  assert.equal(model.brand.switchTeam, true);
+  assert.equal(Object.hasOwn(model.brand, "href"), false);
+});
+
+// Stage 13 (06's hand-off): the block that led to My Teams became the switcher's button, and the address it kept
+// was drawn nowhere. A team that can be switched carries none; the league's link keeps its own.
+test("a team that can be switched carries no address", () => {
+  const cases = [
+    ["a coach with a team", shellModel(at("teamRoster")), true],
+    ["a coach with no team yet", shellModel(at("home", { team: null, raceTitle: "", place: null })), true],
+    ["a coach whose list was not read", shellModel(at("team", { team: null, teamsRead: false })), false],
+    ["a guest", shellModel(at("home", { user: null, team: null })), false],
+    ["a bare page", shellModel(at("preMatch")), false],
+  ];
+  for (const [who, model, switchTeam] of cases) {
+    assert.equal(model.brand.switchTeam, switchTeam, who);
+    if (switchTeam) assert.equal(Object.hasOwn(model.brand, "href"), false, `${who}: no address`);
+    else assert.equal(model.brand.href, "#/", `${who}: the league's front page`);
+  }
 });
 
 // R14 (N1): a coach whose list could not be read may have five teams; the header does not offer a first one.
@@ -143,7 +162,8 @@ const VISITORS = {
 test("no link of the shell is sent on by the router: a guest is never offered My Teams", () => {
   for (const [who, { user, team, activeTeamId }] of Object.entries(VISITORS)) {
     const model = shellModel(at("settings", { user, team }));
-    for (const href of [model.brand.href, ...model.tabs.map((tab) => tab.href), ...model.side.map((item) => item.href)]) {
+    const brand = model.brand.switchTeam ? [] : [model.brand.href];
+    for (const href of [...brand, ...model.tabs.map((tab) => tab.href), ...model.side.map((item) => item.href)]) {
       const route = routeFromHash(href);
       assert.equal(resolveRedirect(route, { signedIn: Boolean(user), activeTeamId, hash: href }).target, null, `${who}: ${href}`);
     }

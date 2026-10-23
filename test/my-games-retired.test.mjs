@@ -7,7 +7,7 @@ import { blocks, read } from "./helpers/contrast.mjs";
 /*
  * Stage 09c moved the challenges to their 3.0 screen (screens/matches/challenges.mjs): 2.x «My games», the last thing
  * `#/t/:id/challenges` drew, goes with its challenges' view, its stylesheet, the rules only it wore and the keys only it
- * read. The 2.x game page (#/games/:id, stage 13) keeps what it draws.
+ * read. The 2.x game page (#/games/:id) went in stage 13, when the address became the 3.0 match page.
  *
  * Stages 09b and 12 removed the other 2.x screens first, so what «My games» shared with them had it as its last reader:
  * season-links.mjs, game-status.mjs, catalog.css (the 2.x card and badge), the challenge dialog's rules, the status pill,
@@ -22,7 +22,7 @@ function stylesheets(dir = "src") {
     entry.isDirectory() ? stylesheets(`${dir}/${entry.name}`) : entry.name.endsWith(".css") ? [`${dir}/${entry.name}`] : []);
 }
 
-test("2.x «My games» is gone — its screen, its challenges' view and its stylesheet; the game page keeps its own", () => {
+test("2.x «My games» is gone — its screen, its challenges' view and its stylesheet; and so is the 2.x game page", () => {
   const gone = [
     "src/screens/games/my-games.mjs",
     "src/components/games/challenges.mjs",
@@ -33,11 +33,10 @@ test("2.x «My games» is gone — its screen, its challenges' view and its styl
     "src/components/game-status.mjs",
     // Its cards were the last 2.x .card, after the saved team's card (stage 12).
     "src/styles/catalog.css",
+    // Stage 13 (Task 5): #/games/:id is the 3.0 match page (screens/matches/game.mjs); the 2.x one went with its panels.
+    "src/screens/games/game.mjs",
   ];
   for (const file of gone) assert.equal(exists(file), false, file);
-  for (const file of ["src/screens/games/game.mjs", "src/components/games/context.mjs"]) {
-    assert.ok(exists(file), file);
-  }
   assert.doesNotMatch(read("src/styles.css"), /styles\/(challenges|catalog)\.css/);
 });
 
@@ -51,12 +50,14 @@ test("no stylesheet styles «My games», its cards, pills and badges, or its cha
   }
 });
 
-test("the keys only «My games» read are gone from both dictionaries; the game page's stay", () => {
+test("the keys only «My games» and the 2.x game page read are gone from both dictionaries; what 3.0 reads stays", () => {
   const GONE_FAMILIES = ["challenges.", "pre.status.", "post.status.", "games.status."];
   const GONE = ["nav.myGames", "nav.myTeams", "games.historyHeading", "games.loading", "games.nextGameHeading", "games.noHistory",
-    "games.noLeaguePoints", "games.noNextGame", "games.vsLabel", "season.byeLabel", "common.close"];
-  const KEPT = ["games.subtitle", "games.friendlyMatch", "games.friendlyRules", "games.loginRequired", "common.refresh",
-    "season.touchdownsLabel", "season.casualtiesHeader"];
+    "games.noLeaguePoints", "games.noNextGame", "games.vsLabel", "season.byeLabel", "common.close",
+    // The game page's, once it went (stage 13, Task 24; test/i18n-orphans.test.mjs keeps any unread key out).
+    "games.subtitle", "games.friendlyRules", "games.loginRequired", "games.roundClosed", "season.touchdownsLabel",
+    "season.casualtiesHeader"];
+  const KEPT = ["games.friendlyMatch", "common.refresh"];
   for (const locale of ["en", "ru"]) {
     const keys = Object.keys(JSON.parse(read(`src/i18n/${locale}.json`)));
     assert.deepEqual(keys.filter((key) => GONE.includes(key) || GONE_FAMILIES.some((family) => key.startsWith(family))), [], locale);

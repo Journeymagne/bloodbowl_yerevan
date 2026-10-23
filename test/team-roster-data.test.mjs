@@ -41,7 +41,7 @@ setDictionaries({
     "error.TEAM_SAVED_ELSEWHERE": "The team was saved elsewhere.",
     "validation.DUPLICATE_PLAYER_ID": "Players {names} are stored under one id.",
     "validation.POSITION_MAX": "{position}: maximum is {max}.",
-    "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
+    "validation.ROSTER_MAX_PLAYERS": "A team has at most {max} players (now {count}).",
     "validation.TREASURY_INVALID": "Treasury must be a nonnegative amount in whole gold pieces.",
     "validation.PLAYER_SALE_MIN": "A sale cannot leave fewer than seven players on the team.",
     "validation.PLAYER_PURCHASE_CLOSED": "This purchase can no longer be cancelled. Use a sale under the league rules.",
@@ -836,7 +836,7 @@ test("a cart the draft no longer pays for, or that breaks a limit, sends nothing
   const before = structuredClone(draft);
   assert.deepEqual(save.buyPlayers("t1", human, { 0: 2 }), { ok: false, refusal: BROKE }, "100k from 50k");
   assert.deepEqual(save.buyPlayers("t1", human, { 1: 3 }), { ok: false, refusal: "Thrower: maximum is 2." });
-  assert.deepEqual(save.buyPlayers("t1", human, { 0: 14 }), { ok: false, refusal: "A Sevens roster should not exceed 14 players (currently 15)." });
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 14 }), { ok: false, refusal: "A team has at most 14 players (now 15)." });
   assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
   await tick();
   assert.equal(api.calls.length, 0);

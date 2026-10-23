@@ -131,12 +131,27 @@ export function unanswered(error) {
 }
 
 /**
+ * A rule of the domain's, `{ code, params }`, in the dictionary's words (`validation.<CODE>`): «Ogre: maximum is 1.» The
+ * one wording of a refusal — the cart's + and its «Buy» (hire-sheet.mjs, market.mjs), a roster save's (save.mjs), and
+ * each rule a 422 names (`refusalWithRules`).
+ * @param {{code: string, params?: object}} refusal
+ */
+export function refusalWords({ code, params = {} }) {
+  return t(`validation.${code}`, params);
+}
+
+/** A rule a 422 names, as far as it can be worded: an object with a code. */
+const wordedRule = (rule) => typeof rule?.code === "string" && rule.code !== "";
+
+/**
  * The refusal, and with it each rule a roster breaks (422), worded as the roster editor words them. A build, an
  * entry in the treasury and a roster save are refused the same way (data/treasury.mjs words its writes with it).
+ * What the body calls its rules is read with care (07b): rules that are not a list, and a rule without a code, are
+ * left out rather than said as a raw key, or thrown over.
  */
 export function refusalWithRules(error) {
-  const rules = error?.code === "ROSTER_BREAKS_THE_RULES" ? error.violations ?? [] : [];
-  return [refusalText(error), ...rules.map(({ code, params }) => t(`validation.${code}`, params))].join(" ");
+  const rules = error?.code === "ROSTER_BREAKS_THE_RULES" && Array.isArray(error.violations) ? error.violations.filter(wordedRule) : [];
+  return [refusalText(error), ...rules.map(refusalWords)].join(" ");
 }
 
 const madeAt = (item) => Date.parse(item.createdAt) || 0;

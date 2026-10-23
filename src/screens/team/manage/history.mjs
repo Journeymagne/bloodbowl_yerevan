@@ -12,7 +12,7 @@
 import { escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { formatDay, formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { readLedger } from "../../../data/treasury.mjs";
+import { ledgerOf, readLedger } from "../../../data/treasury.mjs";
 import { lastSafeDeposit } from "./model.mjs";
 
 /** How many lines the history shows before the coach asks for the whole of it. */
@@ -140,9 +140,10 @@ function readKeepingFocus(root, button, read) {
 
 /**
  * The buttons of the history: «All history» folds and unfolds the list and tells the page to draw it again,
- * «More» reads the page after the lines the page holds, and «Try again» reads the first page again. The reads
- * announce themselves (`onLedgerChange`), so the page draws their answers without being told here; the focus on a
- * button that goes with its read goes to the heading (`readKeepingFocus`).
+ * «More» reads the page after the lines the page holds, and «Try again» reads again what failed: the page after them
+ * when a «More» failed (`errorMore`), else the first page (08 T9: it read the first page, and the page asked for never
+ * came). The reads announce themselves (`onLedgerChange`), so the page draws their answers without being told here;
+ * the focus on a button that goes with its read goes to the heading (`readKeepingFocus`).
  *
  * @param {Element} root the page's element, which outlives its redraws
  * @param {string} teamId
@@ -156,7 +157,7 @@ export function wireHistory(root, teamId, onChange) {
     onChange();
   });
   group.on("click", "[data-ledger-more]", (event, button) => readKeepingFocus(root, button, () => readLedger(teamId, { more: true })));
-  group.on("click", "[data-ledger-retry]", (event, button) => readKeepingFocus(root, button, () => readLedger(teamId)));
+  group.on("click", "[data-ledger-retry]", (event, button) => readKeepingFocus(root, button, () => readLedger(teamId, { more: ledgerOf(teamId).errorMore })));
   return group.release;
 }
 

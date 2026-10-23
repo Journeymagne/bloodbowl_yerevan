@@ -164,6 +164,17 @@ function sideOf(post, name) {
 }
 
 /**
+ * Where «‹» leads: the viewer's own side's matches when he plays the match — an administrator who plays it too, whichever
+ * side he looks at (the match page would send him straight back in: review of stage 13) —, the match page for an
+ * administrator who plays neither side (it sends nobody on), else the shown side's matches.
+ */
+function backOf({ gameId, isAdmin, userId, own, other }) {
+  const mine = [own, other].find((side) => side.userId && side.userId === userId);
+  if (mine) return teamUrl(mine.teamId, "matches");
+  return isAdmin ? gameUrl(gameId) : teamUrl(own.teamId, "matches");
+}
+
+/**
  * What the post-match says to `sideName`.
  *
  * @param {{postMatch: object, viewerSide: "home"|"away", isAdmin: boolean, rosterChanged?: {home: boolean, away: boolean},
@@ -194,7 +205,7 @@ export function postModel(payload, sideName, step, ui = {}) {
     steps: stepsOf({ gameId, current, shown, post, sideName, preview }), stepsLabel: t("after.steps"),
     title: t("after.title"), sub: t("after.sub", { match: words.phone, teams }),
     deskTitle: t("after.titleDesk", { match: words.desk }), deskSub: teams,
-    back: isAdmin && ui.userId !== own.userId ? gameUrl(gameId) : teamUrl(own.teamId, "matches"),
+    back: backOf({ gameId, isAdmin, userId: ui.userId, own, other }),
     readonly: completed || own.confirmed || passed, readonlyWhy: "", error: refusal,
     footer: defaultFooter({ index: shown, current, gameId }),
     opponent: completed ? { state: "", done: true, text: "" } : opponentOf(post, sideName, key),

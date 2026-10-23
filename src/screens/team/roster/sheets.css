@@ -1,8 +1,7 @@
 /*
  * The roster's sheets (screens/team/roster/sheets.mjs, mark-sheet.mjs): a skill's rule with whose skill it is, and
  * the characteristic a lasting injury lowers — the injury's sheet and a missed match's. The sheet itself is
- * ui/sheet.css's. Font, border, background, text-transform and letter-spacing are set on purpose: the 2.x global
- * rules (p, button) outlive this sheet until stage 13.
+ * ui/sheet.css's.
  */
 /*
  * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html:

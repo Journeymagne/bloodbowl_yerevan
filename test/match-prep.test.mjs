@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { assertContrast, assertReadable, blocks, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints } from "./helpers/css.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, t } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
@@ -438,7 +439,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /hyphens:\s*auto/);
   assert.doesNotMatch(bare, /--focus-ring/);
   // Under 370px the labels are 9px, so the seven fit their cells of 40 at 320; the dots stay a thumb's high.
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
+  assertBreakpoints(CSS, { also: ["max-width: 369px"] });
   assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-prep__dotlabel", "font-size"), ["9px"]);
   assert.deepEqual(blocks(mediaText(CSS, "max-width: 369px")).map((block) => block.selectors), [[".g-prep__dotlabel"]], "the label only");
   const styles = text("src/styles.css");

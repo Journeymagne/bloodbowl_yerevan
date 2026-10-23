@@ -3,6 +3,9 @@
  * most likely to want next, and the way into it.
  *
  * `currentMatch` picks it from the coach's games, `renderNavMatch` draws it.
+ * The picking is data/match-phase.mjs's (stage 13, decision 22: a page's model
+ * that asked which match is on read the frame's module); it is passed on from
+ * here, so the readers of this module did not change.
  * Three phases, in this order (plan stage 05, decision 12): a match in play,
  * the next match of the round, a result sent and waiting to be confirmed. What
  * the card offers is 0.9's: one «Match preparation» before the match; during
@@ -22,79 +25,11 @@
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { gameUrl, postMatchUrl, preMatchUrl, teamUrl } from "../core/routes.mjs";
-import { isCurrentPlayerRoundGame, isGameClosedForPlayers, isGameResultSubmitted } from "../data/games.mjs";
 import { gameSides } from "../data/team-record.mjs";
 import { assertLinkHref } from "../ui/markup.mjs";
 import { resultLabels } from "../ui/result-pill.mjs";
 
-/** The phases, most urgent first. */
-const PHASES = ["live", "idle", "sent"];
-
-/**
- * Whether a match is on, as the server counts it (server/season/live-match.mjs,
- * `LIVE_MATCH`): started, its post-match not completed, and either a post-match
- * to finish or a score nobody has confirmed. A started match whose score was
- * confirmed around the post-match (2.x let both coaches or the admin do so) is
- * not on, and the server answers a tap on it 409 MATCH_NOT_LIVE — so the card
- * offers no «Match records» and no «Post-match» for it. Until its post-match is
- * opened, when it is on again. The payload says `not_started` for a match that
- * has no post-match row.
- *
- * @param {object} game one of the coach's games, as `/api/games` sends it
- * @returns {boolean}
- */
-export function isMatchLive(game) {
-  const postMatch = game?.postMatchStatus ?? "not_started";
-  return game?.preparationStatus === "in_progress"
-    && postMatch !== "completed"
-    && (postMatch !== "not_started" || game.resultStatus !== "confirmed");
-}
-
-/**
- * The phase a game of the team is in, or null when it is none the card shows.
- * A result still waiting in a round that is over is none: no coach can confirm
- * it any more, and the card would say «Awaiting confirmation» for the rest of
- * the season.
- */
-function phaseOf(game) {
-  if (isMatchLive(game)) return "live";
-  if (isGameClosedForPlayers(game)) return null;
-  if (game.resultStatus === "awaiting_confirmation") return "sent";
-  return !isGameResultSubmitted(game) && isCurrentPlayerRoundGame(game) ? "idle" : null;
-}
-
-/** When a game last changed, as a number to sort by; a missing or unreadable stamp is the oldest. */
-const changedAt = (game) => Date.parse(game.updatedAt) || 0;
-
-/** What a game is sorted by, smallest first: its phase, a league match before a friendly, the freshest. */
-const rankOf = (game, phase) => [PHASES.indexOf(phase), game.kind === "friendly" ? 1 : 0, -changedAt(game)];
-
-/** Whether the first rank comes before the second. */
-function comesBefore(first, second) {
-  const at = first.findIndex((value, index) => value !== second[index]);
-  return at !== -1 && first[at] < second[at];
-}
-
-/**
- * The match the card is about: the most urgent phase the team's games are in;
- * in it a league match before a friendly (one accepted later does not hide this
- * round's match), and then the game that changed last.
- *
- * @param {object[]} games the coach's games (`state.games.items`)
- * @param {string|null} teamId the active team
- * @returns {{game: object, phase: "live"|"idle"|"sent"}|null}
- */
-export function currentMatch(games, teamId) {
-  if (!teamId) return null;
-  let best = null;
-  for (const game of games) {
-    const phase = gameSides(game, teamId) ? phaseOf(game) : null;
-    if (!phase) continue;
-    const rank = rankOf(game, phase);
-    if (!best || comesBefore(rank, best.rank)) best = { game, phase, rank };
-  }
-  return best && { game: best.game, phase: best.phase };
-}
+export { currentMatch, isMatchLive } from "../data/match-phase.mjs";
 
 /** «Round 7 · home», or the word for a friendly, which has no round: the card's line, and the overview's board's. */
 export function subLine(game, own) {

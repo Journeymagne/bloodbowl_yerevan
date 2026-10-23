@@ -4,6 +4,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertBreakpoints, inMedia, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -182,7 +183,7 @@ test("the fix by hand ends with «Advancements»: «Undo the last: Frenzy», whi
         assert.ok(!fixSheet(), "the question takes the fix's place");
         assert.ok(sheet()?.isModal, "dialog#player-unadvance, open");
         assert.equal(view.querySelectorAll("dialog").filter((dialog) => dialog.isModal).length, 1, "one sheet at a time");
-        assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet().getAttribute("class"), "g-sheet g-sheet--at-120 g-player-sheet", "in the frame a player's sheets share, 120 from the top on a desk (stage 13)");
         assert.equal(sheet().querySelector("h2").textContent, "Undo the advancement?");
         assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 1 of 6");
         assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
@@ -697,7 +698,8 @@ const godLines = () => favoured().querySelectorAll(".g-favoured__line").map((lin
 const godFace = (face) => favoured().querySelectorAll("[data-favoured-d8]").find((each) => each.getAttribute("data-favoured-d8") === String(face));
 const godItem = (name) => favoured().querySelectorAll("[data-favoured-skill]").find((each) => each.getAttribute("data-favoured-skill") === name);
 const godTake = () => godSheet().querySelector("[data-advance-take]");
-const NURGLE_SUB = "Roll a D8 at the table with every advancement: on a 7 the player gains one of the god's skills, at no cost to the value.";
+// A Rotter Lineman has Mutation among his primary categories: the god's skill is priced as a primary one, +20k (the owner, 2026-10-22).
+const NURGLE_SUB = "Roll a D8 at the table with every advancement: on a 7 the player gains one of the god's skills, +20k to the value.";
 /** A chosen primary skill on a phone: the type, «Next», the category, «Next», the skill. */
 function choosePrimary(category, skill) {
   fireEvent(godSheet().querySelector('.g-options [data-option-value="primary"]'), "click");
@@ -767,7 +769,7 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       api.reply(PATCH, 200, { team: nurgle([added], { revision: 5 }) });
       fireEvent(godTake(), "click");
       assert.ok(view.querySelector(".g-advance__done"));
-      assert.deepEqual(godLines(), ["D8 7: Tentacles, at no cost to the value"]);
+      assert.deepEqual(godLines(), ["D8 7: Tentacles, +20k to the value"]);
       assert.ok(!favoured().querySelector("button"), "nothing to press under done");
       assert.ok(document.activeElement === view.querySelector("[data-advance-done]"));
       await settle();
@@ -782,7 +784,8 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       await openPlayer(true, { id: "n2", teamAnswer: nurgle([SPAWN]) });
       fireEvent(advance(), "click");
       choosePrimary("Strength", "Guard");
-      assert.deepEqual(godLines(), [NURGLE_SUB, "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too."]);
+      // A Rotspawn has Mutation among his secondary categories: the god's skill is priced as a secondary one, +40k.
+      assert.deepEqual(godLines(), [NURGLE_SUB.replace("+20k", "+40k"), "Without Mutation in the primary access the skill is chosen at random — roll for it at the table too."]);
       fireEvent(godFace(7), "click");
       assert.ok(closed(godItem("Tentacles")));
       assert.equal(godItem("Tentacles").getAttribute("title"), "The player has this skill already.");
@@ -888,7 +891,7 @@ test("Favoured of Nurgle: undoing an advancement takes back the god's skill its 
       reopenFix();
       assert.equal(undo().textContent, "Undo the last: Block");
       fireEvent(undo(), "click");
-      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−40k"]], "Block's 20k and the god's Tentacles' 20k");
       assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE], "nothing loose to point at");
       api.reply(PATCH, 200, { team: nurgle([ROT], { revision: 6 }) });
       fireEvent(send(), "click");
@@ -1157,7 +1160,7 @@ test("every key in both dictionaries; styled; D2", () => {
     const css = text(file);
     assert.doesNotMatch(css, /--focus-ring/, file);
     assert.doesNotMatch(css, /text-overflow/, file);
-    for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
+    assertBreakpoints(file);
   }
   // Every new rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform.
   const own = [[FIX, ".g-player-fix__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
@@ -1227,18 +1230,17 @@ test("every key in both dictionaries; styled; D2", () => {
   assertReadable(ROLLS, "#roster-skill .g-roster__rollstate--bad", "color", ["--surface"], 4.5);
   // D2: up to 900px what is pressed is 44px or more; from 901px never under 24px.
   const bare = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (file, query) => {
-    const css = bare(file), start = css.indexOf(`@media (${query}) {`);
-    return start < 0 ? "" : css.slice(start, css.indexOf("\n}", start));
-  };
-  const height = (file, query, selector) => Number(block(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
+  const height = (file, query, selector) => Number(mediaText(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
   assert.equal(height(FIX, "max-width: 900px", ".g-player-fix__undo"), 44);
   assert.equal(height(FIX, "min-width: 901px", ".g-player-fix__undo"), 32);
   assert.ok(height(FIX, "min-width: 901px", ".g-player-fix__undo") >= 24);
-  // The god's D8 is the characteristic's faces (rolls.css), in a row of eight on a desk too; its skills the advancement's own.
+  // The god's D8 is the characteristic's faces (rolls.css): four to a row on a phone (a thumb's 44 across, fidelity N3),
+  // a row of eight on a desk; its skills the advancement's own.
   assert.ok(height(ROLLS, "max-width: 900px", "#player-advance .g-advance__d8face") >= 44);
   assert.ok(height(ROLLS, "min-width: 901px", "#player-advance .g-advance__d8face") >= 24);
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(4, minmax(0, 1fr))"]);
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-favoured .g-favoured__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))"]);
+  assert.deepEqual(inMedia(ADVANCE, "min-width: 901px", "#player-advance .g-favoured .g-favoured__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))"], "on a desk only");
   assert.doesNotMatch(bare(ADVANCE), /g-favoured \.g-btn/, "no «Add …» left");
   // The profile's page holds the page only (T8): the sheets' rules live in their own files.
   assert.doesNotMatch(bare(PROFILE), /unadvance|g-favoured|roster-skill/);

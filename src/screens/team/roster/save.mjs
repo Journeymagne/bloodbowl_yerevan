@@ -38,7 +38,7 @@ import { state } from "../../../core/state.mjs";
 import { normalizeSavedRoster, rosterForStorage } from "../../../data/roster-draft.mjs";
 import { SAVE_STATUS, createRosterStore } from "../../../data/roster-store.mjs";
 import { onSessionChange } from "../../../data/session.mjs";
-import { loadMyTeams, refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
+import { loadMyTeams, refusalWithRules, refusalWords, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
 import { clearAbsence, markAbsence, sitsOut } from "../../../domain/roster/absence.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
@@ -302,8 +302,8 @@ export function unmarkSkip(teamId, playerId) {
   return stepOn(teamId, playerId, (player) => (player.skipNextGame && !player.temporarilyRetired ? clearAbsence(player) : null));
 }
 
-/** A hire or a sale the rules refuse, in the words the domain's code names (`TRANSFER_REFUSALS`). */
-const refusedFor = ({ code, params = {} }) => ({ refusal: t(`validation.${code}`, params) });
+/** A hire or a sale the rules refuse, in the words the domain's code names (`TRANSFER_REFUSALS`): the cart's own (`refusalWords`). */
+const refusedFor = (refusal) => ({ refusal: refusalWords(refusal) });
 
 /**
  * A purchase (`hirePlayers`): the cart's players on the next free numbers, each with his price recorded, the treasury
