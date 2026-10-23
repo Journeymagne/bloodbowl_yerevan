@@ -339,9 +339,9 @@ function stepsOf(line, key, screen) {
 
 /**
  * The player's SPP counters with − and +, each with what one is worth to his race and the career's count, and in a
- * match what its records have added («+1»). A phone lays the six main ones out two to a row and the narrow ones
- * under them (44px buttons); a desk's panel has all nine as tiles three to a row, «− count +» on one line under the
- * label (D1, D2). The cell carries the player's id, which a write names him by.
+ * match what its records have added («+1»). A phone lays them all out alike, two to a row (44px buttons; the owner,
+ * 2026-10-23: no narrow row of three under the main six); a desk's panel has all nine as tiles three to a row,
+ * «− count +» on one line under the label (D1, D2). The cell carries the player's id, which a write names him by.
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
@@ -350,12 +350,11 @@ function stepsOf(line, key, screen) {
  */
 export function countersMarkup(line, screen, { desk = false } = {}) {
   const { main, extra } = counterSlots(screen.race);
-  const cells = (slots, look) => slots.map(({ key, spp }) => renderActionStepper({
+  const cells = [...main, ...extra].map(({ key, spp }) => renderActionStepper({
     key, label: t(`teamRoster.counter.${key}`), name: t(`teamRoster.counterName.${key}`), spp, value: line.career[key] ?? 0, player: line.name,
-    delta: screen.mode.kind === "match" ? line.match[key] : 0, ...look, data: { player: line.id }, ...stepsOf(line, key, screen),
+    delta: screen.mode.kind === "match" ? line.match[key] : 0, tile: desk, data: { player: line.id }, ...stepsOf(line, key, screen),
   })).join("");
-  if (desk) return `<div class="g-roster__tiles">${cells([...main, ...extra], { tile: true })}</div>`;
-  return `<div class="g-roster__counters">${cells(main, {})}</div><div class="g-roster__extra">${cells(extra, { compact: true })}</div>`;
+  return `<div class="g-roster__${desk ? "tiles" : "counters"}">${cells}</div>`;
 }
 
 /** A sum of SPP at the right of its line, in `words` («+3 SPP»), or none yet. */

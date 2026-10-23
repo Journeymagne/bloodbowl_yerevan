@@ -154,8 +154,10 @@ test("the player's header carries what the caller puts after its button, and the
   assert.equal(fragment.querySelectorAll("[data-add]").length, 1);
 });
 
-test("a header button reports its column, a player's button his row", () => {
-  const fragment = mount(table());
+test("a header button reports its column; a player's button, a value of his row and the space of his skills' row his row", () => {
+  const panelHtml = '<button type="button" class="g-panel-test">Step</button>';
+  const fragment = mount(table({ rows: [row("p1"), row("p2", { name: "Brug", expanded: true, panelHtml })] }));
+  const [first, second] = fragment.querySelectorAll("tbody.g-rtable__player");
   const sorted = [];
   const toggled = [];
   const off = wireRosterTable(fragment, { onSort: (key) => sorted.push(key), onToggle: (key) => toggled.push(key) });
@@ -164,16 +166,22 @@ test("a header button reports its column, a player's button his row", () => {
   fireEvent(fragment.querySelector('[data-row-key="p2"] .g-num__n'), "click");
   fireEvent(fragment.querySelector('[data-row-key="p1"]'), "click");
   assert.deepEqual(sorted, ["ag", "touchdowns"]);
-  assert.deepEqual(toggled, ["p2", "p1"]);
-  // A skill chip, a cell and the foot are the screen's or nobody's: the table reports none of them.
+  assert.deepEqual(toggled, ["p2", "p1"], "his button once a click, never twice");
+  // The whole of his entry opens him, not his name alone (the owner, 2026-10-23).
+  fireEvent(first.querySelector(".g-rtable__c"), "click");
+  fireEvent(second.querySelector(".g-rtable__skillrow td"), "click");
+  assert.deepEqual(toggled, ["p2", "p1", "p1", "p2"]);
+  // A skill chip is the screen's, his open panel and the foot are nobody's: the table reports none of them.
   fireEvent(fragment.querySelector("[data-skill]"), "click");
-  fireEvent(fragment.querySelector(".g-rtable__c"), "click");
+  fireEvent(second.querySelector(".g-panel-test"), "click");
+  fireEvent(second.querySelector(".g-rtable__panelrow td"), "click");
   fireEvent(fragment.querySelector("tfoot td"), "click");
-  assert.deepEqual([sorted.length, toggled.length], [2, 2]);
+  assert.deepEqual([sorted.length, toggled.length], [2, 4]);
   off();
   fireEvent(fragment.querySelector('[data-sort-key="ag"]'), "click");
   fireEvent(fragment.querySelector('[data-row-key="p1"]'), "click");
-  assert.deepEqual([sorted.length, toggled.length], [2, 2]);
+  fireEvent(first.querySelector(".g-rtable__c"), "click");
+  assert.deepEqual([sorted.length, toggled.length], [2, 4]);
 });
 
 test("a table wired with no callbacks hears clicks and does nothing", () => {

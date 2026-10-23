@@ -87,16 +87,15 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });
 
-test("the counters: six two to a row (one where two do not fit), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
+test("the counters: all of them two to a row (one where two do not fit); the SPP line quiet, its sum in the accent", () => {
   const sheet = "src/screens/team/roster/roster.css";
   // Two to a row, or one where two do not fit (under about 312px): never more than two.
   assert.deepEqual(valuesOf(sheet, ".g-roster__counters", "grid-template-columns"), ["repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr))"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster", "--roster-full"), ["calc(2 * var(--size-touch) + 48px)"]);
-  // A phone's narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them fit from about 342px.
-  assert.deepEqual(valuesOf(sheet, ".g-roster__extra", "grid-template-columns"), ["repeat(auto-fit, minmax(var(--roster-tile), 1fr))"]);
+  // No narrow row of three under them any more (the owner, 2026-10-23).
+  assert.deepEqual([valuesOf(sheet, ".g-roster__extra", "grid-template-columns"), valuesOf(sheet, ".g-roster", "--roster-tile")], [[], []]);
   // D1: a desk's nine, three by three (DeskRosterLive.html), 6px apart.
   assert.deepEqual([valuesOf(sheet, ".g-roster__tiles", "grid-template-columns"), valuesOf(sheet, ".g-roster__tiles", "gap")], [["repeat(3, minmax(0, 1fr))"], ["var(--space-6)"]]);
-  assert.deepEqual(valuesOf(sheet, ".g-roster", "--roster-tile"), ["calc(2 * var(--size-touch) + 10px)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__sppline", "font"), ["400 13px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__sppline", "color"), ["var(--muted)"]);
   assert.deepEqual([valuesOf(sheet, ".g-roster__sppdelta", "font-weight"), valuesOf(sheet, ".g-roster__sppdelta", "color")], [["600"], ["var(--accent-text)"]]);

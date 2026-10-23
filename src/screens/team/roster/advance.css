@@ -303,8 +303,13 @@
   #player-advance .g-advance__catname { font: 700 17px/normal var(--font-body); }
   #player-advance .g-advance__free { font: 400 13px/normal var(--font-body); }
 
+  /*
+   * The card clips its rows' corners; a clipped flex item may shrink below its rows, so it never shrinks: else a long
+   * category was cut at the sheet's height and the body had nothing to scroll (the owner, 2026-10-23).
+   */
   #player-advance .g-advance__skills {
     display: flex;
+    flex: none;
     flex-direction: column;
     overflow: hidden;
     border-radius: var(--radius-xl);

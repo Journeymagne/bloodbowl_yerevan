@@ -27,7 +27,7 @@ import { PLAYER_STATS, categoriesForAccess, costToNumber, countToNumber, rowCost
 
 /** The counters a player's cell shows in full, in the order of the table's columns. */
 export const MAIN_COUNTERS = Object.freeze(["touchdowns", "casualties", "completions", "knockouts", "interceptions", "mvps"]);
-/** The narrow row under them; a fourth, `catches`, joins it where catches earn SPP (`counterSlots`). */
+/** The ones the table has no column for; a fourth, `catches`, joins them where catches earn SPP (`counterSlots`). */
 export const EXTRA_COUNTERS = Object.freeze(["throws", "landings", "bonus"]);
 
 /**

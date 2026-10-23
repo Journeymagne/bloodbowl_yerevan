@@ -855,6 +855,9 @@ test("every key in both dictionaries; styled; readable", () => {
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__col--empty", "background"), ["color-mix(in srgb, var(--surface-2) 50%, var(--surface))"]);
   assert.deepEqual(valuesOf(ADVANCE, "dialog#player-advance", "width"), ["min(1080px, calc(100% - 32px))"]);
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__skills", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
+  // A phone's card of skills clips its rows' corners (overflow: hidden), which lets a flex item shrink to the body's
+  // height: the skills under it were cut and the body had nothing to scroll (the owner, 2026-10-23). It never shrinks.
+  assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__skills", "flex"), ["none"]);
   // Line heights are the prototypes': `normal` where they give none (Tasks 7 and 8's lesson).
   for (const selector of ["#player-advance .g-option__title", "#player-advance .g-option__sub", "#player-advance .g-option__pill", "#player-advance .g-advance__free",
     "#player-advance .g-advance__skill", "#player-advance .g-advance__tag", "#player-advance .g-advance__how", "#player-advance .g-advance__tilekey",

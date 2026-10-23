@@ -325,25 +325,26 @@ test("the desk panel: badge, name, position and value, the characteristics, SPP 
   assert.ok(aside().querySelector(".g-roster__next b").classList.contains("g-roster__nextstate--alert"), "in red when he will not play");
 });
 
-test("the open row has six counters in two columns and a row of three, each with its worth; a team whose catches earn SPP has a fourth", async () => {
+test("the open row has its nine counters two to a row, each in full with its worth; a team whose catches earn SPP has a tenth", async () => {
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
     fireEvent(toggle("p2#0"), "click");
-    const main = openRow().querySelectorAll(".g-roster__counters .g-stepper");
-    assert.deepEqual(main.map(labelOf), ["TD +3", "CAS +2", "COMP +1", "KO +1", "INT +2", "MVP +5"]);
-    assert.ok(main.every((cell) => !cell.classList.contains("g-stepper--compact")), "the main ones in full");
-    assert.deepEqual(openRow().querySelectorAll(".g-roster__extra .g-stepper--compact").map(labelOf), ["TTM +1", "Landing +1", "Bonus +1"]);
+    // One look for all (the owner, 2026-10-23): TTM, landings and the bonus are no narrow row of three under the others.
+    const cells = openRow().querySelectorAll(".g-roster__counters .g-stepper");
+    assert.deepEqual(cells.map(labelOf), ["TD +3", "CAS +2", "COMP +1", "KO +1", "INT +2", "MVP +5", "TTM +1", "Landing +1", "Bonus +1"]);
+    assert.ok(cells.every((cell) => !cell.classList.contains("g-stepper--compact")), "all of them in full");
+    assert.equal(openRow().querySelector(".g-roster__extra"), null);
     assert.deepEqual([countOf("touchdowns", openRow()), countOf("casualties", openRow())], ["1", "0"], "the career's counts");
     assert.equal(plus("touchdowns", openRow()).getAttribute("aria-label"), "Add: touchdown, Bors");
     assert.deepEqual(sppLine(openRow()), ["SPP 3 · manual edit", "no changes yet"]);
     coach({ teamAnswer: team({ baseTeamSlug: "teams/wood-elves", roster: { players: [{ id: "p1", rowIndex: 0, number: "1", name: "Ann" }] } }) });
     await renderTeamRoster("t1");
     fireEvent(toggle("p1#0"), "click");
-    const narrow = openRow().querySelectorAll(".g-roster__extra .g-stepper--compact");
-    assert.equal(narrow.length, 4, "Passing Virtuosos: catches earn SPP");
-    assert.equal(labelOf(narrow.at(-1)), "CATCH +1");
-    assert.equal(labelOf(openRow().querySelector(".g-roster__counters .g-stepper")), "TD +2");
+    const all = openRow().querySelectorAll(".g-roster__counters .g-stepper");
+    assert.equal(all.length, 10, "Passing Virtuosos: catches earn SPP, five rows of two");
+    assert.equal(labelOf(all.at(-1)), "CATCH +1");
+    assert.equal(labelOf(all[0]), "TD +2");
   });
 });
 

@@ -85,8 +85,10 @@
 /* The skills under the name: the badge and the gap are 46px, and the chips start under the name. */
 .g-rtable__skills { padding: 0 0 var(--space-6) 46px; }
 
-/* One value of the row. */
+/* One value of the row. A press anywhere on the row or its skills' row opens him, as his button does (wireRosterTable). */
 .g-rtable__row { height: var(--size-row); }
+.g-rtable__row,
+.g-rtable__skillrow { cursor: pointer; }
 
 .g-rtable__c {
   box-sizing: border-box;

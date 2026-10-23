@@ -207,11 +207,22 @@ export function renderRosterTable({ label, columns, groups = [], rows, sort = nu
     + `<thead>${quietHead ? "" : renderGroups(groups)}<tr${quietHead ? ' class="g-rtable__quiet"' : ""}>${heads}</tr></thead>${players}${foot ? renderFoot(columns, places, groups) : ""}</table></div>`;
 }
 
-/** A header button reports `onSort(columnKey)`, a player's button `onToggle(rowKey)`. @returns {() => void} */
+/** What a click inside a player's row leaves to itself: his own button, which reports him once, and a skill chip, which is the screen's. */
+const OWN_CONTROL = "a, button, input, label, select, textarea";
+
+/**
+ * A header button reports `onSort(columnKey)`; a player's button `onToggle(rowKey)`, and so does a click anywhere else
+ * in his row or his skills' row (the owner, 2026-10-23: the whole of him opens him, not his name alone) — the button
+ * stays what a keyboard and a screen reader use. His open panel reports nothing. @returns {() => void}
+ */
 export function wireRosterTable(root, { onSort = () => {}, onToggle = () => {} } = {}) {
   const offs = [
     delegate(root, "click", ".g-sort[data-sort-key]", (event, button) => onSort(button.getAttribute("data-sort-key"))),
     delegate(root, "click", ".g-rtable__toggle[data-row-key]", (event, button) => onToggle(button.getAttribute("data-row-key"))),
+    delegate(root, "click", ".g-rtable__row, .g-rtable__skillrow", (event, row) => {
+      const key = row.closest(".g-rtable__player")?.getAttribute("data-key");
+      if (key && !event.target.closest(OWN_CONTROL)) onToggle(key);
+    }),
   ];
   return () => offs.forEach((off) => off());
 }
