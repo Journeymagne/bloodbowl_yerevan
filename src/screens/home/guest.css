@@ -1,0 +1,259 @@
+/*
+ * A guest's front page (screens/home/guest.mjs).
+ *
+ * Up to 900px it is one column: the lead and what the league is, the two ways in side by side, the
+ * table's card, the reference's card with its four tiles. The league's band is the page head
+ * (ui/page-head.mjs), a desktop's: a phone's header already names the league and the season, so a phone
+ * does not draw it, for a screen reader either. From 901px the band runs across the top, the lead
+ * stands in a ribbon in the header's colours with the ways in beside it (turned over: the filled button
+ * is the header's ink), and the two cards stand side by side, one under the other where they would be
+ * narrower than 360px.
+ */
+.g-guest {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * The band is the desktop's. Guest.html's page is grey to its edges up to 900px: the page reaches over the frame's
+ * padding (16 16 28, Guest.html's main; shell/frame.css) and takes the same figures back inside its grey, the cards
+ * white in their ring on it.
+ */
+@media (max-width: 900px) {
+  .g-guest > .g-pagehead { display: none; }
+  .g-guest {
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) calc(-1 * var(--view-bottom));
+    padding: var(--view-top) var(--view-side) var(--view-bottom);
+    background: var(--surface-2);
+  }
+}
+
+.g-guest__hero {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  padding: var(--space-6) 0 2px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+
+.g-guest__intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.g-guest__lead {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 30px/1.05 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: break-word;
+}
+
+.g-guest__text {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The two ways in, side by side; the primary button is the filled one. */
+.g-guest__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+
+.g-guest__actions .g-btn {
+  width: 100%;
+  height: auto;
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+}
+
+.g-guest__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
+.g-guest__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-14) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+
+.g-guest__title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 20px/1.15 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The place, in the ranked row's first column. */
+.g-guest__rank {
+  color: var(--muted);
+  font: 700 18px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* What stands in the place of the rows: the season is on its way, did not come, or has no one in it. */
+.g-guest__note {
+  margin: var(--space-8) 0 var(--space-4);
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-guest__more {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  padding-top: var(--space-4);
+  color: var(--accent-text);
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.g-guest__tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+
+/* The rows run on under the heading with their own dividers; the tiles stand a little off it. */
+.g-guest__table .g-guest__title { margin-bottom: var(--space-4); }
+.g-guest__ref .g-guest__tiles { margin-top: var(--space-12); }
+
+.g-guest__tile {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-guest__tile-title {
+  color: var(--ink);
+  font: 700 15px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-guest__tile-text {
+  color: var(--muted);
+  font: 400 12px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (min-width: 901px) {
+  /*
+   * DeskGuest.html: the page head's band, then its main's 24 32 40 — the frame's padding, which the band goes out
+   * over — with the ribbon and the cards 20 apart in it.
+   */
+  .g-guest { gap: 0; }
+
+  /* The lead and the ways in beside it, the ways in under it where the lead would be squeezed below 420px. */
+  .g-guest__hero {
+    flex-flow: row wrap;
+    align-items: center;
+    gap: var(--space-24);
+    margin: 0;
+    padding: 28px 32px;
+    border-radius: 20px;
+    background: var(--header);
+    color: var(--header-ink);
+  }
+  .g-guest__intro {
+    flex: 1 1 420px;
+    gap: var(--space-10);
+  }
+  .g-guest__lead {
+    color: var(--header-ink);
+    font: 700 44px/1.05 var(--font-display);
+    text-transform: none;
+  }
+  .g-guest__hero .g-guest__text {
+    color: var(--header-muted);
+    font: 400 16px/1.4 var(--font-body);
+  }
+
+  .g-guest__actions {
+    display: flex;
+    gap: var(--space-8);
+  }
+  .g-guest__actions .g-btn {
+    width: auto;
+    padding: 0 var(--space-20);
+  }
+  .g-guest__hero .g-btn--primary {
+    background: var(--header-ink);
+    color: var(--header);
+  }
+  .g-guest__hero .g-btn--primary:hover:not(:disabled) { background: var(--header-muted); }
+  .g-guest__hero .g-btn:not(.g-btn--primary) {
+    border-color: var(--header-ink);
+    background: transparent;
+    color: var(--header-ink);
+  }
+
+  .g-guest__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    align-items: start;
+    gap: var(--space-20);
+    margin: var(--space-20) 0 0;
+  }
+  .g-guest__card { padding: 18px var(--space-20); }
+  .g-guest__title { font: 700 24px/1.15 var(--font-display); }
+  .g-guest__tiles { gap: var(--space-10); }
+}

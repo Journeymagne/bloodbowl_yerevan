@@ -10,7 +10,7 @@
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
-import { createPlayer, normalizePurchasedStaff } from "./schema.mjs";
+import { normalizeAbsence, sitsOut } from "./schema.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 export function normalizeExtraSkill(skill) {
@@ -63,11 +63,21 @@ export function normalizePlayerFavouredSkills(row, skills = []) {
     });
 }
 
+/**
+ * A player's id as a stored roster holds it, as text: what a path or an event names him by, so a 2.x roster's
+ * `5` is the path's `"5"`. Null for an entry that is no player, and for a player with no id, whom
+ * normalisation gives an id of his own (`normalizeRosterPlayer`) and nobody can have named.
+ */
+export function storedPlayerId(player) {
+  return player && typeof player === "object" && player.id ? String(player.id) : null;
+}
+
 export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   if (!player || typeof player !== "object") return null;
   const rowIndex = Number(player.rowIndex);
   if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return null;
   const row = rows[rowIndex];
+  const skipNextGame = sitsOut(player);
   return {
     id: String(player.id || makeRosterPlayerId()),
     rowIndex,
@@ -76,7 +86,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     statMods: { ...(player.statMods ?? {}) },
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
+    skipNextGame,
     niglingInjury: Boolean(player.niglingInjury),
     nigglingInjuries: countToNumber(player.nigglingInjuries ?? (player.niglingInjury ? 1 : 0)),
     injuryStatMods: { ...(player.injuryStatMods ?? {}) },
@@ -85,6 +95,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     extendedContracts: countToNumber(player.extendedContracts),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
+    absence: normalizeAbsence(player.absence, skipNextGame),
     purchased: Boolean(player.purchased),
     ...(player.purchased && player.purchaseRefund != null && isMoneyAmount(player.purchaseRefund)
       ? { purchaseRefund: Number(player.purchaseRefund) } : {}),
@@ -103,6 +114,15 @@ export function normalizeSppCounters(spp = {}) {
  * advancement saved before the link existed has none; those stay readable and
  * simply record that SPP was spent. See domain/roster/progression.mjs for the
  * rules on which grant each type may carry.
+ *
+ * `roll` says how the result was rolled — on the site (`{ id, via: "site" }`,
+ * `id` being `dice_rolls.id`) or at the table (`{ via: "table" }`). It is
+ * optional, so every advancement saved before it reads unchanged.
+ *
+ * `favoured` names the god's skill the advancement's D8 brought a roster
+ * «Favoured of…» (stage 09b, Task 10 review), which its undo takes back
+ * (`removeAdvancement`). Optional too: one the D8 brought nothing, and every
+ * advancement saved before it, has none.
  */
 export function normalizePlayerAdvancements(advancements = []) {
   const source = Array.isArray(advancements) ? advancements : [];
@@ -111,7 +131,9 @@ export function normalizePlayerAdvancements(advancements = []) {
       const type = typeof advancement === "string" ? advancement : advancement?.type;
       if (!Object.hasOwn(advancementTypeLabels, type)) return null;
       const grants = normalizeAdvancementGrant(advancement?.grants);
-      return grants ? { type, grants } : { type };
+      const roll = normalizeAdvancementRoll(advancement?.roll);
+      const favoured = typeof advancement?.favoured === "string" ? advancement.favoured.trim() : "";
+      return { type, ...(grants ? { grants } : {}), ...(roll ? { roll } : {}), ...(favoured ? { favoured } : {}) };
     })
     .filter(Boolean)
     .slice(0, advancementRanks.length);
@@ -125,6 +147,14 @@ function normalizeAdvancementGrant(grants) {
   if (skill && !stat) return { skill };
   if (stat && !skill && Object.hasOwn(advancementStatCosts, stat)) return { stat };
   return null;
+}
+
+/** A roll is a site roll with the id of its `dice_rolls` row, or a table roll; nothing else is kept. */
+function normalizeAdvancementRoll(roll) {
+  if (!roll || typeof roll !== "object") return null;
+  if (roll.via === "table") return { via: "table" };
+  const id = typeof roll.id === "string" ? roll.id.trim() : "";
+  return roll.via === "site" && id ? { id, via: "site" } : null;
 }
 
 /** Every player in the draft, normalised. */
@@ -144,7 +174,7 @@ export function ensureDraftPlayers(team, draft) {
 export function syncRosterCountsFromPlayers(draft) {
   const counts = {};
   (draft.players ?? []).forEach((player) => {
-    counts[player.rowIndex] = (counts[player.rowIndex] ?? 0) + 1;
+    if (player && typeof player === "object") counts[player.rowIndex] = (counts[player.rowIndex] ?? 0) + 1; // a stored hole is nobody
   });
   draft.roster = counts;
 }
@@ -161,6 +191,7 @@ export function canAddRowToDraft(row, rowIndex, draft, enforceMaximum = true) {
 export function rosterPlayerView(team, player, index = 0) {
   const row = rowsForTeam(team)[player.rowIndex];
   if (!row) return null;
+  const skipNextGame = sitsOut(player);
   return {
     ...player,
     key: player.id,
@@ -173,7 +204,8 @@ export function rosterPlayerView(team, player, index = 0) {
     statMods: player.statMods ?? {},
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
+    skipNextGame,
+    absence: normalizeAbsence(player.absence, skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     isCaptain: Boolean(player.isCaptain ?? player.captain),
     extendedContracts: countToNumber(player.extendedContracts),
@@ -186,24 +218,62 @@ export function baseSkillsForPlayer(row) {
   return (row.skills ?? []).map((name) => ({ name, access: "base" }));
 }
 
+/** What a position does on the pitch, from its tags, in this order; whatever is not named is a lineman's. */
+const POSITION_KINDS = [["Big Guy", "big"], ["Thrower", "thrower"], ["Catcher", "catcher"], ["Blitzer", "blitzer"]];
+
+/** @returns {"big"|"thrower"|"catcher"|"blitzer"|"lineman"} the colour of a position's badge */
+export function positionKind(row) {
+  const tags = row.tags ?? [];
+  return POSITION_KINDS.find(([tag]) => tags.includes(tag))?.[1] ?? "lineman";
+}
+
 export function favouredSkillNames(row, player) {
   return new Set(normalizePlayerFavouredSkills(row, player.favouredSkills ?? []).map((skill) => skill.name));
 }
 
-export function skillNamesForPlayer(row, player) {
+/** The skill the captaincy brings, held for as long as the player is captain. */
+export const CAPTAINS_SKILL = "Pro";
+
+/**
+ * The skills a player holds, in the order he came by them — his position's, the advancements', the favoured, the captain's
+ * Pro — each once, with where it came from: `base` for the position's, `primary` or `secondary` for the access an advancement
+ * took it at, `favoured`, `captain`. A name a source lists after an earlier one is the earlier source's.
+ *
+ * @returns {{name: string, access: "base"|"primary"|"secondary"|"favoured"|"captain"}[]}
+ */
+export function skillsForPlayer(row, player) {
   const seen = new Set();
   return [
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    ...(player.isCaptain ? [{ name: "Pro", access: "captain" }] : []),
-  ]
-    .map((skill) => skill.name)
-    .filter((name) => {
-      if (!name || seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    });
+    ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
+  ].filter(({ name }) => {
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+
+export function skillNamesForPlayer(row, player) {
+  return skillsForPlayer(row, player).map(({ name }) => name);
+}
+
+/**
+ * A skill's name without its parameter: the Rat Ogre's `Mighty Blow (+1)` is the
+ * Skill Table's `Mighty Blow`. For comparing only — display names stay as written.
+ */
+export function canonicalSkillName(name) {
+  return String(name).replace(/\s*\([+-]?\d+\)\s*$/, "").trim();
+}
+
+/**
+ * The skills a player already holds, by canonical name, for asking whether a
+ * Skill Table skill is one of them. Both the random roll and the list of skills
+ * an advancement may grant go through here, so neither offers a held skill.
+ */
+export function heldSkillKeys(row, player) {
+  return new Set(skillNamesForPlayer(row, player).map(canonicalSkillName));
 }
 
 export function setRosterCaptain(draft, playerId, isCaptain = true) {
@@ -220,11 +290,3 @@ export function selectedRosterPlayers(team, draft) {
     .filter(Boolean);
 }
 
-
-/**
- * The shape of a player and of purchased staff moved to schema.mjs in step 3.2,
- * which is now the only place either is described. The names stay: every caller
- * uses them, and renaming was not what the step was for.
- */
-export { normalizePurchasedStaff };
-export const makeRosterPlayer = createPlayer;

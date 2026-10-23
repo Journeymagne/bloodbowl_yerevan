@@ -1,0 +1,37 @@
+/*
+ * The overview of a coach with no team (screens/team/empty.mjs).
+ */
+.g-team-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-16);
+  border: 0;
+  background: none;
+}
+
+.g-team-empty__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* A screen focuses it when the coach has just deleted the last team: a place the keyboard starts from, not a control. */
+.g-team-empty__title:focus { outline: none; }
+
+.g-team-empty__text {
+  margin: 0;
+  color: var(--muted);
+  font: 400 15px/1.45 var(--font-body);
+  text-transform: none;
+}
+
+/* The button is as wide as its words on a desk, not the whole content; a phone's is the full width. */
+@media (min-width: 901px) {
+  .g-team-empty .g-btn--primary {
+    width: auto;
+    min-width: 240px;
+    padding: 0 var(--space-24);
+  }
+}

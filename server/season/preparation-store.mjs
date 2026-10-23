@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { httpError } from "../http/errors.mjs";
 import { createPreparation, resetChangedRosters, upgradePreparation } from "../../src/domain/match/preparation.mjs";
 import { matchError, SIDES } from "../../src/domain/match/rules.mjs";
@@ -26,7 +27,9 @@ export async function loadPreparationSources(client, fixture) {
 }
 
 export function sourcesChanged(state, sources) {
-  return SIDES.some(side => state[side].team.id !== sources[side].team.id || state[side].team.revision !== sources[side].team.revision);
+  // Read the team's actual state when opening preparation, even when an import
+  // or repair changed its players/resources without advancing the revision.
+  return SIDES.some(side => !isDeepStrictEqual(state[side].team, sources[side].team));
 }
 
 export async function loadPreparationState(client, fixture, sources, data, reading) {
@@ -37,7 +40,8 @@ export async function loadPreparationState(client, fixture, sources, data, readi
     state = resetChangedRosters(state, sources, data);
   }
   state = upgradePreparation(state);
-  if (!row || reading) await savePreparationState(client, fixture.id, state);
+  // Polls keep the same state: only creation, roster refresh or a rules upgrade needs a write.
+  if (!row || (reading && state !== row.state)) await savePreparationState(client, fixture.id, state);
   return state;
 }
 

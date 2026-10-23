@@ -3,8 +3,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 
+import { inlineCssImports } from "./lib/inline-css.mjs";
+import { minifyCss } from "./lib/minify-css.mjs";
+import { pruneStale } from "./lib/prune-dir.mjs";
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(rootDir, "dist");
+
+/** Every file this build writes under dist/: what is not in it after the build is stale (lib/prune-dir.mjs). */
+const written = new Set();
+
+/** Write `file` and remember it as this build's. */
+async function writeBuilt(file, content) {
+  await fs.writeFile(file, content);
+  written.add(file);
+}
 
 async function copyDir(from, to) {
   await fs.mkdir(to, { recursive: true });
@@ -17,36 +30,9 @@ async function copyDir(from, to) {
       await copyDir(source, target);
     } else if (entry.isFile()) {
       await fs.copyFile(source, target);
+      written.add(target);
     }
   }
-}
-
-/**
- * Fold src/styles.css' @import lines into one stylesheet.
- *
- * The source is eight files so a person can find things in it; the site should
- * still fetch one. Inlining also keeps the parts covered by the version on the
- * index's link - an @import would ask for styles/roster.css with no ?v= on it
- * and get a day-old copy after a deploy.
- */
-async function inlineCssImports(file) {
-  const source = await fs.readFile(file, "utf8");
-  const parts = [];
-  for (const match of source.matchAll(/@import url\("([^"]+)"\);/g)) {
-    parts.push(await fs.readFile(path.join(path.dirname(file), match[1]), "utf8"));
-  }
-  if (!parts.length) return source;
-  return parts.join(String.fromCharCode(10));
-}
-
-function minifyCss(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    // A space before :is/:where can be a descendant combinator, not decoration.
-    .replace(/\s*([{};,>+~])\s*/g, "$1")
-    .replace(/;}/g, "}")
-    .trim();
 }
 
 /**
@@ -143,7 +129,7 @@ await fs.mkdir(distDir, { recursive: true });
 
 const version = await assetVersion();
 const indexHtml = stampVersion(await fs.readFile(path.join(rootDir, "index.html"), "utf8"), version);
-await fs.writeFile(path.join(distDir, "index.html"), indexHtml);
+await writeBuilt(path.join(distDir, "index.html"), indexHtml);
 await copyDir(path.join(rootDir, "src"), path.join(distDir, "src"));
 await stampImports(path.join(distDir, "src"), version);
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
@@ -151,18 +137,21 @@ const playPath = path.join(distDir, "public", "play.html");
 const playHtml = (await fs.readFile(playPath, "utf8")).replace(
   /((?:src|href)="\/src\/play\/[^"]+\.(?:mjs|js|css))"/g, `$1?v=${version}"`,
 );
-await fs.writeFile(playPath, playHtml);
+await writeBuilt(playPath, playHtml);
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 const stylesPath = path.join(distDir, "src", "styles.css");
-await fs.writeFile(stylesPath, minifyCss(await inlineCssImports(stylesPath)));
+await writeBuilt(stylesPath, minifyCss(await inlineCssImports(stylesPath)));
 
 const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json"), "utf8"))
   .replace(/</g, "\\u003c");
 const ruDataJson = (await fs.readFile(path.join(rootDir, "public", "data.ru.json"), "utf8"))
   .replace(/</g, "\\u003c");
-await fs.writeFile(
+await writeBuilt(
   path.join(distDir, "local-preview.html"),
   buildLocalPreview(indexHtml, enDataJson, ruDataJson),
 );
 
-console.log(`Built static site into dist (asset version ${version})`);
+// Last, once every file of this build is in place: what an earlier build left and this one did not write goes.
+const stale = await pruneStale(distDir, written);
+
+console.log(`Built static site into dist (asset version ${version})${stale.length ? `; removed ${stale.length} stale file(s)` : ""}`);

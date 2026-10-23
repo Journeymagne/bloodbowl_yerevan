@@ -755,12 +755,14 @@ test("a dangling symlink is excluded from the count, not reported as an unreadab
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
-  // A real, readable dump so the directory is otherwise healthy.
-  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+  // A real, readable dump so the directory is otherwise healthy. Names are
+  // built from the current time because the CLI judges freshness against the
+  // real clock.
+  await fs.writeFile(path.join(dir, formatDumpName(new Date())), "x".repeat(2048));
 
   await fs.symlink(
     path.join(dir, "gata_league-20260822-050000.dump-does-not-exist"),
-    path.join(dir, "gata_league-20260822-050000.dump"),
+    path.join(dir, formatDumpName(new Date(Date.now() - 60 * 60 * 1000))),
   );
 
   const { stdout } = await run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } });
@@ -774,7 +776,7 @@ test("a symlink to a real dump file is also excluded from the count, matching ro
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
   // The one real dump rotation would ever remove or keep.
-  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+  await fs.writeFile(path.join(dir, formatDumpName(new Date())), "x".repeat(2048));
 
   // A live target, so following the link (the old behaviour) would succeed
   // and silently count it - the bug this fix closes: rotate() in
@@ -783,7 +785,7 @@ test("a symlink to a real dump file is also excluded from the count, matching ro
   // retention total forever.
   const target = path.join(dir, "real-target.dump");
   await fs.writeFile(target, "x".repeat(2048));
-  await fs.symlink(target, path.join(dir, "gata_league-20260821-040000.dump"));
+  await fs.symlink(target, path.join(dir, formatDumpName(new Date(Date.now() - 24 * 60 * 60 * 1000))));
 
   const { stdout } = await run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } });
   assert.match(stdout, /dumps:\s+1 /);

@@ -1,0 +1,55 @@
+/*
+ * The state of a match: a few words and a dot.
+ */
+.g-status {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-6);
+  height: 26px;
+  margin: 0;
+  padding: 0 var(--space-10);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font: 700 13px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.g-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--faint);
+}
+
+/* A match in progress. */
+.g-status--live {
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+}
+.g-status--live::before { background: var(--accent); }
+
+/* A result sent to the opponent, waiting for the answer. */
+.g-status--wait {
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+}
+.g-status--wait::before { background: var(--warn); }
+
+/* A fault: the colour is the word's, the dot has it too. */
+.g-status--danger { color: var(--danger); }
+.g-status--danger::before { background: var(--danger); }
+
+/* On the dark header colour. This comes after the tones, so it wins their fill and ink. */
+.g-status--on-dark {
+  background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+  color: var(--header-ink);
+}
+.g-status--on-dark.g-status--live::before { background: var(--live); }

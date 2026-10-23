@@ -1,0 +1,107 @@
+/*
+ * A match as a card: heading and state, meta line, the two teams, then what
+ * the screen puts in it.
+ */
+.g-match {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  margin: 0;
+  padding: var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A match in progress. */
+.g-match--live { box-shadow: var(--ring-selected); }
+
+.g-match__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.g-match__title {
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font: 700 17px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-match__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-10);
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-match__meta > :first-child { font-weight: 600; }
+
+/* Home at the left, away at the right, "vs" or the score between them. */
+.g-match__teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-10);
+}
+
+.g-match__side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+.g-match__side--away { text-align: right; }
+
+.g-match__name {
+  color: var(--ink);
+  font: 700 20px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-match__sub {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-match__mid {
+  color: var(--faint);
+  font: 700 20px/1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-match__mid--score {
+  color: var(--ink);
+  font: 700 36px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.g-match__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+/* The buttons stack, each the full width of the card. */
+.g-match__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}

@@ -1,0 +1,268 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "H1",
+      "url": "http://localhost:3021/#/",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "H2",
+      "url": "http://localhost:5121/#/",
+      "fullPage": true
+    },
+    {
+      "id": "H3",
+      "url": "http://localhost:3021/#/",
+      "storage": {
+        "gata-league-locale": "ru"
+      }
+    },
+    {
+      "id": "F1",
+      "url": "http://localhost:3021/#/ref",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F2",
+      "url": "http://localhost:3021/#/ref",
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-query', 'block');"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F3",
+      "url": "http://localhost:3021/#/ref",
+      "widths": [
+        390
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-query', 'zzzz');"
+      ]
+    },
+    {
+      "id": "F4",
+      "url": "http://localhost:3021/#/ref/skills",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "F5",
+      "url": "http://localhost:3021/#/ref/skills",
+      "click": [
+        "[data-chip-value=\"Agility\"]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#ref-list-query', 'd');"
+      ]
+    },
+    {
+      "id": "F6",
+      "url": "http://localhost:3021/#/skills/mighty-blow-1"
+    },
+    {
+      "id": "F7",
+      "url": "http://localhost:3021/#/ref/traits",
+      "widths": [
+        1440
+      ]
+    },
+    {
+      "id": "F8",
+      "url": "http://localhost:3021/#/ref/teams"
+    },
+    {
+      "id": "F9",
+      "url": "http://localhost:3021/#/ref/star-players",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "F10",
+      "url": "http://localhost:3021/#/ref/inducements",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "F11",
+      "url": "http://localhost:3021/#/ref/rules",
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A1",
+      "url": "http://localhost:3021/#/weather",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A2",
+      "url": "http://localhost:3021/#/kick-off-table",
+      "fullPage": true
+    },
+    {
+      "id": "A3",
+      "url": "http://localhost:3021/#/prayers-to-nuffle",
+      "fullPage": true
+    },
+    {
+      "id": "A4",
+      "url": "http://localhost:3021/#/casualties",
+      "fullPage": true
+    },
+    {
+      "id": "A5",
+      "url": "http://localhost:3021/#/inducements/bribe"
+    },
+    {
+      "id": "A6",
+      "url": "http://localhost:3021/#/player-advancement",
+      "fullPage": true
+    },
+    {
+      "id": "A7",
+      "url": "http://localhost:3021/#/skill-table",
+      "click": [
+        "[data-roll-skill]"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A8",
+      "url": "http://localhost:3021/#/leagues",
+      "fullPage": true
+    },
+    {
+      "id": "A9",
+      "url": "http://localhost:3021/#/overview/code-of-conduct",
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A10",
+      "url": "http://localhost:3021/#/legal",
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "A11",
+      "url": "http://localhost:3021/#/no-such-page",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "T1",
+      "url": "http://localhost:3021/#/teams/ogre",
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T2",
+      "url": "http://localhost:3021/#/teams/wood-elves",
+      "fullPage": true
+    },
+    {
+      "id": "T3",
+      "url": "http://localhost:5121/#/teams/amazon",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "S1",
+      "url": "http://localhost:5121/#/skills/evasive",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ]
+    },
+    {
+      "id": "U1",
+      "url": "http://localhost:3021/#/ref",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "U2",
+      "url": "http://localhost:3021/#/teams/ogre",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "U3",
+      "url": "http://localhost:3021/#/weather",
+      "storage": {
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    }
+  ]
+}

@@ -32,6 +32,14 @@ export const builderStaffMaximums = {
   plagueDoctor: 1,
 };
 
+/**
+ * Starting and Team rerolls together. Each kind has its own maximum above, but a
+ * team never holds more than this many of both: the post-match flow refuses a
+ * Team Reroll past it (domain/post-match/roster.mjs), and the team page leaves
+ * each counter the room the other leaves.
+ */
+export const combinedRerollsMaximum = 8;
+
 export const medicalStaffDefinitions = [
   { key: "apothecary", title: "Apothecary", access: "apothecary" },
   { key: "mortuaryAssistant", title: "Mortuary Assistant", access: "mortuary" },
@@ -157,7 +165,7 @@ export const sppCounterDefinitions = [
  */
 export const startingBudget = 600;
 export const rosterSizeLimits = { min: 7, max: 14 };
-export const skillCosts = { primary: 20, secondary: 40, favoured: 0 };
+export const skillCosts = { primary: 20, secondary: 40 };
 export const extendedContractCost = 20;
 export const eliteComboCost = 15;
 /** Fallback used when a position's quantity is not written as a range. */
@@ -184,7 +192,31 @@ export const seasonPoints = Object.freeze({
   /** So are three casualties, however the match went. */
   casualtyThreshold: 3,
   casualtyBonus: 1,
+  /**
+   * A match decided without being played. content/Gata/Rules/3. Team Management.md:71
+   * («2 points for a technical win») and :81 («+2 points if the opponent could not field
+   * a team for the match»); technicalPoints below adds them up for one side.
+   */
+  technicalWin: 2,
+  noTeamBonus: 2,
 });
+
+/**
+ * Why a match was decided without being played: the opponent could not field a
+ * team (the content's +2), or anything else the Commissioner rules on.
+ */
+export const TECHNICAL_REASONS = Object.freeze(["no_team", "other"]);
+
+/**
+ * One side's points for a technical result.
+ *
+ * @param {{won: boolean, reason?: string|null}} result
+ * @returns {number}
+ */
+export function technicalPoints({ won, reason }) {
+  if (!won) return seasonPoints.loss;
+  return seasonPoints.technicalWin + (reason === "no_team" ? seasonPoints.noTeamBonus : 0);
+}
 
 /**
  * One side's points for a finished match.

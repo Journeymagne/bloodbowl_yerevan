@@ -48,15 +48,15 @@ console.log(`Browser check against ${base}\n`);
 
 await check("home screen renders", async () => {
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.waitForSelector(".overview-grid .card", { timeout: 15000 });
-  return `${await page.locator(".overview-grid .card").count()} overview cards`;
+  await page.waitForSelector(".g-guest h1", { timeout: 15000 });
+  return (await page.locator(".g-guest h1").textContent())?.trim();
 });
 
 await check("teams list", async () => {
-  await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
-  await page.waitForSelector(".card-grid .card", { timeout: 15000 });
-  const count = await page.locator(".card-grid .card").count();
-  if (count !== 37) throw new Error(`expected 37 team cards, found ${count}`);
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".g-ref-list a.g-list-row", { timeout: 15000 });
+  const count = await page.locator(".g-ref-list a.g-list-row").count();
+  if (count !== 37) throw new Error(`expected 37 team rows, found ${count}`);
   return `${count} teams`;
 });
 
@@ -66,28 +66,20 @@ await check("team detail", async () => {
   return (await page.locator("h1").first().textContent())?.trim();
 });
 
-await check("builder hires exactly one player per click", async () => {
-  await page.goto(`${base}/#/builder`, { waitUntil: "networkidle" });
-  await page.waitForSelector("[data-matchday-open-hire]", { timeout: 15000 });
-  const unique = () => page.evaluate(() =>
-    new Set([...document.querySelectorAll("[data-remove-player]")].map((node) => node.dataset.removePlayer)).size);
-  const before = await unique();
-  const summary = () => page.locator(".builder-info-panel .stat-list, .builder-summary .stat-list").first().innerText();
-  const costBefore = await summary();
-  await page.locator("[data-matchday-open-hire]:visible").first().click();
-  await page.locator("[data-add-row]").first().click();
-  await page.waitForTimeout(300);
-  const after = await unique();
-  if (after !== before + 1) throw new Error(`expected ${before + 1} players, found ${after}`);
-  if ((await summary()) === costBefore) throw new Error("cost did not change");
-  return `${before} -> ${after} players`;
+await check("a guest's builder asks to sign in", async () => {
+  await page.goto(`${base}/#/teams/new`, { waitUntil: "networkidle" });
+  await page.waitForSelector("[data-auth-form]", { timeout: 15000 });
+  const hash = await page.evaluate(() => location.hash);
+  if (hash !== "#/login") throw new Error(`expected #/login, found ${hash}`);
+  return hash;
 });
 
 await check("locale switch", async () => {
-  await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
   const before = await page.evaluate(() => document.documentElement.lang);
   const textBefore = (await page.locator("#app-view").innerText()).slice(0, 120);
-  await page.locator("#lang-toggle").click();
+  // The language buttons sit at the foot of the SideNav (the desktop frame); the one not pressed is the other language.
+  await page.locator('#side-nav [data-locale-switch][aria-pressed="false"]').click();
   await page.waitForTimeout(1000);
   const after = await page.evaluate(() => document.documentElement.lang);
   const textAfter = (await page.locator("#app-view").innerText()).slice(0, 120);
@@ -97,11 +89,12 @@ await check("locale switch", async () => {
 });
 
 await check("theme switch", async () => {
-  await page.selectOption("#theme-select", "light-parchment");
-  await page.waitForTimeout(200);
-  const theme = await page.evaluate(() => document.documentElement.dataset.theme);
-  if (theme !== "light-parchment") throw new Error(`theme is ${theme}`);
-  return theme;
+  await page.goto(`${base}/#/settings`, { waitUntil: "networkidle" });
+  await page.locator('[data-seg-group="mode"] [data-seg-value="light"]').click();
+  await page.locator('[data-palette-key="parchment"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.mode === "light" && document.documentElement.dataset.palette === "parchment", null, { timeout: 5000 });
+  const { mode, palette } = await page.evaluate(() => ({ ...document.documentElement.dataset }));
+  return `${mode}/${palette}`;
 });
 
 for (const pathname of ["/.env", "/package.json", "/server/init.sql"]) {

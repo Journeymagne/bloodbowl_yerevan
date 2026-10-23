@@ -1,0 +1,38 @@
+/*
+ * The outcome of a match: a coloured square with its letter. The letter says
+ * it and the colour only reinforces it.
+ */
+.g-result {
+  /* The word for screen readers is positioned, so it is placed against the pill and not the page. */
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-result);
+  color: var(--on-accent);
+  font: 700 14px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.g-result--compact {
+  width: 28px;
+  height: 28px;
+}
+
+.g-result--w { background: var(--accent); }
+.g-result--d { background: var(--neutral-result); }
+.g-result--l {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+.g-result--t { background: var(--result-friendly); }

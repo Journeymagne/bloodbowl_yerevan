@@ -1,0 +1,512 @@
+/*
+ * An opponent's page (screens/coaches/team.mjs): OppTeam.html up to 900px, DeskOppTeam.html from 901px. Colours are
+ * tokens: the prototypes' Telegram blue has none, so the plane takes the link's colour. Long names wrap; nothing is cut
+ * with «…». A thumb's targets are 44 high up to 900px, a desk's 24 at least (D2).
+ */
+.g-opp {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-opp :where(h1, h2, p) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* «‹ Table» (OppTeam.html; DeskOppTeam.html's «‹ Season» is in the band). */
+.g-opp__back {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-decoration: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The head: the team's letters in a circle, then its name and the line under it. */
+.g-opp__id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  min-width: 0;
+}
+.g-opp__crest {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-full);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 700 26px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* The line 8 under the name (the prototype's 3): the race's zone, 8 above the line, ends where the name does. */
+.g-opp__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.g-opp__name {
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  overflow-wrap: anywhere;
+}
+/* The page focuses it on arrival: a place the keyboard starts from, not a control, so no ring (as page-head.css's title). */
+.g-opp__name:focus { outline: none; }
+/* A line that wraps keeps 26 between its rows: the zones of the links, 8 above and 18 below a row, meet and never lie over each other. */
+.g-opp__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 26px var(--space-6);
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+/*
+ * The race and the coach: links of the line, 44 to a thumb without making the line taller (as the prototype's race). The
+ * zone reaches 8 above the line, into the gap under the name and no further, and 18 below it, into the page's 20; the
+ * padding mirrors it, so the words sit on the line with the plain ones beside them.
+ */
+.g-opp__race,
+.g-opp__coachlink {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  margin: -8px 0 -18px;
+  padding: var(--space-8) 0 18px;
+  color: var(--accent-text);
+  font: 600 14px/1.3 var(--font-body);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * «Next opponent» (OppTeam.html): the accent's tint, the round under the word, a chevron. The prototypes set no box-sizing,
+ * so their min-height is the content's and the padding comes on top: 56 + 10·2 here, 64 + 12·2 on a desk.
+ */
+.g-opp__next {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 76px;
+  padding: var(--space-10) var(--space-14);
+  border-radius: var(--radius-xl);
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  text-decoration: none;
+}
+.g-opp__nexttext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-opp__nextlabel {
+  font: 700 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-opp__nextline { font: 400 13px/1.3 var(--font-body); }
+
+/* «Our meeting»: the outcome, the words, the score; 76 high as the prototype draws its 56 and padding. */
+.g-opp__meeting {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 76px;
+  padding: var(--space-10) var(--space-14);
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+.g-opp__meettext {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-opp__meetlabel {
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+}
+.g-opp__meetline {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+}
+/* Oswald's figures at the font's own line height, as the prototypes write them (no line-height of theirs). */
+.g-opp__score {
+  flex: none;
+  color: var(--ink);
+  font: 700 26px/normal var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.g-opp__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/*
+ * The tiles as the prototypes write them: the word right on the figure, both at their fonts' own line height, and the
+ * figure 28px, not the overview's 30: a tile 81 high.
+ */
+.g-opp .g-kpi { gap: 0; }
+.g-opp .g-kpi__k { line-height: normal; }
+.g-opp .g-kpi__v {
+  font-size: 28px;
+  line-height: normal;
+}
+
+/* «Form» and its five squares of 26, 4 apart (not the strip's ten of 28). */
+.g-opp__formrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.g-opp__formlabel {
+  color: var(--muted);
+  font: 600 14px/1.3 var(--font-body);
+}
+.g-opp__formrow .g-form {
+  display: flex;
+  gap: var(--space-4);
+}
+.g-opp__formrow .g-form__item {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font: 700 12px/1 var(--font-body);
+}
+
+/* A phone's card of the coach: the plane, «Coach Lilit» over his contact, a chevron. */
+.g-opp__coach {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 56px;
+  padding: var(--space-8) var(--space-14);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  text-decoration: none;
+}
+.g-opp__coach > .g-icon { flex: none; color: var(--muted); }
+.g-opp__plane {
+  display: flex;
+  flex: none;
+  color: var(--accent-text);
+}
+.g-opp__coachtext {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-opp__coachname {
+  font: 600 15px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-opp__coachsub {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* The roster: «Roster» and how many, then a row for each player. */
+.g-opp__squad {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-opp__squadtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-8);
+  margin-bottom: var(--space-4);
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+}
+.g-opp__count {
+  color: var(--muted);
+  font: 500 15px/1.3 var(--font-body);
+}
+.g-opp__norace {
+  padding: var(--space-8) 0;
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+}
+.g-opp__player {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-10);
+  padding: var(--space-10) 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-opp__who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-opp__pname {
+  color: var(--ink);
+  font: 500 16px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-opp__pline {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-opp__chips { padding-top: var(--space-6); }
+.g-opp__chips .g-skills { gap: var(--space-4); }
+/* A chip opens the skill's rule (decision 20): the prototype's 12px tag, 44 high and wide to a thumb («Pro», «Leap»). */
+.g-opp .g-skill {
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 3px var(--space-8);
+  border-radius: 7px;
+  font: 500 12px/1.2 var(--font-body);
+}
+.g-opp .g-skill--gained { font-weight: 700; }
+.g-opp__spp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.g-opp__sppn {
+  color: var(--ink);
+  font: 700 17px/1.2 var(--font-body);
+}
+.g-opp__sppk {
+  color: var(--muted);
+  font: 600 11px/1.2 var(--font-body);
+}
+.g-opp__cell,
+.g-opp__num { min-width: 0; }
+
+.g-opp__readonly {
+  color: var(--muted);
+  font: 400 12px/1.5 var(--font-body);
+}
+
+/*
+ * OppTeam.html's page starts 14 down, «‹ Table» 32 high in it: its line 30 from the top. Ours is 44 high under the
+ * frame's 16, so it goes 8 up into that padding to put its line where the prototype's is, and 14 into the gap under it.
+ */
+.g-opp--phone > .g-opp__back { margin: -8px 0 -14px; }
+
+/* ---- A desk (DeskOppTeam.html) ---- */
+@media (min-width: 901px) {
+  .g-opp--desk { gap: 0; }
+  .g-opp--bare { gap: var(--space-8); }
+
+  /* The band reaches the content's edges over the frame's padding by its own figures, as the page head's (page-head.css). */
+  .g-opp__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    margin: calc(-1 * var(--view-top)) calc(-1 * var(--view-side)) 0;
+    padding: var(--space-16) var(--view-side) var(--space-20);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .g-opp__id { gap: var(--space-16); }
+  .g-opp__crest {
+    width: 56px;
+    height: 56px;
+  }
+  .g-opp__title { gap: var(--space-4); }
+  /* The links' zones, 3 above and below a row: 6 between the rows of a line that wraps. */
+  .g-opp__meta { gap: 6px var(--space-6); }
+  .g-opp__back {
+    min-height: 24px;
+    font-size: 13px;
+  }
+  .g-opp__race,
+  .g-opp__coachlink {
+    min-height: 24px;
+    margin: -3px 0;
+    padding: 0;
+  }
+
+  /* Telegram at the band's right: 44 high, a ring, the plane and the contact. */
+  .g-opp__tg {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+    min-height: 44px;
+    padding: 0 var(--space-16);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink);
+    font: 600 15px/1.2 var(--font-body);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .g-opp__tg--text { box-shadow: none; }
+
+  /* The body 24 under the band and 32 from the edges, as the prototype's main: the frame's 32. */
+  .g-opp__body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-20);
+    padding: var(--space-24) 0 0;
+  }
+  .g-opp__left {
+    display: flex;
+    flex: 1 1 320px;
+    flex-direction: column;
+    gap: var(--space-16);
+    min-width: 0;
+    max-width: 420px;
+  }
+
+  /* «Next opponent» on the header's colour, its word in capitals over the round. */
+  .g-opp__next {
+    min-height: 88px;
+    padding: var(--space-12) 18px;
+    border-radius: var(--radius-2xl);
+    background: var(--header);
+    color: var(--header-ink);
+  }
+  .g-opp__nextlabel {
+    color: var(--header-tab);
+    font: 700 12px/1.3 var(--font-body);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .g-opp__nextline { font: 600 16px/1.3 var(--font-body); }
+
+  /* No floor of its own, as the prototype's: its padding and the score make it 73. */
+  .g-opp__meeting {
+    min-height: 0;
+    gap: var(--space-14);
+    padding: var(--space-14) 18px;
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-opp__meeting .g-result {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    font-size: 15px;
+  }
+  .g-opp__meetlabel { font-size: 16px; }
+  .g-opp__score { font-size: 30px; }
+
+  /* The tiles and the form in one card. */
+  .g-opp__card {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-14);
+    padding: 18px;
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-opp .g-kpi { border-radius: var(--radius-lg); }
+  .g-opp__readonly { font-size: 13px; }
+
+  /* The roster as columns in a card that scrolls sideways inside itself, never the page. */
+  .g-opp__squad {
+    flex: 999 1 560px;
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+    overflow-x: auto;
+  }
+  .g-opp__inner { min-width: 620px; }
+  .g-opp__rows { display: block; }
+  .g-opp__squadtitle {
+    margin: 0;
+    padding: 18px var(--space-20) var(--space-10);
+    font-size: 26px;
+  }
+  .g-opp__norace { padding: 0 var(--space-20) var(--space-20); }
+  .g-opp__cols,
+  .g-opp__player {
+    display: grid;
+    grid-template-columns: 44px minmax(160px, 1fr) minmax(200px, 1.6fr) 44px 44px 52px;
+    align-items: center;
+    gap: 0 var(--space-10);
+    padding: 0 var(--space-20);
+  }
+  .g-opp__cols {
+    height: 38px;
+    border-bottom: 1px solid var(--line-strong);
+    color: var(--muted);
+    font: 600 12px/1.2 var(--font-body);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .g-opp__col { min-width: 0; }
+  .g-opp__col--center,
+  .g-opp__num { text-align: center; }
+  .g-opp__col--end { text-align: right; }
+  /* DeskOppTeam.html's row: 52 and its padding and rule on top. */
+  .g-opp__player {
+    min-height: 69px;
+    padding: var(--space-8) var(--space-20);
+  }
+  .g-opp__player .g-num {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+  .g-opp__pname { font-weight: 600; }
+  .g-opp__chips { padding: 2px 0; }
+  .g-opp .g-skill {
+    min-width: 24px;
+    min-height: 24px;
+  }
+  .g-opp__num { font: 400 15px/1.2 var(--font-body); }
+  .g-opp__player > .g-opp__sppn { text-align: right; }
+}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Gata League · техобслуживание</title>
+  <link rel="icon" href="/assets/brand/favicon-32.png">
+  <link rel="stylesheet" href="/assets/fonts/ui/fonts.css">
+  <link rel="stylesheet" href="/public/maintenance/maintenance.css">
+  <script type="module" src="/public/maintenance/maintenance.js"></script>
+</head>
+<body>
+  <header class="m-header">
+    <img class="m-logo" src="/assets/brand/gata-league-logo-96.png" alt="" width="40" height="40">
+    <div>
+      <p class="m-brand">Gata League</p>
+      <p class="m-tagline" data-text="tagline">Blood Bowl Sevens · лига тренеров</p>
+    </div>
+  </header>
+
+  <main class="m-main">
+    <section class="m-card m-status" data-slot="status" data-state="planned" aria-live="polite">
+      <span class="m-chip" data-slot="chip">Плановые работы</span>
+      <h1 class="m-title" data-slot="title">Обновляем сайт</h1>
+      <p class="m-lead" data-slot="lead">Ставим новую версию. Составы, результаты и казна сохранены — после работ всё будет на месте.</p>
+
+      <div class="m-window" data-slot="window" hidden>
+        <dl class="m-times">
+          <div><dt data-text="start">Начало</dt><dd data-slot="startsAt">—</dd></div>
+          <div><dt data-text="end">Окончание, примерно</dt><dd data-slot="endsAt">—</dd></div>
+        </dl>
+        <p class="m-note" data-text="timezoneNote">Время — по Еревану</p>
+      </div>
+      <label class="m-progress" data-slot="progressRow" hidden>
+        <span data-text="progress">Ход работ</span>
+        <progress max="100" value="0" data-slot="progress"></progress>
+      </label>
+      <p class="m-meta" data-slot="meta"></p>
+
+      <a class="m-button" href="/" data-slot="open" data-text="openSite" hidden>Открыть сайт</a>
+      <button class="m-button" type="button" data-slot="check" data-text="check">Проверить снова</button>
+      <p class="m-hint" data-slot="auto" data-text="auto">Страница сама проверяет сайт каждые 30 секунд</p>
+      <p class="m-hint" data-slot="lastCheck"></p>
+    </section>
+
+    <section class="m-card m-tips" data-slot="tips">
+      <h2 class="m-subtitle" data-text="tipsTitle">Пока сайт недоступен</h2>
+      <dl class="m-tip-list">
+        <div><dt data-text="tipMatchTitle">Играете матч?</dt><dd data-text="tipMatch">Записывайте TD, CAS, MVP и травмы на бумаге — внесёте в итоги матча после работ.</dd></div>
+        <div><dt data-text="tipEditsTitle">Правки в последние минуты</dt><dd data-text="tipEdits">Если сохранение не прошло, повторите его, когда сайт заработает.</dd></div>
+        <div><dt data-text="tipQuestionsTitle">Вопросы</dt><dd data-text="tipQuestions">Пишите администратору лиги в чат лиги в Telegram.</dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <footer class="m-footer" data-text="footer">Неофициальный фанатский справочник лиги</footer>
+</body>
+</html>

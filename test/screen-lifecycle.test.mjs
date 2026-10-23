@@ -59,3 +59,20 @@ test("a teardown that throws does not strand the rest", () => {
   assert.equal(reached, true);
   assert.equal(pendingScreenCleanupCount(), 0);
 });
+
+test("the frame is not a screen: mounting and refreshing the shell owes a route change nothing", async () => {
+  const { document } = await import("./helpers/ui.mjs");
+  const { el, fireEvent } = await import("./helpers/fake-dom.mjs");
+  for (const id of ["app-frame", "app-header", "side-nav", "app-view", "site-footer"]) document.body.appendChild(el(document, "div", { id }));
+  const { mountShell, refreshShell } = await import("../src/shell/shell.mjs");
+  const { setLocaleHandler } = await import("../src/core/locale-request.mjs");
+  releaseCurrentScreen();
+  mountShell({ document, scroller: { addEventListener() {}, document } });
+  refreshShell({ name: "season", params: {} });
+  assert.equal(pendingScreenCleanupCount(), 0);
+  const asked = [];
+  setLocaleHandler((locale) => asked.push(locale));
+  releaseCurrentScreen();
+  fireEvent(document.querySelector('[data-locale-switch="ru"]'), "click");
+  assert.deepEqual(asked, ["ru"], "a route change does not unwire the frame");
+});

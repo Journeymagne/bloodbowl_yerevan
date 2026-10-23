@@ -1,0 +1,4 @@
+/* .g-ghost is named here and defined nowhere. */
+.g-real {
+  display: block;
+}

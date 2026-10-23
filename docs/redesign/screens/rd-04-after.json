@@ -1,0 +1,194 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "A1",
+      "url": "http://localhost:3002/#/",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "A2",
+      "url": "http://localhost:3002/#/pages"
+    },
+    {
+      "id": "A3",
+      "url": "http://localhost:3002/#/skills"
+    },
+    {
+      "id": "A4",
+      "url": "http://localhost:3002/#/skills/block"
+    },
+    {
+      "id": "A5",
+      "url": "http://localhost:3002/#/teams/amazon"
+    },
+    {
+      "id": "A6",
+      "url": "http://localhost:3002/#/weather"
+    },
+    {
+      "id": "A7",
+      "url": "http://localhost:3002/#/season"
+    },
+    {
+      "id": "A8",
+      "url": "http://localhost:3002/#/legal"
+    },
+    {
+      "id": "A9",
+      "url": "http://localhost:3002/#/login"
+    },
+    {
+      "id": "B1",
+      "url": "http://localhost:3002/#/my-teams",
+      "login": "admin"
+    },
+    {
+      "id": "B3",
+      "url": "http://localhost:3002/#/administration",
+      "login": "admin"
+    },
+    {
+      "id": "C1",
+      "url": "http://localhost:5174/#/my-teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5174/#/my-teams/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true,
+      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]').click()"
+    },
+    {
+      "id": "C3",
+      "url": "http://localhost:5174/#/my-games",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C4",
+      "url": "http://localhost:5174/#/games/g1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "C5",
+      "url": "http://localhost:5174/#/players/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C6",
+      "url": "http://localhost:5174/#/players/u1/teams/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C7",
+      "url": "http://localhost:5174/#/my-teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": "document.querySelector('[data-delete-team]').click()"
+    },
+    {
+      "id": "D1",
+      "url": "http://localhost:5175/#/administration",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "D2",
+      "url": "http://localhost:5175/#/administration/users/u1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "D3",
+      "url": "http://localhost:5175/#/administration/users/u1/teams/t1/edit",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "A1ru",
+      "url": "http://localhost:3002/#/",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-locale": "ru"
+      }
+    },
+    {
+      "id": "A5ru",
+      "url": "http://localhost:3002/#/teams/amazon",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-locale": "ru"
+      }
+    },
+    {
+      "id": "C2ru",
+      "url": "http://localhost:5174/#/my-teams/t1",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "fullPage": true,
+      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]').click()",
+      "widths": [
+        390
+      ]
+    }
+  ]
+}

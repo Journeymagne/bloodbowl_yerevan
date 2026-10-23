@@ -1,11 +1,13 @@
 /** Local fixtures only. Real teams and results are never edited. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { pool, databaseUrl } from '../server/db/pool.mjs';
 import { hashPassword } from '../server/auth/session.mjs';
 import { calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { postWinnings } from '../src/domain/post-match/finance.mjs';
+import { rolledDice } from '../src/domain/roster/dice.mjs';
+import { categoriesForAccess } from '../src/domain/roster/values.mjs';
 
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:3002', stamp = randomUUID();
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname) || !['localhost', '127.0.0.1'].includes(new URL(databaseUrl).hostname)) throw new Error('Local smoke only');
@@ -16,6 +18,20 @@ async function request(name, path, body, method = 'GET') {
   const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json',
     ...(tokens[name] ? { Authorization: 'Bearer ' + tokens[name] } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   return { status: response.status, data: await response.json() };
+}
+
+// A read that must answer 200: the failure says what it was and what came back, and the body is returned.
+async function get(name, path) {
+  const response = await request(name, path);
+  assert.equal(response.status, 200, 'GET ' + path + ' -> ' + response.status + ' ' + JSON.stringify(response.data));
+  return response.data;
+}
+
+// The first item of a list that matches, or a failure that says what was looked for and what the list held.
+function found(list, match, what) {
+  const item = Array.isArray(list) ? list.find(match) : undefined;
+  assert.ok(item, 'not found: ' + what + ' in ' + JSON.stringify(list)?.slice(0, 300));
+  return item;
 }
 
 async function logins() {
@@ -72,6 +88,29 @@ async function fixture(kind, preview = false, previousGames = 0) {
   await start(f); return f;
 }
 
+// The one path of a team's events, for a tap and for an edit outside a match alike.
+const eventsPath = (f, query = '') => '/api/teams/' + f.teamIds[0] + '/events' + query;
+const tapBody = (f, extra = {}) => ({ playerId: f.journeymanId, counter: 'catches', delta: 1, ...extra });
+
+// A tap in the live match, and an edit outside it, both on the home side; then what the team's events say of them.
+async function tapAndEdit(f, homeSnapshot) {
+  f.journeymanId = found(homeSnapshot.players, player => player.kind === 'journeyman', 'a journeyman in the home snapshot').id;
+  const tap = await request('home', eventsPath(f), tapBody(f, { pairingId: f.gameId }), 'POST');
+  assert.equal(tap.status, 201, JSON.stringify(tap.data));
+  const player = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster.players[2];
+  assert.ok(player, 'the home blob has no third player');
+  f.outsidePlayer = player.id; f.outsideBefore = player.spp?.completions ?? 0; f.outsideMvpBefore = player.spp?.mvps ?? 0;
+  const edit = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'completions', delta: 1 }, 'POST');
+  assert.equal(edit.status, 201, JSON.stringify(edit.data));
+  assert.equal(edit.data.event.pairingId, null, 'an edit outside a match has no match');
+  const mvp = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'mvps', delta: 1 }, 'POST');
+  assert.equal(mvp.status, 201, JSON.stringify(mvp.data));
+  const ofMatch = await get('home', eventsPath(f, '?pairing=' + f.gameId));
+  assert.equal(ofMatch.events.length, 1, 'one event in the match: ' + JSON.stringify(ofMatch));
+  const waiting = await get('home', eventsPath(f));
+  assert.equal(waiting.events.length, 3, 'the tap and the two edits wait to be settled: ' + JSON.stringify(waiting));
+}
+
 async function start(f) {
   const path = '/api/games/' + f.gameId;
   f.pre = (await request('home', path + '/preparation')).data;
@@ -84,24 +123,110 @@ async function start(f) {
   for (const name of ['home', 'away']) await change(f, name, { type: 'confirm' }, true);
   const started = await request('home', path + '/start', { revision: f.pre.preparation.revision }, 'POST');
   assert.equal(started.status, 200, JSON.stringify(started.data));
+  await tapAndEdit(f, started.data.snapshots.home);
   f.post = (await request('home', path + '/post-match')).data;
   await change(f, 'home', { type: 'result', home: { touchdowns: 2, casualties: 1 }, away: { touchdowns: 1, casualties: 0 } });
   await change(f, 'away', { type: 'agree-result' });
   for (const name of ['home', 'away']) await change(f, name, { type: 'fans', roll: 3, painted: name === 'away' });
 }
 
-async function stats(f, name) {
+// The Players step saved: the first player holds the side's score (`extra` TD more), the MVP, and a death on the home side.
+async function saveStats(f, name, extra = 0) {
   const side = f.post.postMatch[name], statistics = structuredClone(side.statistics), player = side.snapshot.players[0];
   Object.assign(statistics[player.id], f.post.postMatch.result[name]);
+  statistics[player.id].touchdowns += extra;
   const mvp = name === 'home' ? side.snapshot.players.find(item => item.kind === 'journeyman').id : player.id;
   await change(f, name, { type: 'statistics', statistics, mvps: [mvp], injuries: name === 'home' ? { [side.snapshot.players[1].id]: { code: 'dead' } } : {} });
-  await change(f, name, { type: 'lock-players' });
+}
+
+const lockPlayers = (f, name) => change(f, name, { type: 'lock-players' });
+
+async function stats(f, name) {
+  await saveStats(f, name);
+  await lockPlayers(f, name);
+}
+
+// The Players step held to the score: players' TD one more than the score is saved, and its lock refused until put right.
+async function heldToScore(f) {
+  await saveStats(f, 'home', 1);
+  const refused = await request('home', '/api/games/' + f.gameId + '/post-match', { revision: f.post.postMatch.revision, action: { type: 'lock-players' } }, 'PATCH');
+  assert.equal(refused.status, 409, JSON.stringify(refused.data));
+  assert.deepEqual([refused.data.error.code, refused.data.error.params], ['POST_STATISTICS', { counter: 'touchdowns' }]);
+}
+
+// The site's two dice for the first player's random skill, asked on the Players step: asked again, the same roll; then
+// taken by an advancement that names it, which the finish uses.
+async function siteRoll(f) {
+  const side = f.post.postMatch.home, playerId = side.baseRoster.players[0].id;
+  const { row } = found(side.snapshot.players, player => player.id === playerId, 'the first player ' + playerId + ' in the home snapshot');
+  const ask = { playerId, purpose: 'random_skill', category: categoriesForAccess(row.primary)[0] }, path = '/api/games/' + f.gameId + '/post-match/rolls';
+  const first = await request('home', path, ask, 'POST');
+  assert.equal(first.status, 200, JSON.stringify(first.data));
+  const again = await request('home', path, ask, 'POST');
+  assert.equal(again.data.roll?.id, first.data.roll.id, 'asked again, the site hands back the same roll: ' + JSON.stringify(again.data));
+  f.roll = first.data.roll;
+  await change(f, 'home', { type: 'advance', playerId, advancementType: 'random', grant: { skill: rolledDice(f.roll)[0].skill }, roll: { id: f.roll.id, via: 'site' } });
+}
+
+// After the finish: the advancement in the blob names the roll, and the team's rolls have it used.
+async function rollUsed(f, player) {
+  assert.deepEqual(player.advancements.map(item => item.roll), [{ id: f.roll.id, via: 'site' }]);
+  const { rolls } = await get('home', '/api/teams/' + f.teamIds[0] + '/rolls');
+  assert.notEqual(found(rolls, roll => roll.id === f.roll.id, 'the site roll ' + f.roll.id).usedAt, null, 'the finish used the roll');
+}
+
+// A death in the post-match of a team past rookie protection: once finished, in the team's fallen with its match, out of the blob.
+async function deathCounts(f) {
+  const dead = f.post.postMatch.home.snapshot.players[1].id;
+  for (const name of ['home', 'away']) await stats(f, name);
+  for (const name of ['home', 'away']) await change(f, name, { type: 'lock-roster' });
+  for (const name of ['home', 'away']) await confirmation(f, name);
+  assert.equal(f.post.postMatch.status, 'ready');
+  const finished = await request('home', '/api/games/' + f.gameId + '/finish', { revision: f.post.postMatch.revision }, 'POST');
+  assert.equal(finished.status, 200, JSON.stringify(finished.data));
+  const { fallen } = await get('home', '/api/teams/' + f.teamIds[0] + '/fallen');
+  const death = found(fallen, item => item.player?.id === dead, 'the dead player ' + dead + ' in the fallen');
+  assert.deepEqual([death.fromMatch, death.pairingId], [true, f.gameId]);
+  const blob = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster;
+  assert.ok(!blob.players.some(player => player.id === dead), 'the dead player left the roster');
 }
 
 async function confirmation(f, name) {
   await change(f, name, { type: 'finance', deposit: 20, mistake: { roll: 6 } });
   await change(f, name, { type: 'next', captain: f.post.postMatch[name].baseRoster.players[0].id });
   await change(f, name, { type: 'confirm' });
+}
+
+async function matchEvents(f) {
+  return (await pool.query(`SELECT saved_team_id, counter, sum(delta)::integer AS total, count(*)::integer AS rows, count(settled_at)::integer AS settled
+    FROM match_events WHERE pairing_id=$1 GROUP BY saved_team_id, counter ORDER BY saved_team_id, counter`, [f.gameId])).rows;
+}
+const byTeam = (rows, team) => Object.fromEntries(rows.filter(row => row.saved_team_id === team).map(row => [row.counter, row.total]));
+
+// A tap in the match that the side can no longer take: refused with `code` (the tally of the match's events, checked last, shows it wrote nothing).
+async function refusedTap(f, code) {
+  const refused = await request('home', eventsPath(f), tapBody(f, { pairingId: f.gameId }), 'POST');
+  assert.equal(refused.status, 409, JSON.stringify(refused.data));
+  assert.equal(refused.data.error.code, code);
+}
+
+const historyOf = async (f, playerId) => (await get('home', '/api/teams/' + f.teamIds[0] + '/players/' + playerId + '/history')).history;
+
+// What the finish did with the tap and the edit: the edit is in the blob, nothing waits, the match is over for taps,
+// and the career has the match as the post-match applied it and the edit outside it.
+async function afterFinish(f) {
+  const home = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster;
+  const edited = found(home.players, player => player.id === f.outsidePlayer, 'the player of the edit ' + f.outsidePlayer + ' in the home blob');
+  assert.equal(edited.spp.completions, f.outsideBefore + 1, 'the finish carried the edit into the blob');
+  assert.equal(edited.spp.mvps, f.outsideMvpBefore + 1, 'the finish carried the MVP edit into the blob');
+  const waiting = await get('home', eventsPath(f));
+  assert.deepEqual(waiting.events, [], 'nothing is left waiting after the finish');
+  await refusedTap(f, 'MATCH_NOT_LIVE');
+  const scorer = await historyOf(f, f.post.postMatch.home.snapshot.players[0].id);
+  const row = found(scorer.matches, match => match.pairingId === f.gameId, 'the match ' + f.gameId + ' in the career');
+  assert.equal(row.source, 'applied'); assert.equal(row.counters.touchdowns, 2);
+  assert.equal((await historyOf(f, f.outsidePlayer)).outside.completions, 1);
+  assert.equal((await historyOf(f, f.outsidePlayer)).outside.mvps, 1);
 }
 
 async function verify(f) {
@@ -112,7 +237,12 @@ async function verify(f) {
   assert.equal(forged.status, 403);
   const stale = await request('home', path + '/post-match', { revision: 0, action: { type: 'reopen' } }, 'PATCH');
   assert.equal(stale.data.error.code, 'POST_REVISION');
-  for (const name of ['home', 'away']) await stats(f, name);
+  await heldToScore(f);
+  await saveStats(f, 'home');
+  if (f.kind === 'league') await siteRoll(f);
+  await lockPlayers(f, 'home');
+  await stats(f, 'away');
+  await refusedTap(f, 'EVENT_SIDE_LOCKED');
   const jm = f.post.postMatch.home.snapshot.players.find(item => item.kind === 'journeyman');
   await change(f, 'home', { type: 'roster', operation: 'keep', playerId: jm.id });
   await change(f, 'home', { type: 'roster', operation: 'staff', key: 'assistantCoaches', delta: 1 });
@@ -123,6 +253,7 @@ async function verify(f) {
   await pool.query('UPDATE saved_teams SET revision=revision+1 WHERE id=$1', [f.teamIds[1]]);
   const failed = await request('home', path + '/finish', { revision: f.post.postMatch.revision }, 'POST');
   assert.equal(failed.data.error.code, 'POST_TEAM_CHANGED');
+  assert.ok((await matchEvents(f)).every(row => row.settled === 0), 'a refused finish settles nothing');
   assert.equal((await pool.query('SELECT count(*)::integer AS n FROM match_post_applications WHERE pairing_id=$1', [f.gameId])).rows[0].n, 0);
   assert.deepEqual((await pool.query('SELECT id,roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows, before);
   await change(f, 'away', { type: 'reset-side' });
@@ -142,6 +273,11 @@ async function verify(f) {
   }
   const count = (await pool.query('SELECT count(*)::integer AS n FROM match_post_applications WHERE pairing_id=$1', [f.gameId])).rows[0].n;
   assert.equal(count, 2);
+  await afterFinish(f);
+  const events = await matchEvents(f);
+  assert.deepEqual(byTeam(events, f.teamIds[0]), { casualties: 1, catches: 1, injury: 1, touchdowns: 2 });
+  assert.deepEqual(byTeam(events, f.teamIds[1]), { touchdowns: 1 });
+  assert.ok(events.every(row => row.settled === row.rows), 'every event of the match is settled');
   const rosters = (await pool.query('SELECT roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows;
   assert.ok(rosters.every(team => team.roster.coachesSafe === 20 && team.roster.players.length === 8));
   assert.ok(rosters.every(team => team.roster.players.find(player => player.name === 'Recovering player').skipNextGame === false));
@@ -152,13 +288,15 @@ async function verify(f) {
   assert.equal(kept.purchased, true);
   assert.equal(Object.hasOwn(kept, 'purchaseRefund'), false, 'A confirmed post-match purchase is not cancellable in the editor');
   assert.equal(kept.spp.mvps, 1); assert.equal(kept.advancements.length, 0);
-  assert.equal(home.players[0].spp.bonus, 40); assert.equal(home.players[0].advancements.length, 0);
+  assert.equal(home.players[0].spp.bonus, 40); assert.equal(home.players[0].advancements.length, f.kind === 'league' ? 1 : 0);
+  if (f.kind === 'league') await rollUsed(f, home.players[0]);
   const game = (await request('home', path)).data.game;
   assert.equal(game.postMatchStatus, 'completed'); assert.equal(game.homePoints, f.kind === 'friendly' ? 0 : 3);
   const duplicate = await request('home', path + '/finish', { revision: 0 }, 'POST'); assert.equal(duplicate.status, 200);
   assert.deepEqual(duplicate.data.postMatch.home.settlement, finished[0].data.postMatch.home.settlement);
   assert.deepEqual(duplicate.data.postMatch.away.settlement, finished[0].data.postMatch.away.settlement);
   assert.deepEqual((await pool.query('SELECT roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows, rosters);
+  assert.deepEqual(await matchEvents(f), events);
   const locked = await request('home', path + '/post-match', { revision: duplicate.data.postMatch.revision, action: { type: 'reopen' } }, 'PATCH');
   assert.equal(locked.data.error.code, 'POST_CLOSED');
 }
@@ -180,10 +318,12 @@ try {
   const veteran = await fixture('friendly', false, 4);
   assert.equal(veteran.post.postMatch.home.gamesPlayed, 3);
   assert.equal(veteran.post.postMatch.away.gamesPlayed, 3);
+  await deathCounts(veteran);
   if (process.argv.includes('--keep-preview')) {
     const candidate = await fixture('friendly', true);
+    await mkdir('.codex_tmp', { recursive: true }); // ignored by git, so a fresh worktree has none
     await writeFile('.codex_tmp/post-match-preview.json', JSON.stringify(candidate)); keep = candidate;
     console.log('Preview: ' + base + '/#/games/' + candidate.gameId + '/post-match/players');
   }
-  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery and idempotent completion.');
+  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion, match events settled once, taps, edits outside a match, an MVP edited outside a match and the player\'s career, a site roll in the post-match used once at the finish, a death of the post-match in the team\'s fallen, the score held to the records.');
 } finally { await cleanup(); }

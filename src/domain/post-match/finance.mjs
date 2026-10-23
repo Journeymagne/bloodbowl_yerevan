@@ -26,6 +26,15 @@ export function postWinnings(state, name) {
   return postIncome(state, name).total;
 }
 
+/** Late prayer statistics can change either team's income after its checklist was filled. */
+export function refreshPostFinance(before, next) {
+  for (const name of ['home', 'away']) {
+    if (next[name].stage < 4 || postWinnings(before, name) === postWinnings(next, name)) continue;
+    Object.assign(next[name], { stage: 4, deposit: 0, mistake: {}, confirmed: false });
+    next.status = 'draft';
+  }
+}
+
 export function nextDedicatedFans(state, name) {
   const side = state[name], fans = Number(side.baseRoster.dedicatedFans ?? 0), outcome = postOutcome(state, name);
   const roll = Number(side.fansRoll || 0), minimum = Math.min(1, fans);

@@ -1,0 +1,537 @@
+/*
+ * The team's roster (screens/team/roster/). The table, the badges, the chips,
+ * the stat strip, the dots, the buttons and the sheet are the ui/ sheets'; this
+ * one lays them out and draws the panel beside the table, the open row's panel
+ * and the lines of text between them.
+ *
+ * Written for a phone first: the table is the page's width and a player's row
+ * opens under him. From 901px the panel stands beside the column of banners,
+ * strip and tables, 340 to 380px wide, and stays in view while the page
+ * scrolls (DeskRoster.html); frame.css draws the desk's frame and panel.
+ */
+.g-roster {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  /* A counter is the two buttons with the label's longest word («COMP», 38px) between them, padding and border. */
+  --roster-full: calc(2 * var(--size-touch) + 48px);
+}
+
+.g-roster__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
+/* The column of banners, strip, tables and the caption: 16px apart on a phone, 14px on a desk (DeskRoster.html). */
+.g-roster__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The three sections, one under the other; a desk draws them in one card (frame.css). */
+.g-roster__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/*
+ * «Active roster» with the number; the save's status stands at the right of it. On a phone a long status
+ * («Waiting for the network · edits: 1») goes under the heading rather than breaking it in two.
+ */
+.g-roster__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+  min-width: 0;
+}
+
+.g-roster__heading {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The number beside a heading: the body's face, quiet (Stats.html: 15px at 500). */
+.g-roster__count {
+  color: var(--muted);
+  font: 500 15px var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__status {
+  display: inline-flex;
+  flex: none;
+}
+
+/*
+ * The save's status as SaveOffline.html draws it: a dot and the words in the state's colour, no capsule. The words
+ * waiting for the network keep the warn tint's ink: the prototype's gold is 2.6:1 on the page; the dot is the gold.
+ */
+.g-roster__status .g-status {
+  height: auto;
+  padding: 0;
+  background: transparent;
+  font: 600 13px/1.3 var(--font-body);
+}
+.g-roster__status .g-status--live { color: var(--accent-text); }
+
+/* What the coach has to know of the save, above the table: another device's save, no network. */
+.g-roster__notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+/*
+ * Stage 08's treasury strip between the banners and the table, on a desk (DeskRoster): strip.css draws it, and the
+ * roster's gap spaces it, as it does the banners and the table, so it needs no margin of its own.
+ */
+.g-roster__strip {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* No network leads with its sign, in the banner's own colour, before the words (SaveOffline.html). */
+.g-roster__offline {
+  display: grid;
+  min-width: 0;
+}
+.g-roster__offline > * { grid-area: 1 / 1; }
+.g-roster__offline > .g-icon {
+  z-index: 1;
+  align-self: center;
+  margin-left: var(--space-14);
+  color: var(--on-warn-tint);
+  pointer-events: none;
+}
+.g-roster__offline > .g-callout { padding-left: calc(var(--space-14) + 22px + var(--space-10)); }
+
+/*
+ * A banner's action (Task 11): «Edit outside the match» and the way to the post-match, or the way to the
+ * preparation alone. On a desk it stands at the right of the words, on one line; up to 900px it is a line of
+ * its own, the switch across it and the link under it (StatsLive.html, K9).
+ */
+.g-roster__calloutactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-16);
+  min-width: 0;
+}
+
+/* The way to where the banner's news is dealt with: one line, a thumb tall, in the banner's own ink. */
+.g-roster__calloutlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* What stands in place of the table: the wait, nobody on the roster, a read that failed. */
+.g-roster__loading,
+.g-roster__empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+  margin: 0;
+}
+
+/* A row opened on a phone: the counters, the way to the profile; 16px in, the view's padding (Stats.html). */
+.g-roster__rowpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-4) 0 var(--space-14);
+}
+
+/*
+ * The counters: on a phone all of them alike, two to a row (the owner, 2026-10-23: no narrow row of three under the main
+ * six), or one where two would squeeze «COMP» between their buttons (under about 312px): never more than two, and no
+ * breakpoint; in the desk's panel, during a match only (D3), all of them as tiles three by three (D1).
+ */
+.g-roster__counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr));
+  gap: var(--space-8);
+}
+
+/* A desk's nine tiles, three by three (D1, DeskRosterLive.html); a tenth (CATCH) starts a fourth row. */
+.g-roster__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+/* «SPP 3 · manual edit» and, at the right, what the coach's edits have moved it since the screen opened. */
+/* In a narrow place the title and the sum do not share a line: the sum goes under it, not the title in two. */
+.g-roster__sppline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--space-10);
+  min-width: 0;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__sppctx { min-width: 0; }
+/* «SPP **12** · manual edit»: the figure in the ink, bold (Stats.html). */
+.g-roster__sppctx b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.g-roster__sppdelta {
+  flex: none;
+  color: var(--accent-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.g-roster__sppdelta--none { color: var(--muted); }
+
+/* The desk panel's block of counters in a match, «Match records · round 3» (DeskRosterLive.html's records block). */
+.g-roster__manual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+
+.g-roster__manualtitle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Under the match's tiles: what waits for the post-match. */
+.g-roster__matchnote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 12px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The panel's head: the badge, the name with the position and the value under it, the pencil at the right. */
+.g-roster__phead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  min-width: 0;
+}
+
+.g-roster__pwho {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-roster__pname {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 30px/1.05 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-roster__pline {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__edit {
+  margin-left: auto;
+  text-decoration: none;
+}
+
+/*
+ * A way to the player's page that a match has closed until its post-match: still in reach, it says why when pressed,
+ * in the look button.css gives a disabled button (a primary, or the red one, keeps its full words on the grey fill).
+ */
+.g-roster__closed {
+  cursor: default;
+  opacity: .6;
+}
+.g-btn--primary.g-roster__closed,
+.g-btn--danger.g-roster__closed {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  opacity: 1;
+}
+/* button.css lights a primary that is not :disabled under the pointer; an aria-disabled one keeps its resting look. */
+.g-btn--primary.g-roster__closed[aria-disabled="true"]:hover { background: var(--disabled); }
+
+/* The SPP: what he may spend, large; what he earned and spent; the advancements; «Advance»; the cheapest one. */
+.g-roster__spp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+
+.g-roster__spptop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.g-roster__avail {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.g-roster__availn {
+  color: var(--accent-text);
+  font: 700 40px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__availl {
+  color: var(--ink);
+  font: 600 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__ledger {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.g-roster__ledgerline { display: block; }
+
+/* In a 320px panel the caption does not fit beside the six bars: it goes under them whole rather than in two lines. */
+.g-roster__spp .g-progress {
+  flex-wrap: wrap;
+  row-gap: var(--space-6);
+}
+
+.g-roster__spp .g-progress__caption { white-space: nowrap; }
+
+.g-roster__cheapest {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+/* His skills as cards, and the categories he may take them from. */
+.g-roster__pblock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* A card opens the rule: a finger's 44px, where its padding and two lines alone make 43. */
+.g-roster__pblock .g-skill--card { min-height: var(--size-touch); }
+
+.g-roster__ptitle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 22px/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__access {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* «Next match: **Plays**»: the state bold in the ink, in red when he will not play (DeskRoster.html). */
+.g-roster__next {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-roster__next b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.g-roster__next .g-roster__nextstate--alert { color: var(--danger); }
+
+/* The next match and the pair of actions under a rule, 10px apart. */
+.g-roster__nextblock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: var(--space-14) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+
+@media (max-width: 900px) {
+  .g-roster__aside { display: none; }
+  /* The phone's treasury is the Team tab's card. Hidden whole, the strip leaves no empty place in the roster's gap. */
+  .g-roster__strip { display: none; }
+
+  /* K9: the banner's switch and link take a line of their own, and wrap rather than push the page sideways. */
+  .g-roster__notices .g-callout__action {
+    white-space: normal;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .g-roster__calloutactions .g-toggle { flex: 1 1 100%; }
+}
+
+@media (min-width: 901px) {
+  /*
+   * The column and the panel 20px apart. The panel is DeskRoster.html's 380px (340 and its padding) where the page
+   * has room, a third of the content, and never under 340px, where a match's tile still holds «− 12+1 +» between two
+   * 24px buttons (action-stepper.css): at 901 to about 1400px the table scrolls in its frame beside it.
+   */
+  .g-roster__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 34%, 380px);
+    gap: var(--space-20);
+    align-items: start;
+  }
+
+  .g-roster__main { gap: var(--space-14); }
+
+  .g-roster__aside {
+    box-sizing: border-box;
+    position: sticky;
+    top: var(--space-24);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-20);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+  }
+
+  /*
+   * The panel shows the whole of itself and the page scrolls (DeskRosterLive.html): no scroll box of its own. Taller
+   * than the window below its top offset, it does not stick — stuck, its foot (the next match, the pair of actions)
+   * would be out of reach until the table ended; aside-fit.mjs gives it this class then.
+   */
+  .g-roster__aside--tall { position: static; }
+}

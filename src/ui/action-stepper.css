@@ -1,0 +1,166 @@
+/*
+ * A − / count / + cell for SPP actions.
+ */
+.g-stepper {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-stepper__btn {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-stepper__btn--inc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A refusal that explains itself (aria-disabled) looks like the plain one (:disabled). */
+.g-stepper__btn:disabled,
+.g-stepper__btn[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+/* A refused plus loses the accent fill, as the counter's does: on it the icon all but disappears in the dark palettes. */
+.g-stepper__btn--inc:disabled,
+.g-stepper__btn--inc[aria-disabled="true"] { background: var(--surface-3); }
+
+.g-stepper__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.g-stepper__label {
+  color: var(--muted);
+  font: 600 12px/1.1 var(--font-body);
+  letter-spacing: .04em;
+  text-transform: none;
+}
+.g-stepper__spp { color: var(--accent-text); }
+
+.g-stepper__value {
+  color: var(--ink);
+  font: 700 20px/1.1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+/* What this match added to the count, beside the count. */
+.g-stepper__delta {
+  margin-left: 2px;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/*
+ * The compact cell, for a narrow tile (the post-match's TTM, landing and
+ * bonus, three to a phone's row; the roster panel's tiles): two rows. The top
+ * one holds the label and the count with what this match added; under it the
+ * − and the + sit side by side, each at least a thumb wide. A count never
+ * shares a line with a button, so a two-digit count and its "+1" are never
+ * covered; a third of a 360px phone is about 98px, and 2 x 44px and a gap fit.
+ * Under about 98px the + would overhang the cell.
+ */
+.g-stepper--compact {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+/* When the label and the count do not fit one line (a long label in a third of a phone), the count drops under the label: they never overlap. */
+.g-stepper__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-6);
+  padding: 0 2px;
+}
+.g-stepper__top .g-stepper__value { margin-left: auto; }
+
+.g-stepper__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(var(--size-touch), 1fr));
+  gap: 2px;
+}
+.g-stepper--compact .g-stepper__btn {
+  width: auto;
+  min-width: var(--size-touch);
+}
+
+/*
+ * A desk's tile (D1, DeskRosterLive.html's records block): the label with its worth centred on top, then the −, the
+ * count and the + on one line. The buttons are 32px, a desk's compact size (D2), and give way first where the tile is
+ * narrow (a 340px panel), down to WCAG 2.5.8's 24px; the count never does: its size follows the tile's width
+ * (17px in DeskRosterLive's 380px panel, 13.5px in a 340px one), and what the match added is a superscript beside it, as
+ * the table's. So a two-digit count and its «+1» fit between two 24px buttons at the narrowest. A phone never draws a
+ * tile (the panel is a desk's), so its 44px are untouched.
+ */
+.g-stepper--tile {
+  container-type: inline-size;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: var(--space-6) 2px 2px;
+  border-color: var(--line-strong);
+}
+.g-stepper--tile .g-stepper__label {
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+.g-stepper__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.g-stepper--tile .g-stepper__btn {
+  flex: 0 1 32px;
+  width: auto;
+  min-width: 24px;
+  height: 32px;
+  border-radius: 9px;
+}
+.g-stepper--tile .g-stepper__btn .g-icon {
+  width: 14px;
+  height: 14px;
+}
+/*
+ * 17px in a 95px tile (DeskRosterLive's), 13.5px in the narrowest (81px): a straight line between, never under 13px.
+ * A browser without container query units drops the clamp whole and keeps the 15px before it (the 07-desk handoff).
+ */
+.g-stepper--tile .g-stepper__value {
+  flex: none;
+  margin-inline: 1px;
+  font-size: 15px;
+  font-size: clamp(13px, calc(26cqi - 7.6px), 17px);
+  white-space: nowrap;
+}
+.g-stepper--tile .g-stepper__delta {
+  margin-left: 1px;
+  font-size: 10px;
+  line-height: 0;
+  vertical-align: super;
+}

@@ -53,7 +53,7 @@ function declaredNames(source) {
   const names = new Set();
   const patterns = [
     /(?:^|\s)(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/g,
-    /(?:^|\s)(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g,
+    /(?:^|[\s;(])(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g,
     /(?:^|\s)(?:export\s+)?class\s+([A-Za-z_$][\w$]*)/g,
   ];
   for (const pattern of patterns) {
@@ -109,7 +109,7 @@ function exportedDeclarations(source) {
  */
 function usedNames(source) {
   const names = new Set();
-  for (const match of source.matchAll(/(^|[^.\w$])([A-Za-z_$][\w$]*)(?!\s*:)/g)) names.add(match[2]);
+  for (const match of source.matchAll(/(^|[^.\w$])([A-Za-z_$][\w$]*)(?![\w$]|\s*:)/g)) names.add(match[2]);
   return names;
 }
 

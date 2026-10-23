@@ -1,0 +1,181 @@
+/*
+ * The frame around every screen (index.html, filled by shell/shell.mjs): up to
+ * 900px a column — the header, then the content and the footer line under it;
+ * from 901px the SideNav beside the content, which carries the footer line
+ * itself. A `bare` page (sign-in, registration) brings its own frame and gets
+ * none of it: no header, no SideNav, no footer, and #app-view without padding.
+ *
+ * The view's padding is the prototypes' `<main>`'s: 16 16 28 on a phone (Team.html,
+ * Matches.html, Player.html, CoachProfile.html, Guest.html), 24 32 40 on a desk
+ * (every Desk*.html but the sign-in). Its three figures are custom properties on
+ * #app-view, so a band that goes out over the padding to the content's edges
+ * (ui/page-head.css) reads the same figures.
+ *
+ * The header's and the SideNav's own looks are app-header.css's and
+ * side-nav.css's; this sheet says where they stand and when.
+ */
+
+/* A sheet locks the page's scrolling (ui/sheet.css); the scrollbar's room stays, so nothing shifts sideways. */
+html { scrollbar-gutter: stable; }
+
+.g-frame {
+  box-sizing: border-box;
+  min-height: 100vh;
+  background: var(--page);
+}
+
+.g-frame__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+/*
+ * Nothing wide pushes the page sideways: what goes past the main's sides is
+ * cut off with `clip`, which, unlike `hidden`, makes no box that scrolls. So
+ * the window is the one box a sticky part sticks to, on every screen: the
+ * roster's panel, the reference's, a profile's head, the builder's save, a
+ * match visit's foot. And a column of its own, so a short page fills the
+ * screen and the footer line stands at its foot: the content grows into the
+ * room the header leaves. The 2.x view's floor (the screen less an 81px top
+ * bar that is gone) would have scrolled an empty page.
+ */
+.g-main {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: clip;
+}
+.g-frame #app-view {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+#app-view { padding: var(--view-top) var(--view-side) var(--view-bottom); }
+
+/*
+ * #app-view takes the focus from the skip link and after a form's navigation (sign-in, registration,
+ * sign-out), as a tabindex="-1" container: a place the keyboard starts from, not a control, so no ring
+ * is drawn round the whole screen. Its first link or field draws its own when Tab reaches it.
+ */
+#app-view:focus { outline: none; }
+
+/*
+ * The skip link (index.html), the first stop of the Tab key: out of sight until it takes the focus, then at the top
+ * left of the page, over the header and the SideNav. `:focus`, not only `:focus-visible`: a control nobody can see
+ * is reached by a keyboard or a screen reader, and both should reveal it. A button 44px tall; the ring is the
+ * base's.
+ */
+.g-skip {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 100;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-skip:focus { top: 8px; }
+
+/* The line a screen stands in while what it shows is read: the page's first, and a team list read again. */
+.g-loading {
+  margin: 0;
+  padding: var(--space-24) 0;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The footer line on the page, under the content (the SideNav draws it on the header colour). --faint is under 4.5:1 here. */
+.g-main__footer {
+  box-sizing: border-box;
+  padding: var(--space-16) var(--space-16) var(--space-24);
+}
+
+.g-site-footer {
+  margin: 0;
+  color: var(--muted);
+  font: 400 11px/1.5 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Underlined, and padded to a 44px target without moving the lines. */
+.g-site-footer a {
+  padding: 16px 0;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  #app-view {
+    --view-top: 16px;
+    --view-side: 16px;
+    --view-bottom: 28px;
+  }
+  .g-frame > .g-sidenav { display: none; }
+  /*
+   * The header sticks to the top of a phone's page, 102px drawn and 91px folded: an element the keyboard
+   * reaches above the view (Shift+Tab) is scrolled to stand under it, not behind it (WCAG 2.4.11).
+   */
+  html { scroll-padding-top: 110px; }
+  /*
+   * A drilled-into address (a player's or the team's settings) has no header: the screen's own head sticks there
+   * instead. The padding is the larger of the two heads, the player's, up to 150px with a name on two lines.
+   */
+  :root:has(.g-frame[data-drill]) { scroll-padding-top: 150px; }
+}
+
+@media (min-width: 901px) {
+  #app-view {
+    --view-top: 24px;
+    --view-side: 32px;
+    --view-bottom: 40px;
+  }
+  .g-frame {
+    display: grid;
+    grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
+    align-items: start;
+  }
+  .g-frame__main { background: var(--desk); }
+  .g-frame__main > .g-appbar,
+  .g-main__footer { display: none; }
+}
+
+/*
+ * A player's address or the team's settings is drilled into (owner, 2026-10-19 and 2026-10-20): no header
+ * band; the screen draws its own head with «‹».
+ */
+.g-frame[data-drill] .g-appbar { display: none; }
+
+/* A page with a frame of its own: the whole width, nothing of the shell, and its own top and sides. */
+.g-frame[data-shell="bare"] { display: block; }
+.g-frame[data-shell="bare"] > .g-sidenav,
+.g-frame[data-shell="bare"] .g-appbar,
+.g-frame[data-shell="bare"] .g-main__footer { display: none; }
+.g-frame[data-shell="bare"] #app-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+}
+/* The screen's root fills the frame; a sheet a bare screen puts in #app-view (the post-match's, the preparation's) keeps
+   its own place — a phone's at the bottom, a desk's window centred at its width. */
+.g-frame[data-shell="bare"] #app-view > :not(dialog) {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}

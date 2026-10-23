@@ -1,0 +1,56 @@
+/*
+ * A player's number on a disc in his position's colour.
+ */
+.g-num {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--pos-lineman);
+  color: var(--on-accent);
+  font: 700 17px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-num--lineman { background: var(--pos-lineman); }
+.g-num--thrower { background: var(--pos-thrower); }
+.g-num--catcher { background: var(--pos-catcher); }
+.g-num--blitzer { background: var(--pos-blitzer); }
+.g-num--big { background: var(--pos-big); }
+/* A player who has died: no position's colour. After the positions' classes, so it wins over a class that is also there. */
+.g-num--fallen { background: var(--surface-3); color: var(--muted); }
+
+/* At the head of a player's page, on the dark header colour. */
+.g-num--lg {
+  width: 60px;
+  height: 60px;
+  box-shadow: 0 0 0 2px var(--header-ink);
+  font-size: 28px;
+}
+
+.g-num__n { font-variant-numeric: tabular-nums; }
+
+/* The captain's mark in the corner; the word for a screen reader is the badge's own. */
+.g-num__captain {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--crest-gold);
+  color: var(--pitch-900);
+  font: 700 10px/16px var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}

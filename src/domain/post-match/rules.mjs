@@ -1,6 +1,8 @@
 import { matchError } from '../match/rules.mjs';
 
 export const POST_STEPS = ['result', 'fans', 'players', 'roster', 'finance', 'next', 'review'];
+/** The Players step's place in `POST_STEPS`: a side's `stage` while it writes its statistics and takes its advancements. */
+export const PLAYERS_STAGE = POST_STEPS.indexOf('players');
 export const POST_STATS = ['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'crowdCasualties', 'foulCasualties'];
 export const INJURIES = ['none', 'badly-hurt', 'miss', 'niggling', 'lasting', 'dead'];
 export const RESULT_MODES = ['played', 'technical', 'conceded', 'conceded-safe'];
@@ -20,7 +22,9 @@ export function postDie(value, maximum) {
 }
 
 export function resultAgreed(state) {
-  return Boolean(state.result && state.result.accepted.home && state.result.accepted.away);
+  // The score is shared; saving it once opens each coach's own checklist.
+  // Keep accepted as authorship metadata for drafts created by earlier versions.
+  return Boolean(state.result && (state.result.official || state.result.accepted?.home || state.result.accepted?.away));
 }
 
 export function postOutcome(state, name) {

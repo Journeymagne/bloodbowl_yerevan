@@ -55,12 +55,15 @@ const mimeTypes = new Map([
   [".woff2", "font/woff2"],
 ]);
 
-function cacheControlForStatic(url, fullPath) {
+export function cacheControlForStatic(url, fullPath) {
   const pathname = url.pathname;
   const extension = path.extname(fullPath);
   if (extension === ".html" || pathname === "/" || pathname === "/index.html") {
     return "no-cache";
   }
+  // Unversioned, so they must follow a deploy at once; they are small and
+  // fetched only while maintenance is on.
+  if (pathname.startsWith("/public/maintenance/")) return "no-cache";
   if (url.searchParams.has("v") || pathname.startsWith("/assets/")) {
     return "public, max-age=31536000, immutable";
   }

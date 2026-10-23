@@ -7,15 +7,98 @@
  * inside each test would bury what is being proved.
  *
  * So: real tree semantics (parentNode, insertBefore that moves, removeChild),
- * real attribute storage, real focus and selection. No parser — tests build
- * trees with `el()` and `text()` and hand them to `patch()` directly, which is
- * the second form its signature accepts. The markup-string form goes through
- * `<template>` and is proved in the browser check instead.
+ * real attribute storage, real focus and selection, real event capture and bubbling.
+ *
+ * Trees come from `el()` and `text()`, handed to `patch()` directly (the second
+ * form its signature accepts), or from `parseHtml()` — a strict parser for the
+ * markup `src/ui` writes: double-quoted attributes, explicit closing tags, the
+ * five escapes `escapeHtml` emits, no comments, no scripts. It throws on
+ * anything else instead of guessing the way a browser does, so a component
+ * that emits sloppy markup fails its test rather than passing against a tree
+ * the real parser would build differently. So does what a browser would move:
+ * a block after the `<p>` it closes, a table part it would wrap or drop,
+ * anything but a table part inside one (stage 07a; fake-dom-nesting.mjs).
+ * Selectors are as strict: tags, `#id`, `.class`, `[attr]`, `[attr="value"]`,
+ * descendants and lists; any other syntax throws, never "matches nothing".
+ *
+ * `element.innerHTML = markup` and a `<template>`'s `innerHTML` go through that
+ * same parser, so the markup-string form of `patch()` works here and is as
+ * strict as everything else. What a browser would build differently from an
+ * element's innerHTML is refused too: a table part its element does not take
+ * (a row in a div), markup assigned to a textarea, a fragment's innerHTML. A template's children live in
+ * its `content`, never in its `childNodes`, and a `<template>` cannot be written
+ * inside markup (its children would belong there). innerHTML is write-only.
  */
+
+import { matchesList, parseSelectorList, select } from "./fake-dom-selectors.mjs";
+import { checkPlacement, checkText } from "./fake-dom-nesting.mjs";
 
 /** `savedAt` -> `saved-at`, the way dataset names map onto attributes. */
 function dashed(name) {
   return String(name).replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
+/** The whitespace HTML knows about — not `\s`, which also swallows a no-break space. */
+const BLANK = /[ \t\n\r\f]/;
+const BLANKS = /[ \t\n\r\f]+/;
+const ONLY_BLANKS = /^[ \t\n\r\f]*$/;
+
+/** `classList` over the `class` attribute, so markup and code see one storage. */
+function classListOf(element) {
+  const tokens = () => (element.getAttribute("class") ?? "").split(BLANKS).filter(Boolean);
+  // Like a browser: an element with no class attribute and nothing to put in it stays without one.
+  const write = (next) => {
+    if (next.length || element.hasAttribute("class")) element.setAttribute("class", next.join(" "));
+  };
+  const valid = (token) => {
+    if (token === "" || BLANK.test(token)) throw new Error(`classList: bad token ${JSON.stringify(token)}`);
+    return token;
+  };
+  const add = (...names) => {
+    const next = tokens();
+    for (const name of names) if (!next.includes(valid(name))) next.push(name);
+    write(next);
+  };
+  const remove = (...names) => {
+    names.forEach(valid);
+    write(tokens().filter((token) => !names.includes(token)));
+  };
+  const toggle = (name, force) => {
+    const present = tokens().includes(valid(name));
+    const wanted = force === undefined ? !present : Boolean(force);
+    if (wanted && !present) add(name);
+    if (!wanted && present) remove(name);
+    return wanted;
+  };
+  return { contains: (token) => tokens().includes(token), add, remove, toggle };
+}
+
+/** The event `fireEvent` builds and `close()` sends — the fields a handler can rely on. */
+function createEvent(type, init = {}) {
+  return {
+    type,
+    bubbles: true,
+    defaultPrevented: false,
+    cancelBubble: false,
+    preventDefault() { this.defaultPrevented = true; },
+    stopPropagation() { this.cancelBubble = true; },
+    ...init,
+  };
+}
+
+/**
+ * The capture flag of addEventListener's third argument: `true`, `false`, or
+ * an object with nothing but `capture` in it. `once`, `passive` and `signal`
+ * change what runs and when; ignoring them would be a guess, so they throw.
+ */
+function captureOf(options) {
+  if (options === undefined || typeof options === "boolean") return Boolean(options);
+  if (options !== null && typeof options === "object" && Object.keys(options).every((name) => name === "capture")) return Boolean(options.capture);
+  throw new Error("fake-dom: addEventListener options other than capture are not supported");
+}
+
+function requireDialog(element, method) {
+  if (element.tagName !== "DIALOG") throw new Error(`fake-dom: ${method}() on <${element.tagName.toLowerCase()}>, which is not a dialog`);
 }
 
 class FakeNode {
@@ -53,6 +136,9 @@ class FakeNode {
     if (at === -1) throw new Error("removeChild: not a child");
     this.childNodes.splice(at, 1);
     node.parentNode = null;
+    // A dialog that leaves the tree leaves the top layer with it, and is no longer modal even
+    // where it is put back (a move is a removal and an insertion): `open` stays as it was.
+    for (const inside of node.walk()) if (inside.tagName === "DIALOG") inside.modalOpened = false;
     // A browser drops focus to the body when the focused node leaves the tree.
     // Without this the fake keeps reporting a detached element as focused, and
     // patch()'s restore path would never be exercised.
@@ -107,8 +193,13 @@ class FakeElement extends FakeNode {
     super(1, ownerDocument);
     this.tagName = tagName.toUpperCase();
     this.attributes = [];
+    this.listeners = new Map();
+    this.captureListeners = new Map();
+    this.classList = classListOf(this);
     this.value = undefined;
     this.checked = undefined;
+    // Whether showModal() opened it, which `isModal` and `:modal` read; only a <dialog> ever sets it.
+    this.modalOpened = false;
     // A text field always has a caret, at 0 until something moves it. Getting
     // this wrong hides the bug patch() is meant to prevent: a rebuilt field
     // that takes focus back but drops the caret to the end.
@@ -132,6 +223,10 @@ class FakeElement extends FakeNode {
     return this.attributes.find((attribute) => attribute.name === name)?.value ?? null;
   }
 
+  hasAttribute(name) {
+    return this.attributes.some((attribute) => attribute.name === name);
+  }
+
   setAttribute(name, value) {
     const existing = this.attributes.find((attribute) => attribute.name === name);
     if (existing) existing.value = String(value);
@@ -144,20 +239,118 @@ class FakeElement extends FakeNode {
 
   removeAttribute(name) {
     this.attributes = this.attributes.filter((attribute) => attribute.name !== name);
+    // A dialog without its `open` attribute is closed, and a closed one is not modal.
+    if (name === "open") this.modalOpened = false;
   }
 
-  /** `[data-key="…"]`, a bare `[attribute]`, and `#id`. */
+  /** The first descendant that matches — see `parseSelectorList` for the syntax. */
   querySelector(selector) {
-    const keyed = /^\[data-key="(.*)"\]$/.exec(selector);
-    const present = /^\[([\w-]+)\]$/.exec(selector);
-    const byId = /^#(.+)$/.exec(selector);
-    for (const node of this.walk()) {
-      if (node === this || node.nodeType !== 1) continue;
-      if (keyed && node.getAttribute("data-key") === keyed[1]) return node;
-      if (present && node.getAttribute(present[1]) !== null) return node;
-      if (byId && node.id === byId[1]) return node;
-    }
+    return select(this, selector, false).next().value ?? null;
+  }
+
+  querySelectorAll(selector) {
+    return [...select(this, selector, false)];
+  }
+
+  matches(selector) {
+    return matchesList(this, parseSelectorList(selector));
+  }
+
+  /** This element or the nearest ancestor that matches. */
+  closest(selector) {
+    const list = parseSelectorList(selector);
+    for (let walk = this; walk; walk = walk.parentNode) if (matchesList(walk, list)) return walk;
     return null;
+  }
+
+  addEventListener(type, listener, options) {
+    const lists = captureOf(options) ? this.captureListeners : this.listeners;
+    const list = lists.get(type) ?? [];
+    if (!list.includes(listener)) list.push(listener);
+    lists.set(type, list);
+  }
+
+  removeEventListener(type, listener, options) {
+    const list = (captureOf(options) ? this.captureListeners : this.listeners).get(type);
+    if (list?.includes(listener)) list.splice(list.indexOf(listener), 1);
+  }
+
+  /**
+   * Capture listeners of the ancestors run first, from the top down; then
+   * this node's own, capture ones before bubbling ones; then, unless the event
+   * does not bubble, the bubbling listeners of each ancestor up through
+   * `parentNode`. Within a node listeners run in subscription order.
+   * `stopPropagation()` ends the walk after the current node's listeners.
+   * Returns false when a listener called `preventDefault()`.
+   */
+  dispatchEvent(event) {
+    event.target ??= this;
+    const ancestors = [];
+    for (let node = this.parentNode; node; node = node.parentNode) ancestors.push(node);
+    const run = (node, ...maps) => {
+      event.currentTarget = node;
+      for (const list of maps.map((map) => map.get(event.type) ?? [])) {
+        // A listener removed by an earlier one on the same node does not run.
+        for (const listener of [...list]) if (list.includes(listener)) listener.call(node, event);
+      }
+      return !event.cancelBubble;
+    };
+    const goingDown = [...ancestors].reverse().every((node) => run(node, node.captureListeners));
+    if (goingDown && run(this, this.captureListeners, this.listeners) && event.bubbles !== false) {
+      ancestors.every((node) => run(node, node.listeners));
+    }
+    // A browser clears it once dispatch is over; keeping it would hide a
+    // handler that reads `currentTarget` from a timer. `cancelBubble` stays,
+    // so a test can see that a handler stopped the event.
+    event.currentTarget = null;
+    return !event.defaultPrevented;
+  }
+
+  /** A template keeps what it holds in `content`, a fragment of its own, and its `childNodes` stay empty. */
+  get content() {
+    if (this.tagName !== "TEMPLATE") return undefined;
+    this.templateContent ??= new FakeFragment(this.ownerDocument);
+    return this.templateContent;
+  }
+
+  /** Writing replaces the children (a template's, its content) with what `parseHtml` builds; see `setInnerHtml`. */
+  set innerHTML(markup) {
+    setInnerHtml(this, markup);
+  }
+
+  /** Serialising a tree would be a second source of truth for the parser; read it with queries and textContent. */
+  get innerHTML() {
+    throw new Error("fake-dom: innerHTML is write-only; read the tree with querySelector and textContent");
+  }
+
+  /** Reflects the `open` attribute, as `<dialog>` and `<details>` do. */
+  get open() {
+    return this.hasAttribute("open");
+  }
+
+  /**
+   * What `:modal` asks: opened by `showModal()` and still open, in the tree. A dialog that was drawn
+   * with `open`, or opened by setting the attribute, is open and not modal.
+   */
+  get isModal() {
+    return this.tagName === "DIALOG" && this.modalOpened === true && this.hasAttribute("open");
+  }
+
+  /** A modal dialog is a no-op to open again; one that is open without being modal is an error, as in a browser. */
+  showModal() {
+    requireDialog(this, "showModal");
+    if (this.isModal) return;
+    if (this.open) throw new Error("fake-dom: showModal() on a dialog that is already open and not modal (InvalidStateError)");
+    this.setAttribute("open", "");
+    this.modalOpened = true;
+  }
+
+  /** A closed dialog says nothing; an open one fires a `close` that does not bubble. */
+  close() {
+    requireDialog(this, "close");
+    if (!this.open) return;
+    this.removeAttribute("open");
+    this.dispatchEvent(createEvent("close", { bubbles: false }));
   }
 
   focus() {
@@ -169,12 +362,36 @@ class FakeElement extends FakeNode {
     this.selectionStart = start;
     this.selectionEnd = end;
   }
+
+  /** The fake page has no layout: every box is a point at the origin, so nothing is out of view. A test that needs a layout stubs this. */
+  getBoundingClientRect() {
+    return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+  }
+}
+
+/** What `parseHtml` returns: a holder for the top-level nodes, which selectors never treat as an element. */
+class FakeFragment extends FakeElement {
+  constructor(ownerDocument) {
+    super("fragment", ownerDocument);
+    this.isFragment = true;
+  }
 }
 
 class FakeDocument {
   constructor() {
     this.activeElement = null;
+    this.documentElement = new FakeElement("html", this);
     this.body = new FakeElement("body", this);
+    this.documentElement.appendChild(this.body);
+  }
+
+  /** The `html` element is a candidate too, as it is a child of a real document. */
+  querySelector(selector) {
+    return select(this.documentElement, selector, true).next().value ?? null;
+  }
+
+  querySelectorAll(selector) {
+    return [...select(this.documentElement, selector, true)];
   }
 
   createElement(tagName) {
@@ -220,6 +437,157 @@ export function el(document, tagName, attributes = {}, ...children) {
     element.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
   }
   return element;
+}
+
+/** Dispatch a new event at `target` and hand it back, so a test can read what handlers did to it. */
+export function fireEvent(target, type, init = {}) {
+  const event = createEvent(type, init);
+  target.dispatchEvent(event);
+  return event;
+}
+
+const VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+const ENTITIES = new Map([["amp", "&"], ["lt", "<"], ["gt", ">"], ["quot", '"']]);
+
+// One piece of an opening tag, after its name: the gap, then `>` / `/>`, or an
+// attribute — bare, or `=` and a double-quoted value (group 5 is missing when
+// the value is not one, which is the error to report).
+const TAG_PART = /([ \t\n\r\f]*)(?:(\/?>)|([a-zA-Z_:][\w:.-]*)(=(?:"([^"]*)")?)?)/y;
+const TAG_NAME = /<([a-zA-Z][\w-]*)/y;
+const CLOSING_TAG = /<\/([a-zA-Z][\w-]*)>/y;
+const ENTITY = /&(#x[0-9a-f]+|#[0-9]+|[a-z]+);|&/gi;
+
+/** The five escapes `escapeHtml` writes, plus numeric references; anything else is a mistake. */
+function decodeEntities(text, fail) {
+  return text.replace(ENTITY, (whole, name) => {
+    if (name === undefined) return fail('a bare "&" — write &amp;');
+    if (name[0] !== "#") return ENTITIES.get(name) ?? fail(`unknown entity ${whole}`);
+    const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+    const surrogate = code >= 0xd800 && code <= 0xdfff;
+    if (!(code > 0 && code <= 0x10ffff) || surrogate) return fail(`bad character reference ${whole}`);
+    return String.fromCodePoint(code);
+  });
+}
+
+/**
+ * Parse the strict markup `src/ui` writes into a fragment of fake nodes.
+ *
+ * Text becomes text nodes (whitespace-only ones are dropped, as between tags in
+ * a formatted template), tags become elements, `value` and `checked` are
+ * mirrored into properties the way `el()` does it. Everything a browser would
+ * quietly repair — an unclosed tag, a stray `</p>`, single-quoted or unquoted
+ * attributes, a bare `&` or `<`, a comment, a script — throws.
+ *
+ * `context` is the tag name of the element the markup is set into (`"TBODY"`,
+ * `"TEMPLATE"`…), `null` an ordinary element: what may stand at the top level
+ * depends on it, as in a browser.
+ */
+export function parseHtml(document, markup, { context = null } = {}) {
+  const fail = (message, at) => {
+    throw new Error(`parseHtml: ${message} (at ${at}: ${JSON.stringify(String(markup).slice(at, at + 24))})`);
+  };
+  if (typeof markup !== "string") fail("markup must be a string", 0);
+  const root = new FakeFragment(document);
+  const open = [root];
+
+  let at = 0;
+  while (at < markup.length) {
+    if (markup[at] !== "<") {
+      const end = markup.indexOf("<", at);
+      const stop = end === -1 ? markup.length : end;
+      let text = markup.slice(at, stop);
+      // Inside a textarea blanks are the field's value, not formatting, and a
+      // browser drops one newline right after the opening tag.
+      const field = open.at(-1).tagName === "TEXTAREA";
+      if (field && !open.at(-1).childNodes.length && text.startsWith("\n")) text = text.slice(1);
+      if (text !== "" && (field || !ONLY_BLANKS.test(text))) {
+        checkText(open, (message) => fail(message, at));
+        open.at(-1).appendChild(document.createTextNode(decodeEntities(text, (message) => fail(message, at))));
+      }
+      at = stop;
+    } else if (markup.startsWith("<!", at)) {
+      fail("comments, doctypes and CDATA are not supported", at);
+    } else if (markup.startsWith("</", at)) {
+      CLOSING_TAG.lastIndex = at;
+      const closing = CLOSING_TAG.exec(markup);
+      if (!closing) fail("malformed closing tag", at);
+      const name = closing[1].toUpperCase();
+      if (open.length === 1) fail(`</${closing[1]}> closes nothing`, at);
+      if (open.at(-1).tagName !== name) fail(`</${closing[1]}> where <${open.at(-1).tagName.toLowerCase()}> is still open`, at);
+      const closed = open.pop();
+      if (closed.tagName === "TEXTAREA") closed.value = closed.textContent;
+      at = CLOSING_TAG.lastIndex;
+    } else {
+      at = parseOpeningTag(document, markup, at, open, fail, context);
+    }
+  }
+  if (open.length > 1) fail(`<${open.at(-1).tagName.toLowerCase()}> is never closed`, markup.length);
+  return root;
+}
+
+/** One `<name …>` or `<name …/>`: builds the element, nests it, and returns where scanning resumes. */
+function parseOpeningTag(document, markup, start, open, fail, context) {
+  TAG_NAME.lastIndex = start;
+  const named = TAG_NAME.exec(markup);
+  if (!named) fail('a bare "<" — write &lt;', start);
+  const name = named[1];
+  const lower = name.toLowerCase();
+  if (lower === "script") fail("<script> is not supported", start);
+  if (lower === "template") fail("a <template> in markup keeps its children in .content, which is not modelled; set innerHTML on a template element instead", start);
+  if (open.at(-1).tagName === "TEXTAREA") fail("a <textarea> holds text only", start);
+  checkPlacement(lower, open, context, (message) => fail(message, start));
+
+  const element = document.createElement(name);
+  const seen = new Set();
+  let at = TAG_NAME.lastIndex;
+  let selfClosing = false;
+  for (;;) {
+    TAG_PART.lastIndex = at;
+    const part = TAG_PART.exec(markup);
+    if (!part) fail(`unexpected character inside <${name}>`, at);
+    const [whole, gap, end, attribute, equals, quoted] = part;
+    at += whole.length;
+    if (end) { selfClosing = end === "/>"; break; }
+    if (gap === "") fail(`attributes need a space before them in <${name}>`, at - whole.length);
+    if (seen.has(attribute)) fail(`duplicate attribute ${attribute} in <${name}>`, at - whole.length);
+    seen.add(attribute);
+    if (equals !== undefined && quoted === undefined) fail(`${attribute} needs a double-quoted value`, at - whole.length);
+    const value = quoted === undefined ? "" : decodeEntities(quoted, (message) => fail(message, at - whole.length));
+    if (attribute === "value" && (lower === "textarea" || lower === "select")) {
+      fail(`a browser ignores value on <${lower}>; ${lower === "textarea" ? "put the text between the tags" : "mark an <option> selected"}`, start);
+    }
+    element.setAttribute(attribute, value);
+    if (attribute === "value") element.value = value;
+    if (attribute === "checked") element.checked = true;
+  }
+
+  const isVoid = VOID_ELEMENTS.has(lower);
+  const inSvg = lower === "svg" || open.some((node) => node.tagName === "SVG");
+  // In HTML a browser ignores the slash on any other element and leaves it open.
+  if (selfClosing && !isVoid && !inSvg) fail(`"/>" on <${name}> would be ignored by a browser and leave it open; write <${name}></${name}>`, start);
+  open.at(-1).appendChild(element);
+  if (!selfClosing && !isVoid) open.push(element);
+  return at;
+}
+
+// Contexts whose innerHTML a browser reads as text, not as markup.
+const TEXT_CONTEXTS = new Set(["TEXTAREA", "TITLE", "STYLE", "SCRIPT"]);
+
+/**
+ * `element.innerHTML = markup`: the children (a template's content) are replaced
+ * by what `parseHtml` builds. Parsing comes first, so markup that does not parse
+ * leaves the element as it was; the old children are removed one by one, so
+ * focus drops to the body when the focused node leaves, as it does in a browser.
+ * The element's tag is the parse context: a row may start `<tbody>`'s markup, not a `<div>`'s.
+ */
+function setInnerHtml(element, markup) {
+  const name = element.tagName.toLowerCase();
+  if (element.isFragment) throw new Error("fake-dom: a fragment has no innerHTML; a browser would set a property that parses nothing");
+  if (TEXT_CONTEXTS.has(element.tagName)) throw new Error(`fake-dom: innerHTML on a <${name}> is text in a browser, not markup; set textContent`);
+  const parsed = parseHtml(element.ownerDocument, markup, { context: element.tagName });
+  const target = element.content ?? element;
+  for (const child of [...target.childNodes]) target.removeChild(child);
+  for (const child of [...parsed.childNodes]) target.appendChild(child);
 }
 
 /** A shorthand for asserting structure: tag names and keys, nested. */

@@ -1,0 +1,346 @@
+/*
+ * A team's friendlies (screens/matches/challenges-view.mjs): Challenges.html up to 900px, DeskChallenges.html from 901px.
+ * Values from Challenges.html and DeskChallenges.html. Colours are tokens: a coach's circle is the header's (the
+ * prototype's maroon and blue have none); the neutral chip's dot and «vs» are --muted. Long logins and team names wrap;
+ * nothing is cut with «…» (the prototype cuts the match's names). A thumb's targets are 44 high up to 900px (D2): the
+ * prototype's 40 is a desk's.
+ */
+.g-friendly {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-friendly :where(h2, p, ul, li, b) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-friendly :where(ul) { list-style: none; }
+
+/*
+ * The title and «played 2» on one baseline (Challenges.html): Oswald 24, not the head's 26, at Oswald's own line height
+ * (the prototype's `normal`, as its card titles and «Ours vs Theirs»). The column's gap is the space under them.
+ */
+.g-friendly .g-pagehead--phone {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-10);
+  margin: 0;
+}
+.g-friendly .g-pagehead--phone .g-pagehead__title { font: 700 24px/normal var(--font-display); }
+.g-friendly .g-pagehead--phone .g-pagehead__meta { margin-top: 0; }
+/*
+ * A desk's line under the title keeps the head's 4 over it (page-head.css), which the page's margin reset above would
+ * take, at Golos' own line height as DeskChallenges.html's band: the band 94 high, as the prototype's.
+ */
+.g-friendly .g-pagehead__sub {
+  margin: var(--space-4) 0 0;
+  line-height: normal;
+}
+.g-friendly__played {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+}
+.g-friendly__note {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+}
+
+/* «Challenge» and «Match preparation»: 48 high and 15px, 12 round (Challenges.html), not the shared 52 and 17px. */
+.g-friendly .g-btn--primary {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-lg);
+  font: 700 15px/1.2 var(--font-body);
+}
+.g-friendly .g-btn--block { width: 100%; }
+
+.g-friendly__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+.g-friendly__loading,
+.g-friendly__none {
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+}
+
+/* A phone's section: its caption over its cards, 18 apart, as the prototype's column. */
+.g-friendly__section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.g-friendly__caption {
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A card: a phone's challenge, a desk's section. */
+.g-friendly__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.g-friendly__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/* The coach: his letter in a circle of 44, the login 700 16 over the line 13, each at Golos' own height (the prototype gives none). */
+.g-friendly__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.g-friendly__id {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-friendly__login {
+  color: var(--ink);
+  font: 700 16px/1.2 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-friendly__line {
+  color: var(--muted);
+  font: 400 13px/1.2 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* The chips: the prototype's 12px and its dot of 7, not the shared 13 and 8; the neutral one's dot is --muted. */
+.g-friendly .g-status { font-size: 12px; }
+.g-friendly .g-status::before {
+  width: 7px;
+  height: 7px;
+}
+.g-friendly__item--accepted .g-status::before { background: var(--muted); }
+
+/* «Accept…» and «Decline» side by side, «Cancel the challenge» the card's width: 44 to a thumb, 14px 700, 12 round. */
+.g-friendly__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+}
+.g-friendly__actions--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g-friendly__actions .g-btn {
+  min-height: 44px;
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-lg);
+  font: 700 14px/1.2 var(--font-body);
+}
+.g-friendly__actions .g-btn:not(.g-btn--primary) { color: var(--ink); }
+
+/*
+ * While a write is on its way the page's buttons are closed (aria-disabled, so a focus on one stays) as a disabled
+ * button is drawn (ui/button.css): dimmed, a primary by its grey fill; the «Decline» or «Cancel» pressed is busy.
+ */
+.g-friendly .g-btn[aria-disabled="true"] {
+  cursor: default;
+  opacity: .6;
+}
+.g-friendly .g-btn--primary[aria-disabled="true"] {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  opacity: 1;
+}
+.g-friendly .g-btn[aria-busy="true"] { cursor: progress; }
+
+/* Accepted: the chip and the day at the top, «Ours vs Theirs» across (Oswald 19, «vs» 17), what the match offers under them. */
+.g-friendly__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+.g-friendly__when {
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+}
+.g-friendly__match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-10);
+}
+.g-friendly__side {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 19px/1.1 var(--font-display);
+  overflow-wrap: anywhere;
+}
+.g-friendly__side--other { text-align: right; }
+.g-friendly__vs {
+  color: var(--muted);
+  font: 400 17px/1.1 var(--font-display);
+}
+/* A desk's «Ours vs Theirs» in one line of Oswald 22 at its own line height (DeskChallenges.html's `normal`), wrapping. */
+.g-friendly__pair {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 22px/normal var(--font-display);
+  overflow-wrap: anywhere;
+}
+.g-friendly__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.g-friendly__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-decoration: none;
+}
+.g-friendly__sent {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The history's heading is its button, in the heading's own words and size: the whole line, 44 high to a thumb (the
+ * room over the caption's line taken back, so it stands 18 from its neighbours as the others do). The chevron points
+ * down, and up once the list is open.
+ */
+.g-friendly__fold {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.g-friendly__caption .g-friendly__fold { margin: -14px 0; }
+.g-friendly__fold .g-icon { transform: rotate(90deg); }
+.g-friendly__fold[aria-expanded="true"] .g-icon { transform: rotate(-90deg); }
+.g-friendly__history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.g-friendly__history[hidden] { display: none; }
+.g-friendly__past {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-friendly__pastlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  /*
+   * Challenges.html's page is grey to its edges, 16 in, at any width up to 900: the view gives up its padding (the
+   * frame's 16 16 28, shell/frame.css) and the page takes the same figures, Challenges.html's main, inside its grey.
+   */
+  #app-view:has(> .g-friendly--phone) { padding: 0; }
+  .g-friendly--phone {
+    padding: var(--space-16) var(--space-16) 28px;
+    background: var(--surface-2);
+  }
+}
+
+/* ---- A desk (DeskChallenges.html): the band, the two cards side by side, accepted the whole width ---- */
+@media (min-width: 901px) {
+  /*
+   * The view pads 24 32 40, as DeskChallenges.html's main, and the band (page-head.css) reaches the edges over it with
+   * its title on the cards' edge, 32 in. Under it, 24 before the first card, as the prototype's main's top: 4 and the
+   * page's gap of 20.
+   */
+  .g-friendly--desk { gap: var(--space-20); }
+  .g-friendly--desk > .g-pagehead { margin-bottom: var(--space-4); }
+  .g-friendly__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    align-items: start;
+    gap: var(--space-20);
+  }
+  .g-friendly__group { padding: 18px var(--space-20); }
+  /* A card's title: Oswald 24 at its own line height, as DeskChallenges.html's (`normal`). */
+  .g-friendly__title {
+    color: var(--ink);
+    font: 700 24px/normal var(--font-display);
+  }
+
+  /* A challenge is a row: the circle and who at the left, the buttons at the right; they go under a long name rather than squeeze it. */
+  .g-friendly__item {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-12);
+  }
+  .g-friendly__who { flex: 1 1 160px; }
+  .g-friendly__actions {
+    display: flex;
+    gap: var(--space-12);
+    margin-left: auto;
+  }
+  .g-friendly__actions .g-btn { min-height: 40px; }
+
+  /* Accepted: the chip, «Ours vs Theirs», the match's ways at the right, 16 apart. */
+  .g-friendly__item--accepted { gap: var(--space-16); }
+  .g-friendly__links {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  .g-friendly__fold { min-height: 28px; }
+  .g-friendly__pastlink { min-height: 24px; }
+}

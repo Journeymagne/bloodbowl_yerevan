@@ -1,0 +1,579 @@
+/*
+ * The match board (ui/match-board.mjs): a dark card, the two teams with the
+ * score between them, and a bar of squares and actions.
+ *
+ * The design system's MatchBoard README is older than 0.9 (its actions are
+ * «Start the match» and «Cancel the start»); the anatomy and the drawing are
+ * DeskOverview.html's, the actions are 0.9's (matchActions in
+ * shell/current-match.mjs). Written for a phone first: the same three columns,
+ * compact; from 901px the desk's size.
+ */
+.g-board {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * A match in progress: the match card rings it in the accent, the dark band in the live green. The ring is drawn inside
+ * the band, on the dark: outside it would sit on the page, where the live green is 1.7:1 in the light palettes, and an
+ * outline, unlike a shadow, stays in forced-colours mode.
+ */
+.g-board--live {
+  outline: 2px solid var(--live);
+  outline-offset: -2px;
+}
+
+/* Our team at the left, theirs at the right, the score between them. */
+.g-board__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12);
+}
+
+.g-board__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  text-align: left;
+}
+.g-board__side--away {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.g-board__name {
+  color: var(--header-ink);
+  font: 700 18px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-board__sub {
+  color: var(--header-muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A side with a crest or a letter (DeskOverview.html; both a desk's, below): the name and its line are boxed together
+ * beside it, the column the side was without one.
+ */
+.g-board__texts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-board__side--away .g-board__texts { align-items: flex-end; }
+
+/*
+ * The opponent's name as a link to the team: white, as the name is, and not underlined. The overview draws the links
+ * on a desk only (24px there, below); drawn on a phone, they would be a finger's size.
+ */
+a.g-board__name {
+  min-height: var(--size-touch);
+  text-decoration: none;
+}
+a.g-board__name:hover { text-decoration: underline; }
+
+/* A line that starts with the race: the race, then « · » and the rest 6px after it, the rest wrapping as a whole. */
+.g-board__sub--race {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-6);
+}
+.g-board__side--away .g-board__sub--race { justify-content: flex-end; }
+
+/* The race leading to its rules: the book, then the words in the ink, underlined in a fainter ink. */
+.g-board__race {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 13px/1.35 var(--font-body);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--header-ink) 40%, transparent);
+  text-underline-offset: 3px;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.g-board__race:hover { text-decoration-color: var(--header-ink); }
+
+/* In the opponent's place while the next round is not paired: when there will be one. */
+.g-board__pending {
+  color: var(--header-muted);
+  font: 400 14px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-board__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.g-board__overline {
+  color: var(--header-muted);
+  font: 700 12px/1.2 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.g-board__score {
+  color: var(--header-ink);
+  font: 700 40px/1 var(--font-display);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Squares and actions on a bar darker than the card. */
+.g-board__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-20);
+  padding: var(--space-10) var(--space-12);
+  background: color-mix(in srgb, #000 20%, transparent);
+}
+
+/* The season's matches, one square each. They are no links: a square is smaller than a tap. */
+.g-board__pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-board__square {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: 700 12px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Not played: a wash of the ink. */
+.g-board__square--none {
+  background: color-mix(in srgb, var(--header-ink) 14%, transparent);
+  color: var(--header-ink);
+}
+
+/* The match the page is about. It comes before the results so a played match keeps its colours: the ring is what marks it. */
+.g-board__square--current {
+  outline: 2px solid var(--header-ink);
+  color: var(--header-ink);
+}
+
+.g-board__square--w {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.g-board__square--d {
+  background: var(--neutral-result);
+  color: var(--on-accent);
+}
+.g-board__square--l {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+.g-board__square--t {
+  background: var(--result-friendly);
+  color: var(--on-accent);
+}
+
+/* On a phone the actions are a column, each the width of the bar. */
+.g-board__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+/* The line of a score that is sent, over its buttons. */
+.g-board__note {
+  color: var(--header-ink);
+  font: 700 14px/1.3 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * The buttons on the band. The primary is the light one, the rest are outlined
+ * in the ink; both set what button.css would otherwise leave to a page (a
+ * primary there is the accent, the full width and 52px high).
+ */
+.g-board__actions .g-btn {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--header-ink);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-board__actions .g-btn:hover { background: color-mix(in srgb, var(--header-ink) 12%, transparent); }
+
+.g-board__actions .g-btn--primary {
+  background: var(--header-ink);
+  color: var(--header);
+  font-weight: 700;
+}
+/* button.css turns a primary into the dark accent on hover; here it only dims a little. */
+.g-board__actions .g-btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--header-ink) 88%, var(--header)); }
+
+/* A plain link: the words, and a 44px box for the finger to find. */
+.g-board__link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-12);
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-board__link:hover { text-decoration: underline; }
+
+/* The keyboard ring on the dark band is the header's ink (decision 19 of stage 05): the accent is for a page. */
+.g-board__actions .g-btn:focus-visible,
+.g-board__link:focus-visible,
+a.g-board__name:focus-visible,
+.g-board__race:focus-visible { outline-color: var(--header-ink); }
+
+/*
+ * A desk's season, page by page (DeskSeason.html, DeskOverview.html; stage 09a). The arrows «‹ ›» are 32px and fade at
+ * their ends; the squares are the tabs between them, 30px as the list's, 4px apart: the one shown white with the band's
+ * ink, the current one when another is shown ringed in 60% of the white instead of the list's outline. Every one of them
+ * is a desk's (24px and more, D2): a phone's squares stay the list above.
+ */
+.g-board__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.g-board__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.g-board__step {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--header-ink);
+  cursor: pointer;
+}
+.g-board__step:disabled {
+  color: color-mix(in srgb, var(--header-ink) 30%, transparent);
+  cursor: default;
+}
+
+.g-board__nav [role="tab"] { cursor: pointer; }
+.g-board__nav [role="tab"][aria-selected="true"] {
+  background: var(--header-ink);
+  color: var(--header);
+}
+.g-board__nav [role="tab"].g-board__square--current { outline: 0; }
+.g-board__nav [role="tab"].g-board__square--current:not([aria-selected="true"]) {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--header-ink) 60%, transparent);
+}
+
+/* A past match: the score in the colour of a win or a loss, and under it the outcome in it, the note in the muted ink. */
+.g-board__score--w { color: var(--live); }
+.g-board__score--l { color: var(--on-header-loss); }
+
+.g-board__outcome {
+  color: var(--header-ink);
+  font: 700 13px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-board__outcome--w { color: var(--live); }
+.g-board__outcome--l { color: var(--on-header-loss); }
+.g-board__outcome-note {
+  color: var(--header-muted);
+  font-weight: 500;
+}
+
+/* The chips in the middle of the bar: «CAS 3–1», «MVP Gruk». A long one wraps inside its pill. */
+.g-board__chips {
+  display: flex;
+  flex: 1 1 200px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-6);
+}
+
+.g-board__chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-12);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--header-ink) 10%, transparent);
+  color: var(--header-muted);
+  font: 600 13px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A bubble that opens «Before the match»: 28px, a wash of the white in a fainter ring, the «i» after the words. */
+.g-board__bubble {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 28px;
+  margin: var(--space-4) 0 0;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--header-ink) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--header-ink) 25%, transparent);
+  color: var(--header-ink);
+  font: 600 13px/1.2 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.g-board__bubble .g-icon { flex: none; }
+.g-board__side--away .g-board__bubble { align-self: flex-end; }
+.g-board__mid .g-board__bubble { align-self: center; }
+
+/* A past match's way back to the current one, where the actions stand: 40px, ringed in 40% of the white. */
+.g-board__tocurrent {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 var(--space-14);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--header-ink) 40%, transparent);
+  color: var(--header-ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+/*
+ * The keyboard's ring on the band is the header's ink here too, 2px off the control: on the shown square, white itself,
+ * a ring that touched it would only make it look bigger. A tab's outline above is no ring.
+ */
+.g-board__step:focus-visible,
+.g-board__nav [role="tab"]:focus-visible,
+.g-board__bubble:focus-visible,
+.g-board__tocurrent:focus-visible {
+  outline: 3px solid var(--header-ink);
+  outline-offset: 2px;
+}
+
+/*
+ * On a phone the middle column is held narrow, so the names keep their room: the overline wraps, and so does a
+ * status such as «Waiting for confirmation», which the chip's own sheet would keep on one line. The chip is
+ * tightened so the longest word of a status, with the dot, fits the column: «подтверждения» at 12px is 95px,
+ * plus the dot, the gap and the padding, 119px of the 124.
+ */
+@media (max-width: 900px) {
+  .g-board__mid { max-width: 124px; }
+
+  .g-board__mid .g-status {
+    gap: var(--space-4);
+    height: auto;
+    min-height: 26px;
+    padding: var(--space-4) var(--space-6);
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* Team.html has no board, and the phone's keeps its room for the names: neither the crest nor the letter. */
+  .g-board__crest,
+  .g-board__initial { display: none; }
+}
+
+/*
+ * At 320px the sides are 62px wide, and a word of a team or a race (Grimtusk, Lizardmen) needs 68 at the sizes above, so it
+ * broke in the middle. A narrower middle column would not hold «подтверждения» (see above); the names are one size smaller
+ * and the gaps and the padding give the sides 68.
+ * The one breakpoint besides 900/901, kept on purpose: without it «Lizardmen» and «Necromantic» break mid-word at 320px.
+ */
+@media (max-width: 359px) {
+  .g-board__main {
+    gap: var(--space-4);
+    padding-right: var(--space-10);
+    padding-left: var(--space-10);
+  }
+
+  .g-board__name { font-size: 16px; }
+
+  .g-board__sub { font-size: 12px; }
+}
+
+@media (min-width: 901px) {
+  /*
+   * A bubble keeps its line (G1): a side is never narrower than its bubble beside its crest, the other side gives way
+   * (DeskSeason-1024 broke the pill in two; at 1024 «+90k for inducements» needs 246px of the 230 an even split gives).
+   * Narrower still, the side without the bubble puts its letter or crest over its name rather than break the name.
+   */
+  .g-board__main {
+    grid-template-columns: minmax(min-content, 1fr) auto minmax(min-content, 1fr);
+    gap: var(--space-24);
+    padding: var(--space-22) 28px;
+  }
+
+  .g-board__bar { padding-right: var(--space-16); padding-left: var(--space-16); }
+
+  .g-board__name { font: 700 32px/1 var(--font-display); }
+
+  /* DeskOverview.html: our crest at the left of our name, their letter in a ringed circle at the right of theirs, 16px off. */
+  .g-board__side--emblem {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-16);
+  }
+  .g-board__side--away.g-board__side--emblem { flex-direction: row-reverse; }
+  .g-board__side--emblem:not(.g-board__side--bubble) { flex-wrap: wrap; }
+  .g-board__side--emblem .g-board__texts { flex: 1 1 120px; }
+
+  .g-board__crest {
+    display: flex;
+    flex: none;
+  }
+  .g-board__crest .g-crest {
+    width: 52px;
+    height: 59px;
+  }
+
+  .g-board__initial {
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--header-ink) 50%, transparent);
+    color: var(--header-ink);
+    font: 700 26px/1 var(--font-display);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* D2's 24px; the race's take no room from its line, which stays the prototype's 17.5px (as .g-profile__back does). */
+  a.g-board__name { min-height: 24px; }
+  .g-board__race {
+    min-height: 24px;
+    margin: -3px 0;
+  }
+
+  /* DeskOverview.html's chip: 24px high, 12px; its weight, its padding and its dots are the kit's. */
+  .g-board__mid .g-status {
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .g-board__score { font: 700 72px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+  /* The actions go to the right of the bar, side by side, as wide as their words. */
+  .g-board__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    margin-left: auto;
+  }
+
+  .g-board__actions .g-btn { width: auto; }
+
+  /* DeskSeason.html's line of a score sent: who confirms it, quiet, beside the actions (the fidelity pass's G5). */
+  .g-board__note {
+    max-width: 260px;
+    color: var(--header-muted);
+    font: 400 14px/1.4 var(--font-body);
+    text-align: left;
+  }
+}

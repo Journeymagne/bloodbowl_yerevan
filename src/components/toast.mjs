@@ -7,10 +7,15 @@
  * roster interrupts what the coach was doing to say something they can only
  * acknowledge.
  *
- * Toasts live outside `#app-view` on purpose. That element is
- * `aria-live="polite"` and every screen re-render rewrites it wholesale, so a
- * message placed inside would be re-announced on the next keystroke; this
- * region announces once, when the message arrives.
+ * The toasts have a region of their own, which announces each one once, when
+ * it arrives. It stands in the body, or, while a sheet is open, in that sheet:
+ * a modal dialog puts the rest of the page under its backdrop and makes it
+ * inert, so a toast in the body would be neither seen nor heard. A toast takes
+ * the region to the top open modal; when that dialog closes, the region goes
+ * back to the body (or to the modal still open under it). The sheet's redraws
+ * leave it alone (`data-patch-keep`, core/dom.mjs), and a redraw that takes the
+ * sheet away without closing it leaves the region on the page, where the next
+ * toast finds it. Its look is ui/toast.css.
  */
 import { errorText } from "../core/api.mjs";
 
@@ -18,14 +23,35 @@ const AUTO_DISMISS_MS = 6000;
 
 let region = null;
 const dismissTimers = new WeakMap();
+/** The dialogs whose `close` sends the region on: one listener each, for as long as the dialog lives. */
+const watched = new WeakSet();
+
+/** The open modal dialog on top, which makes the page under it inert, or null when none is open. */
+function topModal() {
+  return [...document.querySelectorAll("dialog")].reverse().find((dialog) => dialog.matches(":modal")) ?? null;
+}
+
+/** Put the region where a toast is seen and heard: in the top open modal, else in the body. */
+function placeRegion() {
+  const host = topModal() ?? document.body;
+  if (region.parentNode !== host) host.append(region);
+  if (host === document.body || watched.has(host)) return;
+  watched.add(host);
+  host.addEventListener("close", () => {
+    // A region taken out of the page with the whole page (a test's, a screen's innerHTML) is not brought back.
+    if (region && (region.isConnected || host.contains(region))) placeRegion();
+  });
+}
 
 function toastRegion() {
-  if (region?.isConnected) return region;
-  region = document.createElement("div");
-  region.className = "toast-region";
-  region.setAttribute("role", "status");
-  region.setAttribute("aria-live", "polite");
-  document.body.append(region);
+  if (!region?.isConnected || region.ownerDocument !== document) {
+    region = document.createElement("div");
+    region.className = "g-toasts";
+    region.setAttribute("role", "status");
+    region.setAttribute("aria-live", "polite");
+    region.setAttribute("data-patch-keep", "");
+  }
+  placeRegion();
   return region;
 }
 
@@ -53,24 +79,26 @@ export function toast(message, { tone = "info", timeout } = {}) {
   }
 
   const node = document.createElement("output");
-  node.className = `toast toast-${tone}`;
+  node.className = `g-toast g-toast--${tone}`;
   node.textContent = text;
   region.append(node);
   keepFor(node, dismissAfter);
   node.addEventListener("click", () => {
     clearTimeout(dismissTimers.get(node));
-    node.remove();
+    dismiss(node);
   });
 }
+
+/** Take one toast away, wherever its region stands now. */
+const dismiss = (node) => node.parentNode?.removeChild(node);
 
 /** (Re)start one toast's countdown, so a repeat refreshes rather than piles up. */
 function keepFor(node, dismissAfter) {
   clearTimeout(dismissTimers.get(node));
-  dismissTimers.set(node, setTimeout(() => node.remove(), dismissAfter));
+  dismissTimers.set(node, setTimeout(() => dismiss(node), dismissAfter));
 }
 
 /** What went wrong, said without blocking the page, in the reader's language. */
 export function toastError(error) {
   toast(errorText(error), { tone: "error" });
 }
-

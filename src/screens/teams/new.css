@@ -1,0 +1,175 @@
+/*
+ * «New team» (screens/teams/new-sheet.mjs): a name and a race, in a sheet over
+ * the screen it is opened on, from the bottom of a phone (TeamNew) and a window
+ * of 760px on a desk (DeskTeamNew). The sheet's frame is ui/sheet.css's; this
+ * file draws what TeamNew and DeskTeamNew draw otherwise, and the races. The
+ * builder is builder.css's; the team's settings draw their warnings in the look
+ * of `.g-races__resets`.
+ *
+ * Up to 900px (TeamNew): a sheet of up to 90% of the screen; the head 6 12 4
+ * with «‹» (the switcher's way back) and the cross, 44px circles on
+ * --surface-3, the title Oswald 700 24px/1.1 2px over a 13px line; the body
+ * 12 16, a column 14 apart; the field 48px, 12 round, on --surface-2; the
+ * races two to a row, 6 apart; the foot 10 16 24 under a rule, «Create» the
+ * whole width, 52px.
+ *
+ * From 901px (DeskTeamNew): a window of 760px, 64px from the top, 20px round,
+ * on its shadow; the head 20 24 over its rule, the title Oswald 700 28px/1
+ * over a 14px line, the cross 44; the body 20 24, 18 apart, a label 8 over what it names; the
+ * races as many to a row as 160px allows, 6 apart; the foot 16 24 under a
+ * rule on --surface-2, «← My teams» at the left when the switcher opened the
+ * sheet, «Create» at the right (sheet.css's row, with one button or two).
+ */
+
+/* The word over the races, in the voice of the field's label above it. */
+.g-new__label {
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-races {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.g-races__item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 500 14px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-races__item[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  font-weight: 700;
+}
+
+/* What another race would cost: the squad begun, said where the race is chosen. */
+.g-races__resets {
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 13px/1.4 var(--font-body);
+}
+
+.g-new__ref {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-text);
+  font: 600 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* The name's field on the soft grey of the prototypes, with no ring. */
+.g-new-sheet .g-field__input {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+/* The season's line 2px under the title, on both widths. */
+.g-new-sheet .g-sheet__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---- A phone (TeamNew) ---- */
+@media (max-width: 900px) {
+  /* TeamNew's sheet takes up to 90% of the screen, sheet.css's 86dvh being the other sheets'. */
+  dialog.g-sheet.g-new-sheet { max-height: 90dvh; }
+  .g-new-sheet .g-sheet__body {
+    gap: var(--space-14);
+    padding: var(--space-12) var(--space-16);
+  }
+  /* D2: the link is a target of 44px. */
+  .g-new__ref { min-height: var(--size-touch); }
+  /* The way back is the head's «‹»; the foot's button is a desk's. */
+  .g-new-sheet .g-sheet__foot-start { display: none; }
+  .g-new-sheet .g-sheet__foot .g-btn--primary {
+    width: 100%;
+    height: 52px;
+  }
+}
+
+/* ---- A desk (DeskTeamNew) ---- */
+@media (min-width: 901px) {
+  /* 64px from the top, its bottom 32px from the window's on a short one: sheet.css's (`at: 64`). */
+  dialog.g-sheet.g-new-sheet {
+    width: min(760px, calc(100% - 32px));
+    border-radius: 20px;
+    box-shadow: var(--shadow-window);
+  }
+
+  .g-new-sheet .g-sheet__head {
+    gap: var(--space-16);
+    padding: var(--space-20) var(--space-24);
+  }
+  /* The way back is the foot's «← My teams»; the head's «‹» is a phone's. */
+  .g-new-sheet .g-sheet__head [data-sheet-back] { display: none; }
+  .g-new-sheet .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-new-sheet .g-sheet__sub { font-size: 14px; }
+
+  .g-new-sheet .g-sheet__body {
+    gap: 18px;
+    padding: var(--space-20) var(--space-24);
+  }
+  .g-new-sheet .g-field { gap: var(--space-8); }
+  /* «Race», the races and the way to their rules are one block, 8 apart, inside the body's 18. */
+  .g-new-sheet .g-races {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    margin-top: -10px;
+  }
+  .g-new__ref {
+    min-height: 24px;
+    margin-top: -10px;
+  }
+
+  /* No justify-content of its own: sheet.css puts «Create» at the right, with the way back at the left or without it. */
+  .g-new-sheet .g-sheet__foot {
+    padding: var(--space-16) var(--space-24);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .g-new-sheet .g-sheet__foot-start .g-btn {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink-2);
+    font: 600 15px/1.2 var(--font-body);
+  }
+  .g-new-sheet .g-sheet__foot .g-btn--primary {
+    height: 48px;
+    min-width: 240px;
+    padding: 0 var(--space-20);
+    border-radius: var(--radius-lg);
+    font-size: 16px;
+  }
+}

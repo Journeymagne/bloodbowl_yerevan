@@ -156,3 +156,16 @@ test("the default keep count is seven", () => {
   const plan = planRotation(dumpsFor(1, 2, 3, 4, 5, 6, 7, 8), { now: new Date("2026-09-01T00:00:00Z") });
   assert.equal(plan.keep.length, 7);
 });
+
+test("a labelled dump carries its label and stays out of rotation", () => {
+  const date = new Date("2026-11-02T15:00:00Z");
+  const name = formatDumpName(date, "premigrate");
+  assert.equal(name, "gata_league-premigrate-20261102-150000.dump");
+  assert.equal(parseDumpTimestamp(name), null);
+});
+
+test("a label that would break the file name is refused", () => {
+  for (const label of ["../etc", "Pre Migrate", "-x", "a".repeat(40)]) {
+    assert.throws(() => formatDumpName(new Date(), label), /label/, label);
+  }
+});

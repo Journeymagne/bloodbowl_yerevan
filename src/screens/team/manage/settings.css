@@ -1,0 +1,402 @@
+/*
+ * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder, DeskBuilder): a card in the
+ * right column of a desk, a screen's body on a phone (settings-screen.mjs, under Builder.html's head; owner,
+ * 2026-10-20), and the row of the phone's team page that leads there — and the lines the sheets add to sheet.css's
+ * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. The keyboard ring is base.css's. A long
+ * name, a long note or a long rule wraps: nothing here is cut with «…».
+ */
+
+.g-team-settings {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * DeskBuilder's heading: Oswald 22px on the font's own line (the prototype sets none), 18px over it and 4px under. Only
+ * the desk's card draws it: the phone's screen is named by its head's h1 (settings-screen.mjs).
+ */
+.g-team-settings__title {
+  margin: 0;
+  padding: 18px 0 var(--space-4);
+  color: var(--ink);
+  font: 700 22px/normal var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* The settings' address focuses it on a desk: a place the keyboard starts from, not a control. */
+.g-team-settings__title:focus { outline: none; }
+
+/* What holds the settings, between the heading and the rows. */
+.g-team-settings .g-callout { margin: var(--space-8) 0; }
+
+/*
+ * A line of the card: a rule under it, the label at the left, the value and the button at the right. Builder's rows are
+ * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; a line that wraps keeps 4px over and under.
+ */
+.g-team-settings__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 53px;
+  margin: 0;
+  padding: var(--space-4) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+}
+.g-team-settings__row--logo { min-height: 61px; }
+/*
+ * The label's side takes what the value or the buttons leave: a short value stays whole on its line, a long one wraps;
+ * the label itself never shrinks under its longest word (the logo's buttons wrap first, at 320px with a logo).
+ */
+.g-team-settings__row > .g-team-settings__label,
+.g-team-settings__row > .g-team-settings__text,
+.g-team-settings__row > .g-team-settings__logo-line { flex: 1 1 0; }
+
+.g-team-settings__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.g-team-settings__label {
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The quieter line under a label: the logo's sizes, the fans' correction, the order. */
+.g-team-settings__note {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-team-settings__value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-10);
+  min-width: 0;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-team-settings__value b {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* The logo: Builder's 40px frame with the picture, or the glyph of one in --muted; its name and its sizes, then its buttons. */
+.g-team-settings__logo-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+}
+.g-team-settings__logo {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+  color: var(--muted);
+  overflow: hidden;
+}
+.g-team-settings__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-team-settings__logo-name {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* «Upload» and «Remove»: on one line where they fit, one under the other where they do not (as the builder's). */
+.g-team-settings__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+/*
+ * A row's button (Builder's «Загрузить»): 12px at its sides, a radius of 10, white with a ring inside it in
+ * --control-border (no border of its own), 14/600 --ink-2. A finger's 44px up to 900px (D2; the prototype's 36px from
+ * 901px). A held one stays in the tab order and says why.
+ */
+.g-team-settings__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink-2);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-team-settings__btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* The file field is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
+.g-team-settings__file:focus-visible + .g-team-settings__btn {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+
+/*
+ * «Roster check» (not Builder's): one more line of the card, as tall and with the same rule under it; its label over
+ * the rules the roster breaks, a line each, in the danger's words, 8px off the rules around it.
+ */
+.g-team-settings__check {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-6);
+  min-height: 53px;
+  margin: 0;
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-team-settings__violations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-team-settings__violation {
+  margin: 0;
+  padding: 0;
+  color: var(--danger);
+  font: 400 14px/1.4 var(--font-body);
+  overflow-wrap: anywhere;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A sheet's body: what holds it, the field, the list or the counter, what goes, the refusal. */
+.g-team-settings__sheet {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * What a god takes off, said before the button, a line each. Its look is TeamNew's line under the races
+ * (`.g-races__resets`, new.css: the warning's tint, 10px 12px, 13/1.4); this is only the lines' layout.
+ */
+.g-team-settings__drops {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  border: 0;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-team-settings__drop {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+/* During a preparation, what a save resets (final review I1), in the words and the look the roster's sheets say it (player-sheets.css). */
+.g-team-settings__prep {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A live region that must stand on the page before it speaks, and takes no room while it is empty: it gives back the column's gap. */
+.g-team-settings__alert { margin: 0; }
+.g-team-settings__alert:empty { margin-top: calc(-1 * var(--space-16)); }
+
+/*
+ * The phone's team page leads to the settings' screen by a row, its last block: framed as the history's card
+ * (manage.css), the row's own rule under it given up to the frame.
+ */
+.g-team-settings-entry {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.g-team-settings-entry .g-list-row { border-bottom: 0; }
+
+/*
+ * The settings' screen on a phone (settings-screen.mjs; Builder.html's head): the header's colour, 10 16 14, «‹» and
+ * the titles in a row 10px apart, sticking to the top of the page as the player's profile's head does (profile.css);
+ * under it the rows, 4px down, 16px at the sides, 28px under the last. A desk has no such screen (the address is the
+ * team page with the card), so every rule is up to 900px. Where Builder.html gives no line height, the font's own.
+ */
+@media (max-width: 900px) {
+  /* The screen reaches the view's edges, as the head does: the frame's padding gives way to it. */
+  .g-frame #app-view:has(> .g-team-settings-screen) {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .g-team-settings-screen {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font: 400 14px/1.3 var(--font-body);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .g-team-settings-screen__head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+    margin: 0;
+    padding: var(--space-10) var(--space-16) var(--space-14);
+    border: 0;
+    background: var(--header);
+    color: var(--header-ink);
+  }
+  .g-team-settings-screen__head :focus-visible { outline-color: var(--header-ink); }
+
+  /* «‹»: Builder.html's circle in the header's ink at 12%, as the builder's own (builder.css); a thumb's 44px (D2; 40 there). */
+  .g-team-settings-screen__back {
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+    color: var(--header-ink);
+    text-decoration: none;
+  }
+
+  .g-team-settings-screen__titles {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .g-team-settings-screen__title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--header-ink);
+    font: 600 22px/1.15 var(--font-display);
+    text-transform: none;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  /* The screen focuses it on arrival: a place the keyboard starts from, not a control. */
+  .g-team-settings-screen__title:focus { outline: none; }
+  .g-team-settings-screen__sub {
+    margin: 0;
+    padding: 0;
+    color: var(--header-muted);
+    font: 400 13px/normal var(--font-body);
+    text-transform: none;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .g-team-settings-screen__body {
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-4) var(--space-16) 28px;
+    border: 0;
+  }
+  /* The games not read, said over the rows as the settings' own callouts are. */
+  .g-team-settings-screen__body > .g-callout { margin: var(--space-8) 0; }
+}
+
+@media (min-width: 901px) {
+  /* DeskBuilder: the card stands last in the team page's right column, under the history (manage.css names the area). */
+  .g-manage__cols > .g-team-settings { grid-area: settings; }
+
+  /* DeskBuilder's team card: 4px over the heading's 18, 24px at its sides, 20px under the last line; white in the kit's ring. */
+  .g-team-settings {
+    padding: var(--space-4) var(--space-24) var(--space-20);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-team-settings__btn { min-height: 36px; }
+}

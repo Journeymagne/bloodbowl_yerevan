@@ -32,6 +32,6 @@
 .team-summary>div:last-child{min-width:0}
 .team-summary h1,.team-summary h2{overflow-wrap:anywhere}
 .dugout-heading{flex-wrap:wrap;gap:5px}
-.roster-tokens{flex-wrap:wrap}
+
 .endzone-label{max-width:85%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 @media(max-width:760px){.setup-sides{grid-template-columns:1fr}.setup-tools{flex-wrap:wrap}.setup-tools input{flex-basis:100%}.setup-actions{flex-wrap:wrap}.setup-roster-list{max-height:270px}.setup-stats{width:105px}.setup-player{gap:6px}.setup-stat-labels>span:last-child{width:105px}}

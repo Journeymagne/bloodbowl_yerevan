@@ -41,14 +41,48 @@ test("Low Cost Linemen excludes hiring fees but retains advancement value", () =
   assert.equal(calculateMatchCtv(preparation.home).total, 20 + 60);
 });
 
-test("lower CTV waits for the higher team; compensation includes actual treasury spend", () => {
+test("lower CTV can choose independently; compensation includes current treasury spend", () => {
   const { preparation, data } = fixtures(); readyRosters(preparation);
-  assert.equal(matchBudget(preparation, "home", data).canChoose, false);
+  assert.equal(matchBudget(preparation, "home", data).canChoose, true);
   preparation.away.basket = { "bloodweiser-keg": 1 }; preparation.away.basketLocked = true;
   const budget = matchBudget(preparation, "home", data);
   assert.equal(budget.canChoose, true); assert.equal(budget.pettyCash, 100); assert.equal(budget.treasuryLimit, 50);
   preparation.home.basket = { "additional-training": 1 };
   assert.equal(matchBudget(preparation, "home", data).treasuryUsed, 0);
+});
+
+test("each coach completes their own preparation before the other begins", () => {
+  const { preparation, data } = fixtures();
+  let next = preparation;
+  for (const name of ['home', 'away']) {
+    for (const action of [{ type: 'fans', value: 2 }, { type: 'weather', season: 'Autumn', home: 3, away: 4 },
+      { type: 'lock-roster' }, { type: 'lock-basket' }, { type: 'confirm' }]) {
+      next = applyPreparationAction(next, name, action, data, name);
+    }
+    assert.equal(preparationStep(next, name), 4);
+    assert.equal(next[name].confirmed, true);
+    if (name === 'home') {
+      assert.equal(next.away.fansRoll, null);
+      assert.equal(preparationStep(next), 0);
+      assert.equal(next.status, 'preparing');
+      assert.throws(() => createMatchSnapshots(next, data), { code: 'MATCH_WAIT' });
+    }
+  }
+  assert.equal(next.status, 'ready');
+  assert.equal(createMatchSnapshots(next, data).home.fanFactor, 4);
+});
+
+test("later opponent purchases reopen only an affected budget and keep the chosen basket", () => {
+  const { preparation, data } = fixtures(); readyRosters(preparation);
+  let next = applyPreparationAction(preparation, 'home', { type: 'basket', id: 'additional-training', quantity: 1 }, data);
+  next = applyPreparationAction(next, 'home', { type: 'lock-basket' }, data);
+  next = applyPreparationAction(next, 'home', { type: 'confirm' }, data);
+  assert.equal(next.home.confirmed, true);
+  next = applyPreparationAction(next, 'away', { type: 'basket', id: 'bloodweiser-keg', quantity: 1 }, data);
+  assert.equal(next.home.confirmed, false);
+  assert.equal(preparationStep(next, 'home'), 3);
+  assert.deepEqual(next.home.basket, { 'additional-training': 1 });
+  assert.equal(matchBudget(next, 'home', data).treasuryUsed, 0);
 });
 
 test("equal CTV prohibits treasury and zero-purchase progression remains possible", () => {

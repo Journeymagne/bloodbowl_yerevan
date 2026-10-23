@@ -21,6 +21,7 @@ export const MIN_DUMP_BYTES = 512;
  *   now?: Date,
  *   keep?: number,
  *   minBytes?: number,
+ *   label?: string,
  * }} options
  * @returns {Promise<{path: string, removed: string[], rotationError: Error|null}>}
  */
@@ -32,11 +33,12 @@ export async function createBackup(options) {
     now = new Date(),
     keep,
     minBytes = MIN_DUMP_BYTES,
+    label = "",
   } = options;
 
   await fs.mkdir(backupDir, { recursive: true, mode: 0o700 });
 
-  const finalName = formatDumpName(now);
+  const finalName = formatDumpName(now, label);
   const finalPath = path.join(backupDir, finalName);
   const partialPath = `${finalPath}${PARTIAL_SUFFIX}`;
 
