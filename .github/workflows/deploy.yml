@@ -17,15 +17,39 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
-            import { execFileSync } from 'node:child_process';
+            import fs from 'node:fs/promises';
+            import crypto from 'node:crypto';
             import { pool } from './server/db/pool.mjs';
+            const file='/root/bb-incident-2026-08-22/gata_league.sql';
+            const target='0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2';
+            const coach='3556860a-fe0f-4980-964c-ccfa64b394ff';
+            function unescape(value) {
+              if(value==='\\N')return null;
+              const escapes={b:'\b',f:'\f',n:'\n',r:'\r',t:'\t',v:'\v','\\':'\\'};
+              return value.replace(/\\([\\bfnrtv]|[0-7]{1,3})/g,(_,match)=>escapes[match]??String.fromCharCode(parseInt(match,8)));
+            }
+            function table(text,name) {
+              const lines=text.split(/\r?\n/),start=lines.findIndex(line=>line.startsWith('COPY public.'+name+' ('));
+              if(start<0)return [];
+              const columns=lines[start].slice(lines[start].indexOf('(')+1,lines[start].indexOf(')')).split(', ').map(name=>name.replaceAll('"',''));
+              const rows=[];
+              for(let at=start+1;at<lines.length&&lines[at]!=='\\.';at++) {
+                const values=lines[at].split('\t');
+                if(values.length!==columns.length)throw new Error('Unexpected COPY row');
+                rows.push(Object.fromEntries(columns.map((column,index)=>[column,unescape(values[index])])));
+              }
+              return rows;
+            }
             try {
-              const migrations=(await pool.query("SELECT *,xmin::text AS transaction_id FROM schema_migrations ORDER BY name")).rows;
-              const rewritten=(await pool.query("SELECT id,home_touchdowns,away_touchdowns,home_casualties,away_casualties,home_points,away_points,updated_at,xmin::text AS transaction_id FROM season_pairings WHERE xmin='3105'::xid ORDER BY id")).rows;
-              const files=execFileSync('find',['/var/backups','/root','/opt/bloodbowl-league','-maxdepth','3','-type','f','(',
-                '-iname','*.dump','-o','-iname','*.backup','-o','-iname','*.sql','-o','-iname','*.sql.gz','-o','-iname','*season*.json',')','-printf','%p %s bytes\n'],{encoding:'utf8',timeout:30000}).trim().split('\n');
-              const logs=(await pool.query("SELECT name,setting FROM pg_settings WHERE name IN ('logging_collector','log_statement','log_min_duration_statement')")).rows;
-              console.log('RECOVERY_DATA '+JSON.stringify({migrations,rewritten,files,logs}));
+              const text=await fs.readFile(file,'utf8'),stat=await fs.stat(file);
+              const entries=table(text,'season_entries').filter(row=>row.id===target||row.user_id===coach);
+              const ids=new Set(entries.map(row=>row.id));
+              const pairs=table(text,'season_pairings').filter(row=>ids.has(row.home_entry_id)||ids.has(row.away_entry_id));
+              const rounds=table(text,'season_rounds').filter(row=>pairs.some(pair=>pair.round_id===row.id));
+              const files=await fs.readdir('/root/bb-incident-2026-08-22');
+              const source={file,sha256:crypto.createHash('sha256').update(text).digest('hex'),modified:stat.mtime.toISOString(),bytes:stat.size};
+              await fs.writeFile('/var/backups/bloodbowl-league/snotling-history-tuples-20261023/incident-records.json',JSON.stringify({source,entries,pairs,rounds}),{mode:0o600});
+              console.log('RECOVERY_DATA '+JSON.stringify({source,entries,pairs,rounds,files}));
             }finally{await pool.end();}
             
             NODE
