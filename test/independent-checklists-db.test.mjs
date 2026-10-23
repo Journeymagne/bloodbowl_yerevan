@@ -36,7 +36,7 @@ test('independent preparation preserves side ownership, readiness and a single s
   });
 });
 
-test('each coach finishes their own post-match independently; settlement waits for both and runs once', { skip: scratchSkip }, async () => {
+for (const chooseMvp of [false, true]) test(`independent settlement waits for both and runs once; MVP chosen: ${chooseMvp}`, { skip: scratchSkip }, async () => {
   await withScratchDatabase(async ({ client, url }) => {
     await startedFriendly(client);
     await withServerPool(url, async () => {
@@ -45,7 +45,7 @@ test('each coach finishes their own post-match independently; settlement waits f
       await assert.rejects(accessPostMatch(G, coaches.home, { side: 'away', revision: state.revision, action: { type: 'fans', roll: 3 } }), { code: 'FIXTURE_NOT_YOURS' });
       for (const name of SIDES) {
         state = await act(name, state, { type: 'fans', roll: 3 });
-        state = await act(name, state, { type: 'statistics', statistics: homeScores(name, state[name]), mvps: [`${name}-6`] });
+        state = await act(name, state, { type: 'statistics', statistics: homeScores(name, state[name]), mvps: chooseMvp ? [`${name}-6`] : [] });
         for (const action of [{ type: 'lock-players' }, { type: 'lock-roster' }, { type: 'finance', deposit: 0, mistake: { roll: 6 } },
           { type: 'next', captain: `${name}-0` }, { type: 'confirm' }]) state = await act(name, state, action);
         if (name === 'home') {
@@ -61,6 +61,10 @@ test('each coach finishes their own post-match independently; settlement waits f
       const done = await act('away', state, null, true);
       assert.equal(done.status, 'completed');
       const rosters = (await client.query('SELECT id, revision, roster FROM saved_teams ORDER BY id')).rows;
+      for (const name of SIDES) {
+        const player = rosters.find(row => row.id === teams[name]).roster.players.find(player => player.id === `${name}-6`);
+        assert.equal(player.spp.mvps, Number(chooseMvp), 'skipping MVP grants no phantom award');
+      }
       assert.equal((await act('home', state, null, true)).revision, done.revision);
       assert.deepEqual((await client.query('SELECT id, revision, roster FROM saved_teams ORDER BY id')).rows, rosters);
     });

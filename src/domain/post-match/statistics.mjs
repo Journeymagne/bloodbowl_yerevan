@@ -42,7 +42,7 @@ export function validateStatistics(state, name) {
     const required = state.result.mode === 'technical' ? 0 : state.result[name][key];
     if (total !== required) throw postError('POST_STATISTICS', { counter: key });
   }
-  if (side.mvps.length !== mvpCount(state, name)) throw postError('POST_MVP');
+  if (side.mvps.length > mvpCount(state, name)) throw postError('POST_MVP');
   for (const id of side.mvps) {
     const player = side.snapshot.players.find(item => item.id === id);
     if (!player || player.kind === 'star' || effectiveInjury(side, id).code === 'dead') throw postError('POST_MVP');

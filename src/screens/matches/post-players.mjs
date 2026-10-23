@@ -279,16 +279,30 @@ export function playersStep(model, draft, { phone, open = false }) {
     asideHtml: injuries, footer };
 }
 
-/** «Next: roster» locks the step (`lock-players`): closed while the score and the records part, the MVP is missing, or a veteran's die is unmarked. */
+/** Optional reminders reflect this side's choices; taking even one advancement is enough to mark that reminder done. */
+function playersChecklist(model, { count, ids }, named) {
+  const side = model.post[model.sideName];
+  const advanced = Object.values(side.advancements).some(choices => choices.length > 0);
+  const available = side.snapshot.players.some(player => canAdvance(model, player.id));
+  return [
+    ...(count && ids.size ? [{ label: t(named >= count ? "after.checklist.mvpDone" : "after.checklist.mvp"), done: named >= count }] : []),
+    ...(advanced || available ? [{ label: t(advanced ? "after.checklist.advanceDone" : "after.checklist.advance"), done: advanced }] : []),
+  ];
+}
+
+/** «Next: roster» requires matching records, valid chosen MVPs and the veterans' dice; choosing MVPs and advancing are optional. */
 export function playersFooter(model, draft) {
   if (model.readonly) return nextLink(model, "roster");
   const { count, ids } = offered(model, draft);
   const mismatched = mismatchMarkup(model, withDraft(model, draft), { ownOnly: true }) !== "";
   const veterans = lostConceding(model) ? model.post[model.sideName].baseRoster.players.filter((player) => (player.advancements ?? []).length >= 3) : [];
   const named = draft.mvps.filter((id) => ids.has(id)).length;
-  const hint = mismatched ? t("after.mismatchShut") : named < count ? t("after.mvpShut")
+  const invalidMvp = named !== draft.mvps.length || named > count;
+  const hint = mismatched ? t("after.mismatchShut") : invalidMvp ? t("error.POST_MVP")
     : veterans.some((player) => !draft.departures[player.id]) ? t("after.departureShut") : "";
-  return actionFooter("lock-players", t("after.next.roster"), hint);
+  return actionFooter("lock-players", t("after.next.roster"), hint, {
+    checklistTitle: t("after.checklist.optional"), checklist: playersChecklist(model, { count, ids }, named),
+  });
 }
 
 /** A counter's next value: within 0…99 (`postCount`), crowd and foul casualties never more than CAS. Null for a step refused. */

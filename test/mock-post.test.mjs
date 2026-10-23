@@ -132,7 +132,7 @@ test("a write is the domain's on the revision read: a stale one, another side, a
   assert.deepEqual(codeOf(await ask(mock, "PATCH", POST, { revision: revision - 1, action: { type: "lock-players" } })), [409, "POST_REVISION"]);
   assert.deepEqual(codeOf(await ask(mock, "PATCH", POST, { revision })), [400, "POST_ACTION"]);
   assert.deepEqual(codeOf(await ask(mock, "PATCH", POST, { revision, side: "away", action: { type: "lock-players" } })), [403, "FIXTURE_NOT_YOURS"]);
-  assert.deepEqual(codeOf(await ask(mock, "PATCH", POST, { revision, action: { type: "lock-players" } })), [409, "POST_MVP"]);
+  assert.deepEqual(codeOf(await ask(mock, "PATCH", POST, { revision, action: { type: "statistics", mvps: ["q1", "q4"] } })), [409, "POST_MVP"]);
   const saved = await press(mock, { type: "statistics", statistics: postMatch.home.statistics, injuries: postMatch.home.injuries, mvps: ["q4"] });
   assert.equal(saved.status, 200);
   assert.deepEqual([saved.payload.postMatch.revision, saved.payload.postMatch.home.mvps, saved.payload.postMatch.home.followsEvents], [revision + 1, ["q4"], false]);

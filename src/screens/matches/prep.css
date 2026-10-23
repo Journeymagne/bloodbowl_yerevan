@@ -200,6 +200,13 @@
 
 .g-prep__hint { color: var(--muted); font: 400 12px/1.35 var(--font-body); letter-spacing: 0; text-align: center; }
 
+.g-prep__checklist { color: var(--ink); font: 400 13px/1.4 var(--font-body); }
+.g-prep__checktitle { color: var(--muted); font-size: 12px; }
+.g-prep__checklist ul { display: grid; gap: var(--space-4); margin: var(--space-4) 0 0; padding: 0; list-style: none; }
+.g-prep__checkitem { display: flex; align-items: baseline; gap: var(--space-8); }
+.g-prep__checkmark { flex: none; width: 16px; text-align: center; }
+.g-prep__checkitem[data-done="true"] .g-prep__checkmark { color: var(--accent-text); }
+
 .g-prep__quiet {
   box-sizing: border-box;
   align-self: center;

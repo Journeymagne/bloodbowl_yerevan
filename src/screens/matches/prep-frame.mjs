@@ -76,11 +76,15 @@ function noticesMarkup(model, extraHtml = "") {
   return notes.length ? `<div class="g-prep__notices">${notes.join("")}</div>` : "";
 }
 
-/**
- * The footer's button: a link on to the next step, a write (`data-prep-action`), or the same closed with why under it.
- * Both forms carry one key (`data-key="prep-cta"`), and the quiet button its own, so a draw that turns the one into the
- * other gives it the focus the old one had (core/dom.mjs `patch`).
- */
+/** Informational checklist; it adds no controls or requirements to the step. */
+function checklistMarkup(footer) {
+  if (!footer.checklist?.length) return "";
+  const items = footer.checklist.map(item => `<li class="g-prep__checkitem" data-done="${Boolean(item.done)}">`
+    + `<span class="g-prep__checkmark" aria-hidden="true">${item.done ? "✓" : "□"}</span><span>${escapeHtml(item.label)}</span></li>`).join("");
+  return `<div class="g-prep__checklist"><span class="g-prep__checktitle">${escapeHtml(footer.checklistTitle)}</span><ul>${items}</ul></div>`;
+}
+
+/** The keyed footer button keeps focus through redraws; optional reminders never disable it. */
 export function prepCtaMarkup(footer) {
   if (footer.kind === "none") return "";
   let button;
@@ -94,7 +98,7 @@ export function prepCtaMarkup(footer) {
   const quiet = footer.quiet
     ? `<button type="button" class="g-prep__quiet" data-key="prep-quiet" data-prep-action="${escapeHtml(footer.quiet.action)}">${escapeHtml(footer.quiet.label)}</button>` : "";
   const hint = footer.hint ? `<span class="g-prep__hint">${escapeHtml(footer.hint)}</span>` : "";
-  return `${button}${hint}${quiet}`;
+  return `${checklistMarkup(footer)}${button}${hint}${quiet}`;
 }
 
 /** The line about the opponent, its dot in the accent once he has done his part, in the warning's colour until then. */

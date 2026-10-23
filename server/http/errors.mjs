@@ -24,7 +24,7 @@ export const API_ERRORS = Object.freeze({
   POST_VALUE: 'Enter a valid non-negative whole number.',
   POST_DICE: 'Enter the result of a D{maximum} roll.',
   POST_STATISTICS: 'Player TD and CAS totals must match the result. Technical wins have no played TD or CAS.',
-  POST_MVP: 'Choose the required MVP recipient(s) from eligible players.',
+  POST_MVP: 'Check the number and eligibility of the selected MVP recipients.',
   POST_PLAYER: 'This player is unavailable for this action.',
   POST_FAVOURED: 'Record the Favoured of roll and a legal bonus skill when it triggers.',
   POST_ADVANCEMENT: 'This advancement is unavailable: check SPP, access and the chosen grant.',

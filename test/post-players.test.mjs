@@ -219,13 +219,15 @@ test("who can advance: a card with the SPP and «Advance»; a taken one with «U
   assert.ok(!shut.querySelector("[data-player-advance], [data-after-untake]"));
 });
 
-test("the footer is closed while the score and the records disagree, the MVP is missing or a veteran's die is not marked", () => {
+test("the footer reminds about optional MVPs and advancements; mismatched records and missing veteran dice still block", () => {
   const model = modelAt(atPlayers());
   const draft = draftOf(model);
   const missing = playersFooter(model, draft);
-  assert.deepEqual([missing.kind, missing.action, missing.label, missing.disabled, missing.hint], ["action", "lock-players", "Next: roster", true, "Choose the MVP first"]);
+  assert.deepEqual([missing.kind, missing.action, missing.label, missing.disabled, missing.hint], ["action", "lock-players", "Next: roster", false, ""]);
+  assert.deepEqual(missing.checklist, [{ label: "Choose MVP", done: false }, { label: "Advance players", done: false }]);
   const ready = playersFooter(model, { ...draft, mvps: ["h3"] });
   assert.deepEqual([ready.disabled, ready.hint], [false, ""]);
+  assert.deepEqual(ready.checklist[0], { label: "MVP chosen", done: true });
   const off = { ...draft, mvps: ["h3"], statistics: { ...draft.statistics, h6: { ...draft.statistics.h6, touchdowns: 1 } } };
   assert.equal(playersFooter(model, off).hint, "First make the players' TD and CAS add up to the score");
   const alert = phone(model, off).querySelector('[role="alert"]');

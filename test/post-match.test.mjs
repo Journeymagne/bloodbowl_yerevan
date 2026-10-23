@@ -282,12 +282,13 @@ test('late prayer statistics reopen finished finance; unrelated statistics keep 
   assert.equal(tapped.home.confirmed, false);
 });
 
-test('full sequence can finish without advancements and seals both confirmations', () => {
+for (const chooseMvp of [false, true]) test(`full sequence can finish without advancements, MVP chosen: ${chooseMvp}`, () => {
   const f = fanSteps(agreed(fixture()));
-  for (const name of ['home', 'away']) { savePlayers(f, name); f.state = applyPostAction(f.state, name, { type: 'lock-players' }, f.data); }
+  for (const name of ['home', 'away']) { savePlayers(f, name, { mvps: chooseMvp ? [name + '-0'] : [] }); f.state = applyPostAction(f.state, name, { type: 'lock-players' }, f.data); }
   for (const name of ['home', 'away']) {
     for (const action of [{ type: 'lock-roster' }, { type: 'finance', deposit: 0, mistake: { roll: 6 } }, { type: 'next', captain: name + '-0' }, { type: 'confirm' }]) f.state = applyPostAction(f.state, name, action, f.data);
-    assert.equal(validatePostSide(f.state, name, f.data).roster.players[0].spp.mvps, 1);
+    assert.equal(validatePostSide(f.state, name, f.data).roster.players[0].spp.mvps, Number(chooseMvp));
+    assert.equal(earnedSpp(f.state, name, name + '-0'), chooseMvp ? 5 : 0);
   }
   assert.equal(f.state.status, 'ready');
   assert.throws(() => applyPostAction(f.state, 'home', { type: 'roster', operation: 'hire', rowIndex: 0 }, f.data), { code: 'POST_CLOSED' });
@@ -301,6 +302,23 @@ test('technical win awards two manual MVPs and D3+2 winnings', () => {
   assert.equal(postWinnings(f.state, 'home'), 40); assert.equal(postWinnings(f.state, 'away'), 0);
   assert.equal(earnedSpp(f.state, 'home', 'home-0'), 5);
   assert.equal(earnedSpp(f.state, 'home', 'home-1'), 5);
+});
+
+test('technical winners can skip either MVP; chosen recipients must still be eligible and within the limit', () => {
+  for (const mvps of [[], ['home-0']]) {
+    const f = fanSteps(agreed(fixture(), { home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } }, 'technical'));
+    savePlayers(f, 'home', { mvps });
+    const locked = applyPostAction(f.state, 'home', { type: 'lock-players' }, f.data);
+    assert.equal(locked.home.stage, 3);
+    assert.equal(earnedSpp(locked, 'home', 'home-0'), mvps.length * 5);
+    assert.equal(earnedSpp(locked, 'home', 'home-1'), 0);
+    for (const invalid of [['home-0', 'home-1', 'home-2'], ['missing']]) {
+      const bad = structuredClone(f.state); bad.home.mvps = invalid;
+      assert.throws(() => applyPostAction(bad, 'home', { type: 'lock-players' }, f.data), { code: 'POST_MVP' });
+    }
+    const dead = structuredClone(f.state); dead.home.mvps = ['home-0']; dead.home.injuries['home-0'] = { code: 'dead' };
+    assert.throws(() => applyPostAction(dead, 'home', { type: 'lock-players' }, f.data), { code: 'POST_MVP' });
+  }
 });
 
 test('technical results normalize the unplayed match score and CAS', () => {

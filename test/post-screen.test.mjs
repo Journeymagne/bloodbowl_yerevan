@@ -464,17 +464,21 @@ it("one Next action per step keeps optional advancements, SPP and chosen skills,
   const chosenMvp = saved(base, { mvps: ["h1"] });
   const partlyAdvanced = act(chosenMvp, "home", { type: "advance", playerId: "h3", advancementType: "random", grant: { skill: "Diving Catch" }, roll: { via: "table" } });
   for (const phone of [true, false]) {
-    for (const post of [chosenMvp, partlyAdvanced]) {
+    for (const post of [base, chosenMvp, partlyAdvanced]) {
       await visit(post, { phone });
       assert.equal(view.querySelectorAll('[data-prep-action="lock-players"]').length, 1);
       assert.equal(cta().textContent, t("after.next.roster"));
       assert.ok(!cta().hasAttribute("disabled"));
+      const checklist = view.querySelectorAll(".g-prep__checkitem");
+      assert.deepEqual(checklist.map(item => item.getAttribute("data-done")), [String(post !== base), String(post === partlyAdvanced)]);
+      assert.equal(view.querySelector(".g-prep__checktitle").textContent, t("after.checklist.optional"));
       assert.ok(view.textContent.includes(t("after.optionalAdvancement")));
       assert.ok(view.querySelectorAll("[data-player-advance]").length >= 2, "several players can still advance");
       const before = postPlayers(post, "home", data);
       const roster = act(post, "home", { type: "lock-players" });
       api.reply(WRITE, 200, payload(roster));
       await pressCta();
+      assert.equal(view.querySelector(".g-prep__checklist"), null, "reminders belong to Players only");
       assert.equal(view.querySelectorAll('[data-prep-action="lock-roster"]').length, 1);
       assert.equal(cta().textContent, t("after.next.finance"));
       assert.ok(view.textContent.includes(t("after.optionalRoster")));
@@ -490,13 +494,6 @@ it("one Next action per step keeps optional advancements, SPP and chosen skills,
       api.assertAnswered();
     }
   }
-  // Skipping optional advancement still needs the mandatory MVP and match records.
-  await visit(base);
-  const shut = cta();
-  assert.ok(shut.hasAttribute("disabled"));
-  assert.ok(view.querySelector(".g-prep__hint").textContent.includes(t("after.mvpShut")));
-  await press(shut);
-  assert.equal(writes().length, 0);
 });
 
 it("Next goes to the next address only after a successful save", async () => {
@@ -1040,7 +1037,7 @@ it("a veteran who missed the match gets his die after a full concession, and «N
   api.assertAnswered();
 });
 
-it("an MVP marked Dead afterwards leaves the MVPs: the write drops him, «Next: roster» asks for another", async () => {
+it("an MVP marked Dead afterwards leaves the MVPs: the reminder returns but Next stays available", async () => {
   const { changePlayers, playersDraft, playersFooter } = await import("../src/screens/matches/post-players.mjs");
   const { postModel } = await import("../src/screens/matches/post-model.mjs");
   const post = at({ home: 2, away: 2 });
@@ -1053,7 +1050,9 @@ it("an MVP marked Dead afterwards leaves the MVPs: the write drops him, «Next: 
   api.reply(WRITE, 200, payload(saved(first, { injuries: dead, mvps: [] })));
   await press(sheet().querySelector('[data-after-injury="h3"] [data-code="dead"]'));
   assert.deepEqual(writes().map((call) => call.body.action.mvps), [["h3"], []]);
-  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.mvpShut"));
+  assert.ok(!cta().hasAttribute("disabled"));
+  assert.equal(view.querySelector(".g-prep__checkitem").getAttribute("data-done"), "false");
+  assert.ok(view.querySelector(".g-prep__checkitem").textContent.includes(t("after.checklist.mvp")));
   // Two MVPs (a technical win): the dead one goes, and another can take his place.
   const technical = reach(agreed(begin(), { mode: "technical", winner: "home", home: [2, 0], away: [0, 0] }), { home: 2, away: 2 });
   const model = postModel(payloadOf(technical), "home", "players", { data });
@@ -1064,10 +1063,11 @@ it("an MVP marked Dead afterwards leaves the MVPs: the write drops him, «Next: 
   assert.deepEqual(changePlayers(model, one, { kind: "mvp", playerId: "h5", on: true }).mvps, ["h4", "h5"]);
   const held = { ...playersDraft(technical.home), injuries: { ...technical.home.injuries, h3: { code: "dead", retire: false } }, mvps: ["h3", "h4"] };
   assert.deepEqual(changePlayers(model, held, { kind: "mvp", playerId: "h5", on: true }).mvps, ["h4", "h5"], "one held dead before: the same");
-  // An MVP the post-match already holds dead (saved so before) counts for none: the button says to choose.
+  // A saved ineligible MVP still needs correcting; having no MVP does not.
   const played = postModel(payloadOf(post), "home", "players", { data });
   const kept = { ...playersDraft(post.home), injuries: { ...post.home.injuries, h3: { code: "dead", retire: false } }, mvps: ["h3"] };
-  assert.equal(playersFooter(played, kept).hint, t("after.mvpShut"));
+  assert.equal(playersFooter(played, kept).hint, t("error.POST_MVP"));
+  assert.equal(playersFooter(played, { ...kept, mvps: [] }).disabled, false);
   assert.equal(playersFooter(played, { ...kept, mvps: ["h4"] }).hint, "", "a live MVP opens it");
   api.assertAnswered();
 });
