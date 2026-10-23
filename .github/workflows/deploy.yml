@@ -18,112 +18,99 @@ jobs:
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
             import fs from 'node:fs/promises';
+            import assert from 'node:assert/strict';
             import { execFileSync } from 'node:child_process';
             import { Pool } from 'pg';
             import { databaseUrl, pool } from './server/db/pool.mjs';
             
-            const destination = '/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
-            const targetCoaches = new Set(['3556860a-fe0f-4980-964c-ccfa64b394ff']);
-            const targetEntries = new Set(['0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2']);
-            const container = 'gata-league-postgres', user = process.env.POSTGRES_USER || 'gata_admin';
-            const scratch = `codex_season_history_${Date.now()}_999`;
-            if (!/^codex_season_history_\d+_\d+$/.test(scratch)) throw new Error('Invalid scratch name');
-            const docker = args => execFileSync('docker', ['exec', container, ...args], { encoding: 'utf8', timeout: 30000 });
-            const quote = value => '"' + value.replaceAll('"','""') + '"';
-            const timestamp = bytes => new Date(Date.UTC(2000,0,1) + Number(bytes.readBigInt64LE()) / 1000).toISOString();
-            function decode(bytes, type) {
-              if (bytes == null) return null;
-              if (type === 'uuid') return bytes.toString('hex').replace(/^(........)(....)(....)(....)(............)$/, '$1-$2-$3-$4-$5');
-              if (type === 'integer') return bytes.readInt32LE();
-              if (type === 'bigint') return bytes.readBigInt64LE().toString();
-              if (type === 'smallint') return bytes.readInt16LE();
-              if (type === 'boolean') return bytes[0] !== 0;
-              if (type === 'timestamp with time zone') return timestamp(bytes);
-              if (type === 'text') {
-                const size = bytes[0]&1 ? bytes[0]>>1 : bytes.readUInt32LE()>>2;
-                if (size !== bytes.length) throw new Error('Unsupported external text');
-                return bytes.subarray(bytes[0]&1 ? 1 : 4).toString('utf8');
+            const directory='/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
+            const target='0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2';
+            const scratch=`codex_snotling_decode_${Date.now()}`;
+            assert.match(scratch,/^codex_snotling_decode_\d+$/);
+            const docker=args=>execFileSync('docker',['exec','gata-league-postgres',...args],{encoding:'utf8',timeout:30000});
+            const user=process.env.POSTGRES_USER||'gata_admin';
+            const quote=name=>'"'+name.replaceAll('"','""')+'"';
+            function value(bytes,type) {
+              if(bytes==null)return null;
+              if(type==='uuid')return bytes.toString('hex').replace(/^(........)(....)(....)(....)(............)$/,'$1-$2-$3-$4-$5');
+              if(type==='integer')return bytes.readInt32LE();
+              if(type==='bigint')return bytes.readBigInt64LE().toString();
+              if(type==='smallint')return bytes.readInt16LE();
+              if(type==='boolean')return bytes[0]!==0;
+              if(type==='timestamp with time zone')return new Date(Date.UTC(2000,0,1)+Number(bytes.readBigInt64LE())/1000).toISOString();
+              if(type==='text') {
+                const size=bytes[0]&1?bytes[0]>>1:bytes.readUInt32LE()>>2;
+                assert.equal(size,bytes.length);
+                return bytes.subarray(bytes[0]&1?1:4).toString('utf8');
               }
-              throw new Error('Unsupported type: ' + type);
+              throw new Error('Unsupported field type '+type);
+            }
+            function tupleInfo(page,start,fields) {
+              const mask2=page.readUInt16LE(start+18),mask=page.readUInt16LE(start+20),natts=mask2&2047,hoff=page[start+22];
+              assert.ok(natts>0&&natts<=fields.length&&hoff>=24&&hoff<=64&&hoff%8===0);
+              const bits=mask&1?Array.from({length:Math.ceil(natts/8)*8},(_,n)=>page[start+23+Math.floor(n/8)]&(1<<(n%8))?'1':'0').join(''):null;
+              let offset=0;
+              for(const field of fields.slice(0,natts)) {
+                if(bits&&bits[field.attnum-1]==='0')continue;
+                const alignment={c:1,s:2,i:4,d:8}[field.attalign];
+                assert.ok(alignment);
+                if(field.attlen!==-1||page[start+hoff+offset]===0)offset=Math.ceil(offset/alignment)*alignment;
+                let length=field.attlen;
+                if(length===-1){const at=start+hoff+offset;length=page[at]&1?page[at]>>1:page.readUInt32LE(at)>>2;}
+                assert.ok(length>0&&length<1024&&start+hoff+offset+length<=page.length);
+                offset+=length;
+              }
+              return {mask2,mask,natts,hoff,bits,data:page.subarray(start+hoff,start+hoff+offset),length:hoff+offset};
             }
             let inspector;
             try {
-              await fs.mkdir(destination, { recursive: true, mode: 0o700 });
-              docker(['createdb', '-U', user, scratch]);
-              const connection = new URL(databaseUrl); connection.pathname = '/' + scratch;
-              inspector = new Pool({ connectionString: connection.toString() });
+              const fields=(await pool.query(`SELECT attnum,attname,format_type(atttypid,atttypmod) AS type,attisdropped,attlen,attalign,
+                CASE WHEN atthasmissing THEN to_jsonb(attmissingval)->0 ELSE NULL END AS missing_value
+                FROM pg_attribute WHERE attrelid='season_pairings'::regclass AND attnum>0 ORDER BY attnum`)).rows;
+              docker(['createdb','-U',user,scratch]);
+              const connection=new URL(databaseUrl);connection.pathname='/'+scratch;
+              inspector=new Pool({connectionString:connection.toString()});
               await inspector.query('CREATE EXTENSION pageinspect');
-              const recovered = {};
-              for (const table of ['season_entries','season_pairings']) {
-                const metadata = (await pool.query(`SELECT pg_relation_filepath($1::regclass) AS file,pg_relation_size($1::regclass)::int AS size,
-                  current_setting('block_size')::int AS blocksize`, ['public.'+table])).rows[0];
-                if (!/^base\/\d+\/\d+$/.test(metadata.file) || metadata.size > 1048576) throw new Error('Unexpected relation path or size');
-                const fields = (await pool.query(`SELECT attnum,attname,format_type(atttypid,atttypmod) AS type,attisdropped,attlen,
-                  CASE WHEN atthasmissing THEN to_jsonb(attmissingval)->0 ELSE NULL END AS missing_value
-                  FROM pg_attribute WHERE attrelid=$1::regclass AND attnum>0 ORDER BY attnum`, ['public.'+table])).rows;
-                const droppedType = field => ({1:'boolean',2:'smallint',4:'integer',8:'bigint',16:'uuid','-1':'text'})[field.attlen];
-                await inspector.query(`CREATE TABLE ${quote(table)} (${fields.map(field => quote(field.attisdropped ? '_dropped_'+field.attnum : field.attname)+' '+(field.attisdropped ? droppedType(field) : field.type)).join(',')})`);
-                for (const field of fields.filter(field => field.attisdropped)) await inspector.query(`ALTER TABLE ${quote(table)} DROP COLUMN ${quote('_dropped_'+field.attnum)}`);
-                const current = (await pool.query(`SELECT ctid::text AS physical_ctid,* FROM ${quote(table)}`)).rows;
-                await fs.writeFile(destination+'/'+table+'-context.json',JSON.stringify({metadata,fields,current}),{mode:0o600});
-                const currentIds = new Set(current.map(row => row.id));
-                const records = [], visibleChecks = [], candidates = [], fragments = [];
-                for (const origin of ['current','archive']) for (let block = 0; block < metadata.size/metadata.blocksize; block++) {
-                  const page = origin==='current' ? (await pool.query('SELECT pg_read_binary_file($1,$2,$3) AS page', [metadata.file,block*metadata.blocksize,metadata.blocksize])).rows[0].page : await fs.readFile('/var/backups/bloodbowl-league/season-history-recovery-20261013/'+table+'-block-'+block+'.bin');
-                  await fs.writeFile(`${destination}/${table}-${origin}-block-${block}.bin`, page, { mode: 0o600 });
-                  if (table==='season_pairings') {
-                  const needle=Buffer.from('0d2df1fb53ba4e05a1a8cdb054f8e4d2','hex');
-                  const pointers=(await inspector.query('SELECT lp,lp_off,lp_flags,lp_len,t_xmin::text,t_xmax::text,t_ctid::text,t_infomask,t_infomask2,t_hoff FROM heap_page_items($1)',[page])).rows;
-                  for(let at=page.indexOf(needle);at!==-1;at=page.indexOf(needle,at+1)) {
-                    const owners=pointers.filter(p=>p.lp_off<=at&&p.lp_off+p.lp_len>at);
-                    const headers=[];
-                    if(!owners.length)for(let start=Math.max(24,at-128);start<at-24;start++) {
-                      const natts=page.readUInt16LE(start+18)&2047,hoff=page[start+22];
-                      if(start%8===0&&natts>=20&&natts<=fields.length&&hoff>=24&&hoff<=40&&hoff%8===0)headers.push({start,natts,hoff,xmin:page.readUInt32LE(start),xmax:page.readUInt32LE(start+4)});
-                    }
-                    fragments.push({origin,block,at,owners,headers});
-                  }
-                }
-                const items = (await inspector.query(`SELECT i.lp,i.t_xmin::text AS xmin,i.t_xmax::text AS xmax,i.t_ctid::text AS ctid,(i.t_infomask2 & 2047) AS natts,
-                    f.raw_flags,tuple_data_split($2::regclass,i.t_data,i.t_infomask,i.t_infomask2,i.t_bits,false) AS attributes
-                    FROM heap_page_items($1) i CROSS JOIN LATERAL heap_tuple_infomask_flags(i.t_infomask,i.t_infomask2) f WHERE i.lp_flags=1`, [page,table])).rows;
-                  for (const item of items) {
-                    
-                    const row = {};
-                    for (const field of fields) if (!field.attisdropped) row[field.attname] = field.attnum>item.natts ? field.missing_value??null : decode(item.attributes[field.attnum-1],field.type);
-                    
-                    if (table==='season_pairings' && (targetEntries.has(row.home_entry_id)||targetEntries.has(row.away_entry_id))) candidates.push({row,origin,block,offset:item.lp,xmin:item.xmin,xmax:item.xmax,ctid:item.ctid,flags:item.raw_flags});
-                  if (currentIds.has(row.id)) {
-                      const visible = current.find(current => current.id === row.id);
-                    if (origin!=="current" || visible.physical_ctid!==`(${block},${item.lp})`) continue;
-                      const differences = Object.keys(row).filter(key => JSON.stringify(row[key]) !== JSON.stringify(visible[key]));
-                      visibleChecks.push({id:row.id,differences});
-                      continue;
-                    }
-                    if (table === 'season_entries' && !targetCoaches.has(row.user_id)) continue;
-                    if (table === 'season_pairings' && !targetEntries.has(row.home_entry_id) && !targetEntries.has(row.away_entry_id)) continue;
-                    if (item.xmax === '0' || item.raw_flags.includes('HEAP_XMAX_INVALID') || item.raw_flags.includes('HEAP_XMAX_LOCK_ONLY') || item.raw_flags.includes('HEAP_XMAX_IS_MULTI')) continue;
-                    const status = (await pool.query('SELECT pg_xact_status($1::xid8) AS status', [item.xmax])).rows[0].status;
-                    if (status !== 'committed') continue;
-                    if (table === 'season_entries') targetEntries.add(row.id);
-                    records.push({row,source:{origin,block,offset:item.lp,ctid:item.ctid,xmin:item.xmin,deletedBy:item.xmax,flags:item.raw_flags}});
-                  }
-                }
-                await fs.writeFile(destination+'/'+table+'-retained.json', JSON.stringify({records,visibleChecks}), {mode:0o600});
-                const differences = visibleChecks.flatMap(item => item.differences);
-                recovered[table] = {recoveredRecords: records.length,validatedVisible:visibleChecks.length,
-                  decodeMismatches:visibleChecks.filter(item => item.differences.length).length,
-                  mismatchColumns:Object.fromEntries([...new Set(differences)].map(column=>[column,differences.filter(item=>item===column).length]))};
-                recovered[table].candidates=candidates; recovered[table].fragments=fragments;
-                recovered[table].records=records.map(item=>({row:item.row,source:item.source}));
-                if (table === 'season_pairings') recovered[table].scoredMatches=records.filter(item=>item.row.home_points!==null||item.row.away_points!==null).length;
+              const oldType=field=>({1:'boolean',2:'smallint',4:'integer',8:'bigint',16:'uuid','-1':'text'})[field.attlen];
+              await inspector.query(`CREATE TABLE season_pairings (${fields.map(f=>quote(f.attisdropped?'_dropped_'+f.attnum:f.attname)+' '+(f.attisdropped?oldType(f):f.type)).join(',')})`);
+              for(const field of fields.filter(f=>f.attisdropped))await inspector.query('ALTER TABLE season_pairings DROP COLUMN '+quote('_dropped_'+field.attnum));
+              async function decode(page,start) {
+                const info=tupleInfo(page,start,fields);
+                const attributes=(await inspector.query("SELECT tuple_data_split('season_pairings'::regclass,$1,$2,$3,$4,false) AS a",[info.data,info.mask,info.mask2,info.bits])).rows[0].a;
+                const row=Object.fromEntries(fields.filter(f=>!f.attisdropped).map(f=>[f.attname,f.attnum>info.natts?f.missing_value??null:value(attributes[f.attnum-1],f.type)]));
+                return {row,info:{...info,data:undefined},xmin:page.readUInt32LE(start),xmax:page.readUInt32LE(start+4),
+                  ctid:[page.readUInt16LE(start+12)*65536+page.readUInt16LE(start+14),page.readUInt16LE(start+16)]};
               }
-              console.log('RECOVERY_DATA '+JSON.stringify({retained:recovered}));
-            } finally {
-              if (inspector) await inspector.end();
+              const context=JSON.parse(await fs.readFile(directory+'/season_pairings-context.json','utf8'));
+              let validated=0;
+              const found=[];
+              for(const origin of ['current','archive'])for(const block of [0,1]) {
+                const page=await fs.readFile(directory+`/season_pairings-${origin}-block-${block}.bin`);
+                if(origin==='current') {
+                  const items=(await inspector.query('SELECT lp,lp_off,lp_len FROM heap_page_items($1) WHERE lp_flags=1',[page])).rows;
+                  for(const item of items) {
+                    const visible=context.current.find(r=>r.physical_ctid===`(${block},${item.lp})`);
+                    if(!visible)continue;
+                    const decoded=await decode(page,item.lp_off);
+                    assert.equal(decoded.info.length,item.lp_len,'Exact tuple length');
+                    for(const [key,val]of Object.entries(decoded.row))assert.deepEqual(val,visible[key],key);
+                    validated++;
+                  }
+                }
+                if(block===0)for(const start of [2080,2256,2432,4704]) {
+                  const decoded=await decode(page,start);
+                  assert.ok(decoded.row.home_entry_id===target||decoded.row.away_entry_id===target);
+                  const status=(await pool.query('SELECT pg_xact_status($1::xid8) AS xmin,pg_xact_status($2::xid8) AS xmax',[String(decoded.xmin),String(decoded.xmax)])).rows[0];
+                  found.push({origin,block,start,...decoded,status});
+                }
+              }
+              assert.equal(validated,context.current.length);
+              await fs.writeFile(directory+'/decoded-fragments.json',JSON.stringify({validated,found}),{mode:0o600});
+              console.log('RECOVERY_DATA '+JSON.stringify({validated,found}));
+            }finally{
+              if(inspector)await inspector.end();
               docker(['dropdb','-U',user,'--if-exists',scratch]);
               await pool.end();
             }
-            
             
             NODE
