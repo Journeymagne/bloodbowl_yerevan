@@ -17,25 +17,15 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
-            import fs from 'node:fs/promises';
+            import { execFileSync } from 'node:child_process';
             import { pool } from './server/db/pool.mjs';
             try {
-              const directory='/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
-              const pair=Buffer.from('618aa3880a104a979f13f9e06bd881e4','hex');
-              const rows=[];
-              for(const name of (await fs.readdir(directory)).filter(name=>name.startsWith('season_pairings-')&&name.endsWith('.bin'))) {
-                const page=await fs.readFile(directory+'/'+name),ids=[],headers=[];
-                for(let at=page.indexOf(pair);at!==-1;at=page.indexOf(pair,at+1))ids.push(at);
-                for(let at=24;at<page.length-24;at+=8)if(page.readUInt32LE(at)===3105)headers.push({at,xmax:page.readUInt32LE(at+4),natts:page.readUInt16LE(at+18)&2047,hoff:page[at+22]});
-                rows.push({name,ids,headers});
-              }
-              const wal=(await pool.query('SELECT name,size,modification FROM pg_ls_waldir() ORDER BY name')).rows;
-              const settings=(await pool.query("SELECT name,setting FROM pg_settings WHERE name IN ('archive_mode','wal_keep_size','max_wal_size','min_wal_size','archive_timeout','wal_level')")).rows;
-              const related={};
-              for(const table of ['team_ledger','team_fallen_players','match_events']) {
-                related[table]=(await pool.query(`SELECT count(*)::int AS records FROM ${table} WHERE saved_team_id=$1`,['239e7fe0-8799-4fda-b5d1-3ed9d2be5871'])).rows;
-              }
-              console.log('RECOVERY_DATA '+JSON.stringify({rows,wal,settings,related}));
+              const migrations=(await pool.query("SELECT *,xmin::text AS transaction_id FROM schema_migrations ORDER BY name")).rows;
+              const rewritten=(await pool.query("SELECT id,home_touchdowns,away_touchdowns,home_casualties,away_casualties,home_points,away_points,updated_at,xmin::text AS transaction_id FROM season_pairings WHERE xmin='3105'::xid ORDER BY id")).rows;
+              const files=execFileSync('find',['/var/backups','/root','/opt/bloodbowl-league','-maxdepth','3','-type','f','(',
+                '-iname','*.dump','-o','-iname','*.backup','-o','-iname','*.sql','-o','-iname','*.sql.gz','-o','-iname','*season*.json',')','-printf','%p %s bytes\n'],{encoding:'utf8',timeout:30000}).trim().split('\n');
+              const logs=(await pool.query("SELECT name,setting FROM pg_settings WHERE name IN ('logging_collector','log_statement','log_min_duration_statement')")).rows;
+              console.log('RECOVERY_DATA '+JSON.stringify({migrations,rewritten,files,logs}));
             }finally{await pool.end();}
             
             NODE
