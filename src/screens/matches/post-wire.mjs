@@ -115,8 +115,9 @@ function wireFrame(visit, screen, events) {
     if (button.hasAttribute("disabled") || closed(button)) return;
     // A footer's button not armed yet: the rest of a double click on what it was a moment ago.
     if (button.classList.contains("g-prep__cta") && Date.now() < visit.footerAfter) return;
-    const next = button.getAttribute("data-after-next");
-    void act(visit, screen, button.getAttribute("data-prep-action")).then(answered => {
+    const action = button.getAttribute("data-prep-action");
+    const next = { "lock-players": "roster", "lock-roster": "finance" }[action];
+    void act(visit, screen, action).then(answered => {
       if (answered && visit.here && next) location.hash = postMatchUrl(visit.gameId, next);
     });
   });

@@ -458,7 +458,7 @@ it("the Players draft changes only in the shape the domain saves (pre-flight L2)
   assert.deepEqual([one.mvps, draft.mvps], [["h4"], []]);
 });
 
-it("optional advancement and roster skips keep SPP and chosen skills, on phone and desk", async () => {
+it("one Next action per step keeps optional advancements, SPP and chosen skills, on phone and desk", async () => {
   const { postPlayers } = await import("../src/domain/post-match/roster.mjs");
   const base = at({ home: 2, away: 2 });
   const chosenMvp = saved(base, { mvps: ["h1"] });
@@ -466,19 +466,21 @@ it("optional advancement and roster skips keep SPP and chosen skills, on phone a
   for (const phone of [true, false]) {
     for (const post of [chosenMvp, partlyAdvanced]) {
       await visit(post, { phone });
-      const skip = view.querySelector("[data-after-skip-advancements]");
-      assert.equal(skip.textContent, t("after.skipAdvancements"));
-      assert.ok(!skip.hasAttribute("disabled"));
+      assert.equal(view.querySelectorAll('[data-prep-action="lock-players"]').length, 1);
+      assert.equal(cta().textContent, t("after.next.roster"));
+      assert.ok(!cta().hasAttribute("disabled"));
+      assert.ok(view.textContent.includes(t("after.optionalAdvancement")));
       assert.ok(view.querySelectorAll("[data-player-advance]").length >= 2, "several players can still advance");
       const before = postPlayers(post, "home", data);
       const roster = act(post, "home", { type: "lock-players" });
       api.reply(WRITE, 200, payload(roster));
-      await press(skip);
-      const skipRoster = view.querySelector("[data-after-skip-roster]");
-      assert.equal(skipRoster.textContent, t("after.skipRoster"));
+      await pressCta();
+      assert.equal(view.querySelectorAll('[data-prep-action="lock-roster"]').length, 1);
+      assert.equal(cta().textContent, t("after.next.finance"));
+      assert.ok(view.textContent.includes(t("after.optionalRoster")));
       const finance = act(roster, "home", { type: "lock-roster" });
       api.reply(WRITE, 200, payload(finance));
-      await press(skipRoster);
+      await pressCta();
       assert.deepEqual(writes().map(call => call.body.action), [{ type: "lock-players" }, { type: "lock-roster" }]);
       assert.deepEqual(postPlayers(finance, "home", data), before, "SPP and any chosen advancement are preserved");
       assert.equal(finance.home.stage, 4);
@@ -490,26 +492,26 @@ it("optional advancement and roster skips keep SPP and chosen skills, on phone a
   }
   // Skipping optional advancement still needs the mandatory MVP and match records.
   await visit(base);
-  const shut = view.querySelector("[data-after-skip-advancements]");
+  const shut = cta();
   assert.ok(shut.hasAttribute("disabled"));
-  assert.ok(shut.parentNode.textContent.includes(t("after.mvpShut")));
+  assert.ok(view.querySelector(".g-prep__hint").textContent.includes(t("after.mvpShut")));
   await press(shut);
   assert.equal(writes().length, 0);
 });
 
-it("skip buttons go to the next address only after a successful save", async () => {
+it("Next goes to the next address only after a successful save", async () => {
   const post = saved(at({ home: 2, away: 2 }), { mvps: ["h1"] });
   const roster = act(post, "home", { type: "lock-players" });
   await visit(post, { step: "players" });
   api.reply(WRITE, 200, payload(roster));
-  await press(view.querySelector("[data-after-skip-advancements]"));
+  await pressCta();
   assert.equal(location.hash, postMatchUrl("g1", "roster"));
   await visit(roster, { step: "roster" });
   api.reply(WRITE, 422, { error: { code: "POST_ROSTER", message: "x" } });
-  await press(view.querySelector("[data-after-skip-roster]"));
+  await pressCta();
   assert.equal(location.hash, postMatchUrl("g1", "roster"), "a refusal keeps the current step");
   api.reply(WRITE, 200, payload(act(roster, "home", { type: "lock-roster" })));
-  await press(view.querySelector("[data-after-skip-roster]"));
+  await pressCta();
   assert.equal(location.hash, postMatchUrl("g1", "finance"));
   api.assertAnswered();
 });

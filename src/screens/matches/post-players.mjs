@@ -212,7 +212,7 @@ function canAdvance(model, id) {
 }
 
 /** The advancement cards (the accent's soft tint): «L. Ashby can advance · 27 SPP available with MVP · optional» and «Advance»; one taken here with «Undo». */
-function advanceCards(model, draft) {
+function advanceCards(model) {
   const side = model.post[model.sideName];
   const cards = side.snapshot.players.map((player) => {
     const open = model.readonly ? null : canAdvance(model, player.id), taken = side.advancements[player.id] ?? [];
@@ -227,11 +227,8 @@ function advanceCards(model, draft) {
       + `${sub ? `<span class="g-after__line">${escapeHtml(sub)}</span>` : ""}${gave}</span><span class="g-after__advbtns">${undo}${advance}</span></div></div>`;
   }).join("");
   if (!cards) return "";
-  const footer = playersFooter(model, draft);
-  const skip = model.readonly ? "" : `<div class="g-after__card">${noteMarkup(t("after.optionalAdvancement"))}`
-    + `${renderButton({ label: t("after.skipAdvancements"), disabled: footer.disabled, data: { prepAction: "lock-players", afterSkipAdvancements: "", afterNext: "roster" } })}`
-    + `${footer.hint ? noteMarkup(footer.hint) : ""}</div>`;
-  return `${skip}${noteMarkup(t("after.resetsAdvancements"))}${cards}`;
+  const optional = model.readonly ? "" : noteMarkup(t("after.optionalAdvancement"));
+  return `${optional}${noteMarkup(t("after.resetsAdvancements"))}${cards}`;
 }
 
 /** A desk's table row: number, the name a button of the sheet, TD, CAS, COMP, KO, the MVP's star, the SPP with the MVP, the injury. */
@@ -272,13 +269,13 @@ export function playersStep(model, draft, { phone, open = false }) {
   const mismatch = mismatchMarkup(model, withDraft(model, draft), { ownOnly: true });
   const footer = playersFooter(model, draft);
   if (phone) {
-    return { contentHtml: `${mismatch}${eventsCard(model, draft, players, open)}${mvpCard(model, draft)}${injuryCards(model, draft)}${departuresCard(model, draft)}${advanceCards(model, draft)}`, asideHtml: "", footer };
+    return { contentHtml: `${mismatch}${eventsCard(model, draft, players, open)}${mvpCard(model, draft)}${injuryCards(model, draft)}${departuresCard(model, draft)}${advanceCards(model)}`, asideHtml: "", footer };
   }
   const side = model.post[model.sideName], records = sideRecords(side), injuries = injuryCards(model, draft, true);
   const notes = `<div class="g-after__notes">${noteMarkup(records ? t("after.deskEventsNote", { match: model.matchLabel }) : t("after.eventsNote2x"))}${noteMarkup(t("after.deskMvpNote"))}`
     + `${injuries ? noteMarkup(t("after.injuryCodes")) : ""}${lostConceding(model) ? noteMarkup(t("after.concededSpp")) : ""}</div>`;
   const none = mvpChoices(withDraft(model, draft), model.sideName).count ? "" : mvpCard(model, draft);
-  return { contentHtml: `${mismatch}${notes}${tableMarkup(model, draft, players)}${none}${departuresCard(model, draft)}${advanceCards(model, draft)}`,
+  return { contentHtml: `${mismatch}${notes}${tableMarkup(model, draft, players)}${none}${departuresCard(model, draft)}${advanceCards(model)}`,
     asideHtml: injuries, footer };
 }
 
