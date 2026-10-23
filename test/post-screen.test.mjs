@@ -458,6 +458,34 @@ it("the Players draft changes only in the shape the domain saves (pre-flight L2)
   assert.deepEqual([one.mvps, draft.mvps], [["h4"], []]);
 });
 
+it("Change records opens the desk player's counters, saves immediately and returns focus without reloading games", async () => {
+  const post = at({ home: 2, away: 2 });
+  await visit(post, { phone: false });
+  const button = () => view.querySelector('.g-after__td--records [data-after-player="h3"]');
+  assert.equal(button().textContent, t("after.changeRecords"));
+  button().focus();
+  await press(button());
+  assert.ok(sheet()?.open);
+  const counted = saved(post, { statistics: { ...post.home.statistics, h3: { ...post.home.statistics.h3, casualties: 1 } } });
+  const held = api.hold(WRITE);
+  await press(sheet().querySelector('[data-action-key="casualties"] [data-action-step="1"]'));
+  assert.equal(sheet().querySelector('[data-action-key="casualties"] .g-stepper__value').textContent, "1", "a slow response does not delay the counter");
+  held.release({ status: 200, body: payload(counted) });
+  await flush();
+  assert.equal(writes().length, 1);
+  assert.equal(writes()[0].body.action.statistics.h3.casualties, 1);
+  assert.equal(calls("GET /api/games").length, 0, "no unrelated list request per counter");
+  await press(sheet().querySelector("[data-sheet-close]"));
+  assert.ok(document.activeElement === button(), "focus returns to Change records even if a warning rebuilt the table");
+  // A passed step only offers inspection.
+  await visit(at({ home: 3, away: 2 }), { step: "players", phone: false });
+  assert.equal(button().textContent, t("after.viewRecords"));
+  await press(button());
+  await press(sheet().querySelector('[data-action-key="casualties"] [data-action-step="1"]'));
+  assert.equal(writes().length, 0);
+  api.assertAnswered();
+});
+
 it("a row opens the player's sheet; a stepper in it writes once and keeps the sheet and the focus; closing gives the focus back (pre-flight L6)", async () => {
   const post = at({ home: 2, away: 2 });
   await visit(post);

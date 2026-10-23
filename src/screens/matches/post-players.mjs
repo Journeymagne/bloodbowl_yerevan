@@ -22,6 +22,7 @@ import { earnedSpp } from "../../domain/post-match/statistics.mjs";
 import { canTakeAdvancement, playerAvailableSpp, sppCounterWeights } from "../../domain/roster/progression.mjs";
 import { PLAYER_STATS } from "../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../ui/action-stepper.mjs";
+import { renderButton } from "../../ui/button.mjs";
 import { renderSheet } from "../../ui/sheet.mjs";
 import { renderToggle } from "../../ui/toggle.mjs";
 import { gaveWords } from "../team/roster/player-access.mjs";
@@ -237,10 +238,11 @@ function tableRow(read, counted, { mvps, eligible, count, closed, full }) {
     ? `<button type="button" class="g-after__star" aria-pressed="${on}" aria-label="${escapeHtml(t("after.mvpStar", { name: player.name }))}"${shut ? ' aria-disabled="true"' : ""}`
       + `${!closed && full && !on ? ` title="${escapeHtml(t("after.mvpFull"))}"` : ""} data-after-mvp="${escapeHtml(player.id)}"><span aria-hidden="true">${on ? "★" : "☆"}</span></button>` : "";
   const injury = read.hurt ? `<td class="g-after__td g-after__td--hurt">${escapeHtml(read.hurt)}</td>` : '<td class="g-after__td g-after__td--none">—</td>';
+  const records = renderButton({ label: t(closed ? "after.viewRecords" : "after.changeRecords"), dialog: true, data: { afterPlayer: player.id, afterRecords: player.id } });
   return `<tr><td class="g-after__td g-after__td--num">${escapeHtml(player.number)}</td>`
     + `<th class="g-after__td g-after__td--who" scope="row"><button type="button" class="g-after__cellbtn" data-after-player="${escapeHtml(player.id)}" aria-haspopup="dialog">`
     + `<span class="g-after__name">${escapeHtml(player.name)}</span><span class="g-after__line">${escapeHtml(positionOf(player))}</span></button></th>`
-    + `${counts}<td class="g-after__td g-after__td--n">${star}</td><td class="g-after__td g-after__td--spp">${escapeHtml(read.sppMvp > 0 ? `+${read.sppMvp}` : "—")}</td>${injury}</tr>`;
+    + `${counts}<td class="g-after__td g-after__td--n">${star}</td><td class="g-after__td g-after__td--spp">${escapeHtml(read.sppMvp > 0 ? `+${read.sppMvp}` : "—")}</td>${injury}<td class="g-after__td g-after__td--records">${records}</td></tr>`;
 }
 
 /** A desk's table (DeskPostPlayers.html): every player of the match, a real table with its caption and column heads. */
@@ -249,7 +251,7 @@ function tableMarkup(model, draft, players) {
   const chosen = draft.mvps.filter((id) => eligible.has(id));
   const options = { mvps: chosen, eligible, count, closed: model.readonly, full: count > 1 && chosen.length >= count };
   const heads = [t("after.col.number"), t("after.col.player"), t("after.stat.touchdowns"), t("after.stat.casualties"), t("after.stat.completions"),
-    t("after.stat.knockouts"), t("after.col.mvp"), t("after.col.spp"), t("after.col.injury")];
+    t("after.stat.knockouts"), t("after.col.mvp"), t("after.col.spp"), t("after.col.injury"), t("after.col.records")];
   const head = `<thead><tr>${heads.map((label) => `<th class="g-after__th" scope="col">${escapeHtml(label)}</th>`).join("")}</tr></thead>`;
   const rows = players.map((read) => tableRow(read, draft.statistics[read.player.id] ?? {}, options)).join("");
   return `<table class="g-after__table"><caption class="g-sr-only">${escapeHtml(t("after.tableCaption"))}</caption>${head}<tbody>${rows}</tbody></table>`;

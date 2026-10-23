@@ -225,7 +225,7 @@ function closeSheet(visit, screen) {
   screen.draw({ refocus: false });
   const named = (attribute, value) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === value);
   const advanced = () => named("data-player-advance", sheet.key) ?? named("data-after-untake", postAdvancePlayer(visit, sheet.key));
-  const again = sheet?.kind === "player" ? named("data-after-player", sheet.playerId)
+  const again = sheet?.kind === "player" ? named(opener?.hasAttribute("data-after-records") ? "data-after-records" : "data-after-player", sheet.playerId)
     : sheet?.kind === "advance" ? advanced() : view.querySelector(`[data-after-open="${sheet?.kind}"]`);
   (opener?.isConnected ? opener : again ?? view.querySelector("h1"))?.focus();
 }

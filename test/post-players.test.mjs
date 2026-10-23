@@ -254,11 +254,11 @@ test("a desk's table: a real table, the MVP a star button, the injuries at the r
   const fragment = mount(step.contentHtml);
   const table = fragment.querySelector("table.g-after__table");
   assert.equal(table.querySelector("caption").textContent, "The match's events, player by player");
-  assert.deepEqual(table.querySelectorAll('thead th[scope="col"]').map((head) => head.textContent), ["#", "Player", "TD", "CAS", "COMP", "KO", "MVP", "SPP", "Injury"]);
+  assert.deepEqual(table.querySelectorAll('thead th[scope="col"]').map((head) => head.textContent), ["#", "Player", "TD", "CAS", "COMP", "KO", "MVP", "SPP", "Injury", "Records"]);
   const rows = table.querySelectorAll("tbody tr");
   assert.equal(rows.length, 11, "every player of the match");
   const ashby = rows.find((row) => row.querySelector('[data-after-player="h3"]'));
-  assert.deepEqual(ashby.querySelectorAll("td").map((cell) => cell.textContent), ["3", "1", "0", "1", "0", "★", "+9", "—"], "SPP with the MVP (L26)");
+  assert.deepEqual(ashby.querySelectorAll("td").map((cell) => cell.textContent), ["3", "1", "0", "1", "0", "★", "+9", "—", "Change records"], "SPP with the MVP (L26)");
   const star = ashby.querySelector(".g-after__star");
   assert.deepEqual([star.getAttribute("aria-pressed"), star.getAttribute("aria-label"), star.getAttribute("data-after-mvp")], ["true", "MVP: L. Ashby", "h3"]);
   assert.equal(ashby.querySelector('th[scope="row"] .g-after__line').textContent, "Catcher");
@@ -351,9 +351,8 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__td", "height"), ["52px"]);
   assert.deepEqual(own(".g-after__table", "font-variant-numeric"), ["tabular-nums"]);
   assert.deepEqual(own(".g-after__star", "color"), ["var(--warn)"]);
-  // Fidelity J4, J5, J11: DeskPostPlayers' columns (36 · 1.4fr · 5 × 52 · 64 · 1.2fr, gap 8: border-box cells 0 4 in),
-  // only the MVP's ★ gold, «+4 SPP» 16px.
-  assert.deepEqual(["1", "2", "n+3):nth-child(-n+7", "8", "9"].map((n) => own(`.g-after__th:nth-child(${n})`, "width")), [["44px"], ["53.8%"], ["60px"], ["72px"], ["46.2%"]]);
+  // Compact counters leave space for Change records; the name and injury share the flexible space.
+  assert.deepEqual(["1", "2", "n+3):nth-child(-n+7", "8", "9", "10"].map((n) => own(`.g-after__th:nth-child(${n})`, "width")), [["32px"], ["60%"], ["36px"], ["48px"], ["40%"], ["128px"]]);
   assert.deepEqual(own('.g-after__star[aria-pressed="false"]', "color"), ["var(--muted)"]);
   assert.deepEqual(own(".g-after__spp", "font"), ["700 16px/1.3 var(--font-body)"]);
   // Readable in every palette.

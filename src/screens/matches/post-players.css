@@ -170,9 +170,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A cell's width holds its padding (0 4 in: 8 between two cells, the prototype's gap): DeskPostPlayers' grid 36 · 1.4fr ·
-   5 × 52 · 64 · 1.2fr — «#» 44, TD…MVP 60 each, SPP 72, the player and the injury sharing the rest 1.4 : 1.2. A fixed
-   table gives its percentages what the fixed columns leave, in their proportion (a calc() with a % it would not read). */
+/* Compact numeric columns leave room for the explicit records action. The name and injury share the remaining
+   width 3:2, rather than shrinking to a few letters beside the fixed controls. */
 .g-after__th,
 .g-after__td { box-sizing: border-box; }
 
@@ -188,11 +187,17 @@
   text-transform: uppercase;
   vertical-align: top;
 }
-.g-after__th:nth-child(1) { width: 44px; }
-.g-after__th:nth-child(2) { width: 53.8%; }
-.g-after__th:nth-child(n+3):nth-child(-n+7) { width: 60px; }
-.g-after__th:nth-child(8) { width: 72px; }
-.g-after__th:nth-child(9) { width: 46.2%; }
+.g-after__th:nth-child(1) { width: 32px; }
+.g-after__th:nth-child(2) { width: 60%; }
+.g-after__th:nth-child(n+3):nth-child(-n+7) { width: 36px; }
+.g-after__table .g-after__th:nth-child(4) { width: 40px; }
+.g-after__table .g-after__th:nth-child(5) { width: 60px; }
+.g-after__table .g-after__th:nth-child(7) { width: 48px; }
+.g-after__th:nth-child(8) { width: 48px; }
+.g-after__th:nth-child(9) { width: 40%; }
+.g-after__th:nth-child(10) { width: 128px; }
+.g-after__td--records { padding: var(--space-4); }
+.g-after__td--records .g-btn { width: 100%; padding: var(--space-8); font-size: 13px; white-space: normal; }
 
 .g-after__td {
   height: 52px;

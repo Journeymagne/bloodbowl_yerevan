@@ -11,8 +11,8 @@
  * How it writes («How each write goes»): `PATCH …/post-match {revision, side, action}` on the revision last read
  * (`savePostMatch`: a write refused because the opponent moved the revision is sent once more when this side and the
  * score are as the coach saw them), `POST …/finish {revision, side}` once. Its answer is what is drawn, and the games
- * are read again. One write is on its way at a time; a press while one is sends nothing. The score, the income, the
- * treasury and the captain are drafts kept on the page (`ui.drafts`) and sent by the step's button; the Roster step
+ * are read again when the score, stages or status change. One write is on its way at a time; a press while one is sends
+ * nothing. The score, income, treasury and captain are drafts kept on the page (`ui.drafts`) and sent by the step's button; the Roster step
  * writes press by press. The Players step writes press by press too, from its draft (pre-flight L2: built and changed
  * only by `changePlayers`, in the shape the domain saves): a press while its write is on its way changes the draft,
  * and once that write has landed the latest draft goes out once more, unless the answer already holds it — never
@@ -95,6 +95,9 @@ const readsAgain = (error, finish) => error?.status === 409 || (finish && error?
 
 /** Whether the post-match `next` finished what `payload` had not. */
 const finishes = (payload, next) => payload?.postMatch.status !== "completed" && next.postMatch.status === "completed";
+
+/** Counters and roster edits stay within the checklist; refresh the game list at score/stage/status changes. */
+const gameProgress = ({ postMatch: post }) => [post.status, post.result, post.home.stage, post.away.stage, post.home.confirmed, post.away.confirmed];
 
 /**
  * One visit of the page: the game, the step the address names, the post-match last read and the side shown; what the
@@ -255,7 +258,7 @@ function take(visit, next, { keepPlayers = false } = {}) {
 }
 
 /**
- * After an answer or a read: the games once a write landed or the match finished, the coach's teams once it finished —
+ * After an answer or a read: the games when progress changed or the match finished, the coach's teams once it finished —
  * also for a coach gone by then (as 09a), whose page draws nothing.
  */
 function settle(visit, { finished }, { answered = false } = {}) {
@@ -286,8 +289,10 @@ async function request(visit, action, { finish = false, keepPlayers = false } = 
   visit.writes += 1;
   ui.error = "";
   try {
+    const previous = visit.payload;
     const next = await savePostMatch(apiRequest, visit.payload, visit.sideName, action, finish);
-    settle(visit, visit.here ? take(visit, next, { keepPlayers }) : { finished: finishes(visit.payload, next) }, { answered: true });
+    settle(visit, visit.here ? take(visit, next, { keepPlayers }) : { finished: finishes(previous, next) },
+      { answered: !sameValues(gameProgress(previous), gameProgress(next)) });
     return "answered";
   } catch (error) {
     if (!visit.here) {

@@ -233,11 +233,25 @@ test("a die pressed is one write with the revision and the side; the answer is d
   assert.equal(face("[data-prep-fans]", 2).getAttribute("aria-checked"), "true");
   assert.equal(view.querySelector(".g-prep__big--ours").textContent, "5", "Fan Factor 3 + 2, from the answer");
   const keys = api.calls.map((call) => call.key);
-  assert.ok(keys.indexOf("GET /api/games") > keys.indexOf(WRITE), "the games are read again after the write");
+  assert.ok(!keys.includes("GET /api/games"), "a die does not reload the entire games list");
   // The next press is on the answer's revision.
   api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }], ["home", { type: "fans", value: 3 }]]));
   await press(face("[data-prep-fans]", 3));
   assert.equal(writes()[1].body.revision, 2);
+  api.assertAnswered();
+});
+
+test("a new preparation refreshes an outdated game card once, then dice stay within the checklist", async () => {
+  await visit();
+  state.games.items = [{ id: "g1", preparationStatus: "not_started" }];
+  api.reply("GET /api/games", 200, { games: [{ id: "g1", preparationStatus: "preparing" }], currentGames: [] });
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }]]));
+  await press(face("[data-prep-fans]", 2));
+  assert.equal(state.games.items[0].preparationStatus, "preparing");
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }], ["home", { type: "fans", value: 3 }]]));
+  await press(face("[data-prep-fans]", 3));
+  assert.equal(api.calls.filter(call => call.key === "GET /api/games").length, 1);
+  assert.equal(writes().length, 2);
   api.assertAnswered();
 });
 

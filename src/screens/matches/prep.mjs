@@ -156,9 +156,12 @@ async function request(visit, path, method, body) {
   visit.writes += 1;
   visit.error = "";
   try {
+    const previousStatus = visit.payload.preparation.status;
     visit.payload = await apiRequest(`${visit.path}/${path}`, { method, body: JSON.stringify({ revision: visit.payload.preparation.revision, side: visit.sideName, ...body }) });
     visit.dirty = false;
-    void invalidateGames();
+    const status = visit.payload.preparation.status;
+    const listed = [...state.games.items, ...state.games.currentItems].filter(game => game.id === visit.gameId);
+    if (status !== previousStatus || listed.some(game => game.preparationStatus !== status)) void invalidateGames();
     return "answered";
   } catch (error) {
     visit.error = errorText(error);

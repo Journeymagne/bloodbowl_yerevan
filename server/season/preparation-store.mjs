@@ -40,7 +40,8 @@ export async function loadPreparationState(client, fixture, sources, data, readi
     state = resetChangedRosters(state, sources, data);
   }
   state = upgradePreparation(state);
-  if (!row || reading) await savePreparationState(client, fixture.id, state);
+  // Polls keep the same state: only creation, roster refresh or a rules upgrade needs a write.
+  if (!row || (reading && state !== row.state)) await savePreparationState(client, fixture.id, state);
   return state;
 }
 

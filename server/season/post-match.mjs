@@ -78,7 +78,8 @@ async function loadPost(client, fixture, sources, data) {
   const snapshots = Object.fromEntries((await client.query('SELECT side,snapshot FROM match_roster_snapshots WHERE pairing_id=$1', [fixture.id])).rows.map(row => [row.side, row.snapshot]));
   if (!SIDES.every(name => snapshots[name])) throw httpError(409, 'POST_NOT_STARTED');
   const row = (await client.query('SELECT state FROM match_post_games WHERE pairing_id=$1 FOR UPDATE', [fixture.id])).rows[0];
-  return upgradePostMatch(row?.state || createPostMatch(fixture.id, sources, snapshots, data, officialResult(fixture)));
+  return { state: upgradePostMatch(row?.state || createPostMatch(fixture.id, sources, snapshots, data, officialResult(fixture))),
+    savedRevision: row?.state.revision ?? null };
 }
 
 async function savePost(client, fixture, state) {
@@ -156,8 +157,9 @@ function resetSide(state, name, sources, data) {
 async function lockPost(client, pairingId, user, data) {
   const fixture = await loadPreparationFixture(client, pairingId, user), sources = await postSources(client, fixture);
   const events = Object.fromEntries(SIDES.map(name => [name, sources[name].events]));
-  const state = followEvents(await loadPost(client, fixture, sources, data), events);
-  return { fixture, sources, events, state, viewerSide: fixture.home_user_id === user.id ? 'home' : 'away' };
+  const loaded = await loadPost(client, fixture, sources, data);
+  const state = followEvents(loaded.state, events);
+  return { fixture, sources, events, state, savedRevision: loaded.savedRevision, viewerSide: fixture.home_user_id === user.id ? 'home' : 'away' };
 }
 
 export async function accessPostMatch(pairingId, user, body = null, finish = false) {
@@ -186,7 +188,8 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
       }
       state = followEvents(state, events);
     }
-    await savePost(client, fixture, state);
+    // Unchanged polls and repeated finishes need no JSONB rewrite; upgrades and followed events do.
+    if (state.revision !== opened.savedRevision) await savePost(client, fixture, state);
     const response = { postMatch: state, viewerSide, isAdmin: Boolean(user.is_admin),
       rosterChanged: Object.fromEntries(SIDES.map(name => [name, state.status !== 'completed' && sources[name].team.revision !== state[name].baseRevision])),
       fixture: { id: fixture.id, kind: fixture.match_kind, seasonName: fixture.season_name, roundNumber: fixture.round_number } };
