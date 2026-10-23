@@ -24,7 +24,7 @@ jobs:
             import { pool } from './server/db/pool.mjs';
             import { scoreLeagueResult } from './server/season/scoring.mjs';
             
-            const APPLY = false;
+            const APPLY = true;
             const dir = '/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
             const entryId = '0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2';
             const seasonId = '3b147bf3-31b5-4ebb-8fb3-76d66d5dbfa3';
