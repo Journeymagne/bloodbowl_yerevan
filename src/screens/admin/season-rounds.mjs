@@ -110,7 +110,7 @@ function scoreOf(line, pairing) {
  * One pair as the admin's season shows it.
  * @returns {{id: string, table: number, round: number, friendly: boolean, home: object|null, away: object|null, bye: boolean, empty: boolean,
  *   scored: boolean, status: string, score: string, technical: null|{winner: string, reason: string},
- *   proposal: null|{home: number, away: number, homeCas: number, awayCas: number, by: string}, post: boolean, values: object}}
+ *   proposal: null|{home: number, away: number, homeCas: number, awayCas: number, by: string}, post: boolean, prepared: boolean, values: object}}
  */
 function lineOf(pairing, entries, logins) {
   const home = sideOf(entries, pairing.homeEntryId), away = sideOf(entries, pairing.awayEntryId);
@@ -120,6 +120,7 @@ function lineOf(pairing, entries, logins) {
   const line = {
     id: pairing.id, table: Number(pairing.tableNumber ?? 0), round: Number(pairing.roundNumber ?? 0), friendly: false, home, away, bye,
     empty: !home && !away, scored: number(pairing.homePoints) !== null && number(pairing.awayPoints) !== null, post,
+    prepared: (pairing.preparationStatus ?? "not_started") !== "not_started",
     technical: technicalOf(pairing, confirmed), proposal: bye ? null : proposalOf(pairing, logins), values: valuesOf(pairing),
   };
   line.status = statusOf(pairing, { bye, confirmed, post });

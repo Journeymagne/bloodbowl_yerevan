@@ -270,6 +270,7 @@
   "error.NOT_A_NON_NEGATIVE_INTEGER": "Поле «{field}» — целое число не меньше нуля.",
   "error.NO_RESULT_AWAITING_CONFIRMATION": "Нет результата, ожидающего подтверждения.",
   "error.PAIRING_NOT_FOUND": "Пара не найдена.",
+  "error.MATCH_HISTORY_PROTECTED": "У матча уже есть история. Нельзя заменять или убирать его участников, а также удалять сам матч.",
   "error.PASSWORD_TOO_SHORT": "Пароль — не короче 4 символов.",
   "error.PLAYER_NOT_FOUND": "Игрок не найден.",
   "error.PROPOSER_CANNOT_CONFIRM": "Результат предложили вы — подтверждает соперник.",

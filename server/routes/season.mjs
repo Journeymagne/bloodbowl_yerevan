@@ -18,6 +18,7 @@ import { publicGame, publicSavedTeam } from "../api/serializers.mjs";
 import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUserGameRows } from "../season/store.mjs";
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
 import { proposeGameResult, setTechnicalReason, updateSeasonPairing } from "../season/games.mjs";
+import { deleteSeasonPairing, deleteSeasonRound } from "../season/history.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -150,7 +151,7 @@ async function handleSeasonRoundRoutes(request, response, url) {
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
-    await pool.query(`DELETE FROM season_rounds WHERE id = $1 AND season_id = $2`, [seasonRoundMatch[1], season.id]);
+    await deleteSeasonRound(season.id, seasonRoundMatch[1]);
     return send(response, 200, await loadSeasonBundle(user));
   }
 
@@ -223,14 +224,7 @@ async function handleSeasonPairingRoutes(request, response, url) {
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
-    await pool.query(
-      `DELETE FROM season_pairings
-       USING season_rounds
-       WHERE season_pairings.id = $1
-         AND season_pairings.round_id = season_rounds.id
-         AND season_rounds.season_id = $2`,
-      [seasonPairingMatch[1], season.id],
-    );
+    await deleteSeasonPairing(season.id, seasonPairingMatch[1]);
     return send(response, 200, await loadSeasonBundle(user));
   }
 

@@ -108,6 +108,7 @@ export const API_ERRORS = Object.freeze({
   NOT_A_NON_NEGATIVE_INTEGER: "{field} must be a non-negative integer.",
   NO_RESULT_AWAITING_CONFIRMATION: "There is no result awaiting confirmation.",
   PAIRING_NOT_FOUND: "Pairing not found.",
+  MATCH_HISTORY_PROTECTED: "This match has recorded history. Its teams cannot be replaced or removed, and the match cannot be deleted.",
   PASSWORD_TOO_SHORT: "Password must be at least 4 characters.",
   PLAYER_NOT_FOUND: "Player not found.",
   PROPOSER_CANNOT_CONFIRM: "You proposed this result; your opponent has to confirm it.",

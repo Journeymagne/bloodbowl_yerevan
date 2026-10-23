@@ -111,9 +111,9 @@ test("a change of the teams alone keeps a technical result technical, its reason
   const teamsOnly = await callApi("PATCH", `/api/season/admin/pairings/${L}`, { token: admin, body: { homeEntryId: ENTRIES.home, awayEntryId: ENTRIES.away } });
   assert.equal(teamsOnly.status, 200);
   assert.deepEqual(resultOf(await pairing(client, L)), before, "still technical, «the opponent could not field a team», 0–4");
-  // A side taken away: a technical result needs both, so it is refused, not made a played one.
+  // Removing a side must not erase or reassign the confirmed result.
   const one = await callApi("PATCH", `/api/season/admin/pairings/${L}`, { token: admin, body: { homeEntryId: ENTRIES.home, awayEntryId: null } });
-  assert.deepEqual([one.status, one.body.error?.code, one.body.error?.params], [400, "FIELD_INVALID", { field: "mode" }]);
+  assert.deepEqual([one.status, one.body.error?.code], [409, "MATCH_HISTORY_PROTECTED"]);
   assert.deepEqual(resultOf(await pairing(client, L)), before);
 }));
 

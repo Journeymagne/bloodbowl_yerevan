@@ -16,6 +16,7 @@ import { storedGameResultComplete } from "../api/serializers.mjs";
 import { nullableInteger, scoreLeagueResult } from "./scoring.mjs";
 import { loadUserGameRows } from "./store.mjs";
 import { validateSeasonEntry } from "./rounds.mjs";
+import { assertNoPairingHistory } from "./history.mjs";
 import { TECHNICAL_REASONS, technicalPoints } from "../../src/domain/league-rules.mjs";
 import { SIDES } from "../../src/domain/match/rules.mjs";
 
@@ -135,8 +136,9 @@ export function ensurePlayerCanSubmitGame(game) {
  *   sides, a winner or one of TECHNICAL_REASONS; what the score's checks refuse
  */
 export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "", client = pool) {
+  // Read scores/participants from the locked row, including a result committed while this request waited.
   const current = await client.query(
-    `SELECT c.* FROM match_pairing_context c JOIN season_pairings p ON p.id=c.id
+    `SELECT c.*, p.* FROM match_pairing_context c JOIN season_pairings p ON p.id=c.id
      WHERE c.id=$1 AND c.season_id IS NOT DISTINCT FROM $2::uuid FOR UPDATE OF p`,
     [pairingId, seasonId],
   );
@@ -156,8 +158,11 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
   let homeEntryId = pairing.home_entry_id;
   let awayEntryId = pairing.away_entry_id;
   if (wantsTeamUpdate) {
-    homeEntryId = await validateSeasonEntry(seasonId, body.homeEntryId, { includeWithdrawn: body.homeEntryId === pairing.home_entry_id });
-    awayEntryId = await validateSeasonEntry(seasonId, body.awayEntryId, { includeWithdrawn: body.awayEntryId === pairing.away_entry_id });
+    const home = Object.hasOwn(body, "homeEntryId") ? String(body.homeEntryId ?? "").trim() || null : homeEntryId;
+    const away = Object.hasOwn(body, "awayEntryId") ? String(body.awayEntryId ?? "").trim() || null : awayEntryId;
+    if (home !== homeEntryId || away !== awayEntryId) await assertNoPairingHistory(pairing, client);
+    homeEntryId = await validateSeasonEntry(seasonId, home, { includeWithdrawn: home === homeEntryId });
+    awayEntryId = await validateSeasonEntry(seasonId, away, { includeWithdrawn: away === awayEntryId });
     if (homeEntryId && awayEntryId && homeEntryId === awayEntryId) {
       throw httpError(400, "TEAM_PLAYS_ITSELF");
     }

@@ -240,6 +240,7 @@ test("the sheet's model: the kind by the pair, a technical result's points, what
   // A pair of the round under way with nothing on it may go; one with a result, a score sent or a post-match may not.
   assert.deepEqual([pending, bye, confirmed, awaiting].map((line) => resultSheetModel(line).deletable), [true, true, false, false]);
   assert.equal(resultSheetModel({ ...pending, post: true }).deletable, undefined, "a post-match's sheet has no delete");
+  assert.equal(resultSheetModel({ ...pending, prepared: true }).deletable, false, "preparation has match history too");
   assert.equal(resultSheetModel(friendly).deletable, false);
 });
 

@@ -15,6 +15,9 @@ changes, also read [docs/i18n-glossary.md](docs/i18n-glossary.md).
   uses English and its own UI/theme modules; see [docs/play-demo.md](docs/play-demo.md).
 - Tabletop exhibitions read league teams but do not settle league matches or
   update saved rosters. Online rooms are held in memory.
+- Replacing or withdrawing a team must preserve its match history and its
+  opponents' results. Keep historical entries; never transfer a recorded result
+  to a replacement team or delete matches that contain history.
 - Edit source files; `dist/` and `public/data*.json` are generated. The hand-authored
   `public/play.html` is an exception and is part of the tabletop source.
 - Use `package.json` for available commands. The standard checks are

@@ -93,7 +93,7 @@ export function resultSheetModel(line, { entries = [], phase = "started", taken 
   const sides = line.bye ? SIDES.filter((name) => line[name]) : SIDES;
   const points = !line.friendly && draft.reason ? technicalPoints({ won: true, reason: draft.reason }) : null;
   // Nothing on it yet — no result, no score sent, no post-match — a pair of the round under way may go (one by hand set wrong).
-  const deletable = !line.friendly && phase === "started" && !line.scored && !line.proposal && (line.status === "pending" || line.status === "bye");
+  const deletable = !line.friendly && phase === "started" && !line.prepared && !line.scored && !line.proposal && (line.status === "pending" || line.status === "bye");
   return { ...base, kind: "result", sides, modes: !line.bye, proposal: line.proposal, points, friendly: line.friendly, deletable };
 }
 
