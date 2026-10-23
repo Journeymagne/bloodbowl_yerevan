@@ -23,12 +23,12 @@ export function matchBudget(preparation, sideName, data) {
   const first = purchaseOrder(preparation), isFirst = first === sideName;
   const bonus = tierAllowance(side.reference, opponent.reference);
   const difference = Math.max(0, calculateMatchCtv(opponent).total - calculateMatchCtv(side).total);
-  const otherSpent = first && !isFirst && opponent.basketLocked ? matchBudget(preparation, first, data).treasuryUsed : 0;
+  const otherSpent = first && !isFirst ? matchBudget(preparation, first, data).treasuryUsed : 0;
   const pettyCash = difference + otherSpent;
   const treasuryLimit = first ? Math.min(Number(side.roster.treasury), isFirst ? Number(side.roster.treasury) : MATCH_RULES.lowerTreasuryMaximum) : 0;
   const chosen = basketTotals(side, data).cost;
   const treasuryUsed = Math.max(0, chosen - pettyCash - bonus);
-  const canChoose = preparation.home.rosterLocked && preparation.away.rosterLocked && (!first || isFirst || opponent.basketLocked);
+  const canChoose = Boolean(side.fansRoll && preparation.weather.home && preparation.weather.away && side.rosterLocked);
   return { difference, opponentSpent: otherSpent, pettyCash, bonus, treasuryLimit, treasuryUsed, chosen,
     maximum: pettyCash + bonus + treasuryLimit, remaining: pettyCash + bonus + treasuryLimit - chosen,
     unspent: Math.max(0, pettyCash + bonus - chosen), canChoose,

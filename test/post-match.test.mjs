@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPostMatch, applyPostAction, validatePostSide } from '../src/domain/post-match/state.mjs';
+import { createPostMatch, applyPostAction, validatePostSide, upgradePostMatch } from '../src/domain/post-match/state.mjs';
 import { postIncome, postWinnings, mistakeKind, postFinance, nextDedicatedFans } from '../src/domain/post-match/finance.mjs';
 import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roster.mjs';
 import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
@@ -46,12 +46,16 @@ test('post-match routes preserve id and requested step', () => {
   assert.deepEqual(matchRoute('games/a/post-match/review'), { name: 'postMatch', params: { gameId: 'a', step: 'review' } });
 });
 
-test('requires both coaches to agree and leaves its input state immutable', () => {
+test('saving the shared score opens both personal checklists without an opponent approval', () => {
   const f = fixture();
   assert.throws(() => applyPostAction(f.state, 'home', { type: 'fans', roll: 3 }, f.data), { code: 'POST_RESULT' });
   const next = applyPostAction(f.state, 'home', { type: 'result', home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } }, f.data);
-  assert.equal(f.state.result, null); assert.equal(next.home.stage, 0);
-  assert.throws(() => applyPostAction(next, 'home', { type: 'fans', roll: 3 }, f.data), { code: 'POST_RESULT' });
+  assert.equal(f.state.result, null);
+  assert.deepEqual([next.home.stage, next.away.stage], [1, 1]);
+  assert.deepEqual(next.result.accepted, { home: true, away: false });
+  for (const name of ['home', 'away']) {
+    assert.equal(applyPostAction(next, name, { type: 'fans', roll: 3 }, f.data)[name].stage, 2);
+  }
 });
 
 test('income uses match fan factors, stalling, painting and prayer-generated fans', () => {
@@ -233,11 +237,49 @@ test('safe deposit only spends up to fifty of winnings and affects risk band', (
   f.state.home.deposit = 51; assert.throws(() => projectPostRoster(f.state, 'home', f.data), { code: 'POST_VALUE' });
 });
 
-test('treasury risks wait until opponent statistics are locked', () => {
+test('one coach completes every post-match step before the opponent fills theirs', () => {
   const f = savePlayers(fanSteps(agreed(fixture())), 'home');
   f.state = applyPostAction(f.state, 'home', { type: 'lock-players' }, f.data);
   f.state = applyPostAction(f.state, 'home', { type: 'lock-roster' }, f.data);
-  assert.throws(() => applyPostAction(f.state, 'home', { type: 'finance', deposit: 0, mistake: { roll: 6 } }, f.data), { code: 'POST_WAIT_STATISTICS' });
+  for (const action of [{ type: 'finance', deposit: 0, mistake: { roll: 6 } }, { type: 'next', captain: 'home-0' }, { type: 'confirm' }]) {
+    f.state = applyPostAction(f.state, 'home', action, f.data);
+  }
+  assert.equal(f.state.home.confirmed, true);
+  assert.equal(f.state.away.stage, 2);
+  assert.equal(f.state.away.confirmed, false);
+  assert.equal(f.state.status, 'draft');
+  validatePostSide(f.state, 'home', f.data);
+});
+
+test('legacy scores waiting for approval resume once and completed matches stay sealed', () => {
+  const f = agreed(fixture());
+  f.state.result.accepted.away = false;
+  f.state.home.stage = 0; f.state.away.stage = 0;
+  const next = upgradePostMatch(f.state);
+  assert.deepEqual([next.home.stage, next.away.stage, next.revision], [1, 1, f.state.revision + 1]);
+  assert.equal(f.state.home.stage, 0);
+  assert.equal(upgradePostMatch(next), next);
+  f.state.status = 'completed';
+  assert.equal(upgradePostMatch(f.state), f.state);
+});
+
+test('late prayer statistics reopen finished finance; unrelated statistics keep it complete', () => {
+  const f = savePlayers(fanSteps(agreed(fixture())), 'home');
+  f.state.away.snapshot.effects.prayers = [{ roll: 10 }];
+  for (const action of [{ type: 'lock-players' }, { type: 'lock-roster' }, { type: 'finance', deposit: 20, mistake: { roll: 6 } },
+    { type: 'next', captain: 'home-0' }, { type: 'confirm' }]) f.state = applyPostAction(f.state, 'home', action, f.data);
+  savePlayers(f, 'away');
+  assert.equal(f.state.home.confirmed, true);
+  const before = structuredClone(f.state);
+  const statistics = structuredClone(f.state.away.statistics);
+  statistics['away-0'].completions = 2;
+  f.state = applyPostAction(f.state, 'away', { type: 'statistics', statistics, mvps: ['away-0'] }, f.data);
+  assert.deepEqual([f.state.home.stage, f.state.home.confirmed, f.state.home.deposit, f.state.home.mistake], [4, false, 0, {}]);
+  assert.equal(postWinnings(f.state, 'home'), postWinnings(before, 'home') + 10);
+  before.away.followsEvents = true;
+  const tapped = followEvents(before, { away: [{ playerId: 'away-0', counter: 'completions', delta: 1 }] });
+  assert.equal(tapped.home.stage, 4);
+  assert.equal(tapped.home.confirmed, false);
 });
 
 test('full sequence can finish without advancements and seals both confirmations', () => {

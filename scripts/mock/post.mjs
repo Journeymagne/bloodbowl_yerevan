@@ -48,8 +48,8 @@
  *
  *   case         ours  theirs  status     what
  *   result       0     0       draft      nothing sent
- *   sent         0     0       draft      our score sent from the records, 2–1 and CAS 3–1, waiting for theirs
- *   mismatch     0     0       draft      our score sent 3–1 against records of 2–1 (`scoreMismatches`, PostResultMismatch.html)
+ *   sent         1     1       draft      our score saved from the records, 2–1 and CAS 3–1; both can continue
+ *   mismatch     1     1       draft      our score saved 3–1 against records of 2–1 (`scoreMismatches`, PostResultMismatch.html)
  *   agreed       1     1       draft      the score agreed, both on the Income step (PostFans.html: the opponent on it too)
  *   fans         1     2       draft      their income sent: the opponent on the Players step
  *   players      2     2       draft      both on the Players step (PostPlayers.html)

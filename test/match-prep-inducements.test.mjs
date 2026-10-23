@@ -48,14 +48,14 @@ test("the budget card says whose turn it is and what is left: the preparation's 
   assert.equal(waiting.step, "inducements");
   assert.equal(waiting.inducements.turn, "wait");
   const card = mount(budgetCardMarkup(waiting));
-  assert.equal(card.querySelector(".g-status").textContent, "Waiting for the opponent's purchases: their CTV is higher");
+  assert.equal(card.querySelector(".g-status").textContent, "You can choose now. Compensation may change when the opponent saves their roster or purchases.");
   assert.ok(card.querySelector(".g-status--wait"));
   // They have confirmed theirs (nothing): our turn, 90k of petty cash and up to 50k of the treasury.
   const ours = modelAt(THEY_BOUGHT);
   const budget = matchBudget(ours.preparation, "home", data);
   assert.equal(ours.inducements.turn, "second");
   const fragment = mount(budgetCardMarkup(ours));
-  assert.equal(fragment.querySelector(".g-status").textContent, `Your turn · the opponent chose ${formatMoney(0)}`);
+  assert.equal(fragment.querySelector(".g-status").textContent, `The opponent chose ${formatMoney(0)}`);
   assert.ok(fragment.querySelector(".g-status--wait"), "the warning's tone (pre-flight L17)");
   assert.equal(fragment.querySelector(".g-prep-budget__petty").textContent, `Petty cash ${formatMoney(90)} + from the treasury up to ${formatMoney(50)}`);
   assert.deepEqual(words(fragment, ".g-prep-budget__figure"), [formatMoney(90), formatMoney(50)], "the figures in bold");
@@ -130,7 +130,7 @@ test("the stars: their places, Take and Remove; a mega star takes two", () => {
   assert.equal(megaGriff.querySelector(".g-prep-ind__note").textContent, `${formatMoney(300)} · Mega Star · 2 places`);
 });
 
-test("not our turn, or the basket confirmed: the counters are locked with why, and keep their price and rule", () => {
+test("the opponent does not lock our purchases; our saved basket stays locked", () => {
   const waitModel = modelAt([]);
   const waiting = mount(inducementsMarkup(waitModel));
   const rows = waiting.querySelectorAll(".g-resource");
@@ -139,20 +139,19 @@ test("not our turn, or the basket confirmed: the counters are locked with why, a
   for (const [row, data] of rows.map((row, at) => [row, waitModel.inducements.rows[at]])) {
     assert.equal(row.querySelector(".g-resource__note").textContent, data.note);
     assert.ok(row.querySelector('[data-resource-step="-1"]').hasAttribute("disabled"));
-    assert.equal(row.querySelector('[data-resource-step="1"]').getAttribute("title"), "The opponent buys first");
+    assert.notEqual(row.querySelector('[data-resource-step="1"]').getAttribute("title"), "The opponent buys first");
   }
   const stars = mount(inducementsMarkup(modelAt([], { category: "stars" })));
   for (const star of stars.querySelectorAll(".g-prep-ind__star")) {
     const take = star.querySelector("[data-prep-star]");
-    assert.equal(take.getAttribute("aria-disabled"), "true");
-    assert.equal(take.getAttribute("title"), "The opponent buys first");
+    assert.notEqual(take.getAttribute("title"), "The opponent buys first");
     assert.notEqual(star.querySelector(".g-prep-ind__why")?.textContent, "The opponent buys first", "said once, not by every row");
   }
   const waitFrame = mount(prepFrameMarkup(modelAt([]), { phone: true, ...prepStepMarkup(modelAt([]), data, true) }));
   const lock = waitFrame.querySelector('.g-prep__cta[data-prep-action="lock-basket"]');
   assert.equal(lock.textContent, "Go on without purchases");
-  assert.ok(lock.hasAttribute("disabled"));
-  assert.equal(waitFrame.querySelector(".g-prep__opp").textContent, "Waiting for the opponent's purchases: their CTV is higher");
+  assert.ok(!lock.hasAttribute("disabled"));
+  assert.equal(waitFrame.querySelector(".g-prep__opp").textContent, "You can choose now. Compensation may change when the opponent saves their roster or purchases.");
   // Our turn, something chosen: «Confirm the purchases».
   const choosing = modelAt([...THEY_BOUGHT, buy("team-mascot")]);
   const open = mount(prepFrameMarkup(choosing, { phone: true, ...prepStepMarkup(choosing, data, true) }));

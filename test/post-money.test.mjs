@@ -109,11 +109,11 @@ test("the treasury's rows add up to «Treasury after»: a Minor Incident's D3 is
   }
 });
 
-test("the treasury step waits for the opponent's Players step", () => {
+test("the treasury step can finish before the opponent's Players step", () => {
   const model = modelOf(at(4, 2), "finance");
   assert.equal(model.step, "finance");
   const footer = finance(model, { roll: 4 }).footer;
-  assert.deepEqual([footer.disabled, footer.hint], [true, "Opens once the opponent saves the «Players» step"]);
+  assert.deepEqual([footer.disabled, footer.hint], [false, ""]);
   // Passed: read only, on to the next match.
   const passed = modelOf(at(5, 5), "finance");
   const done = finance(passed);
@@ -218,7 +218,7 @@ test("confirm, then finish once the opponent has confirmed", () => {
   const confirm = reviewStep(modelOf(at(6, 6), "review")).footer;
   assert.deepEqual([confirm.kind, confirm.action, confirm.label, confirm.disabled], ["action", "confirm", "Confirm the summary", false]);
   const waiting = reviewStep(modelOf(at(7, 6), "review")).footer;
-  assert.deepEqual([waiting.action, waiting.label, waiting.disabled, waiting.hint], ["finish", "Finish the match", true, "Opens once the opponent confirms"]);
+  assert.deepEqual([waiting.action, waiting.label, waiting.disabled, waiting.hint], ["finish", "Finish the match", true, "Your checklist is complete. The match can finish when both teams' checklists are complete."]);
   const ready = at(7, 7);
   assert.equal(ready.status, "ready");
   const finish = reviewStep(modelOf(ready, "review")).footer;

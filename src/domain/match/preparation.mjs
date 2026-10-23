@@ -9,11 +9,12 @@ export function createPreparation(sources, data) {
     home: createMatchSide(sources.home, data), away: createMatchSide(sources.away, data), history: [] };
 }
 
-export function preparationStep(preparation) {
-  if (!SIDES.every(side => preparation[side].fansRoll)) return 0;
+export function preparationStep(preparation, sideName = null) {
+  const sides = sideName ? [sideName] : SIDES;
+  if (!sides.every(side => preparation[side].fansRoll)) return 0;
   if (!preparation.weather.home || !preparation.weather.away) return 1;
-  if (!SIDES.every(side => preparation[side].rosterLocked)) return 2;
-  if (!SIDES.every(side => preparation[side].basketLocked)) return 3;
+  if (!sides.every(side => preparation[side].rosterLocked)) return 2;
+  if (!sides.every(side => preparation[side].basketLocked)) return 3;
   return 4;
 }
 
@@ -65,26 +66,46 @@ function basketAction(preparation, sideName, action, data) {
   }
 }
 
+// A later lineup or purchase can change compensation. Keep the choices, but ask
+// the affected coach to check purchases again if their cost or validity changed.
+function refreshBaskets(current, next, data) {
+  for (const name of SIDES) {
+    if (!current[name].basketLocked || !next[name].basketLocked) continue;
+    let changed;
+    try {
+      changed = validateBasket(next, name, data).treasuryUsed !== matchBudget(current, name, data).treasuryUsed;
+    } catch { changed = true; }
+    if (changed) { next[name].basketLocked = false; next[name].confirmed = false; }
+  }
+}
+
 export function applyPreparationAction(current, sideName, action, data, actor = "") {
-  const preparation = structuredClone(current), step = preparationStep(preparation);
+  const preparation = structuredClone(current);
   if (!SIDES.includes(sideName)) throw matchError("FIXTURE_NOT_YOURS");
+  const step = preparationStep(preparation, sideName);
   if (preparation.status === "in_progress") throw matchError("MATCH_STARTED");
   const type = action.type;
   const supported = ["fans", "weather", "reopen", "add-journeyman", "remove-journeyman", "lock-roster", "basket", "effects", "lock-basket", CONFIRM_ACTION];
   if (!supported.includes(type)) throw matchError("MATCH_ACTION");
-  if (type !== CONFIRM_ACTION) for (const side of SIDES) preparation[side].confirmed = false;
+  if (type !== CONFIRM_ACTION) preparation[sideName].confirmed = false;
   if (type === "fans") preparation[sideName].fansRoll = dieValue(action.value, 3);
   else if (type === "weather") {
     if (step < 1 || !["Spring", "Summer", "Autumn"].includes(action.season)) throw matchError("MATCH_WAIT");
-    preparation.weather = { season: action.season, home: dieValue(action.home, 6), away: dieValue(action.away, 6) };
+    const weather = { season: action.season, home: dieValue(action.home, 6), away: dieValue(action.away, 6) };
+    if (Object.keys(weather).some(key => weather[key] !== preparation.weather[key])) SIDES.forEach(name => { preparation[name].confirmed = false; });
+    preparation.weather = weather;
   } else if (["reopen", "add-journeyman", "remove-journeyman", "lock-roster"].includes(type)) {
     if (step < 2 && type !== "reopen") throw matchError("MATCH_WAIT");
     rosterAction(preparation, sideName, action);
   } else if (["basket", "effects", "lock-basket"].includes(type)) basketAction(preparation, sideName, action, data);
   else if (type === CONFIRM_ACTION) {
     if (step < 4) throw matchError("MATCH_WAIT");
+    validateBasket(preparation, sideName, data); validateEffects(preparation, sideName, data);
     preparation[sideName].confirmed = true;
   }
+  refreshBaskets(current, preparation, data);
+  // Reopening the roster also reopened both baskets.
+  for (const name of SIDES) if (preparationStep(preparation, name) < 4) preparation[name].confirmed = false;
   preparation.status = SIDES.every(side => preparation[side].confirmed) ? "ready" : "preparing";
   preparation.revision++;
   preparation.history = [...preparation.history, { type, side: sideName, actor }].slice(-100);

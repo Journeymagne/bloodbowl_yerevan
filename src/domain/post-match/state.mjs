@@ -6,7 +6,7 @@ import { TECHNICAL_REASONS } from '../league-rules.mjs';
 import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
 import { statisticsFromEvents, sameValues } from './events.mjs';
-import { validateFans } from './finance.mjs';
+import { validateFans, refreshPostFinance } from './finance.mjs';
 import { projectPostRoster, postAdvancer } from './roster.mjs';
 
 export function createPostSide(source, snapshot, data) {
@@ -27,6 +27,15 @@ export function createPostMatch(gameId, sources, snapshots, data, official = nul
     ...Object.fromEntries(SIDES.map(name => [name, createPostSide(sources[name], snapshots[name], data)])) };
   if (official) SIDES.forEach(name => { state[name].stage = 1; });
   return state;
+}
+
+/** Resume an existing score that used to wait for the other coach's approval. */
+export function upgradePostMatch(current) {
+  if (current.status === 'completed' || !resultAgreed(current) || SIDES.every(name => current[name].stage > 0)) return current;
+  const next = structuredClone(current);
+  SIDES.forEach(name => { next[name].stage = Math.max(1, next[name].stage); });
+  next.revision++;
+  return next;
 }
 
 // A technical result carries its reason (stage 12): one of TECHNICAL_REASONS, the other kind when none is sent
@@ -54,6 +63,7 @@ function setResult(state, name, action, data) {
     state[key] = createPostSide({ user: side.user, team: { ...side.team, roster: side.baseRoster, revision: side.baseRevision }, gamesPlayed: side.gamesPlayed }, side.snapshot, data);
   }
   result.accepted[name] = true; state.result = result;
+  SIDES.forEach(key => { state[key].stage = 1; });
 }
 
 function saveStatistics(state, name, action) {
@@ -149,7 +159,6 @@ function performAction(state, name, action, data) {
   if (['roster', 'undo-roster'].includes(type) && side.stage === 3) { rosterAction(state, name, action); return; }
   if (type === 'lock-roster' && side.stage === 3) { side.stage = 4; return; }
   if (type === 'finance' && side.stage === 4) {
-    if (state[otherSide(name)].stage < 3) throw postError('POST_WAIT_STATISTICS');
     side.deposit = postCount(action.deposit, 50); side.mistake = action.mistake || {};
     projectPostRoster(state, name, data, true); side.stage = 5; return;
   }
@@ -170,9 +179,10 @@ export function validatePostSide(state, name, data) {
 
 export function applyPostAction(current, name, action, data) {
   if (!SIDES.includes(name) || !action || current.status === 'completed') throw postError('POST_CLOSED');
-  const state = structuredClone(current);
+  const state = structuredClone(upgradePostMatch(current));
   if (state[name].confirmed && action.type !== 'reopen') throw postError('POST_CLOSED');
   performAction(state, name, action, data);
+  refreshPostFinance(current, state);
   projectPostRoster(state, name, data);
   state.status = SIDES.every(key => state[key].confirmed) ? 'ready' : 'draft';
   state.revision++;

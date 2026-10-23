@@ -24,6 +24,7 @@ import { PLAYER_STATS } from '../roster/values.mjs';
 import { SIDES } from '../match/rules.mjs';
 import { INJURIES, PLAYERS_STAGE, postCount } from './rules.mjs';
 import { normalizeMatchStats } from './statistics.mjs';
+import { refreshPostFinance } from './finance.mjs';
 
 // The order of the CHECK on `counter` in 016.
 export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'mvps', 'injury']);
@@ -268,6 +269,7 @@ export function followEvents(state, eventsBySide = {}) {
   if (!changed.length) return state;
   const next = structuredClone(state);
   for (const name of changed) Object.assign(next[name], read[name], { advancements: {} });
+  refreshPostFinance(state, next);
   next.revision++;
   return next;
 }

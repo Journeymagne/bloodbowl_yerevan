@@ -29,7 +29,7 @@ import { postMatchUrl } from "../../core/routes.mjs";
 import { TECHNICAL_REASONS, seasonPoints } from "../../domain/league-rules.mjs";
 import { otherSide } from "../../domain/match/rules.mjs";
 import { PAINTING_BONUS, nextDedicatedFans, postIncome } from "../../domain/post-match/finance.mjs";
-import { RESULT_MODES, postOutcome } from "../../domain/post-match/rules.mjs";
+import { PLAYERS_STAGE, RESULT_MODES, postOutcome } from "../../domain/post-match/rules.mjs";
 import { postPoints, scoreMismatches, sideRecords } from "../../domain/post-match/score.mjs";
 import { fanFactorBonus } from "../../domain/post-match/statistics.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
@@ -203,8 +203,11 @@ export function mismatchMarkup(model, post, { ownOnly = false } = {}) {
   const parts = mismatches.filter((item) => item.side === model.sideName)
     .map((item) => t("after.mismatchOwn", { counter: t(`after.stat.${item.counter}`), score: item.score, records: item.records }));
   if (mismatches.some((item) => item.side !== model.sideName)) parts.push(t("after.mismatchOther"));
+  const hint = model.current < PLAYERS_STAGE
+    ? model.agreed ? "after.mismatchBeforePlayers" : "after.mismatchBeforeAgreement"
+    : "after.mismatchTail";
   return `<div class="g-after__alert" role="alert"><b class="g-after__alerttitle">${escapeHtml(t("after.mismatch"))}</b>`
-    + `<span class="g-after__alerttext">${escapeHtml(`${parts.join("; ")}. ${t("after.mismatchTail")}`)}</span></div>`;
+    + `<span class="g-after__alerttext">${escapeHtml(`${parts.join("; ")}. ${t(hint)}`)}</span></div>`;
 }
 
 /**
@@ -252,7 +255,7 @@ function resultFooter(model, draft, score) {
   const ours = post.result.accepted[sideName];
   if (draft.changed) return actionFooter("result", t(ours ? "after.send" : "after.sendOwn"), refused);
   if (!ours) return actionFooter("agree-result", t("after.agree", { score: scoreWords(post, sideName) }));
-  return nextLink(model, "fans", { disabled: true, hint: t("after.waitAgree") });
+  return nextLink(model, "fans");
 }
 
 /**

@@ -105,17 +105,17 @@ test("a desk's summaries", () => {
   const state = reach(agreed(begin()), { home: 6, away: 6 }, { home: { deposit: 10 } });
   const model = modelOf(state);
   assert.equal(model.step, "review");
-  assert.deepEqual(model.steps.map((step) => step.summary), ["2–1 · confirmed", "+80k · fans 3 → 4", "+18 SPP · injuries: 1", "0k", "safe +10k", "captain W. Brandt", "now"]);
+  assert.deepEqual(model.steps.map((step) => step.summary), ["2–1 · saved", "+80k · fans 3 → 4", "+18 SPP · injuries: 1", "0k", "safe +10k", "captain W. Brandt", "now"]);
   // The score while it is being entered, the roster's money with its sign.
   const open = modelOf(scored(begin()), "result");
-  assert.deepEqual([open.steps[0].state, open.steps[0].summary], ["current", "being entered"], "DeskPostResult: «вводим», not «now» (fidelity J3)");
+  assert.deepEqual([open.steps[0].state, open.steps[0].summary], ["open", "2–1 · saved"], "a saved result is already passed");
   const hired = act(reach(agreed(begin()), { home: 3, away: 3 }), "home", { type: "roster", operation: "hire", rowIndex: 0 });
   const roster = modelOf(hired, "fans");
   assert.equal(roster.steps[3].summary, "now");
   assert.equal(modelOf(act(hired, "home", { type: "lock-roster" })).steps[3].summary, "−50k");
   // The away side's own numbers.
   const away = modelOf(state, "", {}, { viewerSide: "away" });
-  assert.equal(away.steps[0].summary, "1–2 · confirmed");
+  assert.equal(away.steps[0].summary, "1–2 · saved");
 });
 
 test("the opponent's line on each step", () => {
@@ -128,10 +128,10 @@ test("the opponent's line on each step", () => {
   const fresh = begin();
   assert.deepEqual(line(fresh, "result"), ["none", "The opponent has not entered a score yet", false]);
   const sent = scored(fresh);
-  assert.deepEqual(line(sent, "result"), ["waiting", "Waiting for the opponent to confirm", false]);
-  assert.deepEqual(line(sent, "result", "away"), ["sent", "The opponent sent the score 1–2", true]);
+  assert.deepEqual(line(sent, "result"), ["agreed", "Score 2–1 saved · each coach completes their own checklist", true]);
+  assert.deepEqual(line(sent, "result", "away"), ["agreed", "Score 1–2 saved · each coach completes their own checklist", true]);
   const both = agreed(fresh);
-  assert.deepEqual(line(both, "result"), ["agreed", "The opponent confirmed the score 2–1", true]);
+  assert.deepEqual(line(both, "result"), ["agreed", "Score 2–1 saved · each coach completes their own checklist", true]);
   assert.deepEqual(line(both, "fans"), ["same", "The opponent is on this step", true], "PostFans.html: the opponent on this step, the accent's dot");
   const behind = reach(both, { home: 3, away: 2 });
   assert.deepEqual(line(behind, "roster"), ["step", "The opponent is on «Players»", false], "PostRoster.html: behind, the warning's dot");
@@ -143,7 +143,7 @@ test("the opponent's line on each step", () => {
   assert.equal(opponentState(review, "home"), "confirmWaiting", "the side's current step by default");
   assert.equal(opponentState(both, "home"), "same");
   for (const state of cases) assert.ok(POST_OPPONENT_STATES.includes(state), state);
-  assert.deepEqual(new Set(cases), new Set(POST_OPPONENT_STATES), "every state is said somewhere");
+  assert.deepEqual(new Set(cases), new Set(POST_OPPONENT_STATES.filter(state => !["sent", "waiting"].includes(state))), "approval wait states are no longer used");
   // The phone's footer draws the line with its dot.
   const phone = frame(modelOf(behind, "roster"));
   assert.equal(phone.querySelector(".g-prep__opp").textContent, "The opponent is on «Players»");
@@ -177,8 +177,8 @@ test("a projection the domain refuses is drawn without the roster's steps, and s
 });
 
 test("the footer leads on to the next step once it is open, and waits with why until then", () => {
-  const fresh = modelOf(scored(begin()));
-  assert.deepEqual([fresh.footer.kind, fresh.footer.label, fresh.footer.disabled, fresh.footer.hint], ["next", "Next: income and fans", true, "Opens once the opponent confirms the score"]);
+  const fresh = modelOf(scored(begin()), "result");
+  assert.deepEqual([fresh.footer.kind, fresh.footer.label, fresh.footer.disabled, fresh.footer.hint], ["next", "Next: income and fans", false, ""]);
   const passed = modelOf(reach(agreed(begin()), { home: 3, away: 3 }), "fans");
   assert.deepEqual([passed.footer.label, passed.footer.href, passed.footer.disabled], ["Next: players", postMatchUrl("g1", "players"), false]);
   const current = modelOf(reach(agreed(begin()), { home: 3, away: 3 }));

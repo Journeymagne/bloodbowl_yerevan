@@ -70,7 +70,7 @@ test("the steppers start at the score sent, else at each side's records; ours at
   assert.deepEqual(words(away, ".g-after__teams span"), ["Mock Rivals", "Mock Team"]);
   assert.deepEqual(["own:touchdowns", "other:touchdowns"].map((key) => value(away, key)), ["0", "3"]);
   assert.ok(away.querySelector('[data-score-key="own:touchdowns"] [data-score-step="-1"]').hasAttribute("disabled"), "closed at 0");
-  assert.ok(!away.querySelector('[data-score-key="own:touchdowns"] [data-score-step="1"]').hasAttribute("disabled"));
+  assert.ok(away.querySelector('[data-score-key="own:touchdowns"] [data-score-step="1"]').hasAttribute("disabled"), "reopen before editing a saved score");
   assert.ok(drawScore(fresh, { own: { touchdowns: 99, casualties: 0 } }).querySelector('[data-score-key="own:touchdowns"] [data-score-step="1"]').hasAttribute("disabled"), "closed at 99");
   // What «Send the score» writes: home's and away's parts, as the domain takes them.
   assert.deepEqual(resultAction(modelOf(sent, "", {}, { viewerSide: "away" }), { ...resultDraft(modelOf(sent, "", {}, { viewerSide: "away" })), own: { touchdowns: 1, casualties: 1 } }),
@@ -84,7 +84,7 @@ test("the mismatch is said under the score, in the prototype's words", () => {
   const alert = fragment.querySelector('.g-after__alert[role="alert"]');
   assert.equal(alert.querySelector(".g-after__alerttitle").textContent, "The score does not match the records");
   assert.equal(alert.querySelector(".g-after__alerttext").textContent,
-    "your TD: 3 in the score, 2 in the records. On the «Players» step the players' TD and CAS must add up to the score — add or take away a record there.");
+    "your TD: 3 in the score, 2 in the records. Save the score, then complete «Income» to open «Players» and correct TD/CAS. You can continue without the opponent's confirmation.");
   const both = drawScore(model, { own: { touchdowns: 3, casualties: 4 }, other: { touchdowns: 1, casualties: 0 } });
   assert.match(both.querySelector(".g-after__alerttext").textContent,
     /^your TD: 3 in the score, 2 in the records; your CAS: 4 in the score, 3 in the records; the opponent's score does not match the opponent's records\. /);
@@ -95,19 +95,19 @@ test("the mismatch is said under the score, in the prototype's words", () => {
   assert.ok(drawScore(modelOf(begin({ events: {} })), { mode: "technical", winner: "home" }).querySelector('[role="alert"]') === null);
 });
 
-test("the button follows the score: send, confirm the opponent's, wait for the opponent, next", () => {
+test("saving a score opens income for both coaches without another confirmation", () => {
   const send = score(modelOf(begin())).footer;
-  assert.deepEqual([send.kind, send.action, send.label, send.disabled], ["action", "result", "Send the score", false]);
+  assert.deepEqual([send.kind, send.action, send.label, send.disabled], ["action", "result", "Save the score", false]);
   // The opponent sent it: confirm it, or send our own once changed.
   const theirs = scored(begin(), { by: "away" });
   const confirm = score(modelOf(theirs)).footer;
-  assert.deepEqual([confirm.action, confirm.label], ["agree-result", "Confirm the score 2–1"]);
-  assert.deepEqual([score(modelOf(theirs), { changed: true }).footer.action, score(modelOf(theirs), { changed: true }).footer.label], ["result", "Send your score"]);
+  assert.deepEqual([confirm.kind, confirm.disabled, confirm.href], ["next", false, postMatchUrl("g1", "fans")]);
+  assert.equal(score(modelOf(theirs), { unlocked: true, changed: true }).footer.action, "result");
   // We sent it: the way on is closed until the opponent confirms; a change is sent again.
   const ours = scored(begin());
   const wait = score(modelOf(ours)).footer;
-  assert.deepEqual([wait.kind, wait.label, wait.disabled, wait.hint], ["next", "Next: income and fans", true, "Opens once the opponent confirms the score"]);
-  assert.equal(score(modelOf(ours), { changed: true }).footer.label, "Send the score");
+  assert.deepEqual([wait.kind, wait.label, wait.disabled, wait.hint], ["next", "Next: income and fans", false, ""]);
+  assert.equal(score(modelOf(ours), { unlocked: true, changed: true }).footer.label, "Save the score");
   // Agreed: on to the income, and a quiet way to change the score — which asks first (the screen's), then sends.
   const both = agreed(begin());
   const next = score(modelOf(both, "result")).footer;
@@ -224,20 +224,20 @@ test("the opponent's technical result says its reason in the line about the oppo
   const sent = (reason) => act(begin({ events: {} }), "away", { type: "result", mode: "technical", winner: "away", reason,
     home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } }, {});
   const model = modelOf(sent("no_team"), "result");
-  assert.equal(model.opponent.text, "The opponent sent the score 0–2 · technical: the opponent could not field a team");
+  assert.equal(model.opponent.text, "Score 0–2 saved · each coach completes their own checklist · technical: the opponent could not field a team");
   assert.equal(mount(opponentLeadMarkup(model)).querySelector(".g-status").textContent, model.opponent.text, "a desk's chip over the button");
-  assert.equal(modelOf(sent("other"), "result").opponent.text, "The opponent sent the score 0–2 · technical: another reason");
+  assert.equal(modelOf(sent("other"), "result").opponent.text, "Score 0–2 saved · each coach completes their own checklist · technical: another reason");
   // Confirmed, the line still says what was agreed.
   assert.equal(modelOf(act(sent("no_team"), "home", { type: "agree-result" }, {}), "result").opponent.text,
-    "The opponent confirmed the score 0–2 · technical: the opponent could not field a team");
+    "Score 0–2 saved · each coach completes their own checklist · technical: the opponent could not field a team");
   // A score begun before stage 12 holds no reason: the other kind, as its points are.
   const old = structuredClone(sent("no_team"));
   delete old.result.reason;
-  assert.equal(modelOf(old, "result").opponent.text, "The opponent sent the score 0–2 · technical: another reason");
+  assert.equal(modelOf(old, "result").opponent.text, "Score 0–2 saved · each coach completes their own checklist · technical: another reason");
   assert.equal(resultDraft(modelOf(old, "result")).reason, "", "the step asks again if the score is sent again");
   // A played score says none; the side that sent it waits.
-  assert.equal(modelOf(scored(begin(), { by: "away" }), "result").opponent.text, "The opponent sent the score 2–1");
-  assert.equal(modelOf(sent("no_team"), "result", {}, { viewerSide: "away" }).opponent.text, "Waiting for the opponent to confirm");
+  assert.equal(modelOf(scored(begin(), { by: "away" }), "result").opponent.text, "Score 2–1 saved · each coach completes their own checklist");
+  assert.equal(modelOf(sent("no_team"), "result", {}, { viewerSide: "away" }).opponent.text, "Score 2–0 saved · each coach completes their own checklist · technical: the opponent could not field a team");
 });
 
 test("points for you: a win in parts, a friendly off the table", () => {
@@ -354,10 +354,10 @@ test("a desk: the cards in the frame's card, the opponent's chip over a 48px but
   const fragment = mount(prepFrameMarkup({ ...model, footer: step.footer }, { phone: false, ...step, opponentHtml: "", actionLeadHtml: opponentLeadMarkup(model) }));
   assert.equal(fragment.querySelector("section.g-prep__card h2").textContent, "Score");
   const panel = fragment.querySelector(".g-prep__panel--action");
-  assert.equal(panel.querySelector(".g-after__lead .g-status--live").textContent, "The opponent confirmed the score 2–1");
+  assert.equal(panel.querySelector(".g-after__lead .g-status--live").textContent, "Score 2–1 saved · each coach completes their own checklist");
   assert.equal(panel.querySelector("a.g-prep__cta").textContent, "Next: income and fans");
   assert.deepEqual(valuesOf(CSS, ".g-after__lead ~ .g-prep__cta", "min-height"), ["48px"]);
-  assert.equal(mount(opponentLeadMarkup(modelOf(scored(begin()), "result"))).querySelector(".g-status--wait").textContent, "Waiting for the opponent to confirm");
+  assert.equal(mount(opponentLeadMarkup(modelOf(scored(begin()), "result"))).querySelector(".g-status--live").textContent, "Score 2–1 saved · each coach completes their own checklist");
   assert.equal(opponentLeadMarkup({ opponent: { text: "" } }), "");
 });
 

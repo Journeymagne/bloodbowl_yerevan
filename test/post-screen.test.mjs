@@ -211,7 +211,7 @@ it("a post-match that cannot be read says why, with «Read again»", async () =>
 
 it("the score is sent with the revision and the side; the answer is drawn", async () => {
   const post = begin();
-  await visit(post);
+  await visit(post, { step: "result" });
   const value = () => view.querySelector('[data-score-key="own:touchdowns"] .g-after__value').textContent;
   assert.equal(value(), "2", "from the records");
   await press(view.querySelector('[data-score-key="own:touchdowns"] [data-score-step="1"]'));
@@ -223,18 +223,44 @@ it("the score is sent with the revision and the side; the answer is drawn", asyn
     action: { type: "result", mode: "played", winner: "", home: { touchdowns: 3, casualties: 3 }, away: { touchdowns: 1, casualties: 1 } } }]);
   // Drawn from the answer: the score sent, the opponent waited for, the records against it.
   assert.equal(value(), "3");
-  assert.ok(cta().hasAttribute("disabled"));
-  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.waitAgree"));
+  assert.equal(cta().getAttribute("href"), postMatchUrl("g1", "fans"));
+  assert.equal(view.querySelector(".g-prep__hint"), null);
   assert.ok(view.querySelector('.g-after__alert[role="alert"]').textContent.includes(t("after.mismatch")));
   const keys = api.calls.map((call) => call.key);
   assert.ok(keys.lastIndexOf("GET /api/games") > keys.indexOf(WRITE), "the games are read again");
   // The opponent's score: confirmed as it stands, or answered with ours.
   await visit(scored(post, { by: "away" }), { step: "result" });
-  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
-  api.reply(WRITE, 200, payload(agreed(post, { by: "away" })));
-  await pressCta();
-  assert.deepEqual(writes().at(-1).body.action, { type: "agree-result" });
+  assert.equal(cta().getAttribute("href"), postMatchUrl("g1", "fans"));
+  assert.equal(writes().length, 0);
   api.assertAnswered();
+});
+
+it("a missing CAS can be corrected after income without an opponent approval", async () => {
+  const events = {};
+  const post = scored(begin({ events }), { home: [0, 1], away: [0, 0], events });
+  const mismatch = () => view.querySelector(".g-after__alerttext").textContent;
+  await visit(post, { step: "result" });
+  assert.match(mismatch(), /your CAS: 1 in the score, 0 in the records/);
+  assert.ok(mismatch().includes(t("after.mismatchBeforePlayers")));
+  assert.ok(!cta().hasAttribute("disabled"));
+  assert.equal(view.querySelector(`a[href="${postMatchUrl("g1", "players")}"]`), null);
+
+  const confirmed = post; // no opponent action needed
+  assert.equal(cta().getAttribute("href"), postMatchUrl("g1", "fans"));
+  assert.ok(mismatch().includes(t("after.mismatchBeforePlayers")));
+
+  await visit(confirmed, { step: "fans" });
+  const fans = { type: "fans", roll: null, technicalRoll: null, painted: false, stalling: false };
+  const atPlayers = act(confirmed, "home", fans, events);
+  api.reply(WRITE, 200, payload(atPlayers));
+  await pressCta();
+  assert.deepEqual(writes().at(-1).body.action, fans);
+  assert.equal(cta().getAttribute("href"), postMatchUrl("g1", "players"));
+  api.assertAnswered();
+
+  await visit(atPlayers, { step: "players" });
+  assert.ok(mismatch().includes(t("after.mismatchTail")));
+  assert.ok(cta().hasAttribute("disabled"), "the Players step still requires matching TD/CAS and MVP");
 });
 
 it("a refused write on a revision moved by the opponent is sent once more when this side and the score are as seen", async () => {
@@ -260,8 +286,8 @@ it("a refused write on a revision moved by the opponent is sent once more when t
   await pressCta();
   assert.equal(writes().length, 1);
   assert.equal(alertText(), t("error.POST_REVISION"));
-  assert.ok(view.querySelector('[data-score-key="own:touchdowns"]'), "drawn as read: the score to confirm");
-  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
+  assert.equal(view.querySelector('[data-score-key="own:touchdowns"]'), null, "no new approval required");
+  assert.equal(cta().getAttribute("data-prep-action"), "fans");
   api.assertAnswered();
 });
 
@@ -482,7 +508,7 @@ it("a new score rebuilds the side from the records, and the mismatch is said on 
   await press(view.querySelector('[data-prep-action="unlock-result"]'));
   await press(view.querySelector('[data-score-key="own:touchdowns"] [data-score-step="1"]'));
   const rescored = scored(base, { home: [3, 3] });
-  assert.equal(rescored.home.stage, 0, "both sides start again from the records");
+  assert.equal(rescored.home.stage, 1, "both sides start again from income and the records");
   api.reply(WRITE, 200, payload(rescored));
   await pressCta();
   assert.deepEqual(writes()[0].body.action.home, { touchdowns: 3, casualties: 3 });
@@ -887,11 +913,11 @@ it("a Players press made while its write is out is said lost when that write's a
   api.assertAnswered();
 });
 
-it("a draft kept does not hold the poll: the treasury waiting on the opponent's Players opens, the dice kept", async () => {
+it("treasury dice are kept while the opponent progresses independently", async () => {
   const waiting = reach(agreed(begin()), { home: 4, away: 2 });
   await visit(waiting);
   assert.ok(cta().hasAttribute("disabled"));
-  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.waitStats"));
+  assert.equal(view.querySelector(".g-prep__hint").textContent, t("after.mistakeNeed"));
   await press(face("[data-after-mistake]", 6));
   const saved = reach(waiting, { home: 4, away: 3 });
   api.reply(READ, 200, payload(saved));
@@ -1008,14 +1034,16 @@ it("a Players press made while «Next: roster» is on its way is not sent once t
   }
 });
 
-it("the score's draft is what it writes: a winner picked, then «Played» again, is the opponent's score to confirm", async () => {
+it("reopening a score and restoring its original mode leaves no changed draft", async () => {
   await visit(scored(begin(), { by: "away" }), { step: "result" });
-  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
+  await press(view.querySelector('[data-prep-action="unlock-result"]'));
+  assert.equal(cta().getAttribute("data-prep-action"), "result");
   await press(view.querySelector('[data-after-mode] [data-mode="technical"]'));
   await press(view.querySelector('.g-seg[data-seg-group="after-winner"] [data-seg-value="away"]'));
   assert.equal(cta().getAttribute("data-prep-action"), "result");
   await press(view.querySelector('[data-after-mode] [data-mode="played"]'));
-  assert.equal(cta().getAttribute("data-prep-action"), "agree-result");
+  assert.equal(cta().getAttribute("data-prep-action"), "result");
+  assert.ok(cta().hasAttribute("disabled"));
   assert.equal(writes().length, 0);
 });
 

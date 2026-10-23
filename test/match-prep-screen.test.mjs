@@ -411,7 +411,7 @@ test("the weather sends what is chosen: the season and both dice, an empty die a
 
 test("a journeyman added, the roster confirmed, reopened", async () => {
   const before = [...FANS, ...WEATHER];
-  await visit(before, { rosters: { ours: SHORT } });
+  await visit(before, { step: "roster", rosters: { ours: SHORT } });
   const hired = [...before, ["home", { type: "add-journeyman", rowIndex: 0 }]];
   api.reply(WRITE, 200, payloadAt(hired, {}, { ours: SHORT }));
   await press(view.querySelector('[data-prep-hire="0"]'));
@@ -623,11 +623,11 @@ test("after the footer's own action the focus stays on the footer, else the titl
   api.reply(WRITE, 200, payloadAt([...theirsLocked, ["home", { type: "lock-roster" }], ["home", { type: "reopen" }]]));
   await focused(view.querySelector('[data-prep-action="reopen"]'));
   assert.ok(document.activeElement === view.querySelector('[data-prep-action="lock-roster"]'), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
-  // «Confirm the roster» while the opponent's is not: the button stays, closed — the title takes the focus.
+  // Our roster opens the next step even while the opponent has not saved theirs.
   await visit([...FANS, ...WEATHER], { step: "roster" });
   api.reply(WRITE, 200, payloadAt([...FANS, ...WEATHER, ["home", { type: "lock-roster" }]]));
   await focused(view.querySelector('[data-prep-action="lock-roster"]'));
-  assert.ok(document.activeElement === view.querySelector("h1"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  assert.ok(document.activeElement === view.querySelector("a.g-prep__cta"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
   // «Confirm the purchases» once the opponent's are in: the link on to the start.
   await visit(TO_INDUCEMENTS, { step: "inducements" });
   api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]]));

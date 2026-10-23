@@ -374,6 +374,8 @@ async function openVisit(visit) {
   if (!visit.here) return;
   visit.payload = payload;
   visit.sideName = payload.viewerSide === "away" ? "away" : "home";
+  // Autosaved dice keep their step visible; the enabled footer leads onward.
+  if (!visit.requestedStep && modelOf(visit).step === "fans") visit.requestedStep = "fans";
   const model = modelOf(visit);
   // Armed on the first draw too (the re-review's F-1): a double click on «Next: start» lands on «Start the match».
   takeFooter(visit, footerAction(model.footer));

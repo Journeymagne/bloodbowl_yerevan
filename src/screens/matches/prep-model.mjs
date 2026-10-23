@@ -1,14 +1,14 @@
 /**
  * What the preparation 3.0 says (`#/games/:id/pre-match[/:step]`, stage 09a decisions 17–22), with no DOM: the step on
  * screen and where each step stands, the head's words, whether the preparation can still be written, the line about the
- * opponent and the one action the footer offers. The rules are the domain's, unchanged (`preparationStep`,
+ * opponent and the one action the footer offers. The rules are the domain's (`preparationStep`,
  * `calculateMatchCtv`, `matchBudget`, `weatherResult`): this module only reads the payload `GET …/preparation` sends.
  *
- * The step on screen is the one asked for, never past the current one (as 2.x's `step()`). A step both sides have passed
+ * The step on screen is the one asked for, never past this side's current one. A step this side has passed
  * is done; the current one is the first not passed yet; the step on screen, when it is earlier than the current one, is
  * open; the ones after the current are later and lead nowhere.
  *
- * The footer (decision 21, «How each write goes»): the dice steps lead on to the next once both sides have passed them,
+ * The footer: the dice steps lead on to the next once this side has passed them,
  * closed with why until then; the roster's confirms the roster, then leads on with a quiet way to change it; the
  * inducements' confirms the purchases (or goes on without any), then leads on with a quiet way to change them; the
  * start's confirms the preparation, then starts the match — closed until the preparation is ready. A match begun or a
@@ -212,7 +212,7 @@ function inducementsOpponent(inducements, other) {
 /** The first letter small: a step's name inside a sentence (PreFans.html «Далее: погода»). */
 const lowerFirst = (words) => words.charAt(0).toLocaleLowerCase() + words.slice(1);
 
-/** «Next: weather»: a link to the next step once both sides have passed this one, closed with why until then. */
+/** «Next: weather»: a link once this side has passed this step, closed with why until then. */
 function nextFooter(key, index, current, gameId) {
   const next = MATCH_STEPS[index + 1];
   const open = current > index;
@@ -271,7 +271,7 @@ export function prepModel(payload, sideName, step, ui = {}) {
   const prep = payload.preparation;
   const data = ui.data ?? null;
   const gameId = payload.fixture.id;
-  const current = preparationStep(prep);
+  const current = preparationStep(prep, sideName);
   const asked = MATCH_STEPS.indexOf(step);
   const shown = Math.min(Math.max(0, asked === -1 ? current : asked), current);
   const key = MATCH_STEPS[shown];

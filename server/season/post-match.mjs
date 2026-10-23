@@ -20,7 +20,7 @@ import { httpError } from '../http/errors.mjs';
 import { checkPostRoll, rollForPlayer, serverDie, settleRosterRolls } from '../api/dice-rolls.mjs';
 import { matchReference } from '../domain/match-reference.mjs';
 import { loadPreparationFixture, loadPreparationSources } from './preparation-store.mjs';
-import { createPostMatch, createPostSide, applyPostAction, validatePostSide } from '../../src/domain/post-match/state.mjs';
+import { createPostMatch, createPostSide, applyPostAction, validatePostSide, upgradePostMatch } from '../../src/domain/post-match/state.mjs';
 import { followEvents } from '../../src/domain/post-match/events.mjs';
 import { PLAYERS_STAGE, resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { fallenPlayers, postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
@@ -78,7 +78,7 @@ async function loadPost(client, fixture, sources, data) {
   const snapshots = Object.fromEntries((await client.query('SELECT side,snapshot FROM match_roster_snapshots WHERE pairing_id=$1', [fixture.id])).rows.map(row => [row.side, row.snapshot]));
   if (!SIDES.every(name => snapshots[name])) throw httpError(409, 'POST_NOT_STARTED');
   const row = (await client.query('SELECT state FROM match_post_games WHERE pairing_id=$1 FOR UPDATE', [fixture.id])).rows[0];
-  return row?.state || createPostMatch(fixture.id, sources, snapshots, data, officialResult(fixture));
+  return upgradePostMatch(row?.state || createPostMatch(fixture.id, sources, snapshots, data, officialResult(fixture)));
 }
 
 async function savePost(client, fixture, state) {

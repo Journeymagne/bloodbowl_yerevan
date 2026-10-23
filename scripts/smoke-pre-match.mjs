@@ -66,7 +66,8 @@ async function prepareMatch() {
   await change("home", { type: "reopen" });
   for (let i = 0; i < 2; i++) await change("home", { type: "add-journeyman", rowIndex: 0 });
   await change("home", { type: "lock-roster" }); await change("away", { type: "lock-roster" });
-  await expectError("home", { type: "basket", id: "bloodweiser-keg", quantity: 1 }, "MATCH_WAIT");
+  await change("home", { type: "basket", id: "bloodweiser-keg", quantity: 1 });
+  await change("home", { type: "basket", id: "bloodweiser-keg", quantity: 0 });
   await change("away", { type: "basket", id: "bloodweiser-keg", quantity: 2 }); await change("away", { type: "lock-basket" });
   for (const id of ["star:griff-oberwald", "hired-wizard", "additional-training", "nuffles-prayers"]) await change("home", { type: "basket", id, quantity: 1 });
   await expectError("home", { type: "lock-basket" }, "MATCH_EFFECTS");

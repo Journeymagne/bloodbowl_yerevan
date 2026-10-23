@@ -75,7 +75,7 @@ test("a step asked beyond the current is the current", () => {
 });
 
 test("a phone's frame: back to the team's matches, the title, the dots, the footer", () => {
-  const model = modelAt([["home", { type: "fans", value: 2 }]]);
+  const model = modelAt([["home", { type: "fans", value: 2 }]], "fans");
   const fragment = frame(model);
   const back = fragment.querySelector("a.g-prep__back");
   assert.equal(back.getAttribute("href"), teamUrl("t1", "matches"));
@@ -89,15 +89,15 @@ test("a phone's frame: back to the team's matches, the title, the dots, the foot
   const current = dots.querySelector('[aria-current="step"]');
   assert.equal(current.tagName, "A");
   assert.equal(current.getAttribute("href"), preMatchUrl("g1", "fans"));
-  assert.deepEqual(dots.querySelectorAll("a").length, 1, "the later steps are no links");
-  // The footer: the opponent has not rolled — «Next: Weather» closed, and why.
+  assert.deepEqual(dots.querySelectorAll("a").length, 2, "our roll opens weather");
+  // The opponent has not rolled; our next step is available.
   assert.equal(fragment.querySelector(".g-prep__opp").textContent, "Waiting for the opponent's roll");
   assert.ok(fragment.querySelector(".g-prep__oppdot--wait"));
   const next = fragment.querySelector(".g-prep__cta");
-  assert.equal(next.tagName, "BUTTON");
+  assert.equal(next.tagName, "A");
   assert.equal(next.textContent, "Next: weather");
-  assert.ok(next.hasAttribute("disabled"));
-  assert.equal(fragment.querySelector(".g-prep__hint").textContent, "Opens once both have rolled");
+  assert.ok(!next.hasAttribute("disabled"));
+  assert.equal(fragment.querySelector(".g-prep__hint"), null);
   // Both rolled: a link on.
   const on = frame(modelAt(FANS, "fans"));
   assert.equal(on.querySelector("a.g-prep__cta").getAttribute("href"), preMatchUrl("g1", "weather"));
@@ -240,10 +240,10 @@ test("the roster: who plays, who misses it and why, the journeymen positions clo
   assert.equal(after.querySelector('.g-prep__quiet[data-prep-action="reopen"]').textContent, "Change the roster");
   assert.equal(mount(rosterMarkup(locked)).querySelector(".g-prep__hire .g-prep__why").textContent, "The roster is confirmed");
   assert.equal(after.querySelector(".g-prep__opp").textContent, "The opponent confirmed the roster: 9 in the lineup");
-  // Ours confirmed, theirs not: on is closed, with why.
+  // Ours confirmed, theirs not: our inducements are available.
   const half = frame(modelAt([...FANS, ...WEATHER, ROSTERS[0]], "roster"));
-  assert.ok(half.querySelector("button.g-prep__cta").hasAttribute("disabled"));
-  assert.equal(half.querySelector(".g-prep__hint").textContent, "Opens once both rosters are confirmed");
+  assert.equal(half.querySelector("a.g-prep__cta").getAttribute("href"), preMatchUrl("g1", "inducements"));
+  assert.equal(half.querySelector(".g-prep__hint"), null);
   assert.equal(half.querySelector(".g-prep__opp").textContent, "The opponent has not confirmed the roster yet");
 });
 
@@ -266,7 +266,7 @@ test("the start: both sides' rows, the start closed until the opponent confirms"
   const start = waiting.querySelector('.g-prep__cta[data-prep-action="start"]');
   assert.equal(start.textContent, "Start the match");
   assert.ok(start.hasAttribute("disabled"));
-  assert.equal(waiting.querySelector(".g-prep__hint").textContent, "The button opens once the opponent confirms");
+  assert.equal(waiting.querySelector(".g-prep__hint").textContent, "Your preparation is complete. The match starts when both teams are ready.");
   assert.equal(waiting.querySelector(".g-prep__opp").textContent, "Waiting for the opponent to confirm");
   const ready = frame(modelAt([...actions, ["home", { type: "confirm" }], ["away", { type: "confirm" }]]));
   assert.equal(ready.querySelector('.g-prep__cta[data-prep-action="start"]').hasAttribute("disabled"), false);

@@ -15,7 +15,6 @@ import { escapeHtml } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { calculateMatchCtv, createMatchSide } from "../../domain/match/roster.mjs";
-import { otherSide } from "../../domain/match/rules.mjs";
 import { sumMoney } from "../../domain/money.mjs";
 import { projectPostRoster } from "../../domain/post-match/roster.mjs";
 import { nextMatchChanges } from "../../domain/post-match/score.mjs";
@@ -104,17 +103,17 @@ function mistakesCard(model, projection, draft, closed) {
 }
 
 /**
- * The treasury (PostFinance.html). «Next: the next match» sends the deposit and the dice (`finance`), closed while the
- * opponent has not saved the Players step, and while a die the kind needs is not marked.
+ * The treasury (PostFinance.html). «Next: the next match» sends the deposit and the dice (`finance`), closed while
+ * a required die is not marked. Later statistics reopen finance if they change the income.
  * @param {ReturnType<typeof import("./post-model.mjs").postModel>} model @param {ReturnType<typeof financeDraft>} draft
  */
 export function financeStep(model, draft) {
   const projection = projectionWith(model, draft);
   const closed = model.readonly;
-  const contentHtml = `${treasuryCard(model, projection)}${safeCard(model, projection, draft, closed ? t("after.financeLocked") : "")}${mistakesCard(model, projection, draft, closed)}`;
+  const note = !closed && model.other.stage < 3 ? noteMarkup(t("after.waitStats")) : "";
+  const contentHtml = `${treasuryCard(model, projection)}${safeCard(model, projection, draft, closed ? t("after.financeLocked") : "")}${mistakesCard(model, projection, draft, closed)}${note}`;
   if (closed) return { contentHtml, asideHtml: "", footer: nextLink(model, "next") };
-  const waiting = model.post[otherSide(model.sideName)].stage < 3;
-  const hint = waiting ? t("after.waitStats") : projection.finance.pending ? t("after.mistakeNeed") : "";
+  const hint = projection.finance.pending ? t("after.mistakeNeed") : "";
   return { contentHtml, asideHtml: "", footer: actionFooter("finance", t("after.next.next"), hint) };
 }
 

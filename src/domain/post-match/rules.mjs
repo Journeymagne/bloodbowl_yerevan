@@ -22,7 +22,9 @@ export function postDie(value, maximum) {
 }
 
 export function resultAgreed(state) {
-  return Boolean(state.result && state.result.accepted.home && state.result.accepted.away);
+  // The score is shared; saving it once opens each coach's own checklist.
+  // Keep accepted as authorship metadata for drafts created by earlier versions.
+  return Boolean(state.result && (state.result.official || state.result.accepted?.home || state.result.accepted?.away));
 }
 
 export function postOutcome(state, name) {

@@ -66,8 +66,8 @@ async function press(mock, action, side = "home") {
 // Each case: the coach's side (home in g2) and the rival's — the stage, confirmed or not — and the post-match's status.
 const CASES = {
   result: [[0, false], [0, false], "draft"],
-  sent: [[0, false], [0, false], "draft"],
-  mismatch: [[0, false], [0, false], "draft"],
+  sent: [[1, false], [1, false], "draft"],
+  mismatch: [[1, false], [1, false], "draft"],
   agreed: [[1, false], [1, false], "draft"],
   fans: [[1, false], [2, false], "draft"],
   players: [[2, false], [2, false], "draft"],
