@@ -44,3 +44,10 @@ export function effectiveInjury(side, id) {
   const injury = side.injuries[id] || { code: 'none' };
   return side.gamesPlayed < 3 && injury.code !== 'none' ? { code: 'badly-hurt' } : injury;
 }
+
+/** Captaincy survives injuries and temporary retirement; a recorded death respects rookie protection. */
+export function survivingCaptain(side, roster) {
+  const captain = side.baseRoster.players.find(player => Boolean(player.isCaptain ?? player.captain)
+    && effectiveInjury(side, player.id).code !== 'dead');
+  return captain && roster.players.find(player => String(player.id) === String(captain.id));
+}

@@ -8,7 +8,7 @@ import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery } from
 import { favouredBonus, favouredRollAsked } from '../roster/edits.mjs';
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
 import { isLineman } from '../match/roster.mjs';
-import { effectiveInjury, postError, postDie, postCount } from './rules.mjs';
+import { effectiveInjury, postError, postDie, postCount, survivingCaptain } from './rules.mjs';
 import { earnedCounters } from './statistics.mjs';
 import { postIncome, nextDedicatedFans, postFinance } from './finance.mjs';
 import { isMoneyAmount, sumMoney } from '../money.mjs';
@@ -153,9 +153,11 @@ export function projectPostRoster(state, name, data, final = false) {
     if (!isMoneyAmount(roster.treasury)) throw postError('POST_BUDGET');
     transactions.push({ ...operation, amount: sumMoney(roster.treasury, -before) });
   }
-  if (side.captain) {
-    if (!roster.players.some(player => player.id === side.captain && !player.temporarilyRetired)) throw postError('POST_PLAYER');
-    roster.players.forEach(player => { player.isCaptain = player.id === side.captain; });
+  // Old unfinished checklists may name somebody else. Keep the roster's living captain on settlement too.
+  const incumbent = survivingCaptain(side, roster), captain = incumbent?.id ?? side.captain;
+  if (captain) {
+    if (!incumbent && !roster.players.some(player => player.id === captain && !player.temporarilyRetired)) throw postError('POST_PLAYER');
+    roster.players.forEach(player => { player.isCaptain = player.id === captain; });
   }
   const finance = postFinance(state, name, roster, final);
   roster.treasury = finance.after; roster.coachesSafe = finance.safe;

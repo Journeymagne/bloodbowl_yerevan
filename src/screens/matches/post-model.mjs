@@ -121,7 +121,7 @@ function summaryOf(key, { post, sideName, preview }) {
   if (key === "roster") return signedMoney(sumMoney(preview.accounting.sales, -preview.accounting.purchases));
   if (key === "finance") return t("after.sum.finance", { amount: formatMoney(Number(side.deposit) || 0) });
   if (key === "next") {
-    const captain = preview.roster.players.find((player) => player.id === side.captain);
+    const captain = preview.roster.players.find((player) => player.isCaptain);
     return captain ? t("after.sum.next", { name: captain.name }) : "";
   }
   return "";

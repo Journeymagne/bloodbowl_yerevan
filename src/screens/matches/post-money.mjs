@@ -9,7 +9,7 @@
  * Its button waits for the opponent's Players step, as the domain does (POST_WAIT_STATISTICS).
  *
  * Next: who comes back for the next match and who misses it and why (a Lasting Injury with its characteristic's shift),
- * the team's value with and without them, the treasury and the safe, and the captain for the next match.
+ * the team's value with and without them, the treasury and the safe, and its permanent captain.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
@@ -17,6 +17,7 @@ import { t } from "../../core/i18n.mjs";
 import { calculateMatchCtv, createMatchSide } from "../../domain/match/roster.mjs";
 import { sumMoney } from "../../domain/money.mjs";
 import { projectPostRoster } from "../../domain/post-match/roster.mjs";
+import { survivingCaptain } from "../../domain/post-match/rules.mjs";
 import { nextMatchChanges } from "../../domain/post-match/score.mjs";
 import { PLAYER_STATS, rowsForTeam, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { renderResourceCounter } from "../../ui/resource-counter.mjs";
@@ -119,19 +120,30 @@ export function financeStep(model, draft) {
 
 // ———————————————————————————————————— next ————————————————————————————————————
 
-/** Who may be the captain of the next match: the roster after the post-match, not retired for now, by number. */
+/** Candidates for a vacant captaincy: the roster after the post-match, not retired for now, by number. */
 function captains(model) {
   return model.preview.roster.players.filter((player) => !player.temporarilyRetired).sort((one, other) => (Number(one.number) || 0) - (Number(other.number) || 0));
 }
 
 /**
- * The next step's draft as the page starts it (pre-flight L18): the captain this side named, else the team's captain if
- * still on the roster and not retired, else the first who may be, else none.
+ * Keep a surviving captain, including one temporarily retired. A vacancy needs an explicit nomination.
  */
 export function nextDraft(model) {
   const side = model.post[model.sideName], fit = captains(model);
-  const named = fit.find((player) => player.id === side.captain) ?? fit.find((player) => side.baseRoster.players.some((base) => base.id === player.id && base.isCaptain));
-  return { captain: (named ?? fit[0])?.id ?? "" };
+  const named = survivingCaptain(side, model.preview.roster) ?? fit.find((player) => player.id === side.captain);
+  return { captain: named?.id ?? "" };
+}
+
+/** A living captain is shown as a fact; only a vacant captaincy offers a choice. */
+function captainCard(model, draft) {
+  const side = model.post[model.sideName], incumbent = survivingCaptain(side, model.preview.roster);
+  if (incumbent) return `<div class="g-after__card">${labelMarkup(t("after.captain"))}${rowMarkup(who(incumbent), "")}${noteMarkup(t("after.captainStays"))}</div>`;
+  const fit = captains(model);
+  if (!fit.length) return "";
+  const entry = fit.some((player) => player.id === draft.captain) ? draft.captain : fit[0]?.id;
+  const items = fit.map((player) => `<button type="button" class="g-after__option" role="radio" aria-checked="${player.id === draft.captain}" tabindex="${player.id === entry ? 0 : -1}"`
+    + `${model.readonly ? ' aria-disabled="true"' : ""} data-captain="${escapeHtml(player.id)}"><span>${escapeHtml(who(player))}</span></button>`).join("");
+  return `<div class="g-after__card">${labelMarkup(t("after.captain"))}${noteMarkup(t("after.captainChoose"))}<div class="g-after__options g-after__options--captain" role="radiogroup" aria-label="${escapeHtml(t("after.captain"))}" data-after-captain>${items}</div></div>`;
 }
 
 /** «AG 3+ → 4+»: a characteristic as it was and as a Lasting Injury leaves it. */
@@ -179,12 +191,9 @@ export function nextStep(model, draft) {
   const values = valuesOf(model), span = (key) => (values ? `${formatMoney(values.before[key])} → ${formatMoney(values.after[key])}` : "—");
   const money = `<div class="g-after__card g-after__card--rows">${rowMarkup(t("after.tv"), span("worth"))}${rowMarkup(t("after.ctv"), span("ctv"), { sub: t("after.ctvSub") })}`
     + `${rowMarkup(t("after.treasury"), formatMoney(model.preview.roster.treasury))}${rowMarkup(t("after.safe"), formatMoney(model.preview.roster.coachesSafe))}</div>`;
-  const fit = captains(model), closed = model.readonly;
-  const entry = fit.some((player) => player.id === draft.captain) ? draft.captain : fit[0]?.id;
-  const items = fit.map((player) => `<button type="button" class="g-after__option" role="radio" aria-checked="${player.id === draft.captain}" tabindex="${player.id === entry ? 0 : -1}"`
-    + `${closed ? ' aria-disabled="true"' : ""} data-captain="${escapeHtml(player.id)}"><span>${escapeHtml(who(player))}</span></button>`).join("");
-  const captain = fit.length ? `<div class="g-after__card">${labelMarkup(t("after.captain"))}<div class="g-after__options g-after__options--captain" role="radiogroup" aria-label="${escapeHtml(t("after.captain"))}" data-after-captain>${items}</div></div>` : "";
-  const contentHtml = `${back}${out}${money}${captain}`;
-  if (closed) return { contentHtml, asideHtml: "", footer: nextLink(model, "review") };
-  return { contentHtml, asideHtml: "", footer: actionFooter("next", t("after.next.review"), fit.length && !draft.captain ? t("after.captainShut") : "") };
+  const contentHtml = `${back}${out}${money}${captainCard(model, draft)}`;
+  if (model.readonly) return { contentHtml, asideHtml: "", footer: nextLink(model, "review") };
+  const incumbent = survivingCaptain(model.post[model.sideName], model.preview.roster);
+  const missing = !incumbent && captains(model).length && !draft.captain;
+  return { contentHtml, asideHtml: "", footer: actionFooter("next", t("after.next.review"), missing ? t("after.captainShut") : "") };
 }

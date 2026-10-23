@@ -141,21 +141,20 @@ test("next: who comes back, who misses the next match and why, TV and CTV before
     ["Treasury", "", formatMoney(after.treasury)], ["Coach's Safe", "", formatMoney(after.coachesSafe)],
   ]);
   const captain = fragment.querySelector('[role="radiogroup"][data-after-captain]');
-  assert.equal(captain.getAttribute("aria-label"), "Captain for the next match");
-  assert.equal(captain.querySelectorAll('[role="radio"]').length, 12);
-  assert.equal(captain.querySelector('[aria-checked="true"]').textContent, "#1 W. Brandt", "the captain the team has");
+  assert.equal(captain, null, "a living captain is not chosen again");
+  assert.match(cards[3].textContent, /Team captain.*#1 W. Brandt.*until death/);
   assert.deepEqual(nextDraft(model), { captain: "h1" });
-  // One retired for the season is not a captain's choice; a captain who is is not kept.
+  // Temporary retirement leaves the captaincy in place.
   const retiring = { home: [...RECORDS.home.filter((event) => event.counter !== "injury"), ...hurt("h1", { code: "lasting", stat: "ma" })], away: RECORDS.away };
   const retired = at(2, 2, begin({ events: retiring }), { events: retiring });
   const saved = act(retired, "home", { type: "statistics", statistics: retired.home.statistics, injuries: { h1: { code: "lasting", stat: "ma", retire: true } }, mvps: ["h3"] }, retiring);
   const later = modelOf(reach(act(saved, "home", { type: "lock-players" }, retiring), { home: 5, away: 5 }, { events: retiring }), "next");
   assert.ok(!mount(nextStep(later, nextDraft(later)).contentHtml).querySelector('[data-captain="h1"]'));
-  assert.equal(nextDraft(later).captain, "h2", "the first who may be");
+  assert.equal(nextDraft(later).captain, "h1", "temporary retirement keeps the captain");
   assert.match(mount(nextStep(later, nextDraft(later)).contentHtml).textContent, /#1 W. Brandt.*Lasting Injury · MA 7 → 6/);
-  // The footer: «Next: summary», closed without a captain.
+  // The existing captain never blocks the footer, even if the local draft omits him.
   const footer = nextStep(model, { captain: "" }).footer;
-  assert.deepEqual([footer.action, footer.label, footer.disabled, footer.hint], ["next", "Next: summary", true, "Choose the captain first"]);
+  assert.deepEqual([footer.action, footer.label, footer.disabled, footer.hint], ["next", "Next: summary", false, ""]);
   assert.equal(nextStep(model, nextDraft(model)).footer.disabled, false);
   const passed = modelOf(at(6, 6), "next");
   assert.deepEqual([nextStep(passed, nextDraft(passed)).footer.kind, nextStep(passed, nextDraft(passed)).footer.href], ["next", postMatchUrl("g1", "review")]);

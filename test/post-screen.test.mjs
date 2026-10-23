@@ -636,11 +636,11 @@ it("the fans, the treasury and the captain are kept on the page and sent by the 
     ?.querySelector(".g-after__rowv").textContent;
   assert.match(valueOf(t("after.tv")), /\d.* → .*\d/);
   assert.match(valueOf(t("after.ctv")), /\d.* → .*\d/);
-  await press(view.querySelector('[data-after-captain] [data-captain="h3"]'));
+  assert.equal(view.querySelector('[data-after-captain]'), null);
   assert.equal(writes().length, 0);
-  api.reply(WRITE, 200, payload(act(next, "home", { type: "next", captain: "h3" })));
+  api.reply(WRITE, 200, payload(act(next, "home", { type: "next", captain: "h1" })));
   await pressCta();
-  assert.deepEqual(writes().map((call) => call.body.action), [{ type: "next", captain: "h3" }]);
+  assert.deepEqual(writes().map((call) => call.body.action), [{ type: "next", captain: "h1" }]);
   api.assertAnswered();
 });
 

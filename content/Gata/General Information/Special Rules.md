@@ -72,6 +72,7 @@ During the Start of Drive sequence, after both teams have set up, a team with th
 Every team has a Team Captain:
 
 - Nominate a Captain on the roster.
+- The Captain keeps this role until death; do not choose a new Captain after each match. If the Captain dies, nominate a replacement. Injury, missing a match or temporary retirement does not change the Captain.
 - The Captain gains Pro.
 - The Captain must be set up if able.
 - While the Captain is on the pitch, when you use a Team Re-roll, roll a D6. On a 5+, the Team Re-roll is not spent.

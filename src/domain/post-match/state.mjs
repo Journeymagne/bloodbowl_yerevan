@@ -3,7 +3,7 @@ import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
 import { choiceRoll } from '../roster/progression.mjs';
 import { TECHNICAL_REASONS } from '../league-rules.mjs';
-import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
+import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount, survivingCaptain } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
 import { statisticsFromEvents, sameValues } from './events.mjs';
 import { validateFans, refreshPostFinance } from './finance.mjs';
@@ -163,8 +163,9 @@ function performAction(state, name, action, data) {
     projectPostRoster(state, name, data, true); side.stage = 5; return;
   }
   if (type === 'next' && side.stage === 5) {
-    side.captain = String(action.captain || '');
-    if (!side.captain && projectPostRoster(state, name, data).roster.players.some(player => !player.temporarilyRetired)) throw postError('POST_CAPTAIN');
+    const { roster } = projectPostRoster(state, name, data);
+    side.captain = String(survivingCaptain(side, roster)?.id ?? action.captain ?? '');
+    if (!side.captain && roster.players.some(player => !player.temporarilyRetired)) throw postError('POST_CAPTAIN');
     side.stage = 6; return;
   }
   if (type === CONFIRM_ACTION && side.stage === 6) { validatePostSide(state, name, data); side.confirmed = true; return; }
