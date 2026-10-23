@@ -18,99 +18,24 @@ jobs:
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
             import fs from 'node:fs/promises';
-            import assert from 'node:assert/strict';
-            import { execFileSync } from 'node:child_process';
-            import { Pool } from 'pg';
-            import { databaseUrl, pool } from './server/db/pool.mjs';
-            
-            const directory='/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
-            const target='0d2df1fb-53ba-4e05-a1a8-cdb054f8e4d2';
-            const scratch=`codex_snotling_decode_${Date.now()}`;
-            assert.match(scratch,/^codex_snotling_decode_\d+$/);
-            const docker=args=>execFileSync('docker',['exec','gata-league-postgres',...args],{encoding:'utf8',timeout:30000});
-            const user=process.env.POSTGRES_USER||'gata_admin';
-            const quote=name=>'"'+name.replaceAll('"','""')+'"';
-            function value(bytes,type) {
-              if(bytes==null)return null;
-              if(type==='uuid')return bytes.toString('hex').replace(/^(........)(....)(....)(....)(............)$/,'$1-$2-$3-$4-$5');
-              if(type==='integer')return bytes.readInt32LE();
-              if(type==='bigint')return bytes.readBigInt64LE().toString();
-              if(type==='smallint')return bytes.readInt16LE();
-              if(type==='boolean')return bytes[0]!==0;
-              if(type==='timestamp with time zone')return new Date(Date.UTC(2000,0,1)+Number(bytes.readBigInt64LE())/1000).toISOString();
-              if(type==='text') {
-                const size=bytes[0]&1?bytes[0]>>1:bytes.readUInt32LE()>>2;
-                assert.equal(size,bytes.length);
-                return bytes.subarray(bytes[0]&1?1:4).toString('utf8');
-              }
-              throw new Error('Unsupported field type '+type);
-            }
-            function tupleInfo(page,start,fields) {
-              const mask2=page.readUInt16LE(start+18),mask=page.readUInt16LE(start+20),natts=mask2&2047,hoff=page[start+22];
-              assert.ok(natts>0&&natts<=fields.length&&hoff>=24&&hoff<=64&&hoff%8===0);
-              const bits=mask&1?Array.from({length:Math.ceil(natts/8)*8},(_,n)=>page[start+23+Math.floor(n/8)]&(1<<(n%8))?'1':'0').join(''):null;
-              let offset=0;
-              for(const field of fields.slice(0,natts)) {
-                if(bits&&bits[field.attnum-1]==='0')continue;
-                const alignment={c:1,s:2,i:4,d:8}[field.attalign];
-                assert.ok(alignment);
-                if(field.attlen!==-1||page[start+hoff+offset]===0)offset=Math.ceil(offset/alignment)*alignment;
-                let length=field.attlen;
-                if(length===-1){const at=start+hoff+offset;length=page[at]&1?page[at]>>1:page.readUInt32LE(at)>>2;}
-                assert.ok(length>0&&length<1024&&start+hoff+offset+length<=page.length);
-                offset+=length;
-              }
-              return {mask2,mask,natts,hoff,bits,data:page.subarray(start+hoff,start+hoff+offset),length:hoff+offset};
-            }
-            let inspector;
+            import { pool } from './server/db/pool.mjs';
             try {
-              const fields=(await pool.query(`SELECT attnum,attname,format_type(atttypid,atttypmod) AS type,attisdropped,attlen,attalign,
-                CASE WHEN atthasmissing THEN to_jsonb(attmissingval)->0 ELSE NULL END AS missing_value
-                FROM pg_attribute WHERE attrelid='season_pairings'::regclass AND attnum>0 ORDER BY attnum`)).rows;
-              docker(['createdb','-U',user,scratch]);
-              const connection=new URL(databaseUrl);connection.pathname='/'+scratch;
-              inspector=new Pool({connectionString:connection.toString()});
-              await inspector.query('CREATE EXTENSION pageinspect');
-              const oldType=field=>({1:'boolean',2:'smallint',4:'integer',8:'bigint',16:'uuid','-1':'text'})[field.attlen];
-              await inspector.query(`CREATE TABLE season_pairings (${fields.map(f=>quote(f.attisdropped?'_dropped_'+f.attnum:f.attname)+' '+(f.attisdropped?oldType(f):f.type)).join(',')})`);
-              for(const field of fields.filter(f=>f.attisdropped))await inspector.query('ALTER TABLE season_pairings DROP COLUMN '+quote('_dropped_'+field.attnum));
-              async function decode(page,start) {
-                const info=tupleInfo(page,start,fields);
-                const attributes=(await inspector.query("SELECT tuple_data_split('season_pairings'::regclass,$1,$2,$3,$4,false) AS a",[info.data,info.mask,info.mask2,info.bits])).rows[0].a;
-                const row=Object.fromEntries(fields.filter(f=>!f.attisdropped).map(f=>[f.attname,f.attnum>info.natts?f.missing_value??null:value(attributes[f.attnum-1],f.type)]));
-                return {row,info:{...info,data:undefined},xmin:page.readUInt32LE(start),xmax:page.readUInt32LE(start+4),
-                  ctid:[page.readUInt16LE(start+12)*65536+page.readUInt16LE(start+14),page.readUInt16LE(start+16)]};
+              const directory='/var/backups/bloodbowl-league/snotling-history-tuples-20261023';
+              const pair=Buffer.from('618aa3880a104a979f13f9e06bd881e4','hex');
+              const rows=[];
+              for(const name of (await fs.readdir(directory)).filter(name=>name.startsWith('season_pairings-')&&name.endsWith('.bin'))) {
+                const page=await fs.readFile(directory+'/'+name),ids=[],headers=[];
+                for(let at=page.indexOf(pair);at!==-1;at=page.indexOf(pair,at+1))ids.push(at);
+                for(let at=24;at<page.length-24;at+=8)if(page.readUInt32LE(at)===3105)headers.push({at,xmax:page.readUInt32LE(at+4),natts:page.readUInt16LE(at+18)&2047,hoff:page[at+22]});
+                rows.push({name,ids,headers});
               }
-              const context=JSON.parse(await fs.readFile(directory+'/season_pairings-context.json','utf8'));
-              let validated=0;
-              const found=[];
-              for(const origin of ['current','archive'])for(const block of [0,1]) {
-                const page=await fs.readFile(directory+`/season_pairings-${origin}-block-${block}.bin`);
-                if(origin==='current') {
-                  const items=(await inspector.query('SELECT lp,lp_off,lp_len FROM heap_page_items($1) WHERE lp_flags=1',[page])).rows;
-                  for(const item of items) {
-                    const visible=context.current.find(r=>r.physical_ctid===`(${block},${item.lp})`);
-                    if(!visible)continue;
-                    const decoded=await decode(page,item.lp_off);
-                    assert.equal(decoded.info.length,item.lp_len,'Exact tuple length');
-                    for(const [key,val]of Object.entries(decoded.row))assert.deepEqual(val,visible[key],key);
-                    validated++;
-                  }
-                }
-                if(block===0)for(const start of [2080,2256,2432,4704]) {
-                  const decoded=await decode(page,start);
-                  assert.ok(decoded.row.home_entry_id===target||decoded.row.away_entry_id===target);
-                  const status=(await pool.query('SELECT pg_xact_status($1::xid8) AS xmin,pg_xact_status($2::xid8) AS xmax',[String(decoded.xmin),String(decoded.xmax)])).rows[0];
-                  found.push({origin,block,start,...decoded,status});
-                }
+              const wal=(await pool.query('SELECT name,size,modification FROM pg_ls_waldir() ORDER BY name')).rows;
+              const settings=(await pool.query("SELECT name,setting FROM pg_settings WHERE name IN ('archive_mode','wal_keep_size','max_wal_size','min_wal_size','archive_timeout','wal_level')")).rows;
+              const related={};
+              for(const table of ['team_ledger','team_fallen_players','match_events']) {
+                related[table]=(await pool.query(`SELECT count(*)::int AS records FROM ${table} WHERE saved_team_id=$1`,['239e7fe0-8799-4fda-b5d1-3ed9d2be5871'])).rows;
               }
-              assert.equal(validated,context.current.length);
-              await fs.writeFile(directory+'/decoded-fragments.json',JSON.stringify({validated,found}),{mode:0o600});
-              console.log('RECOVERY_DATA '+JSON.stringify({validated,found}));
-            }finally{
-              if(inspector)await inspector.end();
-              docker(['dropdb','-U',user,'--if-exists',scratch]);
-              await pool.end();
-            }
+              console.log('RECOVERY_DATA '+JSON.stringify({rows,wal,settings,related}));
+            }finally{await pool.end();}
             
             NODE
