@@ -24,6 +24,7 @@
 import { toast } from "../../components/toast.mjs";
 import { drawKeepingFocus, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
+import { postMatchUrl } from "../../core/routes.mjs";
 import { view } from "../../core/view.mjs";
 import { wireActionSteppers } from "../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
@@ -102,7 +103,7 @@ async function act(visit, screen, action) {
     toast(t("after.statFirst"));
     return;
   }
-  await screen.send(actionOf(screen, model, action));
+  return screen.send(actionOf(screen, model, action));
 }
 
 /** The frame's buttons: a held key presses once, the footer's button only once armed. */
@@ -114,7 +115,10 @@ function wireFrame(visit, screen, events) {
     if (button.hasAttribute("disabled") || closed(button)) return;
     // A footer's button not armed yet: the rest of a double click on what it was a moment ago.
     if (button.classList.contains("g-prep__cta") && Date.now() < visit.footerAfter) return;
-    void act(visit, screen, button.getAttribute("data-prep-action"));
+    const next = button.getAttribute("data-after-next");
+    void act(visit, screen, button.getAttribute("data-prep-action")).then(answered => {
+      if (answered && visit.here && next) location.hash = postMatchUrl(visit.gameId, next);
+    });
   });
 }
 

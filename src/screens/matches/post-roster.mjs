@@ -19,6 +19,7 @@ import { effectiveInjury } from "../../domain/post-match/rules.mjs";
 import { playerCurrentCost } from "../../domain/roster/costs.mjs";
 import { playerSaleValue } from "../../domain/roster/transfers.mjs";
 import { costToNumber, rosterMax, rowsForTeam } from "../../domain/roster/values.mjs";
+import { renderButton } from "../../ui/button.mjs";
 import { renderResourceCounter } from "../../ui/resource-counter.mjs";
 import { renderSheet } from "../../ui/sheet.mjs";
 import { signedMoney } from "./post-model.mjs";
@@ -159,10 +160,13 @@ function opsCard(model, closed) {
  */
 export function rosterStep(model) {
   const closed = model.readonly ? t("after.rosterLocked") : "";
+  const unchanged = !model.post[model.sideName].operations.length;
+  const skip = !model.readonly && unchanged ? `<div class="g-after__card">${noteMarkup(t("after.optionalRoster"))}`
+    + `${renderButton({ label: t("after.skipRoster"), data: { prepAction: "lock-roster", afterSkipRoster: "", afterNext: "finance" } })}</div>` : "";
   const { income, left } = moneyOf(model);
   const money = `<div class="g-after__card"><div class="g-after__money"><span class="g-after__moneyk">${escapeHtml(t("after.treasuryAfterIncome"))} <b class="g-after__moneyv">${escapeHtml(formatMoney(income))}</b></span>`
     + `<span class="g-after__left${left < 0 ? " g-after__left--short" : ""}">${escapeHtml(formatMoney(left))}</span></div>${noteMarkup(t("after.paidAtFinish"))}</div>`;
-  const contentHtml = `${money}${staffCard(model, closed)}${playersCard(model, closed)}${opsCard(model, closed)}`;
+  const contentHtml = `${skip}${money}${staffCard(model, closed)}${playersCard(model, closed)}${opsCard(model, closed)}`;
   return { contentHtml, asideHtml: "", footer: model.readonly ? nextLink(model, "finance") : actionFooter("lock-roster", t("after.next.finance")) };
 }
 
