@@ -65,3 +65,12 @@
   text-transform: none;
   letter-spacing: 0;
 }
+
+/* D2: on a phone a chip is a finger's target — 44 high and wide, as the opponent's (stage 10); the row grows. */
+@media (max-width: 900px) {
+  .g-skill {
+    justify-content: center;
+    min-width: var(--size-touch);
+    min-height: var(--size-touch);
+  }
+}

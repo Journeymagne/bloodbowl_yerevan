@@ -462,8 +462,12 @@ test("what a finger presses on a phone is 44px; a desk's is compact and never un
   // A skill chip in a desk's row: DeskRoster.html's small chip, 24px at the least.
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__skills .g-skill", "min-height"), ["24px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__skills .g-skill", "font"), ["500 12px/1.2 var(--font-body)"]);
-  // A phone's chip keeps skill-chip.css's own (Stats.html's 32px, as before).
-  assert.ok(!narrow.includes(".g-skill"), "the phone's chips are untouched");
+  // A phone's chip is skill-chip.css's own: 44px to a finger (D2), as the opponent's — not Stats.html's 32px.
+  assert.ok(!narrow.includes(".g-skill"), "the phone's chips take skill-chip.css's rule");
+  const chip = read("src/ui/skill-chip.css");
+  const phone = chip.slice(chip.indexOf("@media (max-width: 900px)"));
+  assert.match(phone, /\.g-skill\s*\{[^}]*min-height:\s*var\(--size-touch\);/);
+  assert.match(phone, /\.g-skill\s*\{[^}]*min-width:\s*var\(--size-touch\);/);
 });
 
 test("the sheet sets what the 2.x globals for table, th, td and button would otherwise set", () => {
