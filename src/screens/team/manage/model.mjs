@@ -7,16 +7,16 @@
  * The rules themselves are not written here. The stage's lock on re-rolls is
  * domain/roster/stage.mjs's, what a step costs and gives back is the 2.x
  * editor's own bookkeeping (domain/roster/costs.mjs), the prices and maxima are
- * league-rules.mjs's, and which medics and bribes a race may have is
+ * league-rules.mjs's (a bribe's costs.mjs's), and which medics a race may have is
  * team-rules.mjs's; this file asks them in the order the page needs.
  */
-import { applyPaidStaffChange } from "../../../domain/roster/costs.mjs";
+import { applyPaidStaffChange, staffUnitCost } from "../../../domain/roster/costs.mjs";
 import { MANUAL_REASONS, MAX_ENTRY, MAX_NOTE } from "../../../domain/roster/ledger.mjs";
 import { canBuy } from "../../../domain/roster/stage.mjs";
 import { normalizeDraft, normalizePurchasedStaff } from "../../../domain/roster/schema.mjs";
-import { availableMedicalStaffDefinitions, hasBribery } from "../../../domain/roster/team-rules.mjs";
+import { availableMedicalStaffDefinitions } from "../../../domain/roster/team-rules.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
-import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from "../../../domain/league-rules.mjs";
+import { builderStaffMaximums, combinedRerollsMaximum } from "../../../domain/league-rules.mjs";
 import { sumMoney } from "../../../domain/money.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { currentMatch } from "../../../data/match-phase.mjs";
@@ -31,10 +31,9 @@ export { MAX_ENTRY, MAX_NOTE };
 /**
  * Why a resource is closed, or null when it is open. The first reason that
  * applies wins, and the order is what the page says:
- *  - `unavailable`: Bribes of a race without Bribery and Corruption. It never
- *    opens, so it is said before a match that would end ("after the post-match"
- *    would promise Humans a bribe). The race is asked first: `hasBribery(null)`
- *    throws, and `staffAvailable` (build.mjs) does not know `teamRerolls`.
+ *  - `unavailable`: Bribes while the team's race is not read. Their price
+ *    depends on it (Bribery and Corruption, `staffUnitCost`), so none is sold
+ *    at a guess; it is said before a match that would end.
  *  - `live`: a match is on.
  *  - `stage`: the rule of the stage (`canBuy`), Starting rerolls only in a
  *    build and Team rerolls only once the team is active. The rule refuses
@@ -49,7 +48,7 @@ export { MAX_ENTRY, MAX_NOTE };
  *    (decision 4 of the stage plan, and question 1 to the league owner).
  */
 function lockOf(key, { race, stage, locked }) {
-  if (key === "bribes" && (!race || !hasBribery(race))) return "unavailable";
+  if (key === "bribes" && !race) return "unavailable";
   if (locked) return "live";
   if (!canBuy(stage, key)) return "stage";
   return key === "dedicatedFans" ? "fans" : null;
@@ -78,12 +77,14 @@ function incRefusalOf(value, max, price, treasury) {
  * alone, with Bribes closed.
  *
  * `value` is read the way the 2.x editor reads a stored roster (`normalizeDraft`,
- * so a count kept under the first builder's name still shows). `refund` is what
- * «−» pays back: the price, only while the roster records a purchase of it
- * (`normalizePurchasedStaff`; a Team Reroll of a team saved before purchases
- * were recorded counts as bought), otherwise 0. `max` is the counter's own
- * maximum, except that the two re-roll counters share 8 between them (`maxOf`).
- * A closed row's «−» is `canStepDown`'s to say, not `decDisabled`'s alone.
+ * so a count kept under the first builder's name still shows). `price` is one's
+ * (`staffUnitCost`: a bribe's by the race; 0 while the race is not read, the row
+ * closed). `refund` is what «−» pays back: the price, only while the roster
+ * records a purchase of it (`normalizePurchasedStaff`; a Team Reroll of a team
+ * saved before purchases were recorded counts as bought), otherwise 0. `max` is
+ * the counter's own maximum, except that the two re-roll counters share 8
+ * between them (`maxOf`). A closed row's «−» is `canStepDown`'s to say, not
+ * `decDisabled`'s alone.
  *
  * @param {{race: object|null, roster: object, stage: string|undefined, locked?: boolean}} input
  *   `race` is the reference's entry for the team's race; `locked` is a match on
@@ -96,8 +97,8 @@ export function resourceRows({ race, roster, stage, locked = false }) {
   const medics = race ? availableMedicalStaffDefinitions(race).map(({ key }) => ({ key, kind: "medic" })) : [];
   const keys = [...COUNTER_KEYS.map((key) => ({ key, kind: "counter" })), ...medics];
   return keys.map(({ key, kind }) => {
-    const [value, max, price] = [draft[key], maxOf(key, draft), builderStaffCosts[key]];
     const lock = lockOf(key, { race, stage, locked });
+    const [value, max, price] = [draft[key], maxOf(key, draft), lock === "unavailable" ? 0 : staffUnitCost(race, key)];
     return {
       key, kind, value, max, price, lock,
       incRefusal: lock === null ? incRefusalOf(value, max, price, draft.treasury) : null,
@@ -139,7 +140,7 @@ export function stepResource({ race, roster, stage, key, delta, locked = false }
   if (closed) return { refused: row };
   const draft = normalizeDraft(structuredClone(roster));
   draft[key] = row.value + delta;
-  applyPaidStaffChange(draft, key, row.value, row.value + delta);
+  applyPaidStaffChange(draft, key, row.value, row.value + delta, race);
   return { roster: draft };
 }
 

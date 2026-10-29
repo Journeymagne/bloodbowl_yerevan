@@ -78,8 +78,8 @@ const sheetDialog = () => document.querySelector(`${SHEET_HOST} dialog#treasury-
 test("the strip says the treasury and what the team holds, as on DeskRoster", () => {
   coach();
   const fragment = mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Apo"]);
-  assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "yes"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "0", "yes"]);
   const section = document.querySelector("section.g-funds");
   assert.equal(section.getAttribute("data-treasury-strip"), "t1");
   assert.equal(section.getAttribute("aria-label"), "Treasury and resources");
@@ -98,7 +98,7 @@ test("the strip says the treasury and what the team holds, as on DeskRoster", ()
   assertDictionaryCovers("src/screens/team/manage/strip.mjs");
 });
 
-test("Bribes are on the strip for a race that may bribe, and not for one that may not; the medics are the race's own, yes or no", () => {
+test("Bribes are on the strip for every race (the owner, 2026-10-28); the medics are the race's own, yes or no", () => {
   const strips = (slug, roster) => {
     coach({ team: { ...TEAM, baseTeamSlug: slug, roster: { ...TEAM.roster, ...roster } } });
     mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
@@ -106,7 +106,7 @@ test("Bribes are on the strip for a race that may bribe, and not for one that ma
   };
   const goblin = strips("teams/goblin", { bribes: 2, apothecary: 0 });
   assert.deepEqual([goblin.Bribes, goblin.Apo], ["2", "no"]);
-  assert.equal("Bribes" in strips("teams/human", {}), false, "a race without Bribery and Corruption has no bribes to count");
+  assert.equal(strips("teams/human", { bribes: 4 }).Bribes, "4", "a race without Bribery and Corruption buys them at 100k");
   const undead = strips("teams/necromantic-horror", { apothecary: 1, mortuaryAssistant: 1 });
   assert.deepEqual([undead.Mortuary, "Apo" in undead, "Plague" in undead], ["yes", false, false]);
   assert.equal(strips("teams/nurgle", { plagueDoctor: 0 }).Plague, "no");
@@ -160,8 +160,8 @@ test("a team with no treasury written has 0k, and a team id is text, not markup"
 test("a team with no roster at all draws a strip of nothing, and does not throw", () => {
   coach({ team: { ...TEAM, roster: null } });
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Apo"]);
-  assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "no"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "0", "no"]);
 });
 
 test("the strip's button opens the same sheet as the team page, and leaving takes it away", () => {
@@ -252,7 +252,7 @@ test("an entry made from the strip shows on the strip without the screen drawing
     stop();
   }
   assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "90k");
-  assert.deepEqual(values(root), ["90k", "2", "1", "3", "1", "1", "yes"], "only the treasury moved");
+  assert.deepEqual(values(root), ["90k", "2", "1", "3", "1", "1", "0", "yes"], "only the treasury moved");
   assert.equal(root.querySelector("[data-treasury-strip]"), section, "patched in place: the screen around it is not drawn again");
   assert.ok(heard.includes(4), "onMyTeamsChange is the announcement, and the list holds the revision a listener reads");
   assert.equal(state.myTeams.items[0].revision, 4);
@@ -263,12 +263,12 @@ test("an entry made from the strip shows on the strip without the screen drawing
 test("a strip patched keeps the focus on its button, though the cells around it come and go", () => {
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   stand();
-  assert.equal(labels(root).includes("Bribes"), true);
+  assert.equal(labels(root).includes("Apo"), true);
   const button = edit();
   button.focus();
   // The race the list names changes: a cell goes, and the button, which is last, must be the same node still.
-  setMyTeams([{ ...state.myTeams.items[0], baseTeamSlug: "teams/human" }]);
-  assert.equal(labels(root).includes("Bribes"), false);
+  setMyTeams([{ ...state.myTeams.items[0], baseTeamSlug: "teams/necromantic-horror" }]);
+  assert.equal(labels(root).includes("Apo"), false);
   assert.equal(edit(), button);
   assert.equal(document.activeElement, button);
 });

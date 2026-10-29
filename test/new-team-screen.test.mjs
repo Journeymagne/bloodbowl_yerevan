@@ -1191,8 +1191,6 @@ test("a «+» the rule refuses is said in words with the staff's name, not the c
     hire("teams/human", "Ogre");
     click(`[data-hire-key="${rowOf("teams/human", "Ogre")}"] [data-hire-step="1"]`);
     assert.ok(toasts().includes("Ogre: maximum is 1."));
-    click('[data-resource-key="bribes"] [data-resource-step="1"]');
-    assert.ok(toasts().includes("Only for teams with Bribery and Corruption"), "a locked counter says why");
   });
 });
 

@@ -15,7 +15,7 @@
  *   sends nothing (data/admin.mjs: one write at a time). An answer that did not come is never sent again: the team is
  *   read again and the fields show what the server holds; so they do after another device's save, which is said.
  * - «Staff»: the counters of the Team page (08) in its order — the re-rolls, the fans, the assistants, the cheerleaders,
- *   the bribes of a race with Bribery and Corruption — and the race's medics, each a step of the queue on the admin's route
+ *   the bribes — and the race's medics, each a step of the queue on the admin's route
  *   (`stepAdminStaff`): the count alone, without money and without the stage's lock — money is the treasury card's — so
  *   the server journals no line for it (pre-flight L18). Starting and Team re-rolls share eight.
  * - «Fallen, added afterwards»: a player taken off the roster before 3.0 with no post-match to record it, added in a
@@ -34,7 +34,7 @@ import { adminRequest } from "../../../data/admin.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
 import { sumMoney } from "../../../domain/money.mjs";
-import { availableMedicalStaffDefinitions, hasBribery } from "../../../domain/roster/team-rules.mjs";
+import { availableMedicalStaffDefinitions } from "../../../domain/roster/team-rules.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
@@ -65,10 +65,10 @@ const typed = new Map();
 /** Whether a fix of the team's treasury is on its way. */
 export const adminWriting = (teamId) => writing.has(teamId);
 
-/** The staff of `race`'s teams, in `ADMIN_STAFF`'s order: no bribes without Bribery and Corruption, only the race's medics. */
+/** The staff of `race`'s teams, in `ADMIN_STAFF`'s order: the counters (bribes for every race), only the race's medics. */
 function staffOf(race) {
   const medics = new Set(availableMedicalStaffDefinitions(race).map(({ key }) => key));
-  return ADMIN_STAFF.filter((key) => (key === "bribes" ? hasBribery(race) : COUNTER_KEYS.includes(key) || medics.has(key)));
+  return ADMIN_STAFF.filter((key) => COUNTER_KEYS.includes(key) || medics.has(key));
 }
 
 const staffName = (key) => t(`adminTeam.staff.${key}`);

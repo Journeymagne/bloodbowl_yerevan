@@ -14,6 +14,7 @@
  */
 import {
   advancementStatCosts,
+  bribeCosts,
   builderStaffCosts,
   builderStaffMaximums,
   eliteComboCost as eliteComboSurcharge,
@@ -106,12 +107,8 @@ export function playerCurrentCost(row, player, includeAdjustments = true) {
 // No screen reads this since the 2.x roster editor went (stage 12): it stays because the pinned roster-cases
 // baseline describes every case with it (test/helpers/roster-cases.mjs).
 export function syncMedicalStaffForTeam(team, draft) {
-  if (!hasBribery(team)) {
-    draft.bribes = 0;
-    if (draft.purchasedStaff) draft.purchasedStaff.bribes = 0;
-  } else {
-    draft.bribes = clamp(countToNumber(draft.bribes), 0, builderStaffMaximums.bribes);
-  }
+  // Any team may keep bribes on its roster (`bribeCosts`).
+  draft.bribes = clamp(countToNumber(draft.bribes), 0, builderStaffMaximums.bribes);
 
   const availableKeys = new Set(availableMedicalStaffDefinitions(team).map((staff) => staff.key));
   medicalStaffDefinitions.forEach((staff) => {
@@ -126,6 +123,16 @@ export function syncMedicalStaffForTeam(team, draft) {
 
 export function staffItemCost(draft, key) {
   return countToNumber(draft[key]) * (builderStaffCosts[key] ?? 0);
+}
+
+/** What a bribe on the roster of a team (its race's page) costs (`bribeCosts`): less with Bribery and Corruption. */
+export function bribeCost(team) {
+  return hasBribery(team) ? bribeCosts.bribery : bribeCosts.standard;
+}
+
+/** What one of the staff `key` costs a team: the list price, a bribe's by its race (`bribeCost`), which alone reads `team`. */
+export function staffUnitCost(team, key) {
+  return key === "bribes" ? bribeCost(team) : builderStaffCosts[key] ?? 0;
 }
 
 export function spendTreasury(draft, amount) {
@@ -145,10 +152,11 @@ export function markStaffPurchased(draft, key, delta) {
   draft.purchasedStaff[key] = Math.max(0, countToNumber(draft.purchasedStaff[key]) + delta);
 }
 
-export function applyPaidStaffChange(draft, key, previous, next) {
+/** `team` is the race's page, read for bribes alone (`staffUnitCost`): their price depends on Bribery and Corruption. */
+export function applyPaidStaffChange(draft, key, previous, next, team = null) {
   if (key === "dedicatedFans") return;
   const difference = next - previous;
-  const unitCost = builderStaffCosts[key] ?? 0;
+  const unitCost = staffUnitCost(team, key);
   if (!difference || !unitCost) return;
 
   if (difference > 0) {
@@ -182,7 +190,7 @@ export function calculateRosterCosts(team, draft, options = {}) {
   }, 0);
   const staffCost = staffItemCost(draft, "startingRerolls")
     + staffItemCost(draft, "teamRerolls")
-    + (hasBribery(team) ? staffItemCost(draft, "bribes") : 0)
+    + countToNumber(draft.bribes) * bribeCost(team)
     + (includeDedicatedFans ? staffItemCost(draft, "dedicatedFans") : 0)
     + staffItemCost(draft, "assistantCoaches")
     + staffItemCost(draft, "cheerleaders")

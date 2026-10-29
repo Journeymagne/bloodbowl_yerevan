@@ -4,8 +4,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { expandCollections } from "../src/data/reference.mjs";
-import { builderStaffCosts, builderStaffMaximums, medicalStaffDefinitions } from "../src/domain/league-rules.mjs";
+import { builderStaffMaximums, medicalStaffDefinitions } from "../src/domain/league-rules.mjs";
 import * as build from "../src/domain/roster/build.mjs";
+import { staffUnitCost } from "../src/domain/roster/costs.mjs";
 import { setRosterCaptain } from "../src/domain/roster/players.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
 import { blockingViolations, checkRoster, loadTeamReference } from "../server/domain/roster.mjs";
@@ -59,12 +60,14 @@ test("dropping takes the last of that position, and its captaincy with him", () 
   assert.equal(build.dropPlayer(human, draft, row(human, "Ogre")), false);
 });
 
-test("staff stop at their maximum; bribes need Bribery and Corruption, a medic the race's own", () => {
+test("staff stop at their maximum, bribes at three for every race; a medic needs to be the race's own", () => {
   const draft = build.newBuild(human, { name: "R" });
   for (let index = 0; index < 6; index += 1) build.stepStaff(human, draft, "cheerleaders", 1);
   assert.deepEqual(build.stepStaff(human, draft, "cheerleaders", 1), { code: "STAFF_MAX", params: { key: "cheerleaders", max: 6 } });
-  assert.deepEqual(build.stepStaff(human, draft, "bribes", 1), { code: "STAFF_UNAVAILABLE", params: { key: "bribes" } });
-  assert.equal(build.staffAvailable(goblin, "bribes"), true);
+  for (let index = 0; index < 3; index += 1) assert.equal(build.stepStaff(human, draft, "bribes", 1), null, "any race");
+  assert.deepEqual(build.stepStaff(human, draft, "bribes", 1), { code: "STAFF_MAX", params: { key: "bribes", max: 3 } });
+  assert.equal(draft.bribes, 3);
+  assert.deepEqual([build.staffAvailable(human, "bribes"), build.staffAvailable(goblin, "bribes")], [true, true]);
   assert.equal(build.staffAvailable(undead, "apothecary"), false);
   assert.equal(build.staffAvailable(undead, "mortuaryAssistant"), true);
   assert.equal(build.staffAvailable(human, "teamRerolls"), false, "not sold while building");
@@ -136,7 +139,7 @@ test("a hire for a row the race does not have is the caller's mistake, not a ref
   assert.throws(() => build.hirePlayer(human, build.newBuild(human, { name: "R" }), 99), RangeError);
 });
 
-test("a race's medic is bought once and taken back, the bribes of a Bribery race cost 50k each, a refusal changes nothing", () => {
+test("a race's medic is bought once and taken back, a Bribery race's bribes cost 50k and the others' 100k, a refusal changes nothing", () => {
   const draft = build.newBuild(undead, { name: "R" });
   assert.equal(build.stepStaff(undead, draft, "mortuaryAssistant", 1), null);
   assert.deepEqual(build.stepStaff(undead, draft, "mortuaryAssistant", 1), { code: "STAFF_MAX", params: { key: "mortuaryAssistant", max: 1 } });
@@ -150,12 +153,16 @@ test("a race's medic is bought once and taken back, the bribes of a Bribery race
   for (let index = 0; index < 3; index += 1) assert.equal(build.stepStaff(goblin, mob, "bribes", 1), null);
   assert.deepEqual(build.stepStaff(goblin, mob, "bribes", 1), { code: "STAFF_MAX", params: { key: "bribes", max: 3 } });
   assert.deepEqual([mob.bribes, build.buildTotals(goblin, mob).staffCost], [3, 150]);
+  const men = build.newBuild(human, { name: "R" });
+  build.stepStaff(human, men, "bribes", 1);
+  assert.equal(build.buildTotals(human, men).staffCost, 100, "100k without Bribery and Corruption");
 });
 
 test("what the build sells has a price, a maximum and a counter in the draft; Team Rerolls are not sold", () => {
   const draft = build.newBuild(human, { name: "R" });
   for (const key of build.BUILD_STAFF_KEYS) {
-    assert.ok(builderStaffCosts[key] > 0 && builderStaffMaximums[key] > 0, `${key} has a price and a maximum`);
+    // A bribe's price depends on the race (bribeCosts).
+    assert.ok(staffUnitCost(human, key) > 0 && builderStaffMaximums[key] > 0, `${key} has a price and a maximum`);
     assert.equal(draft[key], 0, `${key} starts at none`);
   }
   assert.equal(build.BUILD_STAFF_KEYS.includes("teamRerolls"), false);

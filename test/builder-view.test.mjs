@@ -68,7 +68,7 @@ test("the builder shows the budget, the race, the positions with their limits an
   assert.equal(fragment.querySelectorAll(".g-hire").length, rowsForTeam(human).length);
   assert.equal(fragment.querySelector('[data-hire-key="0"] .g-hire__count').textContent, "5");
   assert.equal(fragment.querySelector("[data-new-team-save]").textContent.trim(), "Save team · 555k");
-  assert.match(fragment.querySelector('[data-resource-key="bribes"]').getAttribute("class"), /g-resource--locked/, "humans have no Bribery and Corruption");
+  assert.doesNotMatch(fragment.querySelector('[data-resource-key="bribes"]').getAttribute("class"), /g-resource--locked/, "every race buys bribes");
   assert.ok(fragment.querySelector('.g-toggle[data-toggle-key="apothecary"]'));
   assertCspSafe(fragment);
   assertStyled(fragment, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
@@ -428,7 +428,7 @@ test("«Change the race or the name» opens a dialog: onRestart is handed its bu
   assert.deepEqual(heard, [button], "the sheet gives the focus back to it when it closes");
 });
 
-test("the staff the race may buy: counters with their price, medics as switches, bribes where Bribery allows them", () => {
+test("the staff the race may buy: counters with their price, medics as switches, bribes at 100k or a Bribery race's at 50k", () => {
   const fragment = mount(builderMarkup({ race: human, draft: filled() }));
   const counter = (key) => fragment.querySelector(`[data-resource-key="${key}"]`);
   assert.deepEqual(["startingRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes"].map((key) => counter(key) !== null), [true, true, true, true, true]);
@@ -437,7 +437,7 @@ test("the staff the race may buy: counters with their price, medics as switches,
   assert.equal(counter("startingRerolls").querySelector(".g-resource__value").textContent, "1");
   assert.equal(counter("dedicatedFans").querySelector(".g-resource__note").textContent, "10k · in the season they change only after matches");
   assert.equal(counter("cheerleaders").querySelector(".g-resource__note").textContent, "10k each");
-  assert.equal(counter("bribes").querySelector(".g-resource__note").textContent, "Only for teams with Bribery and Corruption");
+  assert.equal(counter("bribes").querySelector(".g-resource__note").textContent, "100k each");
   assert.deepEqual(fragment.querySelectorAll(".g-toggle").map((toggle) => toggle.getAttribute("data-toggle-key")), ["apothecary"], "humans have the apothecary and no other medic");
   assert.equal(fragment.querySelector(".g-toggle").getAttribute("aria-checked"), "false");
   assert.match(fragment.querySelector(".g-toggle").textContent, /Apothecary\s*50k/);
@@ -472,8 +472,7 @@ test("the staff at their maximum refuse «+» and say which staff, by the title 
   const heard = [];
   wire({ ...noop, ...failing("onStaff"), onRefused: (reason) => heard.push(reason) });
   fireEvent(plus, "click");
-  fireEvent(fragment.querySelector('[data-resource-key="bribes"] [data-resource-step="1"]'), "click");
-  assert.deepEqual(heard, ["Cheerleaders: maximum is 6.", "Only for teams with Bribery and Corruption"]);
+  assert.deepEqual(heard, ["Cheerleaders: maximum is 6."]);
   assert.equal(fragment.querySelector('[data-resource-key="assistantCoaches"] [data-resource-step="1"]').hasAttribute("aria-disabled"), false);
 });
 
@@ -563,13 +562,12 @@ test("the rule's words for the four refusals the build gives are in both diction
     hirePlayer(human, squad, ogre),
     hirePlayer(human, squad, rowOf(human, "Catcher")),
     stepStaff(human, coaches, "assistantCoaches", 1),
-    stepStaff(human, coaches, "bribes", 1),
     stepStaff(undead, newBuild(undead, { name: "U" }), "apothecary", 1),
   ];
-  assert.deepEqual(refusals.map((refusal) => refusal.code), ["POSITION_MAX", "ROSTER_MAX_PLAYERS", "STAFF_MAX", "STAFF_UNAVAILABLE", "STAFF_UNAVAILABLE"]);
+  assert.deepEqual(refusals.map((refusal) => refusal.code), ["POSITION_MAX", "ROSTER_MAX_PLAYERS", "STAFF_MAX", "STAFF_UNAVAILABLE"]);
   const said = {
-    en: ["Ogre: maximum is 1.", "A team has at most 14 players (now 14).", "Assistant Coaches: maximum is 6.", "Bribes: not for this race.", "Apothecary: not for this race."],
-    ru: ["Ogre: максимум 1.", "Игроков в команде — не больше 14 (сейчас 14).", "Assistant Coaches: максимум 6.", "Взятки: этой расе недоступно.", "Apothecary: этой расе недоступно."],
+    en: ["Ogre: maximum is 1.", "A team has at most 14 players (now 14).", "Assistant Coaches: maximum is 6.", "Apothecary: not for this race."],
+    ru: ["Ogre: максимум 1.", "Игроков в команде — не больше 14 (сейчас 14).", "Assistant Coaches: максимум 6.", "Apothecary: этой расе недоступно."],
   };
   for (const locale of ["en", "ru"]) {
     initLocale(locale);
@@ -610,7 +608,7 @@ test("the screen speaks Russian when the site does, and leaves no placeholder, n
     assert.equal(fragment.querySelector('[data-hire-key="0"] .g-hire__skills').textContent, "без навыков");
     assert.equal(fragment.querySelector('[role="radiogroup"][data-captains]').getAttribute("aria-label"), "Капитан");
     assert.equal(accessibleName(fragment, fragment.querySelector("[data-captain]")), "Капитан Human Lineman 1 Human Lineman");
-    assert.equal(fragment.querySelector('[data-resource-key="bribes"] .g-resource__note').textContent, "Только для команд с Bribery and Corruption");
+    assert.equal(fragment.querySelector('[data-resource-key="bribes"] .g-resource__note').textContent, "100k за штуку");
     const text = fragment.querySelector(".g-build").textContent;
     assert.doesNotMatch(text, /[{}]|undefined|NaN|newTeam\.|validation\./);
     const over = mount(builderMarkup({ race: human, draft: overBudget() }));

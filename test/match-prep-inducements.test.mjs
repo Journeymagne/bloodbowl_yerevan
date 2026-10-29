@@ -105,6 +105,15 @@ test("only what the team may buy is listed; a plus that cannot be pressed says w
   }
 });
 
+test("bribes: one row, 50k for a Bribery team and 100k for any other, three whatever the roster holds (the owner, 2026-10-29)", () => {
+  const goblins = (bribes) => ({ ...OURS, team: { ...OURS.team, baseTeamSlug: "teams/goblin", roster: { ...OURS.team.roster, players: players("gob", [0, 0, 0, 0, 0, 0, 0, 0]), bribes } } });
+  const notes = (fragment) => fragment.querySelectorAll(".g-resource").filter((row) => row.querySelector(".g-resource__name").textContent === "Bribe")
+    .map((row) => row.querySelector(".g-resource__note").textContent.split(" · ").slice(0, 2).join(" · "));
+  const of = (bribes) => notes(mount(inducementsMarkup(modelAt(THEY_BOUGHT, {}, { ours: goblins(bribes) }))));
+  assert.deepEqual([of(0), of(3)], [[`${formatMoney(50)} · up to 3`], [`${formatMoney(50)} · up to 3`]]);
+  assert.deepEqual(notes(mount(inducementsMarkup(modelAt(THEY_BOUGHT)))), [`${formatMoney(100)} · up to 3`], "humans: 100k, three a match");
+});
+
 test("the stars: their places, Take and Remove; a mega star takes two", () => {
   const stars = mount(inducementsMarkup(modelAt(THEY_BOUGHT, { category: "stars" })));
   assert.equal(stars.querySelector('.g-seg[data-seg-group="prep-category"] [aria-checked="true"]').textContent, "Stars");

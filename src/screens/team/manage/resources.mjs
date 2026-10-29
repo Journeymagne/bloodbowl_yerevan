@@ -29,7 +29,7 @@ const LOCK_TEXT = {
   live: () => t("treasury.lockedLive"),
   stage: (row) => t(`treasury.lock.${row.key}`),
   fans: () => t("treasury.lock.dedicatedFans"),
-  unavailable: () => t("newTeam.bribesLocked"),
+  unavailable: () => t("treasury.lockRace"),
 };
 
 /** A counter is named as the roster editor names it, a medic by its definition (the dictionaries keep those in English). */

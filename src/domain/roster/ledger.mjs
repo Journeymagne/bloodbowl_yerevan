@@ -16,8 +16,8 @@
  * Pure: no database, no clock. The callers (the server's PATCH, match start
  * and post-match) write the lines to `team_ledger`.
  */
-import { builderStaffCosts } from "../league-rules.mjs";
 import { sumMoney } from "../money.mjs";
+import { staffUnitCost } from "./costs.mjs";
 import { normalizeDraftPlayers } from "./players.mjs";
 import { PURCHASED_STAFF_FIELDS, normalizePurchasedStaff } from "./schema.mjs";
 import { playerPurchaseRefund, playerSaleValue } from "./transfers.mjs";
@@ -79,7 +79,7 @@ const POST_MATCH_OPERATION_KINDS = Object.freeze({ hire: "hire", keep: "hire", r
  */
 export function classifyTreasuryChange(team, before, after, { admin = false } = {}) {
   const diffable = team && everyPlayerHasAnId(before) && everyPlayerHasAnId(after);
-  const entries = diffable ? [...playerEntries(team, before, after), ...staffEntries(before, after)] : [];
+  const entries = diffable ? [...playerEntries(team, before, after), ...staffEntries(team, before, after)] : [];
   const change = sumMoney(countToNumber(after.treasury), -countToNumber(before.treasury));
   const residual = sumMoney(change, ...entries.map((entry) => -entry.delta));
   if (residual) entries.push({ kind: admin ? "admin" : "manual", delta: residual });
@@ -111,11 +111,11 @@ function playerEntries(team, before, after) {
   return [...hires, ...removals].filter((entry) => entry.delta);
 }
 
-/** More purchased staff than before was bought at the list price, fewer was refunded at it. */
-function staffEntries(before, after) {
+/** More purchased staff than before was bought at the list price, fewer was refunded at it; a bribe at its race's (`staffUnitCost`). */
+function staffEntries(team, before, after) {
   const was = normalizePurchasedStaff(before), now = normalizePurchasedStaff(after);
   return PURCHASED_STAFF_FIELDS
-    .map((key) => ({ count: now[key] - was[key], cost: builderStaffCosts[key] ?? 0 }))
+    .map((key) => ({ count: now[key] - was[key], cost: staffUnitCost(team, key) }))
     .filter(({ count, cost }) => count && cost)
     .map(({ count, cost }) => ({ kind: count > 0 ? "staff" : "staff_refund", delta: -count * cost }));
 }
