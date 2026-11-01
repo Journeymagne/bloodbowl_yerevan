@@ -80,7 +80,7 @@ const minus = (key) => counter(key).querySelector('[data-resource-step="-1"]');
 const toggle = (key) => document.querySelector(`.g-toggle[data-toggle-key="${key}"]`);
 const click = (node) => fireEvent(node, "click");
 
-test("an active team's resources: Starting rerolls closed with the stage's words, Team Rerolls short of money, fans after matches, bribes for their teams only, the apothecary a switch", () => {
+test("an active team's resources: Starting rerolls closed with the stage's words, Team Rerolls short of money, fans after matches, bribes at 100k, the apothecary a switch", () => {
   coach();
   const fragment = draw();
   const section = document.querySelector("section.g-manage__resources");
@@ -98,7 +98,9 @@ test("an active team's resources: Starting rerolls closed with the stage's words
   assert.equal(counter("teamRerolls").classList.contains("g-resource--locked"), false, "a shortage is not a lock");
   assert.equal(minus("teamRerolls").hasAttribute("disabled"), false);
   assert.equal(document.querySelector('[data-resource-key="dedicatedFans"].g-resource--locked .g-resource__note').textContent, "Change only after matches");
-  assert.equal(document.querySelector('[data-resource-key="bribes"].g-resource--locked .g-resource__note').textContent, en["newTeam.bribesLocked"]);
+  assert.equal(counter("bribes").querySelector(".g-resource__note").textContent, "100k each", "any race buys bribes, at 100k without Bribery and Corruption");
+  assert.equal(plus("bribes").hasAttribute("aria-disabled"), false, "a treasury of exactly 100k pays one");
+  assert.equal(counter("bribes").classList.contains("g-resource--locked"), false);
   // The rest are open, with their price.
   assert.equal(counter("cheerleaders").querySelector(".g-resource__note").textContent, "10k each");
   assert.equal(plus("cheerleaders").hasAttribute("aria-disabled"), false);
@@ -455,7 +457,9 @@ test("the words of a row, by what closes it", () => {
   assert.deepEqual(words.startingRerolls, { name: "Starting rerolls", note: "60k · only while building", noteTone: "", lockedReason: en["treasury.lock.startingRerolls"], incBlockedReason: en["treasury.lock.startingRerolls"], caption: "" });
   assert.deepEqual(words.teamRerolls, { name: "Team Rerolls", note: "Not enough in the treasury\u00a0·\u00a0120k", noteTone: "danger", lockedReason: "", incBlockedReason: "Not enough in the treasury\u00a0·\u00a0120k", caption: "" });
   assert.equal(words.dedicatedFans.lockedReason, "Change only after matches");
-  assert.equal(words.bribes.lockedReason, en["newTeam.bribesLocked"]);
+  assert.deepEqual([words.bribes.note, words.bribes.lockedReason, words.bribes.incBlockedReason], ["100k each", "", ""]);
+  const unread = resourceRows({ race: null, roster: state.myTeams.items[0].roster, stage: "active" }).find((row) => row.key === "bribes");
+  assert.equal(resourceWords(unread).lockedReason, en["treasury.lockRace"], "a bribe's price waits for the race");
   assert.deepEqual([words.apothecary.name, words.apothecary.caption, words.apothecary.lockedReason], ["Apothecary", "no · buy for 50k", ""]);
 });
 

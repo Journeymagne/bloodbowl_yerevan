@@ -19,7 +19,8 @@
 - **Mega-Stars:** Star Players with the Mega-Star tag occupy both available Star Player slots.
 - **Bribes:** Bribes trigger automatically.
 - **Secure the Ball!:** The no-ball-pickup restriction radius is reduced to 1 square.
-- **Bribery and Corruption:** Allows purchasing up to 3 Bribes per team for 50k each. These Bribes increase Team Value.
+- **Roster Bribes:** Any team may keep up to 3 Bribes on its roster at 100k each, and buy up to 3 more as inducements for a match. Roster Bribes increase Team Value by their price.
+- **Bribery and Corruption:** All of the team's Bribes cost 50k each, on the roster and as inducements.
 - **TV Exceptions:** Cheerleaders and assistant coaches do not count toward Team Value.
 - **Painting Bonus:** A fully painted team receives an additional 15k after a match.
 - **Throw-Ins:** Throw-ins are resolved using 1D6.

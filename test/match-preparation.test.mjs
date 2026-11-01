@@ -121,14 +121,37 @@ test("wrong dice, fractional quantities and purchases before roster locks are re
   assert.throws(() => applyPreparationAction(preparation, "away", { type: "basket", id: "bribe", quantity: 0.5 }, data), { code: "MATCH_PURCHASE" });
 });
 
-test("purchases enforce team access and discounted bribes share permanent allowance", () => {
+test("purchases enforce team access; a Bribery team's bribes cost 50k", () => {
   const { preparation, data } = fixtures(); readyRosters(preparation);
   preparation.away.basket = { "rowdy-rookies": 1 };
   assert.throws(() => validateBasket(preparation, "away", data), { code: "MATCH_PURCHASE" });
   preparation.away.reference.team.meta.specialRules = "Bribery and Corruption";
   preparation.away.roster.bribes = 2;
   const item = matchCatalog(preparation.away, data).find(item => item.id === "bribe");
-  assert.equal(item.cost, 50); assert.equal(item.limit, 1);
+  assert.equal(item.cost, 50); assert.equal(item.limit, 3);
+});
+
+test("bribes (the owner, 2026-10-29): three a match whatever the roster holds, all at 50k with Bribery and Corruption, else 100k", () => {
+  const { preparation, data } = fixtures(); readyRosters(preparation);
+  const held = (count) => { preparation.away.roster.bribes = count;
+    return matchCatalog(preparation.away, data).filter(item => item.title === "Bribe").map(({ id, cost, limit }) => [id, cost, limit]); };
+  assert.deepEqual([held(0), held(3)], [[["bribe", 100, 3]], [["bribe", 100, 3]]]);
+  preparation.away.reference.team.meta.specialRules = "Bribery and Corruption";
+  assert.deepEqual([held(0), held(3)], [[["bribe", 50, 3]], [["bribe", 50, 3]]], "the roster's three take none of the match's");
+  preparation.away.roster.treasury = 1000;
+  preparation.away.basket = { bribe: 3 };
+  assert.doesNotThrow(() => validateBasket(preparation, "away", data));
+  preparation.away.basket = { bribe: 4 };
+  assert.throws(() => validateBasket(preparation, "away", data), { code: "MATCH_PURCHASE" }, "three a match, no more");
+});
+
+test("the roster's bribes count in the CTV at their price: 50k with Bribery and Corruption, 100k without", () => {
+  const { preparation } = fixtures();
+  const bribesOf = () => calculateMatchCtv(preparation.away).bribes;
+  preparation.away.roster.bribes = 2;
+  assert.equal(bribesOf(), 200);
+  preparation.away.reference.team.meta.specialRules = "Bribery and Corruption";
+  assert.equal(bribesOf(), 100);
 });
 
 test("paired stars use a single purchase with two profiles; child is not purchasable", () => {

@@ -1,0 +1,38 @@
+name: Maintenance off
+
+# Reopens the site after "Maintenance on" (DEPLOYMENT.md, "Maintenance Mode").
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Turn maintenance off
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/bloodbowl-league
+            npm run maintenance:off
+
+            # Open means the health check says `"maintenance":null` again.
+            PORT=$(grep -hE '^(APP_PORT|PORT)=' /etc/bloodbowl-league/.env 2>/dev/null | tail -1 | cut -d= -f2)
+            PORT=${PORT:-3002}
+            for attempt in $(seq 1 10); do
+              HEALTH=$(curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/api/health" || true)
+              case "$HEALTH" in
+                *'"maintenance":null'*) echo "the site is open: ${HEALTH}"; exit 0 ;;
+              esac
+              sleep 1
+            done
+            echo "the flag is gone, but the site does not answer as open: ${HEALTH:-no answer} - look at pm2 logs bloodbowl-league"
+            exit 1

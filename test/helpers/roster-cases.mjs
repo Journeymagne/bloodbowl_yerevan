@@ -136,9 +136,9 @@ export function describeCase(team, rawDraft) {
   const staffChanges = {};
   for (const key of STAFF_KEYS) {
     const up = clone(draft);
-    applyPaidStaffChange(up, key, 0, 2);
+    applyPaidStaffChange(up, key, 0, 2, team);
     const down = clone(up);
-    applyPaidStaffChange(down, key, 2, 1);
+    applyPaidStaffChange(down, key, 2, 1, team);
     staffChanges[key] = {
       up: { value: up[key], treasury: up.treasury, purchasedStaff: up.purchasedStaff },
       down: { value: down[key], treasury: down.treasury, purchasedStaff: down.purchasedStaff },

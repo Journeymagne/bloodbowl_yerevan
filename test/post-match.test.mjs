@@ -409,6 +409,17 @@ test('half-price sales, purchases and deposits reconcile to the exact final bala
   assert.equal(projectPostRoster(f.state, 'home', f.data, true).roster.treasury, 172.5);
 });
 
+test('a bribe bought after the match costs 100k, 50k with Bribery and Corruption, and a roster keeps three (the owner, 2026-10-29)', () => {
+  for (const [specialRules, price] of [['Old World Classic', 100], ['Bribery and Corruption', 50]]) {
+    const f = agreed(fixture(specialRules)); f.state.home.baseRoster.treasury = 500;
+    f.state.home.operations = [{ type: 'staff', key: 'bribes', delta: 1 }];
+    const bought = projectPostRoster(f.state, 'home', f.data);
+    assert.deepEqual([bought.roster.bribes, bought.accounting.transactions[0].amount], [1, -price], specialRules);
+    f.state.home.baseRoster.bribes = 3;
+    assert.throws(() => projectPostRoster(f.state, 'home', f.data), { code: 'POST_POSITION' }, `${specialRules}: no fourth`);
+  }
+});
+
 test('incomplete expensive-mistake dice retain purchases and deposit in previews', () => {
   for (const treasury of [150, 650]) {
     const f = agreed(fixture()); f.state.home.baseRoster.treasury = treasury;

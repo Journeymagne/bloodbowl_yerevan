@@ -43,7 +43,8 @@ test("staff as counters: Team Re-rolls only up, the others both ways, each close
   const card = fragment.querySelector(".g-after__staff");
   assert.equal(card.querySelector(".g-after__label").textContent, "Staff");
   const counter = (key) => card.querySelector(`[data-resource-key="${key}"]`);
-  assert.deepEqual(card.querySelectorAll("[data-resource-key]").map((row) => row.getAttribute("data-resource-key")), ["teamRerolls", "assistantCoaches", "cheerleaders", "apothecary"]);
+  assert.deepEqual(card.querySelectorAll("[data-resource-key]").map((row) => row.getAttribute("data-resource-key")), ["teamRerolls", "assistantCoaches", "cheerleaders", "apothecary", "bribes"]);
+  assert.equal(counter("bribes").querySelector(".g-resource__note").textContent, "100k · now 0", "bribes for every race, at 100k without Bribery and Corruption");
   assert.equal(counter("teamRerolls").querySelector(".g-resource__name").textContent, "Team Re-rolls · buy more");
   assert.equal(counter("teamRerolls").querySelector(".g-resource__note").textContent, "120k each · now 0");
   assert.ok(counter("teamRerolls").querySelector('[data-resource-step="-1"]').hasAttribute("disabled"), "Team Re-rolls are only bought");

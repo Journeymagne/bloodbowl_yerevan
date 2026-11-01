@@ -11,8 +11,8 @@ Teams with this rule earn SPP differently:
 
 Teams with this rule have improved access to referee-related inducements:
 
-- They may buy up to 3 Bribes for 50k each.
-- These Bribes increase Team Value.
+- All their Bribes cost 50k each, on the roster (up to 3) and as inducements (up to 3 a match).
+- Bribes on the roster increase Team Value by their price.
 - Biased Referee costs 60k for teams with Bribery and Corruption.
 
 ## Favoured of...

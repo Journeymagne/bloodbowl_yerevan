@@ -21,6 +21,7 @@ import { t } from "../../core/i18n.mjs";
 import { teamsUrl } from "../../core/routes.mjs";
 import { builderStaffCosts, medicalStaffDefinitions, rosterSizeLimits, startingBudget } from "../../domain/league-rules.mjs";
 import { BUILD_STAFF_KEYS, buildTotals, hirePlayer, staffAvailable, stepStaff } from "../../domain/roster/build.mjs";
+import { staffUnitCost } from "../../domain/roster/costs.mjs";
 import { positionKind, rowCountInPlayers } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
@@ -257,8 +258,9 @@ function rosterMarkup(race, draft, rosterOpen) {
 // The staff
 // ---------------------------------------------------------------------------
 
+/** A counter of the staff with its price, a bribe's its race's (`staffUnitCost`). */
 function staffCounter(race, draft, key) {
-  const price = builderStaffCosts[key];
+  const price = staffUnitCost(race, key);
   const refusal = staffRefusal(race, draft, key);
   return renderResourceCounter({
     key,
@@ -266,8 +268,6 @@ function staffCounter(race, draft, key) {
     note: key === "dedicatedFans" ? t("newTeam.fansNote", { price: formatMoney(price) }) : t("newTeam.price", { price: formatMoney(price) }),
     value: countToNumber(draft[key]),
     incBlockedReason: refusal ? buildRefusalText(refusal) : "",
-    // Of the counted staff only the bribes can be out of the race's reach.
-    lockedReason: staffAvailable(race, key) ? "" : t("newTeam.bribesLocked"),
   });
 }
 

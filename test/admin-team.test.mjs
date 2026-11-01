@@ -240,8 +240,8 @@ test("the staff counts without money, eight re-rolls together at most", async ()
       await visit();
       const race = raceTeamOf("teams/human");
       assert.deepEqual(card("staff").querySelectorAll("[data-resource-key]").map((row) => row.getAttribute("data-resource-key")),
-        ["staff:startingRerolls", "staff:teamRerolls", "staff:dedicatedFans", "staff:assistantCoaches", "staff:cheerleaders", "staff:apothecary"],
-        "the Team page's order; no bribes for a race without Bribery and Corruption; the race's medics");
+        ["staff:startingRerolls", "staff:teamRerolls", "staff:dedicatedFans", "staff:assistantCoaches", "staff:cheerleaders", "staff:bribes", "staff:apothecary"],
+        "the Team page's order; bribes for every race; the race's medics");
       assert.equal(counter("teamRerolls").querySelector(".g-resource__value").textContent, "3");
       assert.ok(step("cheerleaders", -1).hasAttribute("disabled"), "none to take off");
       api.reply(ADMIN_PATCH, 200, { team: T9({ revision: 5, roster: { teamRerolls: 4 } }) });
@@ -271,14 +271,14 @@ test("the staff counts without money, eight re-rolls together at most", async ()
       api.assertAnswered();
     });
   });
-  // A race with Bribery and Corruption has its bribes; a race's own medic is its own.
+  // Every race has its bribes (the owner, 2026-10-28); a race's own medic is its own.
   await withWindow({ phone: false }, async () => {
     admin({ teamAnswer: T9({ baseTeamSlug: "teams/goblin", roster: { players: [] } }) });
     await visit();
     assert.ok(counter("bribes"), "a goblin team bribes");
     admin({ teamAnswer: T9({ baseTeamSlug: "teams/nurgle", roster: { players: [] } }) });
     await visit();
-    assert.deepEqual([Boolean(counter("plagueDoctor")), Boolean(counter("apothecary")), Boolean(counter("bribes"))], [true, false, false]);
+    assert.deepEqual([Boolean(counter("plagueDoctor")), Boolean(counter("apothecary")), Boolean(counter("bribes"))], [true, false, true]);
   });
 });
 

@@ -11,12 +11,12 @@
 import { escapeHtml } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../domain/league-rules.mjs";
+import { builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../domain/league-rules.mjs";
 import { isLineman } from "../../domain/match/roster.mjs";
 import { sumMoney } from "../../domain/money.mjs";
 import { deadToRaise, postStaffOptions, raisesDead } from "../../domain/post-match/roster.mjs";
 import { effectiveInjury } from "../../domain/post-match/rules.mjs";
-import { playerCurrentCost } from "../../domain/roster/costs.mjs";
+import { playerCurrentCost, staffUnitCost } from "../../domain/roster/costs.mjs";
 import { playerSaleValue } from "../../domain/roster/transfers.mjs";
 import { costToNumber, rosterMax, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderResourceCounter } from "../../ui/resource-counter.mjs";
@@ -46,22 +46,25 @@ function moneyOf(model) {
 }
 
 /** Why one more of a staff key cannot be bought: its maximum, the re-rolls' joint maximum, the treasury. "" when it can. */
-function staffRefusal(key, roster, left) {
+function staffRefusal(key, roster, left, price) {
   const next = Number(roster[key] || 0) + 1;
   if (next > builderStaffMaximums[key]) return t("validation.STAFF_MAX", { title: staffName(key), max: builderStaffMaximums[key] });
   if (key === "teamRerolls" && next + Number(roster.startingRerolls || 0) > combinedRerollsMaximum) return t("after.rerollsFull", { max: combinedRerollsMaximum });
-  const price = builderStaffCosts[key];
   return price > left ? t("after.short", { amount: formatMoney(sumMoney(price, -left)) }) : "";
 }
 
-/** «Staff» (PostRoster.html): a counter per staff key the race may have, Team Re-rolls only bought; each «+» closed with why. */
+/**
+ * «Staff» (PostRoster.html): a counter per staff key the race may have, Team Re-rolls only bought; each «+» closed with
+ * why. A bribe's price is its race's (`staffUnitCost`).
+ */
 function staffCard(model, lockedReason) {
   const side = model.post[model.sideName], roster = model.preview.roster, { left } = moneyOf(model);
   const counters = postStaffOptions(side.reference).map((key) => {
-    const price = formatMoney(builderStaffCosts[key]), now = Number(side.baseRoster[key] || 0);
+    const cost = staffUnitCost(side.reference, key);
+    const price = formatMoney(cost), now = Number(side.baseRoster[key] || 0);
     const note = key === "teamRerolls" ? t("after.staffEach", { price, count: now }) : t("after.staffNow", { price, count: now });
     return renderResourceCounter({ key, name: staffName(key, { buy: true }), note, value: Number(roster[key] || 0),
-      decDisabled: key === "teamRerolls" || Number(roster[key] || 0) <= 0, incBlockedReason: staffRefusal(key, roster, left), lockedReason });
+      decDisabled: key === "teamRerolls" || Number(roster[key] || 0) <= 0, incBlockedReason: staffRefusal(key, roster, left, cost), lockedReason });
   }).join("");
   return `<div class="g-after__card g-after__card--rows g-after__staff">${labelMarkup(t("after.staff"))}${counters}${noteMarkup(t("after.rerollsNote"))}</div>`;
 }

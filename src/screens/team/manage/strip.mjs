@@ -14,8 +14,8 @@
  * strip itself keeps none and reads the team and the games again at each announcement.
  *
  * The cells are what `resourceRows` says the team holds (a counter's number, a medic's yes or no); what is closed
- * to the coach's hand is not the strip's business, but a resource the race cannot have (Bribes without Bribery and
- * Corruption) has no cell. Nothing is entered during a match: the button says why, as the sheet would.
+ * to the coach's hand is not the strip's business, but a resource priced by a race not read yet (Bribes) has no
+ * cell. Nothing is entered during a match: the button says why, as the sheet would.
  *
  * Wire once per screen mount, and keep the function `wireTreasuryStrip` returns for `onScreenLeave`.
  */
@@ -34,7 +34,7 @@ import { mountSheetHost, unmountSheetHost } from "./sheet-host.mjs";
 
 const cell = (label, value, modifier = "") => `<div class="g-funds__cell${modifier}"><span class="g-funds__k">${escapeHtml(label)}</span><span class="g-funds__v">${escapeHtml(value)}</span></div>`;
 
-/** The cell of a resource the team holds: a counter's number, a medic's yes or no; none for one its race cannot have. */
+/** The cell of a resource the team holds: a counter's number, a medic's yes or no; none for bribes before the race is read. */
 function resourceCell(row) {
   if (row.lock === "unavailable") return "";
   const value = row.kind === "medic" ? t(row.value > 0 ? "treasury.strip.yes" : "treasury.strip.no") : String(row.value);

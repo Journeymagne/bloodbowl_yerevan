@@ -15,11 +15,11 @@ const leagueGame = (over) => game({ kind: "league", preparationStatus: "ready", 
 const LIVE = { preparationStatus: "in_progress", postMatchStatus: "draft" };
 const check = (over) => model.moneyCheck({ treasury: 70, sign: 1, amountText: "20", reason: "friendly", note: "", ...over });
 
-test("an active team: Starting rerolls closed whole by the stage, Team Rerolls on sale, fans after matches, bribes only with Bribery and Corruption, the race's medics", () => {
+test("an active team: Starting rerolls closed whole by the stage, Team Rerolls on sale, fans after matches, bribes for every race, the race's medics", () => {
   const list = model.resourceRows({ race: human, roster: ROSTER, stage: "active" });
   assert.deepEqual(list.map(({ key, kind, lock }) => [key, kind, lock]), [
     ["startingRerolls", "counter", "stage"], ["teamRerolls", "counter", null], ["dedicatedFans", "counter", "fans"],
-    ["assistantCoaches", "counter", null], ["cheerleaders", "counter", null], ["bribes", "counter", "unavailable"], ["apothecary", "medic", null]]);
+    ["assistantCoaches", "counter", null], ["cheerleaders", "counter", null], ["bribes", "counter", null], ["apothecary", "medic", null]]);
   assert.equal(rows({ race: goblin, roster: ROSTER, stage: "active" }).bribes.lock, null);
   assert.deepEqual(model.resourceRows({ race: necro, roster: ROSTER, stage: "active" }).filter((row) => row.kind === "medic").map((row) => row.key), ["mortuaryAssistant"]);
 });
@@ -76,12 +76,13 @@ test("a count stored under the first builder's name is still read", () => {
   assert.equal(model.stepResource({ race: human, roster: legacy, stage: "draft", key: "startingRerolls", delta: 1 }).roster.startingRerolls, 3);
 });
 
-test("a live match closes every row, and a race without bribes keeps «unavailable» to the end", () => {
+test("a live match closes every row, and bribes of a race not read keep «unavailable» to the end", () => {
   const live = rows({ race: human, roster: ROSTER, stage: "active", locked: true });
   assert.ok(Object.values(live).every((row) => row.lock !== null), "every row is closed");
   assert.deepEqual(Object.values(live).filter((row) => row.lock === "live").map((row) => row.key),
-    ["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "apothecary"]);
-  assert.equal(live.bribes.lock, "unavailable", "it does not open after the match, so «after the post-match» would lie");
+    ["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes", "apothecary"]);
+  assert.equal(rows({ race: null, roster: ROSTER, stage: "active", locked: true }).bribes.lock, "unavailable",
+    "the end of the match does not price them, so «after the post-match» would lie");
   assert.equal(rows({ race: goblin, roster: ROSTER, stage: "active", locked: true }).bribes.lock, "live");
   assert.equal(Object.values(live).every((row) => row.incRefusal === null), true, "a closed row says nothing about «+»");
 });
@@ -105,8 +106,19 @@ test("a closed or refused step is no step", () => {
   assert.equal(model.stepResource({ race: human, roster: { ...ROSTER, treasury: 50 }, stage: "active", key: "teamRerolls", delta: 1 }).refused.incRefusal, "short");
   assert.equal(model.stepResource({ race: human, roster: ROSTER, stage: "active", key: "apothecary", delta: -1 }).refused.decDisabled, true);
   assert.equal(model.stepResource({ race: human, roster: ROSTER, stage: "active", key: "teamRerolls", delta: 1, locked: true }).refused.lock, "live");
-  assert.equal(model.stepResource({ race: human, roster: ROSTER, stage: "active", key: "bribes", delta: 1 }).refused.lock, "unavailable");
+  assert.equal(model.stepResource({ race: null, roster: ROSTER, stage: "active", key: "bribes", delta: 1 }).refused.lock, "unavailable");
   assert.throws(() => model.stepResource({ race: human, roster: ROSTER, stage: "active", key: "plagueDoctor", delta: 1 }), /plagueDoctor/, "a counter the page does not draw is a mistake of the caller");
+});
+
+test("bribes (the owner, 2026-10-29): every race keeps up to three, at 100k, a Bribery race at 50k", () => {
+  const at = (race, bribes, over = {}) => rows({ race, roster: { ...ROSTER, bribes, ...over }, stage: "active" }).bribes;
+  assert.deepEqual([at(human, 0).price, at(human, 2).price, at(goblin, 0).price, at(goblin, 2).price], [100, 100, 50, 50]);
+  assert.deepEqual([at(human, 3).max, at(human, 3).incRefusal, at(goblin, 3).incRefusal], [3, "max", "max"]);
+  assert.equal(at(human, 0, { treasury: 99 }).incRefusal, "short");
+  assert.equal(at(goblin, 2, { treasury: 50 }).incRefusal, null, "50k pays a Bribery race's bribe");
+  const step = (race, bribes, delta) => model.stepResource({ race, roster: { ...ROSTER, bribes, purchasedStaff: { bribes } }, stage: "active", key: "bribes", delta }).roster;
+  assert.deepEqual([step(goblin, 2, 1).treasury, step(human, 0, 1).treasury], [450, 400]);
+  assert.deepEqual([step(goblin, 3, -1).treasury, step(human, 1, -1).treasury], [550, 600], "paid back at the price");
 });
 
 test("a stage-closed counter lets «−» take back a purchase on record, and only that (the server refuses growth alone)", () => {
@@ -130,7 +142,8 @@ test("«−» works on a row only when the row is open, or stage-closed with a p
   assert.deepEqual(["teamRerolls", "startingRerolls", "assistantCoaches", "apothecary"].map((key) => canStepDown({ race: human }, key)), [true, true, true, true],
     "open, or closed by the stage with a purchase on record");
   assert.equal(canStepDown({ race: human }, "dedicatedFans"), false, "the fans move after matches only");
-  assert.equal(canStepDown({ race: human }, "bribes"), false, "a race without bribes keeps its bribes closed whatever was bought");
+  assert.equal(canStepDown({ race: human }, "bribes"), true, "any race takes a bribe back");
+  assert.equal(canStepDown({ race: null }, "bribes"), false, "a race not read keeps its bribes closed whatever was bought");
   assert.equal(canStepDown({ race: goblin, locked: true }, "bribes"), false, "a match on closes «−» whole, a purchase on record or not");
   assert.equal(canStepDown({ race: human, locked: true }, "startingRerolls"), false);
   assert.equal(model.canStepDown(rows({ race: human, roster: ROSTER, stage: "active" }).startingRerolls), false, "closed by the stage and nothing on record");

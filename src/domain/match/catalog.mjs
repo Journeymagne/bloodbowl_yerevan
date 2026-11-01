@@ -1,5 +1,6 @@
 import { canonicalLeagueName, teamHasSpecialRule, teamLeagueOptions } from "../roster/team-rules.mjs";
 import { costToNumber } from "../roster/values.mjs";
+import { bribeCosts } from "../league-rules.mjs";
 import { MATCH_RULES, teamKey } from "./rules.mjs";
 
 // Prices and limits follow the dedicated content/Gata/Inducements cards.
@@ -47,7 +48,8 @@ function commonItem(definition, side, data) {
   const halfling = teamKey(side.reference) === "halfling";
   const bribery = teamHasSpecialRule(side.reference, "Bribery and Corruption");
   let cost = baseCost, limit = maximum;
-  if (id === "bribe") { cost = bribery ? 50 : 100; limit = Math.max(0, maximum - Number(side.roster.bribes)); }
+  // `bribeCosts`: three a match whatever the roster holds, all at the Bribery price for a team with the rule.
+  if (id === "bribe") cost = bribery ? bribeCosts.bribery : bribeCosts.standard;
   if (halfling && id === "halfling-master-chef") cost = 100;
   if (halfling && id === "ballistics-expert") cost = 30;
   if (halfling && id === "halfling-surprise-pot") cost = 60;

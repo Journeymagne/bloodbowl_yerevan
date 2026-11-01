@@ -17,7 +17,7 @@ import { builderStaffMaximums, medicalStaffDefinitions, rosterSizeLimits, starti
 import { calculateRosterCosts } from "./costs.mjs";
 import { canAddRowToDraft, rowCountInPlayers, syncRosterCountsFromPlayers } from "./players.mjs";
 import { createDraft, createPlayer, draftPayload, rosterForStorage } from "./schema.mjs";
-import { availableMedicalStaffDefinitions, hasBribery, teamFavouredOptions, teamLeagueOptions } from "./team-rules.mjs";
+import { availableMedicalStaffDefinitions, teamFavouredOptions, teamLeagueOptions } from "./team-rules.mjs";
 import { countToNumber, rosterMax, rowsForTeam } from "./values.mjs";
 
 /**
@@ -55,13 +55,12 @@ export function newBuild(team, { name = "" } = {}) {
 }
 
 /**
- * May this race buy this staff while building? Bribes need Bribery and
- * Corruption, a medic the race's own; the rest of the list is for everyone,
- * and a key that is not on it is not sold.
+ * May this race buy this staff while building? A medic needs to be the race's
+ * own; the rest of the list is for everyone (bribes too, at their price:
+ * `bribeCosts`), and a key that is not on it is not sold.
  */
 export function staffAvailable(team, key) {
   if (!BUILD_STAFF_KEYS.includes(key)) return false;
-  if (key === "bribes") return hasBribery(team);
   if (!medicalStaffDefinitions.some((staff) => staff.key === key)) return true;
   return availableMedicalStaffDefinitions(team).some((staff) => staff.key === key);
 }

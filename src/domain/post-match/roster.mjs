@@ -1,12 +1,12 @@
 import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { applyInjuryEffects } from '../roster/absence.mjs';
 import { canonicalSkillName, normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
-import { playerCurrentCost } from '../roster/costs.mjs';
+import { playerCurrentCost, staffUnitCost } from '../roster/costs.mjs';
 import { statIncreaseRefusal, takeAdvancement, tieFavoured } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
-import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery } from '../roster/team-rules.mjs';
+import { teamHasSpecialRule, availableMedicalStaffDefinitions } from '../roster/team-rules.mjs';
 import { favouredBonus, favouredRollAsked } from '../roster/edits.mjs';
-import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
+import { builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
 import { isLineman } from '../match/roster.mjs';
 import { effectiveInjury, postError, postDie, postCount, survivingCaptain } from './rules.mjs';
 import { earnedCounters } from './statistics.mjs';
@@ -82,8 +82,7 @@ function validateStatIncrease(row, player, stat) {
 }
 
 export function postStaffOptions(reference) {
-  return ['teamRerolls', 'assistantCoaches', 'cheerleaders', ...availableMedicalStaffDefinitions(reference).map(item => item.key),
-    ...(hasBribery(reference) ? ['bribes'] : [])];
+  return ['teamRerolls', 'assistantCoaches', 'cheerleaders', ...availableMedicalStaffDefinitions(reference).map(item => item.key), 'bribes'];
 }
 
 function addPosition(roster, side, operation) {
@@ -129,8 +128,9 @@ function applyStaff(roster, side, operation) {
   const next = Number(roster[key]) + delta;
   const rerolls = next + Number(roster.startingRerolls || 0);
   if (next < 0 || next > builderStaffMaximums[key] || (key === 'teamRerolls' && rerolls > combinedRerollsMaximum)) throw postError('POST_POSITION');
+  const price = staffUnitCost(side.reference, key);
   roster[key] = next;
-  if (delta > 0) { roster.treasury = sumMoney(roster.treasury, -builderStaffCosts[key]); roster.purchasedStaff[key] = Number(roster.purchasedStaff[key] || 0) + 1; }
+  if (delta > 0) { roster.treasury = sumMoney(roster.treasury, -price); roster.purchasedStaff[key] = Number(roster.purchasedStaff[key] || 0) + 1; }
   else roster.purchasedStaff[key] = Math.min(roster.purchasedStaff[key], next);
 }
 

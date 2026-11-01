@@ -8,10 +8,10 @@
  *
  * Pure data: no DOM, no state, safe to import from the server.
  */
+// A bribe's price depends on the race: see `bribeCosts`.
 export const builderStaffCosts = {
   teamRerolls: 120,
   startingRerolls: 60,
-  bribes: 50,
   dedicatedFans: 10,
   assistantCoaches: 10,
   cheerleaders: 10,
@@ -39,6 +39,13 @@ export const builderStaffMaximums = {
  * each counter the room the other leaves.
  */
 export const combinedRerollsMaximum = 8;
+
+/**
+ * Bribes (the owner, 2026-10-29): any team keeps up to three on its roster (`builderStaffMaximums`) and buys up to
+ * three more as a match's inducements (domain/match/catalog.mjs). Every bribe costs `standard`, or `bribery` for a
+ * team with Bribery and Corruption. `bribeCost` (roster/costs.mjs) prices the roster's.
+ */
+export const bribeCosts = Object.freeze({ bribery: 50, standard: 100 });
 
 export const medicalStaffDefinitions = [
   { key: "apothecary", title: "Apothecary", access: "apothecary" },
@@ -257,6 +264,7 @@ const LEAGUE_RULES = Object.freeze({
   defaultPositionMaximum,
   staffCosts: builderStaffCosts,
   staffMaximums: builderStaffMaximums,
+  bribeCosts,
   medicalStaff: medicalStaffDefinitions,
   advancementRanks,
   advancementStatCosts,

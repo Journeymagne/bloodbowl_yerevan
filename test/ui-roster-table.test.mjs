@@ -386,7 +386,7 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   const { wide, narrow } = parts(SHEET);
   assert.match(wide, /\.g-rtable-frame\s*\{[^}]*overflow-x:\s*auto/);
   assert.match(wide, /\.g-rtable__who[^{]*\{[^}]*position:\s*sticky/);
-  assert.ok(!/sticky/.test(narrow), "a phone's table is the page's width and does not scroll");
+  assert.ok(!/\bleft:\s*0/.test(narrow), "a phone's table is the page's width and does not scroll");
   // The chosen row's ring is drawn by its cells (fix round 1): one line through the sticky player cell, which a row's
   // outline would pass under — its top and bottom on every cell, its sides on the first and the last.
   assert.ok(!/is-selected[^{]*\{[^}]*outline:(?!\s*2px solid transparent)/.test(wide), "no visible row outline");
@@ -397,6 +397,20 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   assert.deepEqual(cells, [ring]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > :first-child", "box-shadow"), [`inset 2px 0 0 var(--accent-text), ${ring}`]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > :last-child", "box-shadow"), [`inset -2px 0 0 var(--accent-text), ${ring}`]);
+});
+
+test("up to 900px the labels stick under the folded header while the players scroll, the foot's do not", () => {
+  const { narrow, wide } = parts(SHEET);
+  const head = narrow.match(/\.g-rtable > thead th\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(head, /position:\s*sticky/);
+  // The mobile header is 91px folded (shell/frame.css), and it is folded once the page has scrolled this far.
+  assert.match(head, /top:\s*91px/);
+  assert.match(head, /background:\s*var\(--page\)/);
+  // A collapsed border would stay behind with the table: the rule under the labels moves with them.
+  assert.match(head, /border-bottom:\s*0/);
+  assert.match(head, /box-shadow:\s*inset 0 -1px var\(--line\)/);
+  assert.ok(!/tfoot[^{]*\{[^}]*sticky/.test(narrow), "the foot's labels stay at the end of the list");
+  assert.ok(!/thead[^{]*\{[^}]*sticky/.test(wide), "a desk's table scrolls in its frame: its head does not stick");
 });
 
 test("every number stands centred under its label, on a phone and on a desk, the SPP columns too: one axis for a header and its values (fix round 1)", () => {

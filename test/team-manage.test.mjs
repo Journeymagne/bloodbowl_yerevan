@@ -176,12 +176,12 @@ test("a team in the build: Starting rerolls on sale, Team Rerolls closed, the ch
   assert.equal(fragment.querySelector(".g-ledger__state").textContent, "No operations yet.");
 });
 
-test("a team outside the season says so, and a team with Bribery and Corruption may buy bribes", () => {
+test("a team outside the season says so, and every team may buy bribes", () => {
   const fragment = mount(manageMarkup(model("t5")));
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Not in the season");
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").getAttribute("class"), "g-status");
   assert.equal(fragment.querySelector('[data-resource-key="bribes"]').classList.contains("g-resource--locked"), false);
-  assert.ok(mount(manageMarkup(model("t1"))).querySelector('[data-resource-key="bribes"].g-resource--locked'), "Humans have none to buy");
+  assert.equal(mount(manageMarkup(model("t1"))).querySelector('[data-resource-key="bribes"].g-resource--locked'), null, "Humans buy them at 100k");
 });
 
 test("a season whose first round has not begun is on, without a number; the chip of a season is the live tone", () => {

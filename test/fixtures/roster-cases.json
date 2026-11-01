@@ -494,19 +494,19 @@
         "playersCount": 7,
         "totalPlayersCount": 8,
         "playersCost": 775,
-        "staffCost": 520,
-        "rerollCost": 520,
-        "total": 1295,
-        "remaining": -695
+        "staffCost": 620,
+        "rerollCost": 620,
+        "total": 1395,
+        "remaining": -795
       },
       "costsWithFans": {
         "playersCount": 7,
         "totalPlayersCount": 8,
         "playersCost": 775,
-        "staffCost": 540,
-        "rerollCost": 540,
-        "total": 1315,
-        "remaining": -715
+        "staffCost": 640,
+        "rerollCost": 640,
+        "total": 1415,
+        "remaining": -815
       },
       "totalSpp": 144,
       "team": {
@@ -667,7 +667,7 @@
         "bribes": {
           "up": {
             "value": 1,
-            "treasury": -50,
+            "treasury": -150,
             "purchasedStaff": {
               "teamRerolls": 2,
               "apothecary": 1,
@@ -676,7 +676,7 @@
           },
           "down": {
             "value": 1,
-            "treasury": 0,
+            "treasury": -50,
             "purchasedStaff": {
               "teamRerolls": 2,
               "apothecary": 1,
@@ -1866,7 +1866,7 @@
         "bribes": {
           "up": {
             "value": 0,
-            "treasury": 9,
+            "treasury": -91,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 0,
@@ -1875,7 +1875,7 @@
           },
           "down": {
             "value": 0,
-            "treasury": 59,
+            "treasury": 9,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 0,
@@ -2655,7 +2655,7 @@
         "bribes": {
           "up": {
             "value": 0,
-            "treasury": -37,
+            "treasury": -137,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 1,
@@ -2664,7 +2664,7 @@
           },
           "down": {
             "value": 0,
-            "treasury": 13,
+            "treasury": -37,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 1,
@@ -3169,7 +3169,7 @@
         "bribes": {
           "up": {
             "value": 0,
-            "treasury": -85,
+            "treasury": -185,
             "purchasedStaff": {
               "teamRerolls": 1,
               "apothecary": 1,
@@ -3178,7 +3178,7 @@
           },
           "down": {
             "value": 0,
-            "treasury": -35,
+            "treasury": -85,
             "purchasedStaff": {
               "teamRerolls": 1,
               "apothecary": 1,
@@ -4577,7 +4577,7 @@
         "bribes": {
           "up": {
             "value": 0,
-            "treasury": 30,
+            "treasury": -70,
             "purchasedStaff": {
               "teamRerolls": 1,
               "apothecary": 0,
@@ -4586,7 +4586,7 @@
           },
           "down": {
             "value": 0,
-            "treasury": 80,
+            "treasury": 30,
             "purchasedStaff": {
               "teamRerolls": 1,
               "apothecary": 0,
@@ -5091,19 +5091,19 @@
         "playersCount": 5,
         "totalPlayersCount": 6,
         "playersCost": 700,
-        "staffCost": 190,
-        "rerollCost": 190,
-        "total": 890,
-        "remaining": -290
+        "staffCost": 290,
+        "rerollCost": 290,
+        "total": 990,
+        "remaining": -390
       },
       "costsWithFans": {
         "playersCount": 5,
         "totalPlayersCount": 6,
         "playersCost": 700,
-        "staffCost": 200,
-        "rerollCost": 200,
-        "total": 900,
-        "remaining": -300
+        "staffCost": 300,
+        "rerollCost": 300,
+        "total": 1000,
+        "remaining": -400
       },
       "totalSpp": 124,
       "team": {
@@ -5252,7 +5252,7 @@
         "bribes": {
           "up": {
             "value": 1,
-            "treasury": -38,
+            "treasury": -138,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 1,
@@ -5261,7 +5261,7 @@
           },
           "down": {
             "value": 1,
-            "treasury": 12,
+            "treasury": -38,
             "purchasedStaff": {
               "teamRerolls": 0,
               "apothecary": 1,

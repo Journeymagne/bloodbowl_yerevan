@@ -549,6 +549,16 @@ npm run maintenance:status
 npm run maintenance:off
 ```
 
+Without a shell on the server, run the same commands from GitHub: Actions →
+**Maintenance on** (`.github/workflows/maintenance-on.yml`) or **Maintenance
+off** (`maintenance-off.yml`) → Run workflow. They go in as root with the
+Deploy secrets, and each one is green only once `/api/health` reports the new
+state. "Maintenance on" takes the kind and an optional end: `90` or `90m`
+(minutes), `2h`, `1h30m`, `19:00` (Yerevan time, today or tomorrow if already
+past) or a time with its offset, `2026-11-02T19:00+04:00`. An end it cannot
+read, or one already past, fails the run before the site is touched. The two
+never run at once: a second run waits for the first.
+
 The site closes the moment `on` runs: the server notices the flag within two
 seconds, and nothing restarts. Running `on` again replaces the flag, `startsAt`
 included. The options are all optional:

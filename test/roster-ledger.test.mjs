@@ -76,6 +76,23 @@ test("staff bought or refunded through the editor is staff or staff_refund at th
   }
 });
 
+test("a bribe bought or refunded is staff at its race's price: 50k with Bribery and Corruption, 100k without", () => {
+  for (const item of cases) {
+    const { team, before, after } = stored(item);
+    after.bribes = 0;
+    after.purchasedStaff = { ...after.purchasedStaff, bribes: 0 };
+    const held = { ...after, purchasedStaff: { ...after.purchasedStaff } };
+    held.bribes = 1;
+    applyPaidStaffChange(held, "bribes", 0, 1, team);
+    const price = /bribery\s+and\s+corruption/i.test(team.team.meta.specialRules ?? "") ? 50 : 100;
+    assert.deepEqual(classifyTreasuryChange(team, after, held), [{ kind: "staff", delta: -price }], item.team);
+    const back = { ...held, bribes: 0, purchasedStaff: { ...held.purchasedStaff } };
+    applyPaidStaffChange(back, "bribes", 1, 0, team);
+    assert.deepEqual(classifyTreasuryChange(team, held, back), [{ kind: "staff_refund", delta: price }], item.team);
+  }
+  assert.ok(cases.some((item) => /bribery/i.test(teams.get(item.team).team.meta.specialRules ?? "")), "a Bribery race among the fixtures");
+});
+
 test("what the operations do not explain is manual, without a reason — or admin on the admin's route", () => {
   for (const item of cases) {
     const { team, before, after } = stored(item);

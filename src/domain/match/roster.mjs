@@ -1,6 +1,6 @@
 import { normalizeDraft } from "../roster/schema.mjs";
 import { selectedRosterPlayers, skillNamesForPlayer } from "../roster/players.mjs";
-import { playerCurrentCost, playerAdjustmentCost } from "../roster/costs.mjs";
+import { bribeCost, playerCurrentCost, playerAdjustmentCost } from "../roster/costs.mjs";
 import { teamHasSpecialRule } from "../roster/team-rules.mjs";
 import { builderStaffCosts, medicalStaffDefinitions } from "../league-rules.mjs";
 import { costToNumber, rowsForTeam, rosterMax, statValueForDisplayByStat, PLAYER_STATS } from "../roster/values.mjs";
@@ -55,7 +55,7 @@ export function calculateMatchCtv(side) {
   const draft = side.roster;
   const rerolls = (Number(draft.startingRerolls) + Number(draft.teamRerolls)) * costToNumber(side.reference.team.meta.rerolls);
   const medical = medicalStaffDefinitions.reduce((sum, staff) => sum + Number(draft[staff.key] || 0) * builderStaffCosts[staff.key], 0);
-  const bribes = Number(draft.bribes) * 50;
+  const bribes = Number(draft.bribes) * bribeCost(side.reference);
   return { players: players.length, playersValue, rerolls, medical, bribes,
     total: playersValue + rerolls + medical + bribes, lowCost };
 }
