@@ -14,6 +14,7 @@ import { document } from "./ui.mjs";
 import { installFakeApi } from "./fake-api.mjs";
 import { mountView, withWindow } from "./ref-screen.mjs";
 import { expandCollections } from "../../src/data/reference.mjs";
+import { currentInjuryEvents } from "../../src/domain/getting-even.mjs";
 
 // The window's own events, for every test on this page: the save queue's unload guard and the screen's `online` listen on it.
 export const page = new EventTarget();
@@ -95,6 +96,9 @@ export function coach({ teamAnswer = team(), events = [] } = {}) {
   api.reply("GET /api/teams/t1/events", 200, { events, revision: teamAnswer.revision });
   api.reply("GET /api/teams/t1/fallen", 200, { fallen: [] });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  api.reply("GET /api/teams/t1/getting-even?pairing=g2", 200, {
+    own: "home", players: [], gamesPlayed: 0, decisions: [], injuries: currentInjuryEvents(events),
+  });
 }
 
 export const PATCH = "PATCH /api/teams/t1";

@@ -56,7 +56,7 @@ import { PLAYERS_STAGE } from "../../domain/post-match/rules.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
-import { patchWithModal } from "../../ui/sheet.mjs";
+import { patchWithModal, renderSheet } from "../../ui/sheet.mjs";
 import { renderLogin } from "../auth/login.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
@@ -79,7 +79,7 @@ const DRAFTS = Object.freeze({ result: resultDraft, fans: fansDraft, finance: fi
 const SCREEN = "post-match";
 
 /** A sheet's dialog id by its kind. */
-const SHEETS = Object.freeze({ player: PLAYERS_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET });
+const SHEETS = Object.freeze({ player: PLAYERS_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET, even: 'after-getting-even' });
 
 /** What the Players step saves of a side: the draft compares with these. */
 const playersValues = (side) => [side.statistics, side.injuries, side.mvps, side.departures];
@@ -159,6 +159,12 @@ function sheetOf(visit, model, phone) {
     return html ? { html, id: ADVANCE_SHEET } : null;
   }
   if (!sheet || sheet.step !== model.step) return null;
+  if (sheet.kind === 'even') {
+    const player = model.post[model.sideName].snapshot.players.find(item => item.id === sheet.playerId);
+    const html = renderSheet({ id: SHEETS.even, title: t('gettingEven.title'), sub: player?.name || '', bodyHtml: sheet.even.markup(),
+      footHtml: renderButton({ label: t('common.save'), kind: 'primary', busy: sheet.even.busy || sheet.even.loading, data: { afterEvenSave: '' } }) });
+    return { html, id: SHEETS.even };
+  }
   const html = sheet.kind === "player" ? playerSheetMarkup(model, playersOf(visit, model), sheet.playerId, { phone })
     : sheet.kind === "hire" ? hireSheetMarkup(model) : sheet.kind === "sell" ? sellSheetMarkup(model) : "";
   return html ? { html, id: SHEETS[sheet.kind] } : null;

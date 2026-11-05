@@ -61,13 +61,14 @@ const belowZero = ({ playerId, counter }) => httpError(409, "EVENT_BELOW_ZERO", 
  * @returns {{ pairingId: string|null, playerId: string, counter: string, delta: number, injury: object|null }}
  */
 function checkTap(body) {
-  const { pairingId = null, playerId, counter, delta, injury = null } = body ?? {};
+  const { pairingId = null, playerId, counter, delta, injury = null, gettingEvenId = null } = body ?? {};
   if (pairingId !== null && !isUuid(pairingId)) throw invalid("pairingId");
   if (typeof playerId !== "string" || !playerId || playerId.length > MAX_PLAYER_ID_LENGTH) throw invalid("playerId");
   if (!(pairingId === null ? SPP_EVENT_COUNTERS : TAPPED_COUNTERS).includes(counter)) throw invalid("counter");
   if (delta !== 1 && delta !== -1) throw invalid("delta");
   if (counter === "injury" ? !isValidEventInjury(injury) : injury !== null) throw invalid("injury");
-  return { pairingId, playerId, counter, delta, injury };
+  if (gettingEvenId !== null && (!isUuid(gettingEvenId) || counter !== 'injury' || delta !== 1 || !pairingId)) throw invalid('gettingEvenId');
+  return { pairingId, playerId, counter, delta, injury, gettingEvenId };
 }
 
 /** `?pairing=` as the match it names: none when it is left out or empty (as `?before=` is), and a 400 for `pairing` when it is no UUID. */
@@ -96,7 +97,7 @@ async function sendEvents(request, response, teamId, params) {
  * A step down is checked against the rows of this match, read under those locks. Refused at any point,
  * nothing is written.
  */
-async function writeTap(client, team, user, { pairingId, playerId, counter, delta, injury }) {
+async function writeTap(client, team, user, { pairingId, playerId, counter, delta, injury, gettingEvenId }) {
   const { fixture, snapshot } = await lockLiveSide(client, { pairingId, teamId: team.id, user });
   if (!snapshot.players?.some((player) => player.id === playerId)) throw httpError(422, "POST_PLAYER");
   if (takesBack({ counter, delta })) {
@@ -104,7 +105,7 @@ async function writeTap(client, team, user, { pairingId, playerId, counter, delt
     if (eventTotal(ofTheMatch, playerId, counter) <= 0) throw belowZero({ playerId, counter });
   }
   return recordMatchEvent(client, {
-    teamId: team.id, pairingId: fixture.id, event: { playerId, counter, delta, injury }, actorId: user.id,
+    teamId: team.id, pairingId: fixture.id, event: { playerId, counter, delta, injury, gettingEvenId }, actorId: user.id,
   });
 }
 

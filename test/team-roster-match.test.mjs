@@ -646,7 +646,7 @@ test("the switch is kept per match too: the same team's next match starts with i
 
 const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
-  "src/screens/team/manage/strip.css", "src/screens/team/roster/career.css"];
+  "src/screens/team/manage/strip.css", "src/screens/team/roster/career.css", "getting-even.css"];
 
 test("«Injury in the match…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
   await withoutTimers(async () => {
@@ -659,6 +659,7 @@ test("«Injury in the match…» opens a sheet of five injuries; a lasting one a
     assert.equal(opener.getAttribute("aria-haspopup"), "dialog");
     opener.focus();
     fireEvent(opener, "click");
+    await settle();
     const dialog = injurySheet();
     assert.ok(dialog?.isModal, "the sheet is open, modally");
     assert.equal(dialog.querySelector("h2").textContent, "Injury in the match");
@@ -708,10 +709,11 @@ test("a standing injury can be taken back by its own −1", async () => {
     await renderTeamRoster("t1");
     assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3");
     fireEvent(injuryButton(), "click");
+    await settle();
     assert.equal(removeButton().textContent, "Remove the record");
     assert.ok(removeButton().classList.contains("g-btn--danger-quiet"));
     assert.ok(removeButton().closest(".g-sheet__foot-start"), "the quiet control beside the sheet's button");
-    assert.ok(recordButton().hasAttribute("disabled"), "a new one is still to be chosen");
+    assert.ok(!recordButton().hasAttribute("disabled"), "the standing injury is selected for resolving Getting Even");
     api.reply(EVENTS, 201, { event: injuryRow({ code: "miss" }, { id: "e2", delta: -1 }) });
     fireEvent(removeButton(), "click");
     await settle();
@@ -740,6 +742,7 @@ test("in Russian a friendly keeps its noun: the banner and the switch's descript
       assert.equal(described(), `исправить старую ошибку, не трогая ${target}`, "StatsLive.html: «не трогая тур 7»");
       assert.ok(subOf(banner()).startsWith(`Счётчики игрока справа пишут записи в ${target}: сразу видны в карьере (зелёный индекс в таблице)`));
       fireEvent(injuryButton(), "click");
+      await settle();
       assert.ok(injurySheet().querySelector(".g-roster__injurynote").textContent.startsWith(`Запишется в этот матч (${match}) и подставится в итоги`));
     }
   } finally {
@@ -752,6 +755,7 @@ test("the choice keeps the focus on the card it moved to", async () => {
   gamesAre([LIVE_GAME]);
   await renderTeamRoster("t1");
   fireEvent(injuryButton(), "click");
+  await settle();
   const cards = injuryOptions();
   assert.deepEqual(cards.map((card) => card.getAttribute("tabindex")), ["0", "-1", "-1", "-1", "-1"], "Tab enters the group at the first");
   cards[0].focus();
@@ -774,6 +778,7 @@ test("a refused record says why and the sheet stays open", async () => {
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("dead"), "click");
     api.reply(EVENTS, 409, refused("EVENT_SIDE_LOCKED"));
     fireEvent(recordButton(), "click");
@@ -799,6 +804,7 @@ test("a refused record says why and the sheet stays open", async () => {
     assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
     assert.equal(injuryButton().getAttribute("title"), SIDE_LOCKED);
     fireEvent(injuryButton(), "click");
+    await settle();
     assert.ok(!injurySheet(), "a locked side opens no sheet");
     assert.equal(toasts().at(-1), SIDE_LOCKED);
   });
@@ -844,10 +850,12 @@ test("an injury in the air keeps the sheet busy: a second press sends nothing", 
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("miss"), "click");
     const held = api.hold(EVENTS);
     recordButton().focus();
     fireEvent(recordButton(), "click");
+    await settle();
     assert.equal(recordButton().getAttribute("aria-busy"), "true", "busy while it is in the air");
     assert.ok(!recordButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus (button.mjs)");
     // «Remove the record» is drawn before it now (the injury on its way is counted), so the button is drawn anew.
@@ -873,6 +881,7 @@ test("an injury whose answer was lost: the sheet closes and the records are read
     await renderTeamRoster("t1");
     api.calls.length = 0;
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("dead"), "click");
     api.fail(EVENTS);
     // It was written after all; its answer never came.
@@ -886,6 +895,7 @@ test("an injury whose answer was lost: the sheet closes and the records are read
     assert.equal(injuryButton().getAttribute("title"), READING);
     assert.ok(!notice("danger"), "nothing to read again while the read is in the air");
     fireEvent(injuryButton(), "click");
+    await settle();
     assert.ok(!injurySheet(), "no second injury before the read says whether the first was written");
     assert.equal(toasts().at(-1), READING);
     reading.release({ status: 200, body: { events: [injuryRow({ code: "dead" })], revision: 4 } });
@@ -903,6 +913,7 @@ test("while the records are read the sheet's buttons say so, and a press sends n
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("badly-hurt"), "click");
     // The server has the match over before the games say so: the refusal reads the records again, and the sheet stays.
     api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
@@ -933,6 +944,7 @@ test("an injury whose answer was lost, and whose read then failed, stays closed 
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("dead"), "click");
     api.fail(EVENTS);
     api.fail("GET /api/teams/t1/events");
@@ -943,6 +955,7 @@ test("an injury whose answer was lost, and whose read then failed, stays closed 
     assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
     assert.equal(injuryButton().getAttribute("title"), UNSURE);
     fireEvent(injuryButton(), "click");
+    await settle();
     assert.ok(!injurySheet(), "no second injury while it is not known whether the first was written");
     assert.equal(toasts().at(-1), UNSURE);
     const callout = notice("danger");
@@ -971,6 +984,7 @@ test("an open injury sheet is its match's: another match on, or none, closes it,
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("miss"), "click");
     optionFor("miss").focus();
     // Round 3's post-match was finished elsewhere, and round 4's match has begun.
@@ -984,6 +998,7 @@ test("an open injury sheet is its match's: another match on, or none, closes it,
     assert.ok(document.activeElement === injuryButton(), "back on the button that opened it");
     // Opened for round 4, which then ends: no button to go back to, and the title takes the focus.
     fireEvent(injuryButton(), "click");
+    await settle();
     assert.match(injurySheet().querySelector(".g-roster__injurynote").textContent, /^It is recorded in this match \(round 4\)/);
     optionFor("dead").focus();
     gamesAre([ended, { ...next, postMatchStatus: "completed", resultStatus: "confirmed" }]);
@@ -1001,6 +1016,7 @@ test("an injury refused because the match is over: said, and the sheet goes with
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(injuryButton(), "click");
+    await settle();
     fireEvent(optionFor("badly-hurt"), "click");
     api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
     gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
@@ -1018,6 +1034,7 @@ test("the sheet's player is text", async () => {
   gamesAre([LIVE_GAME]);
   await renderTeamRoster("t1");
   fireEvent(injuryButton(), "click");
+  await settle();
   assert.equal(injurySheet().querySelector(".g-sheet__sub").textContent, `#1 ${HOSTILE} · Human Lineman`);
   assert.ok(!view.querySelector("img"));
   assertCspSafe(view);

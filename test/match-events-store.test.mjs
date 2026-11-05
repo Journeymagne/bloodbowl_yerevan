@@ -10,7 +10,15 @@ import { scratchSkip, withScratchDatabase } from "./helpers/scratch-db.mjs";
 
 function fakeClient(rows = []) {
   const log = [];
-  return { log, async query(sql, values = []) { log.push({ sql: sql.trim(), values }); return { rows, rowCount: rows.length }; } };
+  return { log, async query(sql, values = []) {
+    log.push({ sql: sql.trim(), values });
+    if (/SELECT \* FROM match_getting_even/.test(sql)) return { rows: [], rowCount: 0 };
+    if (/INSERT INTO match_getting_even/.test(sql)) return { rows: [{ id: 'ge1', pairing_id: values[0], saved_team_id: values[1],
+      player_id: values[2], injury_event_id: values[3], injury: JSON.parse(values[4]), roll: null, source: null, attacker: null, keyword: null }], rowCount: 1 };
+    if (/INSERT INTO match_events/.test(sql) && !rows.length) return { rows: [{ id: 'generated', saved_team_id: values[0], pairing_id: values[1],
+      player_id: values[2], counter: values[3], delta: values[4], injury: values[5] ? JSON.parse(values[5]) : null, created_by: values[6] }], rowCount: 1 };
+    return { rows, rowCount: rows.length };
+  } };
 }
 const tap = (playerId, counter, delta = 1, injury = null) => ({ playerId, counter, delta, injury, settledAt: null });
 
@@ -29,8 +37,11 @@ test("a tap is the same INSERT, read back as the API shows a row: the team and w
   const db = fakeClient([{ id: "e1", saved_team_id: "t1", pairing_id: "g1", player_id: "p1", counter: "injury", delta: 1,
     injury: { code: "miss" }, settled_at: null, created_by: "u1", created_at: createdAt }]);
   const event = await recordMatchEvent(db, { teamId: "t1", pairingId: "g1", actorId: "u1", event: { playerId: "p1", counter: "injury", delta: 1, injury: { code: "miss" } } });
-  assert.deepEqual(event, { id: "e1", pairingId: "g1", playerId: "p1", counter: "injury", delta: 1, injury: { code: "miss" }, settledAt: null, createdAt });
-  assert.deepEqual(db.log.map((entry) => entry.values), [["t1", "g1", "p1", "injury", 1, '{"code":"miss"}', "u1"]]);
+  const { gettingEven, ...recorded } = event;
+  assert.deepEqual(recorded, { id: "e1", pairingId: "g1", playerId: "p1", counter: "injury", delta: 1, injury: { code: "miss" }, settledAt: null, createdAt });
+  assert.equal(gettingEven.injuryEventId, 'e1');
+  assert.equal(gettingEven.roll, null);
+  assert.deepEqual(db.log[0].values, ["t1", "g1", "p1", "injury", 1, '{"code":"miss"}', "u1"]);
   assert.match(db.log[0].sql, /^INSERT INTO match_events [^]*clock_timestamp\(\)\)\s+RETURNING \*$/);
 });
 
@@ -80,8 +91,10 @@ test("on a real database: a match's events come back per team, oldest first; set
     await writeMatchEvents(client, { teamId: T1, pairingId: G2, events: [tap("p1", "touchdowns")] });
     await client.query("COMMIT");
     const loaded = await loadMatchEvents(client, G1, [T1, T2, T3]);
-    assert.deepEqual(loaded[T1], [tap("p1", "touchdowns"), tap("p1", "injury", 1, { code: "lasting", stat: "ag" }), tap("p1", "touchdowns", -1)]);
-    assert.deepEqual(loaded[T2], [tap("journeyman-8", "catches")]);
+    const values = items => items.map(({ id, gettingEven, ...item }) => item);
+    assert.deepEqual(values(loaded[T1]), [tap("p1", "touchdowns"), tap("p1", "injury", 1, { code: "lasting", stat: "ag" }), tap("p1", "touchdowns", -1)]);
+    assert.equal(loaded[T1][1].gettingEven.injuryEventId, loaded[T1][1].id);
+    assert.deepEqual(values(loaded[T2]), [tap("journeyman-8", "catches")]);
     assert.deepEqual(loaded[T3], []);
     assert.equal(await settleMatchEvents(client, { teamId: T1, pairingId: G1 }), 3);
     assert.equal(await settleMatchEvents(client, { teamId: T1, pairingId: G1 }), 0);
@@ -105,7 +118,7 @@ test("a row is read as the domain's event: jsonb as an object, timestamptz as a 
     t3: [],
   });
   assert.equal(db.log.length, 1);
-  assert.match(db.log[0].sql, /^SELECT saved_team_id, player_id, counter, delta, injury, settled_at\s+FROM match_events\s+WHERE pairing_id = \$1 AND saved_team_id = ANY\(\$2::uuid\[\]\)\s+ORDER BY created_at, id$/);
+  assert.match(db.log[0].sql, /WHERE pairing_id = \$1 AND saved_team_id = ANY\(\$2::uuid\[\]\)\s+ORDER BY created_at, id$/);
   assert.deepEqual(db.log[0].values, ["g1", ["t1", "t2", "t3"]]);
 });
 
@@ -213,7 +226,7 @@ test("on a real database: a rolled-back transaction leaves no events and settles
     await client.query("BEGIN");
     assert.equal(await settleMatchEvents(client, { teamId: T1, pairingId: G1 }), 1);
     await client.query("ROLLBACK");
-    assert.deepEqual((await loadMatchEvents(client, G1, [T1]))[T1], [tap("p1", "touchdowns")]);
+    assert.deepEqual((await loadMatchEvents(client, G1, [T1]))[T1].map(({ id, ...item }) => item), [tap("p1", "touchdowns")]);
   });
 });
 
@@ -239,7 +252,9 @@ test("on a real database: a tap comes back as the row it wrote, its injury an ob
     await client.query("BEGIN");
     const event = await recordMatchEvent(client, { teamId: T1, pairingId: G1, actorId: U1, event: { playerId: "p1", counter: "injury", delta: 1, injury: { code: "lasting", stat: "ag" } } });
     await client.query("COMMIT");
-    const { id, createdAt, ...rest } = event;
+    const { id, createdAt, gettingEven, ...rest } = event;
+    assert.equal(gettingEven.injuryEventId, id);
+    assert.equal(gettingEven.roll, null);
     assert.deepEqual(rest, { pairingId: G1, playerId: "p1", counter: "injury", delta: 1, injury: { code: "lasting", stat: "ag" }, settledAt: null });
     assert.ok(createdAt instanceof Date);
     const [stored] = (await client.query("SELECT * FROM match_events")).rows;

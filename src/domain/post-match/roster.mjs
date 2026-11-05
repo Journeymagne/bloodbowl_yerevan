@@ -13,6 +13,7 @@ import { earnedCounters } from './statistics.mjs';
 import { postIncome, nextDedicatedFans, postFinance } from './finance.mjs';
 import { isMoneyAmount, sumMoney } from '../money.mjs';
 import { playerSaleValue } from '../roster/transfers.mjs';
+import { applyGettingEven } from '../getting-even.mjs';
 
 function applyInjury(player, injury, pairingId) {
   player.skipNextGame = Boolean(player.temporarilyRetired);
@@ -63,6 +64,7 @@ export function postPlayers(state, name, data) {
     player.spp = Object.fromEntries(Object.keys(prior).map(key => [key, prior[key] + earned[key]]));
     const injury = effectiveInjury(side, player.id);
     applyInjury(player, injury, state.gameId);
+    applyGettingEven(player, side, state.gameId);
     for (const choice of side.advancements[player.id] || []) {
       if (injury.code === 'dead') throw postError('POST_PLAYER');
       const row = rowsForTeam(side.reference)[player.rowIndex];

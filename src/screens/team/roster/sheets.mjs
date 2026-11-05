@@ -23,6 +23,7 @@ import { renderFilterChips } from "../../../ui/filter-chips.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
+import { gettingEvenDetails } from "../../../ui/getting-even.mjs";
 import { pageForName } from "../../ref/catalog.mjs";
 import { proseMarkup } from "../../ref/prose.mjs";
 import { categoryOf, tagsOf } from "../../ref/skill.mjs";
@@ -90,7 +91,7 @@ function captionOf(data, page) {
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-skill")` opens it
  */
 export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
-  const page = pageForName(data, name);
+  const page = pageForName(data, name) ?? (/^Hatred \(.+\)$/.test(name) ? pageForName(data, 'Hatred (X)') : null);
   const skill = line.skills.find((item) => item.name === name);
   // The build escapes a page's html (scripts/build-data.mjs); a page without it has its text.
   const rule = page ? proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
@@ -98,7 +99,8 @@ export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
   const from = skill
     ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
     : "";
-  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}` });
+  const origin = skill?.origin ? gettingEvenDetails({ ...skill.origin, attacker: { ...skill.origin.attacker, keywords: [skill.origin.keyword] } }) : '';
+  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}${origin}` });
 }
 
 /** The injury the sheet's choice makes, or null while it is not whole: none chosen, a lasting one without its characteristic. */
@@ -151,7 +153,7 @@ export function footButton({ label, kind, data, disabled = false, busy = false, 
  * @param {string} [props.reason] why no injury of his can be recorded just now, as the match's taps are closed (`injuryClosed`); "" when one can
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-injury")` opens it
  */
-export function injurySheetMarkup({ line, mode, choice, busy = false, reason = "" }) {
+export function injurySheetMarkup({ line, mode, choice, busy = false, reason = "", even }) {
   const options = INJURY_CODES.map((code) => ({ value: code, title: t(`teamRoster.injury.${code}`), sub: t(`teamRoster.injuryCaption.${code}`), radio: true }));
   const list = renderOptionList({ label: t("teamRoster.injury.choose"), options, selected: choice.code });
   const stat = choice.code === "lasting" ? statChipsMarkup({ stat: choice.stat, group: INJURY_STAT, label: t("teamRoster.injury.stat") }) : "";
@@ -162,7 +164,7 @@ export function injurySheetMarkup({ line, mode, choice, busy = false, reason = "
     id: INJURY_SHEET,
     title: t("teamRoster.injury.title"),
     sub: t("teamRoster.injury.who", { number: line.number, name: line.name, position: line.position }),
-    bodyHtml: `${list}${stat}${note}`,
+    bodyHtml: `${list}${stat}${note}${even?.markup() ?? ''}`,
     footStartHtml: remove,
     footHtml: record,
   });

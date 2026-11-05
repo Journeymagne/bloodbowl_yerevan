@@ -28,6 +28,7 @@ import { postMatchUrl } from "../../core/routes.mjs";
 import { view } from "../../core/view.mjs";
 import { wireActionSteppers } from "../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
+import { createGettingEvenEditor, wireGettingEven } from "../../ui/getting-even.mjs";
 import { wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { confirmAction, wireSheets } from "../../ui/sheet.mjs";
@@ -37,6 +38,7 @@ import { onPhoneChange } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
 import { wireAdvance, wireReasons } from "../team/roster/wire.mjs";
 import { postAdvanceHandlers, postAdvancePlayer } from "./post-advance.mjs";
+import { SAFE_STEP } from "./post-money.mjs";
 import { playersSendable } from "./post-players.mjs";
 import { resultAction } from "./post-steps.mjs";
 
@@ -185,7 +187,7 @@ function wireRoster(visit, screen, events) {
     if (key !== "deposit") write({ operation: "staff", key, delta });
     else {
       const draft = screen.draftOf("finance", screen.model());
-      screen.keep("finance", { ...draft, deposit: within(draft.deposit + delta, SAFE_MOST) });
+      screen.keep("finance", { ...draft, deposit: within(draft.deposit + delta * SAFE_STEP, SAFE_MOST) });
     }
   }, { onRefused: ({ reason }) => toast(reason) }));
   events.on("click", "[data-after-open]", (event, button) => {
@@ -244,6 +246,29 @@ function refusalOf(screen, element) {
 
 /** An administrator's side, the closed controls, the sheets (the advancement's «Back» its own), the width. */
 function wireCommon(visit, screen, events, advance) {
+  events.own(wireGettingEven(view, () => visit.ui.sheet?.kind === 'even' ? visit.ui.sheet.even : null));
+  events.on('click', '[data-after-even]', (event, button) => {
+    const model = screen.model();
+    if (model.completed || visit.ui.busy) return;
+    const playerId = button.getAttribute('data-after-even'), side = model.post[model.sideName];
+    const sheet = { kind: 'even', playerId, step: model.step };
+    sheet.even = createGettingEvenEditor({ teamId: model.teamId, pairingId: model.gameId, playerId,
+      injury: side.injuries[playerId], eventId: side.gettingEven?.[playerId]?.injuryEventId ?? null,
+      onChange: () => { if (visit.here && visit.ui.sheet === sheet) screen.draw(); } });
+    Object.assign(visit.ui, { sheet, opener: button });
+    screen.draw();
+    void sheet.even.load();
+  });
+  events.on('click', '[data-after-even-save]', () => {
+    const sheet = visit.ui.sheet;
+    if (sheet?.kind !== 'even' || sheet.even.busy || sheet.even.loading) return;
+    void sheet.even.save().then(answer => {
+      if (answer.ok && visit.here && visit.ui.sheet === sheet) {
+        closeSheet(visit, screen);
+        void screen.readAgain().then(() => { if (visit.here) screen.draw({ refocus: false }); });
+      }
+    });
+  });
   events.own(wireSegmentedControls(view, (side) => {
     visit.sideName = side;
     Object.assign(visit.ui, { error: "", drafts: { result: null, fans: null, players: null, finance: null, next: null }, playersWaiting: false, unlocked: false, sheet: null, opener: null });
@@ -252,6 +277,7 @@ function wireCommon(visit, screen, events, advance) {
   // A counter's step says it through `onRefused`, the advancement's buttons and ways their own presses (advance.mjs);
   // every other closed control here — the advancement's closed choices too, as the roster's `[data-roster-closed]`.
   events.on("click", '[aria-disabled="true"]', (event, element) => {
+    if (element.closest('.g-even') || element.hasAttribute('data-after-even-save')) return;
     if (element.hasAttribute("data-resource-step") || element.hasAttribute("data-action-step")) return;
     if (element.closest(`#${ADVANCE_SHEET}`) && !element.hasAttribute("data-roster-closed")) return;
     event.preventDefault();

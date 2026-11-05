@@ -22,6 +22,7 @@ import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { wireFilterChips } from "../../../ui/filter-chips.mjs";
+import { wireGettingEven } from "../../../ui/getting-even.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
@@ -51,8 +52,9 @@ function onPlayerButton(root, attribute, handler) {
 }
 
 /** The injury's presses (Task 12). A closed «Injury in the match…» opens nothing. */
-function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
+function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep, gettingEvenEditor }) {
   return [
+    wireGettingEven(root, () => gettingEvenEditor?.()),
     onPlayerButton(root, "data-roster-injury", onInjury),
     wireFilterChips(root, (stat) => onInjuryChoice({ stat }), { group: INJURY_STAT }),
     // A busy button is `aria-busy` and keeps the focus, so a browser still clicks it: the press is refused where it is

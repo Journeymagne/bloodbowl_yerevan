@@ -212,7 +212,7 @@ test("every key in both dictionaries", () => {
 });
 
 test("styled as the prototype draws it; readable; D2; nothing cut with «…»", () => {
-  const sheets = [CSS, "src/screens/matches/post.css", "src/screens/matches/post-players.css", "resource-counter.css", "sheet.css", "button.css"];
+  const sheets = [CSS, "src/screens/matches/post.css", "src/screens/matches/post-players.css", "resource-counter.css", "sheet.css", "button.css", "getting-even.css"];
   let state = atRoster(begin({ home: { roster: HOME.slice(0, 6), journeymen: [0], treasury: 300 } }));
   state = roster(roster(roster(state, { operation: "hire", rowIndex: 0 }), { operation: "hire", rowIndex: 0 }), { operation: "sell", playerId: "h3" });
   for (const model of [modelAt(state), modelOf(reach(state, { home: 4, away: 4 }), "roster")]) {

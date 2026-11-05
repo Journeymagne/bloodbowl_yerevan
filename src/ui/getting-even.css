@@ -1,0 +1,21 @@
+.g-even { margin-top: 18px; padding: 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--accent-tint); }
+.g-even header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.g-even h3, .g-even__roster h3 { margin: 0; font: 600 22px var(--font-display); }
+.g-even p { margin: 8px 0; font-size: 13px; }
+.g-even label { display: block; margin-top: 14px; font-size: 13px; font-weight: 600; }
+.g-even select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: 6px; padding: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font: inherit; }
+.g-even__actions, .g-even__dice { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.g-even__dice .g-btn { min-width: 44px; }
+.g-even__note, .g-even--quiet, .g-even__details { color: var(--muted); font-size: 12px; }
+.g-even__roll { font-weight: 600; }
+.g-even__result { margin-top: 12px; border-radius: var(--radius-sm); background: var(--surface); padding: 12px; }
+.g-even__result--earned { border-inline-start: 3px solid var(--accent); }
+.g-even__player { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.g-even__player:last-child { border-bottom: 0; }
+.g-even__player>div { min-width: 0; }
+.g-even__player p, .g-even__details p { margin: 6px 0; font-size: 12px; }
+.g-even__badge { display: inline-block; border-radius: 4px; background: var(--accent-tint); color: var(--accent-text); padding: 3px 7px; font-size: 12px; font-weight: 600; }
+.g-even__player small { display: inline-block; margin-inline-start: 6px; font-size: 10px; color: var(--muted); }
+.g-even__player details { margin-top: 8px; font-size: 12px; }
+.g-even__player summary { cursor: pointer; }
+@media (max-width: 480px) { .g-even__player { flex-wrap: wrap; } }

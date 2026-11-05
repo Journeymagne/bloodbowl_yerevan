@@ -25,6 +25,7 @@ import { SIDES } from '../match/rules.mjs';
 import { INJURIES, PLAYERS_STAGE, postCount } from './rules.mjs';
 import { normalizeMatchStats } from './statistics.mjs';
 import { refreshPostFinance } from './finance.mjs';
+import { currentInjuryEvents, sameCasualty } from '../getting-even.mjs';
 
 // The order of the CHECK on `counter` in 016.
 export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'mvps', 'injury']);
@@ -245,6 +246,26 @@ export function sameValues(left, right) {
  */
 export function sideFollowsEvents(side) {
   return side?.followsEvents === true && !(side.stage > PLAYERS_STAGE);
+}
+
+/** Decisions follow events even after Players; a late resolution changes no checklist stage. */
+export function followGettingEven(state, events) {
+  if (state.status === 'completed') return state;
+  const next = structuredClone(state);
+  let changed = false;
+  for (const name of SIDES) {
+    const side = next[name], decisions = {};
+    for (const [playerId, event] of Object.entries(currentInjuryEvents(events[name]))) {
+      if (event.gettingEven && sameCasualty(event.injury, side.injuries[playerId])) decisions[playerId] = { ...event.gettingEven, injury: event.injury };
+    }
+    if (sameValues(side.gettingEven ?? {}, decisions)) continue;
+    side.gettingEven = decisions;
+    if (side.confirmed) { side.confirmed = false; next.status = 'draft'; }
+    changed = true;
+  }
+  if (!changed) return state;
+  next.revision++;
+  return next;
 }
 
 /**

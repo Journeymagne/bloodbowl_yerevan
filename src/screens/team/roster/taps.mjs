@@ -24,8 +24,8 @@ import { refusalWithRules, unanswered } from "../../../data/teams.mjs";
 const lanes = new Map();
 
 /** The row as the server reads it: `injury` is only the injury counter's (any other counter's is refused). */
-const bodyOf = ({ pairingId = null, playerId, counter, delta, injury = null }) => ({
-  pairingId, playerId, counter, delta, ...(counter === "injury" ? { injury } : {}),
+const bodyOf = ({ pairingId = null, playerId, counter, delta, injury = null, gettingEvenId }) => ({
+  pairingId, playerId, counter, delta, ...(counter === "injury" ? { injury, ...(gettingEvenId ? { gettingEvenId } : {}) } : {}),
 });
 
 /** It is not known whether the row was written: the screen reads the rows again, and the tap is not sent again. */

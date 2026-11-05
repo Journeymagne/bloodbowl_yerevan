@@ -23,15 +23,18 @@
  * `writeMatchEvents` and `recordMatchEvent`, check every row before it is written (`assertEventRow`).
  */
 import { EVENT_COUNTERS, applyOutsideEdits, eventsDiff, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
+import { bindGettingEven, publicGettingEven } from "./getting-even-store.mjs";
+
+const GETTING_EVEN = `(SELECT row_to_json(ge) FROM match_getting_even ge WHERE ge.injury_event_id = match_events.id) AS getting_even`;
 
 const SELECT_EVENTS = `
-  SELECT saved_team_id, player_id, counter, delta, injury, settled_at
+  SELECT id, saved_team_id, player_id, counter, delta, injury, settled_at, ${GETTING_EVEN}
   FROM match_events
   WHERE pairing_id = $1 AND saved_team_id = ANY($2::uuid[])
   ORDER BY created_at, id`;
 
 // What `publicEvent` reads: the row without the team it belongs to and who tapped it.
-const PUBLIC_COLUMNS = "id, pairing_id, player_id, counter, delta, injury, settled_at, created_at";
+const PUBLIC_COLUMNS = `id, pairing_id, player_id, counter, delta, injury, settled_at, created_at, ${GETTING_EVEN}`;
 
 const SELECT_TEAM_OPEN_EVENTS = `
   SELECT ${PUBLIC_COLUMNS}
@@ -82,6 +85,7 @@ function assertEventRow(row, at) {
 }
 
 const toEvent = (row) => ({
+  ...(row.id ? { id: row.id } : {}), ...(row.getting_even ? { gettingEven: publicGettingEven(row.getting_even) } : {}),
   playerId: row.player_id, counter: row.counter, delta: row.delta, injury: row.injury ?? null, settledAt: row.settled_at ?? null,
 });
 
@@ -98,10 +102,12 @@ export function publicEvent(row) {
 }
 
 // One row as written: `event` is checked before this (`assertEventRow`).
-async function insertEvent(client, { teamId, pairingId, actorId, settled = false }, { playerId, counter, delta, injury }) {
+async function insertEvent(client, { teamId, pairingId, actorId, settled = false }, { playerId, counter, delta, injury, gettingEvenId }) {
   const { rows } = await client.query(settled ? INSERT_SETTLED_EVENT : INSERT_EVENT,
     [teamId, pairingId, playerId, counter, delta, injury ? JSON.stringify(injury) : null, actorId]);
-  return rows[0];
+  const row = rows[0];
+  const decision = counter === 'injury' && delta === 1 && pairingId ? await bindGettingEven(client, row, gettingEvenId) : null;
+  return { ...row, ...(decision ? { getting_even: decision } : {}) };
 }
 
 /**
@@ -192,7 +198,8 @@ export async function loadTeamEvents(db, teamId, { pairingId = null } = {}) {
 export async function recordSideStatistics(client, pairingId, side, events, actorId = null) {
   const added = eventsDiff(side, events).map((row) => ({ ...row, injury: row.injury ?? null, settledAt: null }));
   await writeMatchEvents(client, { teamId: side.team.id, pairingId, events: added, actorId });
-  return [...events, ...added];
+  return added.some(event => event.counter === 'injury')
+    ? (await loadMatchEvents(client, pairingId, [side.team.id]))[side.team.id] : [...events, ...added];
 }
 
 /**

@@ -21,6 +21,7 @@ import { handleAdminRoutes } from "./admin.mjs";
 import { handlePlayerRoutes } from "./players.mjs";
 import { handleGameRoutes } from "./games.mjs";
 import { handleSeasonRoutes } from "./season.mjs";
+import { handleGettingEvenRoutes } from "./getting-even.mjs";
 
 /**
  * Every route module, in the order the API is tried.
@@ -32,6 +33,7 @@ import { handleSeasonRoutes } from "./season.mjs";
 export const API_ROUTES = [
   createPlayHandler({ teams: createTeamSource(pool), currentUser }),
   handleAuthRoutes,
+  handleGettingEvenRoutes,
   handleTeamRoutes,
   handleAdminRoutes,
   handlePlayerRoutes,

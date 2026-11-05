@@ -12,7 +12,8 @@ export function starProfiles(item) {
     const skills = [...String(cells[6] || "").matchAll(/\[\[([^\]]+)\]\]/g)].map(match => match[1]);
     return { id: `star-${page.slug}`, name: page.title, number: `★${index + 1}`, kind: "star", temporary: true,
       stats: Object.fromEntries(["ma", "st", "ag", "pa", "ar"].map((stat, i) => [stat, cells[i] || "-"])),
-      skills, value: costToNumber(page.starPlayer?.cost), slug: page.slug };
+      skills, keywords: String(cells[7] || '').split(',').map(tag => tag.replace(/\[\[|\]\]/g, '').trim()).filter(Boolean),
+      value: costToNumber(page.starPlayer?.cost), slug: page.slug };
   });
 }
 
@@ -33,5 +34,6 @@ export function matchPlayers(preparation, sideName, data) {
   const side = preparation[sideName];
   const stars = matchCatalog(side, data).filter(item => item.category === "stars" && side.basket[item.id])
     .flatMap(starProfiles).map((player, index) => ({ ...player, number: `★${index + 1}` }));
-  return applyTemporaryEffects([...side.players.filter(player => !player.skipNextGame), ...side.journeymen, ...rookieProfiles(side), ...stars], preparation, sideName, data);
+  return applyTemporaryEffects([...side.players.filter(player => !player.skipNextGame), ...side.journeymen, ...rookieProfiles(side), ...stars], preparation, sideName, data)
+    .map(player => ({ ...player, keywords: [...(player.keywords ?? player.row?.tags ?? [])] }));
 }

@@ -317,7 +317,7 @@ test("every key in both dictionaries, the injuries, their lines and the counters
 });
 
 test("styled as the prototypes draw it; readable; D2; nothing cut with «…»", () => {
-  const sheets = [CSS, "src/screens/matches/post.css", "src/ui/action-stepper.css", "src/ui/sheet.css", "toggle.css", "button.css"];
+  const sheets = [CSS, "src/screens/matches/post.css", "src/ui/action-stepper.css", "src/ui/sheet.css", "toggle.css", "button.css", "getting-even.css"];
   const states = [atPlayers(), atPlayers(begin({ gamesPlayed: 1 })), atPlayers(begin({ events: {} }), { mode: "technical", home: [2, 0], away: [0, 0] })];
   for (const state of states) {
     for (const viewerSide of ["home", "away"]) {

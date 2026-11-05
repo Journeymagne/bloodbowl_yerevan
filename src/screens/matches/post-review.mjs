@@ -7,6 +7,7 @@
  * to the team's matches and to its roster, where the dead are among «The fallen».
  */
 import { escapeHtml } from "../../core/dom.mjs";
+import { postGettingEvenMarkup } from "../../ui/getting-even.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { teamUrl } from "../../core/routes.mjs";
@@ -100,7 +101,7 @@ export function reviewStep(model) {
   const cards = `<div class="g-after__sides">${sideCard(model, model.sideName, model.preview)}${sideCard(model, other, previewOf(model.post, other, model.data))}</div>`;
   // What the finish will do, until it is done: then the «finished» callout over the cards says it.
   const note = model.completed ? "" : noteMarkup(t(model.kind === "friendly" ? "after.reviewNoteFriendly" : "after.reviewNote"));
-  return { contentHtml: `${cards}${note}`, asideHtml: resultCard(model), footer: reviewFooter(model), cardTitle: t("after.reviewTitle") };
+  return { contentHtml: `${cards}${postGettingEvenMarkup(model)}${note}`, asideHtml: resultCard(model), footer: reviewFooter(model), cardTitle: t("after.reviewTitle") };
 }
 
 /** What a finished post-match says under the head: finished, and the way to the team's matches and to its roster. */

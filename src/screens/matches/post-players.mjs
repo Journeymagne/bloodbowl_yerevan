@@ -13,6 +13,7 @@
  * their player on the group and the choice on the item (`data-after-injury="<id>"` and `data-code`, L21).
  */
 import { escapeHtml } from "../../core/dom.mjs";
+import { postGettingEvenMarkup } from "../../ui/getting-even.mjs";
 import { t } from "../../core/i18n.mjs";
 import { sideFollowsEvents } from "../../domain/post-match/events.mjs";
 import { postAdvancer } from "../../domain/post-match/roster.mjs";
@@ -269,13 +270,13 @@ export function playersStep(model, draft, { phone, open = false }) {
   const mismatch = mismatchMarkup(model, withDraft(model, draft), { ownOnly: true });
   const footer = playersFooter(model, draft);
   if (phone) {
-    return { contentHtml: `${mismatch}${eventsCard(model, draft, players, open)}${mvpCard(model, draft)}${injuryCards(model, draft)}${departuresCard(model, draft)}${advanceCards(model)}`, asideHtml: "", footer };
+    return { contentHtml: `${mismatch}${eventsCard(model, draft, players, open)}${postGettingEvenMarkup(model)}${mvpCard(model, draft)}${injuryCards(model, draft)}${departuresCard(model, draft)}${advanceCards(model)}`, asideHtml: "", footer };
   }
   const side = model.post[model.sideName], records = sideRecords(side), injuries = injuryCards(model, draft, true);
   const notes = `<div class="g-after__notes">${noteMarkup(records ? t("after.deskEventsNote", { match: model.matchLabel }) : t("after.eventsNote2x"))}${noteMarkup(t("after.deskMvpNote"))}`
     + `${injuries ? noteMarkup(t("after.injuryCodes")) : ""}${lostConceding(model) ? noteMarkup(t("after.concededSpp")) : ""}</div>`;
   const none = mvpChoices(withDraft(model, draft), model.sideName).count ? "" : mvpCard(model, draft);
-  return { contentHtml: `${mismatch}${notes}${tableMarkup(model, draft, players)}${none}${departuresCard(model, draft)}${advanceCards(model)}`,
+  return { contentHtml: `${mismatch}${notes}${tableMarkup(model, draft, players)}${postGettingEvenMarkup(model)}${none}${departuresCard(model, draft)}${advanceCards(model)}`,
     asideHtml: injuries, footer };
 }
 

@@ -15,6 +15,7 @@
 import { gameSides } from "../../../data/team-record.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { currentMatch } from "../../../data/match-phase.mjs";
+import { currentInjuryEvents, gettingEvenStatus } from "../../../domain/getting-even.mjs";
 import { SPP_EVENT_COUNTERS, careerCounters, eventTotal, statisticsFromEvents } from "../../../domain/post-match/events.mjs";
 import {
   ADVANCEMENT_BLOCKED, advancementCostAt, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights, tiedFavoured,
@@ -105,7 +106,7 @@ function statsOf(row, player) {
 }
 
 /** The ways a skill comes to a player in the league: an advancement, or a god's favour. The captain's Pro comes with the captaincy and is not gained. */
-const GAINED = ["primary", "secondary", "favoured"];
+const GAINED = ["primary", "secondary", "favoured", "getting-even"];
 
 /**
  * The skills in the order the player came by them (`skillsForPlayer`), each with the advancement that granted it: the place in
@@ -113,9 +114,9 @@ const GAINED = ["primary", "secondary", "favoured"];
  * captaincy's are, whatever an advancement is written to have granted.
  */
 function skillsOf(row, player, advancements) {
-  return skillsForPlayer(row, player).map(({ name, access }) => {
+  return skillsForPlayer(row, player).map(({ name, access, origin }) => {
     const granted = access === "primary" || access === "secondary" ? advancements.findIndex(({ grants }) => grants?.skill === name) : -1;
-    return { name, gained: GAINED.includes(access), source: access, advancement: granted < 0 ? null : granted };
+    return { name, gained: GAINED.includes(access), source: access, ...(origin ? { origin } : {}), advancement: granted < 0 ? null : granted };
   });
 }
 
@@ -250,15 +251,19 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
   const ids = players.map((player) => storedPlayerId(player) ?? "");
   const keys = keysOf(ids);
   const { injuries: matchInjuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
+  const injuryEvents = currentInjuryEvents(rows.match);
   return players.map((player, at) => {
     const { row, index } = player;
     const id = ids[at];
     const counters = countersOf(race, id, player.spp, rows);
     const advancements = advancementsOf(player);
+    const decision = injuryEvents[id]?.gettingEven;
+    const viewed = gettingEvenStatus(decision) === 'earned' ? { ...player,
+      acquiredHatreds: [...(player.acquiredHatreds ?? []), { ...decision, pairingId: mode.game.id }] } : player;
     return {
       key: keys[at], id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
       captain: Boolean(player.isCaptain), skip: player.skipNextGame, absence: player.absence, retired: Boolean(player.temporarilyRetired),
-      stats: statsOf(row, player), skills: skillsOf(row, player, advancements),
+      stats: statsOf(row, player), skills: skillsOf(row, viewed, advancements),
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),
       ...counters, injury: mode.kind === "match" ? injuryOf(matchInjuries, id) : null,
       ...progressOf(race, player, counters.career), value: playerCurrentCost(row, player),

@@ -9,6 +9,7 @@
  * the limits its `rosterOperation` holds them to. Each control closed says why (a counter's «+», a sheet's row).
  */
 import { escapeHtml } from "../../core/dom.mjs";
+import { postGettingEvenMarkup } from "../../ui/getting-even.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../domain/league-rules.mjs";
@@ -167,7 +168,7 @@ export function rosterStep(model) {
   const { income, left } = moneyOf(model);
   const money = `<div class="g-after__card"><div class="g-after__money"><span class="g-after__moneyk">${escapeHtml(t("after.treasuryAfterIncome"))} <b class="g-after__moneyv">${escapeHtml(formatMoney(income))}</b></span>`
     + `<span class="g-after__left${left < 0 ? " g-after__left--short" : ""}">${escapeHtml(formatMoney(left))}</span></div>${noteMarkup(t("after.paidAtFinish"))}</div>`;
-  const contentHtml = `${optional}${money}${staffCard(model, closed)}${playersCard(model, closed)}${opsCard(model, closed)}`;
+  const contentHtml = `${optional}${postGettingEvenMarkup(model)}${money}${staffCard(model, closed)}${playersCard(model, closed)}${opsCard(model, closed)}`;
   return { contentHtml, asideHtml: "", footer: model.readonly ? nextLink(model, "finance") : actionFooter("lock-roster", t("after.next.finance")) };
 }
 

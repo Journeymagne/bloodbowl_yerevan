@@ -14,6 +14,8 @@ import { toast } from "../../../components/toast.mjs";
 import { sendRow } from "./match-taps.mjs";
 import { injuryClosed } from "./panel.mjs";
 import { chosenInjury } from "./sheets.mjs";
+import { currentInjuryEvents, sameCasualty } from "../../../domain/getting-even.mjs";
+import { createGettingEvenEditor } from "../../../ui/getting-even.mjs";
 
 /** An injury of this player is on its way: the sheet sends no other until it has answered (R14). */
 const inTheAir = (visit, playerId) => visit.pending.some((step) => step.counter === "injury" && step.playerId === playerId);
@@ -42,7 +44,7 @@ export function sheetOf(visit, lines, where) {
   if (!line) return null;
   if (sheet.kind !== "injury") return sheet;
   if (!injuryStands(line, where) || where.mode.game.id !== sheet.gameId) return null;
-  return { ...sheet, busy: inTheAir(visit, line.id), reason: injuryClosed(line, where) };
+  return { ...sheet, busy: inTheAir(visit, line.id) || sheet.even?.busy || sheet.even?.loading || sheet.saving, reason: injuryClosed(line, where) };
 }
 
 /**
@@ -92,23 +94,40 @@ export function closeSheet({ visit, draw }) {
  * The row of one press of the sheet's buttons: the injury chosen (+1), or the one that stands taken back by its
  * own −1. None while one of his is on its way, nor while the match's taps are closed (said instead).
  */
-function record(saving, tapping, delta, playerOf) {
+async function record(saving, tapping, delta, playerOf) {
   const { visit } = saving;
   const { sheet } = visit;
   const player = sheet?.kind === "injury" ? playerOf(sheet.key) : null;
-  if (!player || inTheAir(visit, player.line.id)) return;
+  if (!player || inTheAir(visit, player.line.id) || sheet.saving || sheet.even?.busy || sheet.even?.loading) return;
   if (player.reason) {
     toast(player.reason);
     return;
   }
   const injury = delta > 0 ? chosenInjury(sheet.choice) : player.line.injury;
   if (!injury) return;
-  const step = { pairingId: player.mode.game.id, playerId: player.line.id, counter: "injury", delta, injury };
+  sheet.saving = true;
+  let gettingEvenId = null;
+  if (delta > 0 && sheet.even) {
+    const answer = await sheet.even.save();
+    if (!answer.ok) { sheet.saving = false; saving.draw(); return; }
+    gettingEvenId = answer.id;
+    // Updating the decision of the standing injury is not another injury event.
+    if (sheet.even.eventId && sameCasualty(injury, player.line.injury)) {
+      sheet.saving = false;
+      if (visit.here && visit.sheet === sheet) closeSheet(saving);
+      tapping.readAgain();
+      return;
+    }
+  }
+  if (!visit.here || visit.sheet !== sheet) { sheet.saving = false; return; }
+  const step = { pairingId: player.mode.game.id, playerId: player.line.id, counter: "injury", delta, injury, ...(gettingEvenId ? { gettingEvenId } : {}) };
   void sendRow(tapping, step).then((answer) => {
+    sheet.saving = false;
     // Not known whether it was written: no injury until a read of the records says (index.mjs's holdTeam clears it).
     if (answer.lost) visit.unsure = true;
     // A refusal is said (heardTap) and leaves the sheet as it was; another sheet opened meanwhile is not this one's.
-    if (!visit.here || visit.sheet !== sheet || (!answer.event && !answer.lost)) return;
+    if (!visit.here || visit.sheet !== sheet) return;
+    if (!answer.event && !answer.lost) { saving.draw(); return; }
     closeSheet(saving);
   });
 }
@@ -137,16 +156,24 @@ export function injuryHandlers(saving, { tapping, now }) {
       const player = playerOf(key);
       if (player?.reason) toast(player.reason);
       else if (player) {
-        Object.assign(visit, { sheet: { kind: "injury", key, gameId: player.mode.game.id, choice: { code: "", stat: "" } }, opener: button });
+        const active = currentInjuryEvents(visit.events.filter(event => event.pairingId === player.mode.game.id))[player.line.id];
+        const sheet = { kind: "injury", key, gameId: player.mode.game.id, choice: { code: "", stat: "", ...player.line.injury } };
+        sheet.even = createGettingEvenEditor({ teamId: tapping.teamId, pairingId: player.mode.game.id, playerId: player.line.id,
+          injury: chosenInjury(sheet.choice), eventId: active?.id ?? null, onChange: () => { if (visit.here && visit.sheet === sheet) draw(); } });
+        Object.assign(visit, { sheet, opener: button });
         draw();
+        void sheet.even.load();
       }
     },
     onInjuryChoice: (change) => {
       if (visit.sheet?.kind !== "injury") return;
+      if (visit.sheet.saving || visit.sheet.even?.busy) return;
       // The same sheet, changed: an answer on its way still finds it (`record`).
       visit.sheet.choice = { ...visit.sheet.choice, ...change };
+      visit.sheet.even?.setInjury(chosenInjury(visit.sheet.choice));
       draw();
     },
-    onInjuryStep: (delta) => record(saving, tapping, delta, playerOf),
+    onInjuryStep: (delta) => { void record(saving, tapping, delta, playerOf); },
+    gettingEvenEditor: () => visit.sheet?.kind === 'injury' ? visit.sheet.even : null,
   };
 }

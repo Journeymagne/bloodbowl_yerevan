@@ -26,6 +26,8 @@ export const API_ERRORS = Object.freeze({
   POST_STATISTICS: 'Player TD and CAS totals must match the result. Technical wins have no played TD or CAS.',
   POST_MVP: 'Check the number and eligibility of the selected MVP recipients.',
   POST_PLAYER: 'This player is unavailable for this action.',
+  GETTING_EVEN_INVALID: 'Check the final injury, its source player and the chosen keyword.',
+  GETTING_EVEN_CHANGED: 'This injury has changed. Reopen its records before resolving Getting Even.',
   POST_FAVOURED: 'Record the Favoured of roll and a legal bonus skill when it triggers.',
   POST_ADVANCEMENT: 'This advancement is unavailable: check SPP, access and the chosen grant.',
   POST_STAT_LIMIT: 'This characteristic cannot be improved further.',

@@ -254,7 +254,7 @@ test("every key in both dictionaries, the mistakes by their set", () => {
 });
 
 test("styled as the prototypes draw it; readable; D2; nothing cut with «…»", () => {
-  const sheets = [CSS, "src/screens/matches/post.css", "src/screens/matches/post-players.css", "src/screens/matches/prep.css", "resource-counter.css", "status-chip.css", "callout.css", "button.css"];
+  const sheets = [CSS, "src/screens/matches/post.css", "src/screens/matches/post-players.css", "src/screens/matches/prep.css", "resource-counter.css", "status-chip.css", "callout.css", "button.css", "getting-even.css"];
   const rich = modelOf(at(4, 3, begin({ home: { treasury: 600 } })), "finance");
   for (const [model, change] of [[modelOf(at(4, 3), "finance"), { roll: 1 }], [rich, { roll: 1 }], [modelOf(at(5, 5), "finance"), {}]]) assertStyled(mount(finance(model, change).contentHtml), ...sheets);
   const next = modelOf(at(5, 5), "next");

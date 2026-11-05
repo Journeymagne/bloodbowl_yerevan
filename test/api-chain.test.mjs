@@ -9,7 +9,7 @@ import { scratchSkip } from "./helpers/scratch-db.mjs";
 
 test("the API chain is the one server.mjs ran, in its order", () => {
   assert.deepEqual(API_ROUTES.map((route) => route.name),
-    ["handlePlay", "handleAuthRoutes", "handleTeamRoutes", "handleAdminRoutes", "handlePlayerRoutes", "handleGameRoutes", "handleSeasonRoutes"]);
+    ["handlePlay", "handleAuthRoutes", "handleGettingEvenRoutes", "handleTeamRoutes", "handleAdminRoutes", "handlePlayerRoutes", "handleGameRoutes", "handleSeasonRoutes"]);
 });
 
 test("a path no module answers is a 404 with its code, through the same chain", async () => {

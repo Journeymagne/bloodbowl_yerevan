@@ -467,7 +467,7 @@ export function sheetMarkup(screen) {
   if (sheet?.kind === "hire") return hireSheetMarkup({ race: screen.race, quote: sheet.quote, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;
   if (!line) return "";
-  if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });
+  if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason, even: sheet.even });
   if (sheet.kind === "mark") return markSheetMarkup({ line, choice: sheet.choice, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
   if (sheet.kind === "undo") return undoSheetMarkup({ line, mode: screen.mode, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason, admin: Boolean(screen.admin) });
   if (sheet.kind === "sell") {

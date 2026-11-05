@@ -28,6 +28,8 @@ import { purchasesWords } from "./post-roster.mjs";
 
 /** The most the safe takes from one match's income. */
 const SAFE_MOST = 50;
+/** One press changes the safe deposit by 5k. */
+export const SAFE_STEP = 5;
 /** The Expensive Mistakes that cost money. */
 const LOSSES = ["minor", "major", "catastrophe"];
 
@@ -78,7 +80,7 @@ function safeCard(model, projection, draft, lockedReason) {
   const side = model.post[model.sideName], most = safeMost(projection);
   const now = Number(side.baseRoster.coachesSafe) || 0;
   const counter = renderResourceCounter({ key: "deposit", name: t("after.safe"), note: t("after.safeSub", { now: formatMoney(now), next: formatMoney(sumMoney(now, draft.deposit)) }),
-    value: draft.deposit, decDisabled: draft.deposit <= 0, incBlockedReason: draft.deposit >= most ? t("after.safeFull", { most: formatMoney(most) }) : "", lockedReason });
+    value: draft.deposit, decDisabled: draft.deposit <= 0, incBlockedReason: draft.deposit + SAFE_STEP > most ? t("after.safeFull", { most: formatMoney(most) }) : "", lockedReason });
   return `<div class="g-after__card g-after__card--safe">${counter}</div>`;
 }
 

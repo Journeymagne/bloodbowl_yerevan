@@ -201,6 +201,7 @@ export const PLAYER_FIELDS = Object.freeze({
   statMods: () => ({}),
   extraSkills: () => [],
   favouredSkills: () => [],
+  acquiredHatreds: () => [],
   skipNextGame: () => false,
   niglingInjury: () => false,
   nigglingInjuries: () => 0,

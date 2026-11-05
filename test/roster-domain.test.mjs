@@ -36,7 +36,7 @@ test("fixtures cover the teams whose special rules the domain branches on", () =
 
 // Keep the pinned pre-extraction arithmetic baseline; new post-match fields
 // with empty defaults are covered by post-match.test.mjs, and `absence` with its
-// null default by roster-absence.test.mjs.
+// null default by roster-absence.test.mjs; acquiredHatreds by getting-even.test.mjs.
 function baselineView(value) {
   if (Array.isArray(value)) return value.map(baselineView);
   if (!value || typeof value !== 'object') return value;
@@ -46,6 +46,7 @@ function baselineView(value) {
     || key === 'temporarilyRetired' && entry === false
     || key === 'injuryStatMods' && Object.keys(entry).length === 0
     || key === 'absence' && entry === null
+    || key === 'acquiredHatreds' && Array.isArray(entry) && entry.length === 0
   )).map(([key, entry]) => [key, baselineView(entry)]));
 }
 

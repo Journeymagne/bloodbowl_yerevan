@@ -21,7 +21,7 @@ import { checkPostRoll, rollForPlayer, serverDie, settleRosterRolls } from '../a
 import { matchReference } from '../domain/match-reference.mjs';
 import { loadPreparationFixture, loadPreparationSources } from './preparation-store.mjs';
 import { createPostMatch, createPostSide, applyPostAction, validatePostSide, upgradePostMatch } from '../../src/domain/post-match/state.mjs';
-import { followEvents } from '../../src/domain/post-match/events.mjs';
+import { followEvents, followGettingEven } from '../../src/domain/post-match/events.mjs';
 import { PLAYERS_STAGE, resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { fallenPlayers, postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
 import { postPoints } from '../../src/domain/post-match/score.mjs';
@@ -158,7 +158,7 @@ async function lockPost(client, pairingId, user, data) {
   const fixture = await loadPreparationFixture(client, pairingId, user), sources = await postSources(client, fixture);
   const events = Object.fromEntries(SIDES.map(name => [name, sources[name].events]));
   const loaded = await loadPost(client, fixture, sources, data);
-  const state = followEvents(loaded.state, events);
+  const state = followGettingEven(followEvents(loaded.state, events), events);
   return { fixture, sources, events, state, savedRevision: loaded.savedRevision, viewerSide: fixture.home_user_id === user.id ? 'home' : 'away' };
 }
 
@@ -186,7 +186,7 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
           if (body.action?.type === 'statistics') events[name] = await recordSideStatistics(client, fixture.id, state[name], events[name], user.id);
         }
       }
-      state = followEvents(state, events);
+      state = followGettingEven(followEvents(state, events), events);
     }
     // Unchanged polls and repeated finishes need no JSONB rewrite; upgrades and followed events do.
     if (state.revision !== opened.savedRevision) await savePost(client, fixture, state);

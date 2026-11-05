@@ -624,7 +624,7 @@ it("the fans, the treasury and the captain are kept on the page and sent by the 
   await press(safe());
   await press(face("[data-after-mistake]", 6));
   assert.equal(writes().length, 0);
-  const money = { type: "finance", deposit: 2, mistake: { roll: 6, first: null, second: null } };
+  const money = { type: "finance", deposit: 10, mistake: { roll: 6, first: null, second: null } };
   api.reply(WRITE, 200, payload(act(finance, "home", money)));
   await pressCta();
   assert.deepEqual(writes().map((call) => call.body.action), [money]);

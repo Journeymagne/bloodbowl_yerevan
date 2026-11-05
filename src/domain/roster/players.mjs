@@ -12,6 +12,7 @@ import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCount
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
 import { normalizeAbsence, sitsOut } from "./schema.mjs";
 import { isMoneyAmount } from "../money.mjs";
+import { normalizeAcquiredHatreds } from "../getting-even.mjs";
 
 export function normalizeExtraSkill(skill) {
   if (!skill) return null;
@@ -80,6 +81,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   const skipNextGame = sitsOut(player);
   return {
     id: String(player.id || makeRosterPlayerId()),
+    acquiredHatreds: normalizeAcquiredHatreds(player.acquiredHatreds),
     rowIndex,
     number: String(player.number ?? fallbackIndex + 1),
     name: String(player.name || `${row.position} ${fallbackIndex + 1}`),
@@ -237,9 +239,10 @@ export const CAPTAINS_SKILL = "Pro";
 /**
  * The skills a player holds, in the order he came by them — his position's, the advancements', the favoured, the captain's
  * Pro — each once, with where it came from: `base` for the position's, `primary` or `secondary` for the access an advancement
- * took it at, `favoured`, `captain`. A name a source lists after an earlier one is the earlier source's.
+ * took it at, `favoured`, `getting-even`, `captain`. Acquired Hatred keeps its origin, outside paid skills.
+ * A name a source lists after an earlier one is the earlier source's.
  *
- * @returns {{name: string, access: "base"|"primary"|"secondary"|"favoured"|"captain"}[]}
+ * @returns {{name: string, access: "base"|"primary"|"secondary"|"favoured"|"getting-even"|"captain", origin?: object}[]}
  */
 export function skillsForPlayer(row, player) {
   const seen = new Set();
@@ -247,6 +250,7 @@ export function skillsForPlayer(row, player) {
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
+    ...normalizeAcquiredHatreds(player.acquiredHatreds).map(item => ({ name: `Hatred (${item.keyword})`, access: 'getting-even', origin: item })),
     ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
   ].filter(({ name }) => {
     if (!name || seen.has(name)) return false;
