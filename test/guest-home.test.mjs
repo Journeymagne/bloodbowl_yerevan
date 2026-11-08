@@ -52,7 +52,7 @@ test("the table is the top five, without the withdrawn, each with its race and p
   assert.deepEqual(table.rows.map((r) => [r.rank, r.name, r.race]), [[1, "Duskspire Knives", "Dark Elf"], [3, "Ashgrove", "Human"], [4, "Karak", "Dwarf"], [5, "Grimtusk", "Orc"], [6, "Silverbrook", "Wood Elves"]]);
   state.season = { data: season(SIX, [{ roundNumber: 6, status: "completed" }]), loaded: true, loading: false, error: "" };
   renderGuestHome();
-  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Table · after round 6");
+  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Season standings · after round 6");
   assert.equal(view.querySelectorAll(".g-guest__table .g-ranked").length, 5);
 });
 
@@ -175,7 +175,7 @@ test("the server's answer to a guest may be empty: the page still opens, with th
   renderGuestHome();
   await turns();
   assert.equal(view.querySelector("h1").textContent, "A league for Blood Bowl Sevens coaches");
-  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Table");
+  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Season standings");
   assert.equal(view.querySelector(".g-guest__table .g-guest__note").textContent, "The table fills in once coaches enter the season.");
   assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League"]);
 });
@@ -186,7 +186,7 @@ test("the band over a desktop's page names the league and the season, and the ro
   assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League", "Season 2 · after round 3"]);
   view.innerHTML = head(season(SIX));
   assert.deepEqual(view.querySelectorAll(".g-pagehead p").map((p) => p.textContent), ["Gata League", "Season 2"]);
-  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Table");
+  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Season standings");
   const hostile = { ...season(SIX), season: { name: HOSTILE } };
   view.innerHTML = head(hostile);
   assert.equal(view.querySelectorAll(".g-pagehead p")[1].textContent, HOSTILE);
@@ -247,13 +247,13 @@ test("the guest's band is the page head, a desk's alone", () => {
 test("the whole page is in the language of the visitor", () => {
   useLocale("ru");
   renderGuestHome();
-  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица");
+  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица сезона");
   assert.equal(view.querySelector(".g-guest__more").textContent, "Вся таблица и календарь");
   assert.deepEqual(view.querySelectorAll(".g-guest__hero a").map((a) => a.textContent), ["Войти", "Регистрация"]);
   assert.deepEqual(view.querySelectorAll(".g-guest__tile-title").map((b) => b.textContent), ["Правила команд", "Skills", "Перед матчем", "Изменения Gata"]);
   state.season = loaded(season(SIX, [{ roundNumber: 6, status: "completed" }]));
   renderGuestHome();
-  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица · после 6 тура");
+  assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица сезона · после 6 тура");
   assert.equal(view.querySelectorAll(".g-pagehead p")[1].textContent, "Season 2 · после 6 тура");
 });
 

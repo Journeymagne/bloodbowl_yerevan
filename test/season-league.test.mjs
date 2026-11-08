@@ -138,7 +138,7 @@ test("a desk's page: «Table» with its line, the table and the calendar side by
     assert.equal(table.parentNode, row);
     assert.equal(aside.parentNode, row);
     assert.equal(row.childNodes.filter((node) => node.nodeType === 1)[0], table, "the table first, the calendar at its right");
-    assert.equal(table.querySelector("h2#league-title").textContent, t("shell.tab.table"));
+    assert.equal(table.querySelector("h2#league-title").textContent, t("season.standings"));
     assert.equal(table.querySelector(".g-season__rule").textContent, tablePointsText());
     assert.ok(tablePointsText().startsWith(t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 })));
     assert.equal(table.querySelectorAll('[role="columnheader"]').length, 11, "the desk's form");

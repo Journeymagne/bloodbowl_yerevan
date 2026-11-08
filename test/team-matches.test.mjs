@@ -803,7 +803,7 @@ test("the table is the season's: the same rows as #/season", async () => {
     await visit("t1", { phone: false });
     const table = view.querySelector(".g-season__table");
     assert.equal(table.getAttribute("aria-labelledby"), "matches-table");
-    assert.equal(table.querySelector("h2#matches-table").textContent, "Table");
+    assert.equal(table.querySelector("h2#matches-table").textContent, "Season standings");
     const own = (markup) => mountHere(markup).querySelector('[role="table"]').textContent;
     const rows = seasonTable(SEASON);
     assert.equal(table.querySelector('[role="table"]').textContent,

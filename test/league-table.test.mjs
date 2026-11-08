@@ -282,7 +282,7 @@ test("the overview's mini table: its rows, the team's own marked, the link to th
   const fragment = mount(miniTableMarkup({ rows: tableWindow(many, "t1"), viewerId: "u1", href: "#/t/t1/matches" }));
   const section = fragment.querySelector("section.g-minitable");
   assert.equal(section.getAttribute("aria-labelledby"), "overview-table");
-  assert.equal(fragment.querySelector("h2#overview-table").textContent, t("shell.tab.table"));
+  assert.equal(fragment.querySelector("h2#overview-table").textContent, t("season.standings"));
   const all = fragment.querySelector("a.g-minitable__all");
   assert.equal(all.getAttribute("href"), "#/t/t1/matches");
   assert.equal(all.textContent, t("teamOverview.tableAll"));

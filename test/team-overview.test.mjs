@@ -785,7 +785,7 @@ test("a desk's right column has the table's top six, the team's row marked, and 
   assert.deepEqual(miniRows(aside), [
     ["1", "Rival Team", "0", "6", false], ["2", "Ashgrove Wardens", "+2", "3", true], ["3", "Rival Raiders", "0", "3", false],
     ["4", "Rival Wardens", "0", "3", false], ["5", "Fourth Wall", "−2", "1", false], ["6", "Fifth Column", "0", "1", false]]);
-  assert.equal(table.querySelector("h2").textContent, "Table");
+  assert.equal(table.querySelector("h2").textContent, "Season standings");
   assert.equal(table.querySelector("a.g-minitable__all").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
   assert.equal(table.querySelector(".g-minitable__row--mine a").getAttribute("href"), "#/t/t1", "the coach's own row leads to its overview");
   assert.equal(table.querySelectorAll(".g-minitable__row a")[0].getAttribute("href"), "#/coaches/u-r1/teams/r1", "another's to the opponent's page");
