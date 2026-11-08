@@ -159,6 +159,52 @@
 }
 #player-advance .g-advance__tag--held { color: var(--muted); }
 
+/*
+ * The chosen skill's rule under the skills (the owner, 2026-11-08): «About …» in the accent with the chevron, which turns
+ * once it is open, a finger's 44 on a phone; the rule on the grey in the prose's look a size down, its first and last
+ * margins given to the box's padding. On a desk the box scrolls past 260px, so the columns keep their height.
+ */
+/* No margin of its own: the column's or the body's gap is the room over it (the owner, 2026-11-08: twice that read as a gap). */
+#player-advance .g-advance__rule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+}
+#player-advance .g-advance__ruletoggle {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+#player-advance .g-advance__ruletoggle:hover { text-decoration: underline; }
+#player-advance .g-advance__ruletoggle[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
+#player-advance .g-advance__ruletext {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+#player-advance .g-advance__ruletext[hidden] { display: none; }
+#player-advance .g-advance__ruletext .g-prose { font-size: 14px; }
+#player-advance .g-advance__ruletext .g-prose > :first-child { margin-top: 0; }
+#player-advance .g-advance__ruletext .g-prose > :last-child { margin-bottom: 0; }
+#player-advance .g-advance__ruletext .g-prose :is(h2, h3, h4, h5) { font-size: 16px; }
+
 /* Done (Adv4Done.html, advDone): the tick on the accent, what he got, how. */
 #player-advance .g-advance__done {
   display: flex;
@@ -482,6 +528,13 @@
   #player-advance .g-advance__tag--held,
   #player-advance .g-advance__tag--picked { display: none; }
   #player-advance .g-advance__tag--elite { font-size: 12px; }
+  /* The rule in the column: a desk's 24px «About …» (D2), and a box that scrolls past 260px rather than stretch the three. */
+  #player-advance .g-advance__ruletoggle { min-height: 24px; }
+  #player-advance .g-advance__ruletext {
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
   #player-advance .g-advance__done {
     justify-content: center;

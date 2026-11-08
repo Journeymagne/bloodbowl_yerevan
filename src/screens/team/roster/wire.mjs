@@ -185,7 +185,7 @@ function wireSearch(root, { onRosterQuery, onRosterQueryClear, onRefSearch }) {
 }
 
 /** The advancement sheet's buttons, heard by one listener (`wireAdvance`). */
-const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
+const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "bind", "rule", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
 
 /**
  * A player's advancement (stage 07d): «Advancement» or «Advance» (not when closed — a press on a closed one says why, as
@@ -223,13 +223,14 @@ export function wireAdvance(root, handlers) {
 
 /** Which of the advancement sheet's buttons was pressed. */
 function pressAdvance(button, handlers) {
-  const { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceStatBack, onAdvanceBind, onAdvanceKeep, onAdvanceDone } = handlers;
+  const { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceStatBack, onAdvanceBind, onAdvanceRule, onAdvanceKeep, onAdvanceDone } = handlers;
   if (button.hasAttribute("data-advance-next")) onAdvanceNext();
   else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
   else if (button.hasAttribute("data-advance-roll")) onAdvanceRoll();
   else if (button.hasAttribute("data-advance-instead")) onAdvanceInstead();
   else if (button.hasAttribute("data-advance-statback")) onAdvanceStatBack();
   else if (button.hasAttribute("data-advance-bind")) onAdvanceBind();
+  else if (button.hasAttribute("data-advance-rule")) onAdvanceRule();
   else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
   else onAdvanceDone();
 }
@@ -291,6 +292,7 @@ export function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType 
  * @param {() => void} handlers.onAdvanceNext a phone's «Next»
  * @param {(id: string) => void} handlers.onSheetBack a sheet's «Back», by the sheet's id
  * @param {() => void} handlers.onAdvanceTake «Take …»
+ * @param {() => void} handlers.onAdvanceRule «About …», which opens and folds the chosen skill's rule
  * @param {() => void} handlers.onAdvanceKeep «Cancel» in a desk's window
  * @param {() => void} handlers.onAdvanceDone «Back to the player» or «Done», once taken
  * @param {(via: string) => void} handlers.onAdvanceVia «Roll on the site» or «Rolled at the table»

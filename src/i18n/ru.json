@@ -1373,6 +1373,7 @@
   "teamAdvance.held": "уже есть",
   "teamAdvance.picked": "выбран",
   "teamAdvance.elite": "+15k · элитная комбинация",
+  "teamAdvance.rule": "Подробнее: {skill}",
   "teamAdvance.next": "Далее",
   "teamAdvance.take": "Взять {skill}",
   "teamAdvance.pickSkill": "Выберите навык",

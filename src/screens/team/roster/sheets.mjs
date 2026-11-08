@@ -79,6 +79,18 @@ function captionOf(data, page) {
 }
 
 /**
+ * The reference's page of a skill as the roster writes it: «Loner (3+)» is «Loner (X+)»'s (`pageForName`), a Hatred of
+ * a keyword the one Hatred (X) page; null for a skill the reference has no page for.
+ * @param {object} data the reference of the page's language (state.data) @param {string} name
+ */
+export function skillPageOf(data, name) {
+  return pageForName(data, name) ?? (/^Hatred \(.+\)$/.test(name) ? pageForName(data, "Hatred (X)") : null);
+}
+
+/** A skill page's rule as the vault's prose: the build escapes a page's html (scripts/build-data.mjs); a page without it has its text. */
+export const skillRuleMarkup = (page) => proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`);
+
+/**
  * The rule of a skill a player has, in a sheet; between the rule and whose skill it is, how an advancement gave it
  * (stage 07d, decision 19: roll-view.mjs's `rollBlockMarkup`). Whose skill it is says how he came by it as the panel's card
  * does (`skillSourceOf`, short): a gained skill's advancement, on the accent's tint; any other skill 07a's words, on grey.
@@ -91,10 +103,9 @@ function captionOf(data, page) {
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-skill")` opens it
  */
 export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
-  const page = pageForName(data, name) ?? (/^Hatred \(.+\)$/.test(name) ? pageForName(data, 'Hatred (X)') : null);
+  const page = skillPageOf(data, name);
   const skill = line.skills.find((item) => item.name === name);
-  // The build escapes a page's html (scripts/build-data.mjs); a page without it has its text.
-  const rule = page ? proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
+  const rule = page ? skillRuleMarkup(page) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
   // A gained skill's box is green and names the advancement that gave it as the panel does (StatsSkill.html, fidelity F8); any other keeps 07a's words on the grey.
   const from = skill
     ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`

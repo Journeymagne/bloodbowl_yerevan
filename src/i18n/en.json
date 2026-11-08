@@ -1373,6 +1373,7 @@
   "teamAdvance.held": "has it already",
   "teamAdvance.picked": "chosen",
   "teamAdvance.elite": "+15k · elite combination",
+  "teamAdvance.rule": "About {skill}",
   "teamAdvance.next": "Next",
   "teamAdvance.take": "Take {skill}",
   "teamAdvance.pickSkill": "Choose a skill",

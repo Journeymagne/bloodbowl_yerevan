@@ -555,6 +555,52 @@ test("on a desk the same advancement in three columns: the type, the category, t
   });
 });
 
+// The owner, 2026-11-08: the chosen skill's rule, folded under the skills, read without another window.
+test("the chosen skill's rule folds under the skills: «About …» opens it, another skill keeps it open, a press folds it", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false, { teamAnswer: withOne(ADVANCED) });
+    const toggle = () => sheet().querySelector("[data-advance-rule]");
+    const text = () => sheet().querySelector(".g-advance__ruletext");
+    choose(typeCard("primary"));
+    choose(category("Agility"));
+    assert.equal(toggle(), null, "no skill chosen: nothing to read");
+    choose(skill("Diving Catch"));
+    assert.ok(toggle().closest(".g-advance__col"), "in the third column, under the skills");
+    assert.equal(toggle().textContent, "About Diving Catch");
+    assert.deepEqual([toggle().getAttribute("aria-expanded"), toggle().getAttribute("aria-controls")], ["false", "advance-rule"]);
+    assert.ok(text().hasAttribute("hidden"), "folded at first");
+    assert.equal(text().getAttribute("id"), "advance-rule");
+    fireEvent(toggle(), "click");
+    assert.ok(sheet()?.isModal, "the sheet stays open");
+    assert.equal(toggle().getAttribute("aria-expanded"), "true");
+    assert.ok(!text().hasAttribute("hidden"));
+    assert.ok(text().querySelector(".g-prose")?.textContent.trim(), "the rule, as the skill's sheet draws it");
+    const first = text().textContent;
+    // Another skill of the column he does not have yet.
+    const other = sheet().querySelectorAll("[data-advance-skill]").map((item) => item.getAttribute("data-advance-skill"))
+      .find((name) => name !== "Diving Catch" && skill(name).getAttribute("aria-disabled") !== "true");
+    choose(skill(other));
+    assert.equal(toggle().textContent, `About ${other}`);
+    assert.equal(toggle().getAttribute("aria-expanded"), "true", "another skill chosen keeps it open");
+    assert.notEqual(text().textContent, first, "its own rule");
+    fireEvent(toggle(), "click");
+    assert.ok(text().hasAttribute("hidden"));
+    assertStyled(view, ...ADVANCE_STYLES);
+  });
+  // A phone's step of the skills has it too.
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openAdvance(true);
+      choose(typeCard("primary"));
+      fireEvent(next(), "click");
+      choose(category("Agility"));
+      fireEvent(next(), "click");
+      choose(skill("Diving Catch"));
+      assert.equal(sheet().querySelector("[data-advance-rule]").textContent, "About Diving Catch");
+    });
+  });
+});
+
 test("«Advance» on a desk is closed when no advancement is within his SPP, saying how many more he needs", async () => {
   await withoutTimers(async () => {
     coach({ open: "p1#0" });
