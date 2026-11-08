@@ -1585,6 +1585,39 @@ test("on a desk every one of them, with his SPP and «Advance» to his address",
   assert.ok(section.parentNode === fragment.querySelector(".g-overview__cols .g-overview__aside"), "the right column (DeskOverview.html)");
 });
 
+// Seven who can advance, 21 SPP down to 3, in that order: two past the five a desk's list shows at first.
+const SEVEN = Array.from({ length: 7 }, (_, at) => ({ id: `q${at + 1}`, rowIndex: 0, number: String(at + 1), name: `Q${at + 1}`, spp: { touchdowns: 7 - at } }));
+const readyNames = (root) => root.querySelectorAll(".g-overview__readyrow .g-overview__readyname").map((name) => name.textContent);
+
+test("a desk's list shows the first five, and «Show N more» shows the others; the head counts them all", () => {
+  const five = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN.slice(0, 5)) }))));
+  assert.equal(readyNames(five).length, 5);
+  assert.equal(five.querySelector("[data-ready-toggle]"), null, "five fit: nothing more to show");
+  const folded = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) }))));
+  assert.deepEqual(readyNames(folded), ["Q1", "Q2", "Q3", "Q4", "Q5"], "the most SPP first");
+  assert.equal(folded.querySelector(".g-overview__readycount").textContent, "players: 7");
+  const more = folded.querySelector("button.g-overview__readymore");
+  assert.equal(more.getAttribute("type"), "button");
+  assert.equal(more.textContent, "Show 2 more");
+  assert.equal(more.getAttribute("aria-expanded"), "false");
+  assert.equal(more.querySelector("svg").getAttribute("aria-hidden"), "true", "the chevron is decoration: the words say it");
+  assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readymore", "align-self"), ["center"]);
+  assert.match(READY_BARE(), /\.g-overview__readymore\[aria-expanded="true"\] \.g-icon \{ transform: rotate\(180deg\); \}/, "turned up once open");
+  const open =mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true }))));
+  assert.deepEqual(readyNames(open), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]);
+  assert.equal(open.querySelector("button.g-overview__readymore").textContent, "Show less");
+  assert.equal(open.querySelector("button.g-overview__readymore").getAttribute("aria-expanded"), "true");
+  assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), phone: true })))).querySelector(".g-overview__ready .g-overview__readywho").textContent,
+    "Q1 · 21 SPP · and 6 more", "a phone's card is as it was");
+  initLocale("ru");
+  try {
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) })))).querySelector(".g-overview__readymore").textContent, "Показать ещё 2");
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true })))).querySelector(".g-overview__readymore").textContent, "Свернуть");
+  } finally {
+    initLocale("en");
+  }
+});
+
 test("every «Advance» is named for its player, and the name starts with the word it shows", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
   const links = fragment.querySelectorAll("a.g-overview__advance");
@@ -2238,4 +2271,25 @@ test("«Ready to advance» stays on the roster's SPP while the leaders count the
   assert.deepEqual(model.ready, overviewModel({ ...input("t1"), team: crew(players), raceTeam: raceOf(TEAMS[0]) }).ready);
   releaseCurrentScreen();
   api.assertAnswered();
+});
+
+test("«Show N more» opens the list on the page and «Show less» folds it; a draw between keeps what the coach chose", async () => {
+  coach();
+  state.myTeams = { ...state.myTeams, items: [crew(SEVEN), ...TEAMS.slice(1)] };
+  await renderTeamOverview("t1");
+  await turns();
+  assert.equal(readyNames(view).length, 5);
+  const toggle = view.querySelector("[data-ready-toggle]");
+  fireEvent(toggle, "click");
+  assert.equal(readyNames(view).length, 7);
+  assert.equal(view.querySelector("[data-ready-toggle]").getAttribute("aria-expanded"), "true");
+  const reads = sent("GET /api/games");
+  invalidateGames();
+  await turns();
+  assert.equal(sent("GET /api/games"), reads + 1, "the games were read again, and the page drawn with them");
+  assert.equal(readyNames(view).length, 7, "a later draw does not fold it");
+  fireEvent(view.querySelector("[data-ready-toggle]"), "click");
+  assert.equal(readyNames(view).length, 5);
+  assert.equal(view.querySelector("[data-ready-toggle]").textContent, "Show 2 more");
+  releaseCurrentScreen();
 });

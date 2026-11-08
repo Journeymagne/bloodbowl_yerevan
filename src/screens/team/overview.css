@@ -218,6 +218,30 @@
 }
 
 /*
+ * «Show N more» / «Show less» under a long list, centred: the accent's words as the cards' «Whole season →», a finger's
+ * 44px high, and the builder's chevron after them, turned up once the list is open (builder-roster.css).
+ */
+.g-overview__readymore {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-overview__readymore:hover { text-decoration: underline; }
+.g-overview__readymore[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
+
+/*
  * The figures (Team.html, DeskOverview.html): the label straight over the figure, each at its font's own line height,
  * as the prototypes draw them — a phone's tile is 85px high, a desk's card 95px.
  *

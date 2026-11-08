@@ -131,6 +131,8 @@
   "common.delete": "Delete",
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
+  "common.showMore": "Show {count} more",
+  "common.showLess": "Show less",
   "savedRoster.removeLogo": "Remove logo",
   "savedRoster.startingRerolls": "Starting rerolls",
   "savedRoster.teamRerolls": "Team Rerolls",

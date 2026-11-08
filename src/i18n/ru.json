@@ -131,6 +131,8 @@
   "common.delete": "Удалить",
   "common.cancel": "Отмена",
   "common.confirm": "Подтвердить",
+  "common.showMore": "Показать ещё {count}",
+  "common.showLess": "Свернуть",
   "savedRoster.removeLogo": "Удалить логотип",
   "savedRoster.startingRerolls": "Стартовые рероллы",
   "savedRoster.teamRerolls": "Командные рероллы",
