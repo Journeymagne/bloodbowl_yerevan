@@ -1,6 +1,7 @@
 /*
  * A row with a count and a − / + cluster. The buttons are 44px, the touch
- * size, where the prototype draws 34px.
+ * size, where the prototype draws 34px. 8px over and under the cluster keep
+ * it off the rules, as a switch's row keeps its own (toggle.css).
  */
 .g-resource {
   box-sizing: border-box;
@@ -9,6 +10,7 @@
   justify-content: space-between;
   gap: var(--space-10);
   min-height: 58px;
+  padding: var(--space-8) 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;

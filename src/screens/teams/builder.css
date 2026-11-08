@@ -216,6 +216,8 @@
   justify-content: space-between;
   gap: var(--space-10);
   min-height: 52px;
+  /* 8px over and under keep a button off the rules, as the resources' rows do (resource-counter.css). */
+  padding: var(--space-8) 0;
   border-bottom: 1px solid var(--line);
 }
 .g-build__row:last-child { border-bottom: 0; }

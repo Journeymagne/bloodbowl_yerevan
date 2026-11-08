@@ -41,7 +41,8 @@
 
 /*
  * A line of the card: a rule under it, the label at the left, the value and the button at the right. Builder's rows are
- * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; a line that wraps keeps 4px over and under.
+ * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; 8px over and under keep a button off the
+ * rules, as the resources' rows do (resource-counter.css).
  */
 .g-team-settings__row {
   box-sizing: border-box;
@@ -51,7 +52,7 @@
   gap: var(--space-10);
   min-height: 53px;
   margin: 0;
-  padding: var(--space-4) 0;
+  padding: var(--space-8) 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: none;

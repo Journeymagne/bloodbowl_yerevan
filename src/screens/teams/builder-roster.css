@@ -46,7 +46,7 @@
   align-items: center;
   gap: var(--space-10);
   min-height: 60px;
-  padding: var(--space-6) 0;
+  padding: var(--space-8) 0;
   border-bottom: 1px solid var(--line);
 }
 .g-roster-row:last-child { border-bottom: 0; }
