@@ -104,10 +104,12 @@ const calls = (key) => api.calls.filter((call) => call.key === key);
 const $ = (selector) => document.querySelector(`${HOST} ${selector}`);
 const sheetOpen = () => Boolean($("dialog#team-settings-sheet")?.matches(":modal"));
 const rowOf = (kind, root = view) => root.querySelector(`[data-settings-row="${kind}"]`);
-/** A row as one reads it: its name, its value, its buttons. */
+/** A row as one reads it: its name, its value, its buttons — an icon button by its name, as a screen reader says it. */
 const rowText = (kind, root = view) => rowOf(kind, root)
-  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__value b, .g-team-settings__btn")
-  .map((node) => node.textContent.trim()).join(" · ") ?? null;
+  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__value b, .g-team-settings__btn, .g-team-settings__icon")
+  .map((node) => node.getAttribute("aria-label") ?? node.textContent.trim()).join(" · ") ?? null;
+/** Every button of the settings: the text ones (Upload, By number) and the icons (the pencils, the trash). */
+const BUTTONS = ".g-team-settings__btn, .g-team-settings__icon";
 const press = (selector) => fireEvent(view.querySelector(selector), "click");
 const openRow = (kind) => press(`[data-settings-open="${kind}"]`);
 function type(value) {
@@ -207,7 +209,8 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(fragment.querySelector("#team-settings-name-label").textContent, "Name");
   const file = fragment.querySelector("input#team-settings-logo");
   assert.deepEqual([file.getAttribute("type"), file.getAttribute("accept"), file.getAttribute("class"), file.hasAttribute("disabled")], ["file", "image/png,image/jpeg", "g-sr-only g-team-settings__file", false]);
-  assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn");
+  assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn g-team-settings__icon");
+  assert.equal(file.getAttribute("aria-describedby"), "team-settings-logo-label", "the field is named «Upload» by its label, and the row's «Logo» describes it");
   assert.ok(rowOf("logo", fragment).querySelector(".g-team-settings__logo svg"), "no logo: the picture's glyph");
   assert.ok(!fragment.querySelector("[data-settings-logo-remove]"));
 
@@ -327,12 +330,12 @@ test("a sheet opened on the phone's screen works as on the page: one PATCH, the 
 // Review Focus 3, and L4 of the round's preflight: the page's quiet «games not read» goes to the screen with the settings.
 test("held on its own screen as on the page: a match on, the roster's queue, a preparation's words; «‹» still leads back (Review Focus 3)", async () => {
   const back = () => view.querySelector(".g-team-settings-screen__back").getAttribute("href");
-  const shut = (reason) => view.querySelectorAll(".g-team-settings__btn").every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === reason);
+  const shut = (reason) => view.querySelectorAll(BUTTONS).every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === reason);
   await atWidth(true, async () => {
     // A match on: said, every button shut with its reason, a press says it, and nothing goes.
     await page("t1", { settings: true, games: [liveGame("t1")] });
     assert.deepEqual(titles(screenOf()), [LIVE]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").length >= 4 && shut(LIVE));
+    assert.ok(view.querySelectorAll(BUTTONS).length >= 4 && shut(LIVE));
     assert.equal(view.querySelector("input#team-settings-logo").getAttribute("aria-disabled"), "true");
     let before = api.calls.length;
     await withoutTimers(async () => {
@@ -367,7 +370,7 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
     // A preparation: what a save resets, nothing held.
     await page("t1", { settings: true, games: [preparingGame("t1")] });
     assert.deepEqual(titles(screenOf()), [PREP_WORDS]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    assert.ok(view.querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
     assert.equal(back(), "#/t/t1/team");
 
     // The games could not be read: the page's quiet warning, said on the screen too (L4); the rows stay open.
@@ -377,7 +380,7 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
     assert.deepEqual(titles(screenOf()), [en["treasury.gamesUnknown"], PREP_WORDS], "over the rows, before what holds them");
     const blocks = screenOf().querySelector(".g-team-settings-screen__body").childNodes.filter((node) => node.nodeType === 1);
     assert.deepEqual(blocks.map((node) => node.getAttribute("class")), ["g-callout g-callout--warn", "g-team-settings"]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    assert.ok(view.querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
     await notifyGames([]);
     assert.deepEqual(titles(screenOf()), [], "a read that comes takes it away");
   });
@@ -962,7 +965,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   assert.match(callout.getAttribute("class"), /g-callout--warn/);
   const link = callout.querySelector("a");
   assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/t/t1/roster", "To the roster"]);
-  const shut = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
+  const shut = view.querySelector(".g-team-settings").querySelectorAll(BUTTONS);
   assert.ok(shut.length >= 4 && shut.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "Wait until the roster's edits are saved"));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", "Wait until the roster's edits are saved"]);
@@ -979,7 +982,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   api.reply(PATCH, 200, { team: t1With({}, { players: SQUAD.map((player, at) => (at ? player : { ...player, spp: { touchdowns: 1 } })) }) });
   assert.equal(await save.retrySaves("t1"), "saved");
   assert.ok(!view.querySelector(".g-team-settings .g-callout"));
-  assert.ok(view.querySelectorAll(".g-team-settings .g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+  assert.ok(view.querySelector(".g-team-settings").querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
   assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("aria-disabled"), false);
   openRow("name");
   assert.ok(sheetOpen());
@@ -1170,7 +1173,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   const callout = view.querySelector(".g-team-settings .g-callout");
   assert.equal(callout.querySelector(".g-callout__title").textContent, LIVE);
   assert.ok(!callout.querySelector("a"), "the page's own callout says where the match is");
-  const buttons = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
+  const buttons = view.querySelector(".g-team-settings").querySelectorAll(BUTTONS);
   assert.ok(buttons.length >= 4 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", LIVE], "in the tab order, with its reason (M-4)");
@@ -1230,6 +1233,38 @@ test("names are text", async () => {
   assertCspSafe(document.querySelector(HOST));
 });
 
+test("a row's edit and the logo's upload are a square pencil, its removal a square trash, named by their words; By number stays a word", () => {
+  const team = { ...TEAMS[0], logoData: "data:image/png;base64,AAAA" };
+  const fragment = mount(manageMarkup(model(team)));
+  const PENCIL = "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z";
+  const iconOf = (button) => {
+    const d = button.querySelector("path")?.getAttribute("d");
+    return d === PENCIL ? "pencil" : d ? "other" : "none";
+  };
+  for (const [kind, label] of [["name", "Change"], ["fans", "Correct"]]) {
+    const button = fragment.querySelector(`[data-settings-open="${kind}"]`);
+    assert.equal(button.getAttribute("class"), "g-btn g-team-settings__btn g-team-settings__icon", kind);
+    assert.equal(button.getAttribute("aria-label"), label, kind);
+    assert.equal(button.getAttribute("aria-describedby"), `team-settings-${kind}-label`, `${kind}: the row's label says what it changes`);
+    assert.equal(iconOf(button), "pencil", kind);
+    assert.equal(button.textContent.trim(), "", `${kind}: no word drawn beside the icon`);
+  }
+  const remove = fragment.querySelector("[data-settings-logo-remove]");
+  assert.deepEqual([remove.getAttribute("class"), remove.getAttribute("aria-label"), remove.getAttribute("aria-describedby")], ["g-btn g-team-settings__btn g-team-settings__icon", "Remove", "team-settings-logo-label"]);
+  assert.equal(fragment.querySelector("#team-settings-logo-label").textContent, "Logo");
+  assert.ok(remove.querySelector("svg") && iconOf(remove) === "other", "the trash");
+  // The upload is the file field's label: the pencil seen, its word unseen, so the field is still named «Upload».
+  const upload = fragment.querySelector('label[for="team-settings-logo"]');
+  assert.equal(iconOf(upload), "pencil");
+  assert.equal(upload.querySelector(".g-sr-only").textContent, "Upload");
+  assert.equal(fragment.querySelector("[data-settings-order]").textContent, "By number", "an action, not an edit: the word stays");
+  assert.equal(fragment.querySelector("[data-settings-order]").getAttribute("class"), "g-btn g-team-settings__btn");
+  // Square: the text buttons' corners and ring, as wide as it is tall — 44px up to 900px, 36px from 901px.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__icon", "width"), ["var(--size-touch)", "36px"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__icon", "padding"), ["0"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__btn", "border-radius"), ["var(--radius-md)"]);
+});
+
 test("every key in both dictionaries, with the same placeholders; Russian words", () => {
   assertDictionaryCovers("src/screens/team/manage/settings.mjs", "src/screens/team/manage/settings-sheet.mjs", "src/screens/team/manage/settings-screen.mjs");
   const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
@@ -1279,13 +1314,16 @@ test("styled: the section, its callout, and every sheet; nothing the CSP refuses
   }
 });
 
-test("readable: the labels and notes in --muted, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
+test("readable: the labels in the ink and the notes in --muted, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
   for (const selector of [".g-team-settings__label", ".g-team-settings__note"]) assertReadable(SETTINGS, selector, "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__violation", "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__btn", "color", ["--surface"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__value", "color", ["--surface", "--page"], 4.5);
   assertReadable("src/screens/teams/new.css", ".g-races__resets", "color", ["--warn-tint"], 4.5);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["400 14px/1.3 var(--font-body)"]);
+  // A row's name as the team page's other rows name theirs (the owner, 2026-11-08): the resources', the treasury's.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["600 15px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "color"), ["var(--ink)"]);
+  assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__name", "font"), valuesOf(SETTINGS, ".g-team-settings__label", "font"), "the same as a resource's name");
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["700 15px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "font"), ["400 14px/1.4 var(--font-body)"]);

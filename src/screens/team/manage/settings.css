@@ -70,9 +70,10 @@
   flex-direction: column;
 }
 
+/* A row's name, as the team page's other rows name theirs (the resources', the treasury's, the history's): 600 15px in the ink (the owner, 2026-11-08). */
 .g-team-settings__label {
-  color: var(--muted);
-  font: 400 14px/1.3 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -174,6 +175,11 @@
 .g-team-settings__btn[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+/* An icon of a row (the pencil, the trash): the button above, as wide as it is tall. */
+.g-team-settings__icon {
+  width: var(--size-touch);
+  padding: 0;
 }
 /* The file field is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
 .g-team-settings__file:focus-visible + .g-team-settings__btn {
@@ -396,4 +402,5 @@
     box-shadow: var(--ring);
   }
   .g-team-settings__btn { min-height: 36px; }
+  .g-team-settings__icon { width: 36px; }
 }
