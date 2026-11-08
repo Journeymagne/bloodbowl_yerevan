@@ -304,7 +304,7 @@ export const READY_SHOWN = 5;
 function readyToggle(count, all) {
   if (count <= READY_SHOWN) return "";
   const label = all ? t("common.showLess") : t("common.showMore", { count: count - READY_SHOWN });
-  return `<button type="button" class="g-overview__readymore" data-ready-toggle aria-expanded="${all}">${escapeHtml(label)}${renderIcon("down", 16)}</button>`;
+  return `<button type="button" class="g-more" data-ready-toggle aria-expanded="${all}">${escapeHtml(label)}${renderIcon("down", 16)}</button>`;
 }
 
 /**

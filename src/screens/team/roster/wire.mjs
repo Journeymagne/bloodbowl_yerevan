@@ -119,17 +119,16 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadv
 
 /**
  * A player's fix by hand (stage 07d, Task 13): the edit's line to it (not when closed — a press on a closed one says
- * why, as `[data-roster-closed]` does), an injury's point, a favoured skill, a skill to take off, «Cancel» and «Save».
- * Its counters' − and + are heard with the admin's staff counters (`wireCounters`).
+ * why, as `[data-roster-closed]` does), an injury's point, a favoured skill, a skill to take off, and «Save»; its «‹»
+ * is the sheet's back (`onSheetBack`). Its counters' − and + are heard with the admin's staff counters (`wireCounters`).
  */
-function wireFix(root, { onFixOpen, onFixLasting, onFixFavoured, onFixDrop, onFixKeep, onFixSave }) {
+function wireFix(root, { onFixOpen, onFixLasting, onFixFavoured, onFixDrop, onFixSave }) {
   const pressed = (attribute, handler) => delegate(root, "click", `[${attribute}]`, (event, button) => handler(button.getAttribute(attribute)));
   return [
     onPlayerButton(root, "data-player-fix", onFixOpen),
     pressed("data-fix-lasting", onFixLasting),
     pressed("data-fix-favoured", onFixFavoured),
     pressed("data-fix-drop", onFixDrop),
-    delegate(root, "click", "[data-fix-keep]", () => onFixKeep()),
     delegate(root, "click", "[data-fix-save]", () => onFixSave()),
   ];
 }
@@ -290,7 +289,7 @@ export function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType 
  * @param {(category: string) => void} handlers.onAdvanceCategory a category chosen
  * @param {(name: string) => void} handlers.onAdvanceSkill a skill chosen
  * @param {() => void} handlers.onAdvanceNext a phone's «Next»
- * @param {(id: string) => void} handlers.onSheetBack a sheet's «Back», by the sheet's id
+ * @param {(id: string) => void} handlers.onSheetBack a sheet's «Back», by the sheet's id: an advancement's step before, a fix's edit
  * @param {() => void} handlers.onAdvanceTake «Take …»
  * @param {() => void} handlers.onAdvanceRule «About …», which opens and folds the chosen skill's rule
  * @param {() => void} handlers.onAdvanceKeep «Cancel» in a desk's window
@@ -313,7 +312,6 @@ export function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType 
  * @param {(stat: string) => void} handlers.onFixLasting «Take one off» of a lasting injury
  * @param {(skill: string) => void} handlers.onFixFavoured a favoured skill's «Take off» or «Add …»
  * @param {(skill: string) => void} handlers.onFixDrop a skill no advancement gave, its «Take off»
- * @param {() => void} handlers.onFixKeep «Cancel» in the fix
  * @param {() => void} handlers.onFixSave «Save» in the fix
  * @param {(playerId: string) => void} handlers.onCareerToggle the button of a «Career», which opens and closes its list, by the player's stored id
  * @param {(query: string) => void} handlers.onRosterQuery a desk's search, as typed

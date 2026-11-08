@@ -116,6 +116,36 @@
   }
 }
 
+/*
+ * «Show N more» / «Show less» under a list that folds (the owner, 2026-11-08: the overview's who can advance and the
+ * team page's history alike): words in the accent, centred under the list, the chevron after them turned up once it is
+ * open (`aria-expanded`); a finger's 44 on a phone, a desk's 24 (D2). A list read on further («More») is the same words
+ * with no chevron.
+ */
+.g-more {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-more:hover { text-decoration: underline; }
+.g-more[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
+@media (min-width: 901px) {
+  .g-more { min-height: 24px; }
+}
+
 /* The round close or back button of a sheet. */
 .g-icon-btn {
   box-sizing: border-box;

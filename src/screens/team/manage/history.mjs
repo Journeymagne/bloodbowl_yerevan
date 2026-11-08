@@ -13,6 +13,7 @@ import { escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { formatDay, formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { ledgerOf, readLedger } from "../../../data/treasury.mjs";
+import { icon } from "../../../ui/icons.mjs";
 import { lastSafeDeposit } from "./model.mjs";
 
 /** How many lines the history shows before the coach asks for the whole of it. */
@@ -77,6 +78,13 @@ const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escape
 const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
 
 /**
+ * The list's fold and its read on, as the overview's who can advance folds (button.css's «Show N more», the owner,
+ * 2026-11-08): «Show N more» with the chevron, «Show less» once unfolded; «More» the same words with none. Keyed as above.
+ */
+const foldMarkup = (expanded, label) => `<button type="button" class="g-more" data-key="ledger-all" data-ledger-all aria-expanded="${expanded}">${escapeHtml(label)}${icon("down", 16)}</button>`;
+const moreMarkup = () => `<button type="button" class="g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
+
+/**
  * What stands in place of the list, or under it: nothing yet, nothing at all, the reason the history did not come,
  * or, under the lines, that a read is on its way (a «More» pressed is not left looking as if nothing happened).
  */
@@ -91,9 +99,9 @@ function actionsMarkup({ entries, next, total, error }, expanded) {
   const retry = error ? actionMarkup("retry", t("treasury.history.retry")) : "";
   if (!entries.length) return retry;
   let toggle = "";
-  if (expanded) toggle = actionMarkup("all", t("treasury.history.less"));
-  else if (total > HISTORY_PREVIEW) toggle = actionMarkup("all", t("treasury.history.all", { count: total }));
-  const more = expanded && next ? actionMarkup("more", t("treasury.history.more")) : "";
+  if (expanded) toggle = foldMarkup(true, t("common.showLess"));
+  else if (total > HISTORY_PREVIEW) toggle = foldMarkup(false, t("common.showMore", { count: total - HISTORY_PREVIEW }));
+  const more = expanded && next ? moreMarkup() : "";
   return retry + toggle + more;
 }
 

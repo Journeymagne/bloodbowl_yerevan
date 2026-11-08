@@ -251,9 +251,11 @@
   overflow-wrap: anywhere;
 }
 
+/* The buttons under the lines, centred as the overview's «Show N more» stands under its list (button.css's `.g-more`). */
 .g-ledger__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   column-gap: var(--space-16);
 }
 

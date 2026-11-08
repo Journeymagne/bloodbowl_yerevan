@@ -109,11 +109,17 @@ test("three lines, then the whole history by its count, then more by pages", asy
   stand("t-pages");
   assert.equal(HISTORY_PREVIEW, 3);
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 25");
+  // As the overview's who can advance folds (the owner, 2026-11-08): the lines not shown, the chevron, its state.
+  assert.equal(text("[data-ledger-all]"), "Show 22 more");
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("class"), "g-more");
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "false");
+  assert.ok(document.querySelector("[data-ledger-all] svg"), "the chevron");
   assert.equal(document.querySelector("[data-ledger-more]"), null, "the pages are for the whole history");
 
   click("[data-ledger-all]");
   assert.equal(historyExpanded("t-pages"), true);
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "true");
+  assert.equal(document.querySelector("[data-ledger-more]").getAttribute("class"), "g-more");
   assert.equal(rows().length, 5);
   assert.deepEqual(rows().map((row) => row.querySelector(".g-ledger__amount").textContent), ["+10k", "+11k", "+12k", "+13k", "+14k"], "newest first, as the server sent them");
   assert.equal(text("[data-ledger-all]"), "Show less");
@@ -130,7 +136,7 @@ test("three lines, then the whole history by its count, then more by pages", asy
   click("[data-ledger-all]");
   assert.equal(historyExpanded("t-pages"), false);
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 25");
+  assert.equal(text("[data-ledger-all]"), "Show 22 more");
   api.assertAnswered();
 });
 
@@ -141,7 +147,7 @@ test("a team with up to three lines has nothing to unfold, and what is unfolded 
   assert.equal(document.querySelector("[data-ledger-all]"), null);
   markup(held({ entries: lines(4), total: 4 }));
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 4");
+  assert.equal(text("[data-ledger-all]"), "Show 1 more");
 
   api.reply(pageOf("t-own"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
   await readLedger("t-own");
@@ -444,7 +450,7 @@ test("the page speaks Russian when the site does", () => {
   assert.match(rows()[0].querySelector(".g-ledger__when").textContent, /^18 окт.* · тур 3$/);
   assert.equal(rows()[1].querySelector(".g-ledger__title").textContent, ru["treasury.reason.fine"]);
   assert.equal(rows()[1].querySelector(".g-ledger__amount").textContent, "−5k");
-  assert.equal(text("[data-ledger-all]"), "Вся история · 25");
+  assert.equal(text("[data-ledger-all]"), "Показать ещё 22");
   assert.match(text("p.g-ledger__since"), /^История ведётся с 1 окт.* 2026/);
   mount(safeMarkup({ safe: 20, entries: [line("l1", { kind: "safe", delta: -20 })] }));
   assert.equal(text(".g-manage__safe-rule"), "До 50k из дохода после каждого матча. Тратить можно только после сезона.");

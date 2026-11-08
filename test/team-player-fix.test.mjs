@@ -68,7 +68,7 @@ const toggleOf = (attribute, value) => fixSheet().querySelectorAll(`[${attribute
 const nameBy = (toggle) => toggle.closest(".g-player-fix__row").querySelector(".g-player-fix__name").textContent;
 const worth = () => fixSheet().querySelector(".g-player-fix__value").textContent;
 const saveButton = () => fixSheet().querySelector("[data-fix-save]");
-const cancelButton = () => fixSheet().querySelector("[data-fix-keep]");
+const backButton = () => fixSheet().querySelector(".g-sheet__head [data-sheet-back]");
 const refusal = () => fixSheet().querySelector(".g-player-sheet__refusal");
 const sentOf = (id, call = patches().at(-1)) => call.body.roster.players.find((player) => player.id === id);
 /** t1 on the server with one player in place of his own line. */
@@ -115,7 +115,7 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         assert.equal(line.getAttribute("aria-haspopup"), "dialog");
         assert.equal(line.getAttribute("data-player-fix"), "p3#0");
         assert.equal(line.textContent, OPEN);
-        assert.ok(line.querySelector("svg.g-icon"), "the chevron");
+        assert.equal(line.querySelector("svg"), null, "a link's look, as «Correct the treasury by hand»: no chevron (the owner, 2026-11-08)");
         assert.ok(elements(editSheet().querySelector(".g-sheet__body")).at(-1) === line, "the body's last line");
         assert.ok(!line.hasAttribute("aria-disabled"));
         // The number changed: the line says to save or cancel first (K7), and opens nothing.
@@ -143,14 +143,16 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         assert.equal(saveButton().textContent, "Save");
         assert.ok(saveButton().hasAttribute("disabled"), "nothing changed yet");
         assert.ok(saveButton().getAttribute("class").includes("g-btn--primary"));
-        assert.equal(cancelButton().textContent, "Cancel");
+        // «‹» in its head in place of «Cancel» (the owner, 2026-11-08): back to the edit, which opened it.
+        assert.equal(fixSheet().querySelector("[data-fix-keep]"), null, "no «Cancel»");
+        assert.equal(backButton().getAttribute("aria-label"), "Back");
         assertCspSafe(view);
-        // «Cancel»: closed, the focus back on the pencil that opened the edit, nothing sent.
-        fireEvent(cancelButton(), "click");
-        assert.ok(!fixSheet() && !editSheet());
-        assert.ok(document.activeElement === pencil());
+        fireEvent(backButton(), "click");
+        assert.ok(!fixSheet(), "the fix let go");
+        assert.ok(editSheet()?.isModal, "his edit again, in its place");
+        assert.equal(numberField().value, "3", "as he stands: what the fix had changed is not kept");
         await settle();
-        assert.equal(patches().length, 0);
+        assert.equal(patches().length, 0, "nothing sent");
       });
     }
   });
@@ -709,8 +711,10 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
     assert.deepEqual(valuesOf(FIX, '.g-player-fix__toggle[aria-pressed="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
     assert.deepEqual(valuesOf(FIX, ".g-player-fix__value", "font"), ["400 14px/normal var(--font-body)"]);
     assert.deepEqual(valuesOf(FIX, ".g-player-fix__after", "font-weight"), ["700"]);
-    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "font"), ["600 15px/normal var(--font-body)"]);
-    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "border-top"), ["1px solid var(--line)"]);
+    // A link's look, as the team page's «Correct the treasury by hand» (manage.css; the owner, 2026-11-08).
+    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "font"), ["600 15px/1.3 var(--font-body)"]);
+    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "color"), valuesOf("src/screens/team/manage/manage.css", ".g-manage__fix", "color"));
+    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "border-top"), [], "no rule over it");
     assert.deepEqual(valuesOf(FIX, '#player-edit .g-player-edit__fix[aria-disabled="true"]', "color"), ["var(--disabled)"]);
     assertReadable(FIX, ".g-player-fix__title", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__name", "color", ["--surface"], 4.5);
@@ -729,14 +733,13 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
   });
 });
 
-test("D2: up to 900px the toggles 44px and the line to the fix 52px; from 901px 32px and 44px", () => {
+test("D2: up to 900px the toggles 44px, from 901px 32px; the line to the fix a finger's 44 on both", () => {
   const px = (found) => found.slice(1).map(Number);
   const phone = mediaText(FIX, "max-width: 900px");
   const desk = mediaText(FIX, "min-width: 901px");
   assert.deepEqual(px(phone.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [44], "a phone's toggles");
-  assert.deepEqual(px(phone.match(/#player-edit \.g-player-edit__fix \{[^}]*min-height: (\d+)px;/)), [52], "a phone's line");
   assert.deepEqual(px(desk.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [32], "a desk's toggles, 24 or more");
-  assert.deepEqual(px(desk.match(/#player-edit \.g-player-edit__fix \{[^}]*min-height: (\d+)px;/)), [44], "a desk's line");
+  assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "min-height"), ["var(--size-touch)"], "the line, as «Correct the treasury by hand»");
   // The counters are stage 08's as they are: 44px buttons.
   assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__btn", "height"), ["var(--size-touch)"]);
 });

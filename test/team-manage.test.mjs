@@ -264,7 +264,7 @@ test("the safe says the last deposit from the whole history, not the three lines
   const folded = mount(manageMarkup(model("t1")));
   assert.equal(folded.querySelectorAll(".g-ledger__row").length, 3);
   assert.match(folded.querySelector(".g-manage__safe-last").textContent, /^Last deposit: 20k/);
-  assert.equal(folded.querySelector("[data-ledger-all]").textContent, "All history · 4");
+  assert.equal(folded.querySelector("[data-ledger-all]").textContent, "Show 1 more", "as the overview's who can advance folds (the owner, 2026-11-08)");
   const unfolded = mount(manageMarkup(model("t1", { expanded: true })));
   assert.equal(unfolded.querySelectorAll(".g-ledger__row").length, 4);
   assert.equal(mount(manageMarkup(model("t1", { busy: true }))).querySelector(".g-manage__resources").getAttribute("aria-busy"), "true");

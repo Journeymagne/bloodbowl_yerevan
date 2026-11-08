@@ -1595,23 +1595,24 @@ test("a desk's list shows the first five, and «Show N more» shows the others; 
   const folded = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) }))));
   assert.deepEqual(readyNames(folded), ["Q1", "Q2", "Q3", "Q4", "Q5"], "the most SPP first");
   assert.equal(folded.querySelector(".g-overview__readycount").textContent, "players: 7");
-  const more = folded.querySelector("button.g-overview__readymore");
+  // The kit's «Show N more» (button.css), as the team page's history folds (the owner, 2026-11-08).
+  const more = folded.querySelector("button.g-more");
   assert.equal(more.getAttribute("type"), "button");
   assert.equal(more.textContent, "Show 2 more");
   assert.equal(more.getAttribute("aria-expanded"), "false");
   assert.equal(more.querySelector("svg").getAttribute("aria-hidden"), "true", "the chevron is decoration: the words say it");
-  assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readymore", "align-self"), ["center"]);
-  assert.match(READY_BARE(), /\.g-overview__readymore\[aria-expanded="true"\] \.g-icon \{ transform: rotate\(180deg\); \}/, "turned up once open");
-  const open =mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true }))));
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-more", "align-self"), ["center"]);
+  assert.deepEqual(valuesOf("src/ui/button.css", '.g-more[aria-expanded="true"] .g-icon', "transform"), ["rotate(180deg)"], "turned up once open");
+  const open = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true }))));
   assert.deepEqual(readyNames(open), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]);
-  assert.equal(open.querySelector("button.g-overview__readymore").textContent, "Show less");
-  assert.equal(open.querySelector("button.g-overview__readymore").getAttribute("aria-expanded"), "true");
+  assert.equal(open.querySelector("button.g-more").textContent, "Show less");
+  assert.equal(open.querySelector("button.g-more").getAttribute("aria-expanded"), "true");
   assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), phone: true })))).querySelector(".g-overview__ready .g-overview__readywho").textContent,
     "Q1 · 21 SPP · and 6 more", "a phone's card is as it was");
   initLocale("ru");
   try {
-    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) })))).querySelector(".g-overview__readymore").textContent, "Показать ещё 2");
-    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true })))).querySelector(".g-overview__readymore").textContent, "Свернуть");
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) })))).querySelector(".g-more").textContent, "Показать ещё 2");
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true })))).querySelector(".g-more").textContent, "Свернуть");
   } finally {
     initLocale("en");
   }

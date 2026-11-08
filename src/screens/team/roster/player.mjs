@@ -25,6 +25,7 @@ import { editCheck } from "./player-sheets.mjs";
 import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
 import { amendPlayer, undoAdvancement } from "./save.mjs";
+import { FIX_SHEET } from "./sheets.mjs";
 
 /** An advancement as the undo's sheet showed it — its type, what it gave, its roll, the god's skill tied to it — which is what the coach confirms. */
 const shownAs = ({ type, grants, via, rollId, favoured }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId, favoured ?? ""]);
@@ -183,10 +184,32 @@ export function playerHandlers(saving, lent) {
     Object.assign(visit.sheet, { form: { ...visit.sheet.form, ...fields }, refusal: "" });
     draw();
   };
+  // His edit with his number, name and armband as they stand; null, said, when something closes it just now. Tied to
+  // him as he is now (final review M1): its three values are absolute, and a save of them must never put back another
+  // device's change.
+  const editOf = (key) => {
+    const player = playerAt(lent.now, key);
+    if (player?.reason) toast(player.reason);
+    if (!player || player.reason) return null;
+    const { number, name, captain } = player.line;
+    return { kind: "edit", key, form: { number, name, captain }, seed: identityOf(player.stored), refusal: "" };
+  };
+  const advance = advanceHandlers(saving, lent);
   return {
-    ...advanceHandlers(saving, lent),
+    ...advance,
     ...fixHandlers(saving, lent),
     ...careerHandlers(saving),
+    // A sheet's «‹»: his fix goes back to his edit, which opened it (the owner, 2026-11-08), what it had changed let go;
+    // an advancement's to its step before.
+    onSheetBack: (id) => {
+      if (id !== FIX_SHEET) return advance.onSheetBack(id);
+      const sheet = visit.sheet?.kind === "fix" ? editOf(visit.sheet.key) : null;
+      if (sheet) {
+        visit.sheet = sheet;
+        draw();
+      }
+      return undefined;
+    },
     onSkill: (key, name, chip) => {
       Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       readSiteRolls(saving, rosterLineOf(lent.now().lines, key), name);
@@ -211,12 +234,9 @@ export function playerHandlers(saving, lent) {
     },
     onUnadvanceSend: () => sendUndo(saving, lent),
     onEdit: (key, button) => {
-      const player = playerAt(lent.now, key);
-      if (player?.reason) toast(player.reason);
-      else if (player) {
-        const { number, name, captain } = player.line;
-        // Tied to him as he is now (final review M1): its three values are absolute, and a save of them must never put back another device's change.
-        Object.assign(visit, { sheet: { kind: "edit", key, form: { number, name, captain }, seed: identityOf(player.stored), refusal: "" }, opener: button });
+      const sheet = editOf(key);
+      if (sheet) {
+        Object.assign(visit, { sheet, opener: button });
         draw();
       }
     },
