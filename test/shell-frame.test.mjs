@@ -265,9 +265,11 @@ test("a bare screen's root fills the frame; a sheet it draws in #app-view keeps 
 });
 
 test("a sheet's scroll lock does not shift the page, and a page with nothing to scroll keeps no gutter", () => {
-  assert.deepEqual(valuesOf("src/shell/frame.css", "html:has(dialog.g-sheet:modal)", "scrollbar-gutter"), ["stable"]);
-  // Always reserved, the room stood empty past the head's band on a page that does not scroll (the owner, 2026-11-08).
-  assert.deepEqual(valuesOf("src/shell/frame.css", "html", "scrollbar-gutter"), []);
+  assert.deepEqual(valuesOf("src/ui/sheet.css", "html:has(dialog.g-sheet:modal)", "padding-right"), ["var(--scrollbar-gap)"]);
+  // A reserved gutter stood empty past the head's band on a page that does not scroll, and jumped in when a sheet opened there.
+  for (const selector of ["html", "html:has(dialog.g-sheet:modal)"]) {
+    assert.deepEqual(valuesOf("src/shell/frame.css", selector, "scrollbar-gutter"), [], selector);
+  }
 });
 
 // R13-M6 (WCAG 2.4.11): the phone's header sticks to the top, 102px drawn and 91px folded (measured live). An element

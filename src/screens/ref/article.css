@@ -364,8 +364,6 @@
   font-size: 15px;
 }
 
-/* The kit's row (list-row.css): the label the bold word, the value plain (the owner, 2026-11-08). */
-
 .g-skill-detail__ours {
   display: flex;
   flex-direction: column;

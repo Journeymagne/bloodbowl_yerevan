@@ -152,6 +152,14 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
   };
 }
 
+/** Measured before the dialog opens: sheet.css's scroll lock then hides the scrollbar and pads the page by its width. */
+function showSheet(dialog) {
+  const root = dialog.ownerDocument.documentElement;
+  const scrollbar = globalThis.innerWidth - root.clientWidth;
+  root.style.setProperty("--scrollbar-gap", `${scrollbar > 0 ? scrollbar : 0}px`);
+  dialog.showModal();
+}
+
 /** Patch a screen's markup without dropping a native modal's open state or the focus in it. */
 export function patchWithModal(root, markup, selector = "") {
   const template = document.createElement("template");
@@ -165,7 +173,7 @@ export function patchWithModal(root, markup, selector = "") {
   const dialog = wanted && root.querySelector(selector);
   if (dialog && !dialog.matches(":modal")) {
     if (dialog.open) dialog.close();
-    dialog.showModal();
+    showSheet(dialog);
   }
 }
 
@@ -255,7 +263,7 @@ export function confirmAction({
     // A close no button, key or backdrop made (another script's) is a no as well.
     dialog.addEventListener("close", () => settle(false));
 
-    dialog.showModal();
+    showSheet(dialog);
     // Cancel takes focus, so Enter does not fire the destructive action and
     // Escape and the default both land on the same, safe answer.
     host.querySelector('[data-confirm="no"]').focus();

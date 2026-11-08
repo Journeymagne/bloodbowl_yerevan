@@ -237,7 +237,7 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
   const said = refusal || (fix.refusal ? wordsOf(fix.refusal) : "");
   const alert = said ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(said)}</p>` : "";
-  // «‹» back to his edit, which opened it, in place of «Cancel» (the owner, 2026-11-08); the cross still closes it.
+  // No «Cancel»: «‹» goes back to his edit, which opened it (player.mjs's `onSheetBack`).
   return renderSheet({
     id: FIX_SHEET,
     className: PLAYER_FRAME,

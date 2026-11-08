@@ -333,7 +333,6 @@
   margin: 0;
   padding: 0;
 }
-/* The rule is the row's, the item's only child: the last item's row draws none. */
 .g-matches__item:last-child > .g-matches__row,
 .g-matches__item:last-child > .g-matches__later { border-bottom: 0; }
 

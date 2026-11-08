@@ -145,14 +145,6 @@
   gap: var(--space-8);
 }
 
-/* «Language» over its control: named as a field is (text-field.css). */
-.g-settings__caption {
-  color: var(--ink);
-  font: 600 15px/1.35 var(--font-body);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 /* A segment is a tap target: 44px, where the control alone draws 40. */
 .g-settings__language .g-seg__item { min-height: var(--size-touch); }
 

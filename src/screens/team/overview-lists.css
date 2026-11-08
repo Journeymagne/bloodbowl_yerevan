@@ -192,7 +192,6 @@
   border-bottom: 1px solid var(--line);
   background: none;
 }
-/* The last row draws no rule on either width: the card's edge, or the next block, ends the list. */
 .g-overview__result:last-child { border-bottom: 0; }
 
 .g-overview__row {
@@ -355,7 +354,7 @@ a.g-overview__opponent {
   .g-overview__main { flex: 2 1 560px; }
   .g-overview__aside { flex: 1 1 300px; }
 
-  /* The leaders are a card as the results beside them: 16 round, white in the ring, the title 22 from its top as theirs, 24 in. */
+  /* The leaders are a card, as the results beside them. */
   .g-overview__leaders {
     gap: var(--space-12);
     padding: var(--space-22) var(--space-24) var(--space-24);
@@ -377,7 +376,7 @@ a.g-overview__opponent {
     overflow: hidden;
   }
 
-  /* A column: 16 in, the tag over the row 10 apart, the rule at its left; the whole column is the link. */
+  /* The whole column is the link. */
   .g-overview__leader {
     box-sizing: border-box;
     display: flex;

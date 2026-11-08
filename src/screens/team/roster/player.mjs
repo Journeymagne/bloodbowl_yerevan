@@ -199,8 +199,7 @@ export function playerHandlers(saving, lent) {
     ...advance,
     ...fixHandlers(saving, lent),
     ...careerHandlers(saving),
-    // A sheet's «‹»: his fix goes back to his edit, which opened it (the owner, 2026-11-08), what it had changed let go;
-    // an advancement's to its step before.
+    // A fix's «‹» goes back to the edit that opened it, dropping what it changed; an advancement's to its step before.
     onSheetBack: (id) => {
       if (id !== FIX_SHEET) return advance.onSheetBack(id);
       const sheet = visit.sheet?.kind === "fix" ? editOf(visit.sheet.key) : null;

@@ -121,13 +121,9 @@ function rowButton(attributes, label, reason) {
   return `<button type="button" class="g-btn g-team-settings__btn" ${attributes}${shut(reason)}>${escapeHtml(label)}</button>`;
 }
 
-/** The classes of a row's icon button: the text buttons' square look, as wide as it is tall. */
 const ICON_BUTTON = "g-btn g-team-settings__btn g-team-settings__icon";
 
-/**
- * A row's button as an icon (the owner, 2026-11-08): square, as the card's text buttons are; the pencil that edits or
- * the trash that removes. Its word is its name, the row's label describes it.
- */
+/** A row's icon button: its word is its name, and the row's label describes it. */
 function iconButton(attributes, name, label, reason) {
   return `<button type="button" class="${ICON_BUTTON}" ${attributes} aria-label="${escapeHtml(label)}"${shut(reason)}>${icon(name, 18)}</button>`;
 }
@@ -164,7 +160,7 @@ function logoRow({ logoData, held }) {
     + `<span class="g-team-settings__note">${escapeHtml(t("newTeam.logoNote"))}</span></span>`;
   // Never disabled: held, the field stays in the tab order with its reason, and a press of it or of its label (which is
   // the button) says why instead of opening the picker; a field that is disabled under the focus would drop it. The
-  // label is the row's pencil (the owner, 2026-11-08); its word, unseen, stays the field's name.
+  // label is the row's pencil; its word, unseen, stays the field's name.
   const file = `<input class="g-sr-only g-team-settings__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg" aria-describedby="team-settings-logo-label"${shut(held)}>`
     + `<label class="${ICON_BUTTON}" for="${LOGO_ID}"${shut(held)}>${icon("pencil", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>`;
   const remove = logoData ? iconButton('data-settings-logo-remove aria-describedby="team-settings-logo-label"', "trash", t("teamSettings.remove"), held) : "";

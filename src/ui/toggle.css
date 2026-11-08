@@ -21,7 +21,6 @@
   letter-spacing: 0;
   cursor: pointer;
 }
-/* The last of a list draws no rule under it: the list's edge ends it. */
 .g-toggle:last-child { border-bottom: 0; }
 
 .g-toggle:disabled {

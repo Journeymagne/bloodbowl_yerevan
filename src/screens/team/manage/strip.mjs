@@ -1,6 +1,6 @@
 /**
  * The treasury strip of the desk roster (DeskRoster): the money and what the team holds in one row, and the pencil
- * that leads to the team page, where they are changed (the owner, 2026-11-08). Stage 07a puts it over the roster
+ * that leads to the team page, where they are changed. Stage 07a puts it over the roster
  * table; two of its exports are that stage's contract — renderTreasuryStrip({team}) and wireTreasuryStrip(root). The
  * strip redraws itself when the team changes.
  *
@@ -70,10 +70,8 @@ export function treasuryCardMarkup(model, live) {
 }
 
 /**
- * The desk's «Treasury» card of the team page, over the resources (the owner, 2026-11-08): its title, then the sum as
- * a row of the resources' look (resource-counter.css) with one pencil beside the number, which opens the strip's
- * sheet — «Add» chosen, «Take» a press away in it — then what `after` holds: Coach's Safe and the correction (index.mjs).
- * While a match is on the pencil is shut and says why, as the phone's «+ Add» does.
+ * The desk's «Treasury» card of the team page: the sum in a resource's row, its pencil opening the strip's sheet on
+ * «Add», then `after` (Coach's Safe and the correction, index.mjs). A match on shuts the pencil, as the phone's «+ Add».
  */
 export function treasuryBlockMarkup(model, live, after = "") {
   const shut = live ? ` aria-disabled="true" title="${escapeHtml(t("treasury.lockedLive"))}"` : "";

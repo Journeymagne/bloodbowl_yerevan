@@ -177,11 +177,7 @@ export function renderRoute() {
   return rendered;
 }
 
-/**
- * The browser's tab says the screen (the owner, 2026-11-08: it said «Gata Blood Bowl League Reference» on every one):
- * «Roster · Gata Blood Bowl League», the league's name alone where a screen has no heading.
- * @param {string} heading the screen's h1 (or h2), as it is drawn
- */
+/** The browser's tab: «Roster · Gata Blood Bowl League», or the league's name alone on a screen with no heading. */
 function titleWindow(heading) {
   if (typeof document === "undefined") return;
   document.title = heading ? `${heading} · ${t("app.title")}` : t("app.title");

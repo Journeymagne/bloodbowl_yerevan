@@ -10,7 +10,7 @@ import { nextChoice, themePickerMarkup, wireThemePicker } from "../src/screens/s
 
 const read = (file) => JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
 const SHEET = "src/screens/settings/theme-picker.css";
-const SHEETS = [SHEET, "segmented-control.css"];
+const SHEETS = [SHEET, "segmented-control.css", "text-field.css"];
 const LANGUAGE = '<div class="g-seg g-seg--2" role="radiogroup" aria-label="L" data-seg-group="language"><button type="button" class="g-seg__item" role="radio" aria-checked="true" tabindex="0" data-seg-value="en">EN</button><button type="button" class="g-seg__item" role="radio" aria-checked="false" tabindex="-1" data-seg-value="ru">RU</button></div>';
 
 test("a fixed mode shows its own palettes; system shows both, each named for its mode", () => {
@@ -209,6 +209,6 @@ test("the preview wears its own palette's header, page, surface, ink, muted, acc
 test("the name and the mood are readable on the card, in every palette", () => {
   assertContrast(valuesOf(SHEET, ".g-palette__name", "color").at(-1), ["--surface"], 4.5, { what: ".g-palette__name" });
   assertContrast(valuesOf(SHEET, ".g-palette__mood", "color").at(-1), ["--surface"], 4.5, { what: ".g-palette__mood" });
-  assertContrast(valuesOf(SHEET, ".g-theme__caption", "color").at(-1), ["--page", "--surface"], 4.5, { what: ".g-theme__caption" });
+  assertContrast(valuesOf("src/ui/text-field.css", ".g-field__label", "color").at(-1), ["--page", "--surface"], 4.5, { what: "a row's caption (.g-field__label)" });
   assertContrast(valuesOf(SHEET, ".g-theme__hint", "color").at(-1), ["--page", "--surface"], 4.5, { what: ".g-theme__hint" });
 });

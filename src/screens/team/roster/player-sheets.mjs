@@ -86,8 +86,8 @@ function sppMarkup(line, screen) {
 }
 
 /**
- * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): words in the accent, as the
- * team page's «Correct the treasury by hand» (the owner, 2026-11-08: a link's look, not a row's).
+ * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): a link's look, as the team
+ * page's «Correct the treasury by hand».
  * Closed (`reason`: why the edit is, or that its fields are changed and are saved or cancelled first) it stays in
  * reach, saying why as its title and, pressed, in a message (`data-roster-closed`, K7).
  * @param {import("./model.mjs").PlayerLine} line @param {string} reason

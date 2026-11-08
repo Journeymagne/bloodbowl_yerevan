@@ -154,10 +154,7 @@
 #player-fix .g-player-sheet__prep,
 #player-fix .g-player-sheet__refusal { margin-top: var(--space-14); }
 
-/*
- * The edit's last line, which opens the fix: words in the accent, as the team page's «Correct the treasury by hand»
- * (manage.css; the owner, 2026-11-08: a link's look, not a row's), a finger's height; a long one wraps.
- */
+/* The edit's last line, which opens the fix: a link's look, as manage.css's «Correct the treasury by hand». */
 #player-edit .g-player-edit__fix {
   box-sizing: border-box;
   display: inline-flex;

@@ -54,7 +54,6 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
-/* The last row draws no rule: the card's edge, or what follows, ends the table. */
 .g-table__row:last-child { border-bottom: 0; }
 .g-table__row--mine { background: var(--accent-tint); }
 

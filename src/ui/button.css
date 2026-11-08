@@ -116,12 +116,7 @@
   }
 }
 
-/*
- * «Show N more» / «Show less» under a list that folds (the owner, 2026-11-08: the overview's who can advance and the
- * team page's history alike): words in the accent, centred under the list, the chevron after them turned up once it is
- * open (`aria-expanded`); a finger's 44 on a phone, a desk's 24 (D2). A list read on further («More») is the same words
- * with no chevron.
- */
+/* A fold (button.mjs's `renderFoldButton`); «More», which reads a list on, takes its look without the chevron. */
 .g-more {
   box-sizing: border-box;
   display: inline-flex;

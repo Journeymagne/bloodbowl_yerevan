@@ -79,7 +79,7 @@ function reasonsHtml(chosen) {
     .map((reason) => `<button type="button" class="g-money__reason" role="radio" data-money-reason="${escapeHtml(reason)}" aria-checked="${reason === chosen}" tabindex="${reason === entry ? 0 : -1}">${escapeHtml(t(`treasury.reason.${reason}`))}</button>`)
     .join("");
   const label = escapeHtml(t("treasury.money.reason"));
-  return `<div class="g-money__group"><span class="g-money__label" aria-hidden="true">${label}</span>`
+  return `<div class="g-money__group"><span class="g-field__label" aria-hidden="true">${label}</span>`
     + `<div class="g-money__reasons" role="radiogroup" aria-label="${label}" data-money-reasons>${chips}</div></div>`;
 }
 

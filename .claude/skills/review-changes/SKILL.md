@@ -67,7 +67,8 @@ npm ci --prefer-offline --no-audit --no-fund | Out-Null   # needs the network wh
 if ($LASTEXITCODE) { "NO BASELINE: npm ci failed" } else {
   npm run build | Out-Null
   if ($LASTEXITCODE) { "NO BASELINE: the build failed" } else {
-    npm test 2>&1 | Select-String "^✖ " | Out-File "<scratchpad>\baseline.txt"
+    # -Width: Out-File wraps at the console's width, and a long name wrapped at another point reads as another test.
+    npm test 2>&1 | Select-String "^✖ " | Out-File -Width 4096 "<scratchpad>\baseline.txt"
   }
 }
 Pop-Location

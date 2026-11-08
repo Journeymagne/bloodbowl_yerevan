@@ -25,7 +25,7 @@ import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { ADVANCEMENT_TYPES, playerSppTotal } from "../../../domain/roster/progression.mjs";
-import { renderButton } from "../../../ui/button.mjs";
+import { renderButton, renderFoldButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
@@ -113,23 +113,21 @@ function skillsMarkup(sheet, choices) {
   return radioGroupMarkup({ className: "g-advance__skills", label: t("teamAdvance.skillsLabel"), items, chosen: sheet.skill });
 }
 
-/** The id of the rule's box, which its button controls. */
 const RULE_ID = "advance-rule";
 
 /**
- * The chosen skill's rule, folded under the skills (the owner, 2026-11-08: read it without another window): «About
- * Block» with the chevron that turns once it is open, and the rule as the skill's sheet draws it. Open or not is the
- * sheet's (`ruleOpen`), so another skill chosen keeps it open; nothing before a skill is chosen, or for one the
- * reference has no page for.
+ * The chosen skill's rule, folded under the skills, read without another window. Open or not is the sheet's
+ * (`ruleOpen`), so another skill chosen keeps it open.
  * @param {object} sheet @param {object|null} data the reference of the page's language (state.data)
  */
 function ruleMarkup(sheet, data) {
   const page = sheet.skill && data ? skillPageOf(data, sheet.skill) : null;
   if (!page) return "";
   const open = Boolean(sheet.ruleOpen);
-  return `<div class="g-advance__rule"><button type="button" class="g-advance__ruletoggle" aria-expanded="${open}" aria-controls="${RULE_ID}"${dataAttributes({ advanceRule: true })}>`
-    + `${escapeHtml(t("teamAdvance.rule", { skill: sheet.skill }))}${icon("down", 16)}</button>`
-    + `<div class="g-advance__ruletext" id="${RULE_ID}"${open ? "" : " hidden"}>${skillRuleMarkup(page)}</div></div>`;
+  const toggle = renderFoldButton({
+    label: t("teamAdvance.rule", { skill: sheet.skill }), expanded: open, controls: RULE_ID, className: "g-advance__ruletoggle", data: { advanceRule: true },
+  });
+  return `<div class="g-advance__rule">${toggle}<div class="g-advance__ruletext" id="${RULE_ID}"${open ? "" : " hidden"}>${skillRuleMarkup(page)}</div></div>`;
 }
 
 /**

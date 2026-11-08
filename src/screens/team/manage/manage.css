@@ -57,14 +57,6 @@
   min-width: 0;
 }
 
-/* The field label's own look (text-field.css); the group's name is read from the radio group, so this one is not. */
-.g-money__label {
-  color: var(--ink);
-  font: 600 15px/1.35 var(--font-body);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .g-money__preset,
 .g-money__reason {
   box-sizing: border-box;
@@ -251,7 +243,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The buttons under the lines, centred as the overview's «Show N more» stands under its list (button.css's `.g-more`). */
 .g-ledger__actions {
   display: flex;
   flex-wrap: wrap;
@@ -326,11 +317,7 @@
   white-space: nowrap;
 }
 
-/*
- * The desk's «Treasury» card, over the resources (strip.mjs, `treasuryBlockMarkup`): the resources' card and title,
- * the sum a row of the resources' look with the pencil beside it (resource-counter.css), Coach's Safe a row under its
- * rule, the correction by hand last. A phone has the dark card over the page, and the safe and the correction under it.
- */
+/* A desk's «Treasury» card over the resources (strip.mjs's `treasuryBlockMarkup`); a phone has the dark card instead. */
 .g-manage__treasury {
   display: flex;
   flex-direction: column;
@@ -342,7 +329,7 @@
   white-space: nowrap;
 }
 
-/* The safe inside the card is a row of it, as the sum's: its name and its number in the row's type, the rule under it. */
+/* The safe inside the card is one of its rows, not a card of its own. */
 .g-manage__treasury .g-manage__safe {
   padding: var(--space-12) 0;
   border: 0;
@@ -366,7 +353,7 @@
 /*
  * The page (index.mjs): the head, the callout of a match, the treasury card (a phone's), then the safe and its
  * correction, the resources, the history and the settings' row, in that order on a phone (TeamManage). From 901px the
- * rest stands in two columns (the owner, 2026-11-08), each a stack index.mjs draws: «Treasury» (the sum, the safe,
+ * rest stands in two columns, each a stack index.mjs draws: «Treasury» (the sum, the safe,
  * the correction) over the resources at the left, the settings' card (settings.css) over the history at the right.
  * The keyboard goes down the left column, then the right: each block is whole on its own, as the build's (stage 06).
  */

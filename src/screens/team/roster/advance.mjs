@@ -534,7 +534,6 @@ export function advanceHandlers(saving, lent) {
       if (before) change(sheet, { step: before, ...(before === "stat" ? { instead: false, category: "", skill: "" } : {}) });
     },
     onAdvanceTake: () => void takeChosen(saving, lent),
-    // «About …»: the chosen skill's rule opened or folded; the sheet keeps which, through another skill chosen.
     onAdvanceRule: () => openSheet(visit) && change(openSheet(visit), { ruleOpen: !openSheet(visit).ruleOpen }),
     onAdvanceKeep: close,
     onAdvanceDone: close,

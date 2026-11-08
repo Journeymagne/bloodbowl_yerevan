@@ -13,7 +13,7 @@ import { escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { formatDay, formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { ledgerOf, readLedger } from "../../../data/treasury.mjs";
-import { icon } from "../../../ui/icons.mjs";
+import { renderFoldButton } from "../../../ui/button.mjs";
 import { lastSafeDeposit } from "./model.mjs";
 
 /** How many lines the history shows before the coach asks for the whole of it. */
@@ -77,11 +77,8 @@ const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escape
  */
 const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
 
-/**
- * The list's fold and its read on, as the overview's who can advance folds (button.css's «Show N more», the owner,
- * 2026-11-08): «Show N more» with the chevron, «Show less» once unfolded; «More» the same words with none. Keyed as above.
- */
-const foldMarkup = (expanded, label) => `<button type="button" class="g-more" data-key="ledger-all" data-ledger-all aria-expanded="${expanded}">${escapeHtml(label)}${icon("down", 16)}</button>`;
+/** The fold, and «More» in its look without the chevron; keyed as the action above. */
+const foldMarkup = (expanded, label) => renderFoldButton({ label, expanded, data: { key: "ledger-all", ledgerAll: true } });
 const moreMarkup = () => `<button type="button" class="g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
 
 /**

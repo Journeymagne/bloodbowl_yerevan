@@ -100,6 +100,7 @@ import { seasonCallFor } from "../../data/season-entry.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch } from "../../shell/current-match.mjs";
+import { renderFoldButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon as renderIcon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
@@ -297,14 +298,12 @@ function readyRow({ id, number, name, position, kind, available }, teamId) {
     + `<a class="g-overview__advance" href="${escapeHtml(teamPlayerUrl(teamId, id))}" aria-label="${escapeHtml(t("teamOverview.ready.advanceLabel", { name }))}">${escapeHtml(t("teamOverview.ready.advance"))}</a></li>`;
 }
 
-/** How many who can advance a desk's list shows before «Show N more». */
 export const READY_SHOWN = 5;
 
-/** Under a list longer than READY_SHOWN: «Show N more», or «Show less» once all are shown. */
 function readyToggle(count, all) {
   if (count <= READY_SHOWN) return "";
   const label = all ? t("common.showLess") : t("common.showMore", { count: count - READY_SHOWN });
-  return `<button type="button" class="g-more" data-ready-toggle aria-expanded="${all}">${escapeHtml(label)}${renderIcon("down", 16)}</button>`;
+  return renderFoldButton({ label, expanded: all, data: { readyToggle: true } });
 }
 
 /**

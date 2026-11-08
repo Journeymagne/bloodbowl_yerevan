@@ -159,39 +159,17 @@
 }
 #player-advance .g-advance__tag--held { color: var(--muted); }
 
-/*
- * The chosen skill's rule under the skills (the owner, 2026-11-08): «About …» in the accent with the chevron, which turns
- * once it is open, a finger's 44 on a phone; the rule on the grey in the prose's look a size down, its first and last
- * margins given to the box's padding. On a desk the box scrolls past 260px, so the columns keep their height.
- */
-/* No margin of its own: the column's or the body's gap is the room over it (the owner, 2026-11-08: twice that read as a gap). */
+/* The chosen skill's rule under the skills: the fold (button.css's `.g-more`) at the column's start, then the box. */
 #player-advance .g-advance__rule {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
-  margin: 0;
 }
 #player-advance .g-advance__ruletoggle {
-  box-sizing: border-box;
-  display: inline-flex;
   align-self: flex-start;
-  align-items: center;
-  gap: var(--space-4);
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent-text);
-  cursor: pointer;
-  font: 600 14px/normal var(--font-body);
-  letter-spacing: 0;
   text-align: left;
-  text-transform: none;
 }
-#player-advance .g-advance__ruletoggle:hover { text-decoration: underline; }
-#player-advance .g-advance__ruletoggle[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
 #player-advance .g-advance__ruletext {
   box-sizing: border-box;
   min-width: 0;
@@ -510,7 +488,7 @@
     justify-content: center;
     gap: 2px;
     min-height: 40px;
-    /* 6px over and under: a skill with «+15k · elite combination» under its name is two lines, which stood on the ring (the owner, 2026-11-08). */
+    /* Room for an elite combination's second line («+15k · elite combination»), which otherwise touched the ring. */
     padding: var(--space-6) var(--space-10);
     border-radius: var(--radius-md);
     box-shadow: var(--ring);
@@ -528,8 +506,7 @@
   #player-advance .g-advance__tag--held,
   #player-advance .g-advance__tag--picked { display: none; }
   #player-advance .g-advance__tag--elite { font-size: 12px; }
-  /* The rule in the column: a desk's 24px «About …» (D2), and a box that scrolls past 260px rather than stretch the three. */
-  #player-advance .g-advance__ruletoggle { min-height: 24px; }
+  /* A long rule scrolls in its box rather than stretch the three columns. */
   #player-advance .g-advance__ruletext {
     max-height: 260px;
     overflow-y: auto;

@@ -20,7 +20,6 @@
   text-transform: none;
   letter-spacing: 0;
 }
-/* The last of a list draws no rule under it: the list's edge ends it. */
 .g-resource:last-child { border-bottom: 0; }
 
 .g-resource__text {

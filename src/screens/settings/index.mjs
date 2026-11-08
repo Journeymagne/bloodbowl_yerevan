@@ -114,7 +114,7 @@ function languageHtml(locale) {
     data: { segGroup: "language" },
   });
   // The control names itself to a screen reader; the caption is for the eyes.
-  return `<div class="g-settings__language"><span class="g-settings__caption" aria-hidden="true">${escapeHtml(t("settings.language"))}</span>${control}</div>`;
+  return `<div class="g-settings__language"><span class="g-field__label" aria-hidden="true">${escapeHtml(t("settings.language"))}</span>${control}</div>`;
 }
 
 /**
