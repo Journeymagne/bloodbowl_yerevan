@@ -1,6 +1,6 @@
 /*
- * The treasury strip of the desk roster (DeskRoster): the money first, then what the team holds, then the button
- * that adds or takes money. The keyboard ring is base.css's.
+ * The treasury strip of the desk roster (DeskRoster): the money first, then what the team holds, then the pencil
+ * that leads to the team page. The keyboard ring is base.css's.
  *
  * From 901px only: the phone has the treasury card instead. The strip wraps, so a narrow desktop (901 to about
  * 1050px, with the SideNav beside it) never clips a cell; the lines between the cells are the one-pixel gap that
@@ -94,13 +94,9 @@
   color: var(--ink);
   cursor: pointer;
 }
+.g-funds__edit:hover { background: var(--surface-2); }
 
 /* The ring inside the button: the strip clips what lies outside its edge, which is where this button sits. */
 .g-funds__edit:focus-visible {
   outline-offset: -3px;
-}
-
-.g-funds__edit[aria-disabled="true"] {
-  color: var(--disabled);
-  cursor: not-allowed;
 }

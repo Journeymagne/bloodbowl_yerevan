@@ -386,23 +386,21 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
   assert.deepEqual(titles(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings", gamesUnknown: true })))), [en["treasury.gamesUnknown"]]);
 });
 
-test("on a desk the settings are a card in the right column, under the history; the resources keep the left (DeskBuilder, DeskRosterFunds)", () => {
+test("on a desk the settings are a card in the right column, over the history; the treasury and the resources keep the left (DeskBuilder, DeskRosterFunds)", () => {
   const fragment = mount(manageMarkup(model(TEAMS[0])));
-  const cols = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
-  assert.ok(cols.at(-1) === fragment.querySelector("section.g-team-settings"), "the columns' last");
-  assert.ok(cols.at(-2) === fragment.querySelector(".g-manage__history"), "after the history");
+  const [left, right] = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
+  const blocks = (column) => column.childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(blocks(right)[0] === fragment.querySelector("section.g-team-settings"), "the right column's first (the owner, 2026-11-08)");
+  assert.ok(blocks(right)[1] === fragment.querySelector(".g-manage__history"), "the history under it");
+  assert.ok(blocks(left)[0] === fragment.querySelector(".g-manage__treasury") && blocks(left)[1] === fragment.querySelector(".g-manage__resources"),
+    "the treasury over the resources in the left column");
   assert.ok(fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1).at(-1) === fragment.querySelector(".g-manage__cols"), "nothing across the page under the columns");
   assert.ok(!fragment.querySelector(".g-team-settings-entry"), "no row: the card is on the page");
   assert.equal(fragment.querySelector("h2#team-settings-title").getAttribute("tabindex"), "-1", "the address of the settings puts the focus there");
   const MANAGE = "src/screens/team/manage/manage.css";
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-rows"), ["auto auto 1fr"]);
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "the 1fr row stretches neither the history nor the card");
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources", "grid-area"), ["resources"]);
-  // The card's area is the settings' own sheet's; from 901px, as the columns are.
-  const desk = mediaText(SETTINGS, "min-width: 901px");
-  assert.match(desk, /\.g-manage__cols > \.g-team-settings \{ grid-area: settings; \}/);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-manage__cols > .g-team-settings", "grid-area"), ["settings"]);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "a column is as tall as what it holds: neither is stretched by the other");
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-areas"), [], "the columns are the markup's, not areas");
+  assert.doesNotMatch(read(SETTINGS), /grid-area/, "the card needs no area of its own");
 });
 
 // DeskBuilder.html's «Команда» card: `padding: 4px 24px 20px`, a radius of 16, `inset 0 0 0 1px #DCE3DF`, which is the
@@ -555,33 +553,32 @@ test("a sheet left open across 900px gives the focus back to its row's button as
 test("the team page across 900px: a focus on what the other width's stylesheet hides goes to the page's title; from the settings, to the settings' place", async () => {
   await atWidth(false, async ({ cross }) => {
     await page("t1");
-    // The desk's strip stays in the page on a phone, hidden (strip.css): its pencil is no place for the focus.
-    const edit = view.querySelector(".g-funds__edit");
-    edit.focus();
-    edit.getClientRects = () => [];
+    // The desk's treasury card under the safe is the desk's: across 900px the phone's card stands in its place.
+    const desk = view.querySelector('.g-manage__treasury [data-treasury-sign="1"]');
+    desk.focus();
     cross(true);
-    assert.ok(edit.isConnected && view.querySelector(".g-funds__edit") === edit, "the same button, still in the page");
+    assert.equal(view.querySelector(".g-manage__treasury"), null, "a phone draws the desk's card no more");
     assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "the page's title, a place the keyboard goes on from");
-    // And back: the phone's card's «+ Add», hidden from 901px (manage.css).
+    // And back: the phone's card's «+ Add», gone from 901px.
     const add = view.querySelector(".g-manage__in");
     add.focus();
-    add.getClientRects = () => [];
     cross(false);
-    assert.ok(add.isConnected && document.activeElement === view.querySelector(".g-manage h1"));
+    assert.equal(view.querySelector(".g-manage__card"), null);
+    assert.ok(document.activeElement === view.querySelector(".g-manage h1"));
     // From the settings the settings' place, as before: the card on a desk, the row on a phone.
     view.querySelector('[data-settings-open="fans"]').focus();
     cross(true);
     assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"));
-    // A focus the width keeps and shows stays where it is.
-    const fix = view.querySelector(".g-manage__fix");
-    fix.focus();
-    fix.getClientRects = () => [{ width: 200, height: 44 }];
+    // The correction stands under the safe on a phone and inside the desk's treasury card: across 900px it changes
+    // places, and the focus on it goes to the page's title, never the body.
+    view.querySelector(".g-manage__fix").focus();
     cross(false);
-    assert.ok(document.activeElement === fix && fix.isConnected, "the correction's button is the same on both widths");
+    assert.ok(view.querySelector(".g-manage__treasury .g-manage__fix"), "the desk's correction is the treasury card's");
+    assert.ok(document.activeElement === view.querySelector(".g-manage h1"));
   });
 });
 
-// T37 review m4: the money sheet's openers stay in the page on both widths, each hidden on one (strip.css, manage.css).
+// T37 review m4: the money sheet's openers are the desk's treasury card's on a desk, the phone card's on a phone.
 test("a money sheet closed after the width crossed gives the focus to a button the width shows that opens it, else the page's title, never the body", async () => {
   await atWidth(false, async ({ cross }) => {
     await page("t1");
@@ -592,24 +589,17 @@ test("a money sheet closed after the width crossed gives the focus to a button t
       assert.ok(host().querySelector("dialog#treasury-money").matches(":modal"));
     };
     const closeIt = () => fireEvent(host().querySelector("[data-sheet-close]"), "click");
-    const hide = (...buttons) => { for (const button of buttons) button.getClientRects = () => []; };
-    const show = (...buttons) => { for (const button of buttons) button.getClientRects = () => [{ width: 44, height: 44 }]; };
-    const [edit, add, take] = [".g-funds__edit", ".g-manage__in", ".g-manage__out"].map((selector) => view.querySelector(selector));
-    hide(add, take);
-    openFrom(edit);
-    hide(edit);
-    show(add, take);
+    const desk = () => view.querySelector('.g-manage__treasury [data-treasury-sign="1"]');
+    openFrom(desk());
     cross(true);
     closeIt();
-    assert.ok(document.activeElement === add, "the desk's pencil is hidden on a phone: the card's «+ Add» opens the same sheet");
-    openFrom(take);
-    hide(add, take);
-    show(edit);
+    assert.ok(document.activeElement === view.querySelector(".g-manage__in"), "the desk's card is gone on a phone: the phone card's «+ Add» opens the same sheet");
+    openFrom(view.querySelector(".g-manage__out"));
     cross(false);
     closeIt();
-    assert.ok(document.activeElement === edit, "«− Take» is hidden on a desk: the strip's pencil");
-    openFrom(edit);
-    hide(edit);
+    assert.ok(document.activeElement === desk(), "the phone's card is gone on a desk: the desk's «+ Add»");
+    openFrom(desk());
+    for (const button of view.querySelectorAll("[data-treasury-money]")) button.getClientRects = () => [];
     closeIt();
     assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "none shown: the page's title");
   });

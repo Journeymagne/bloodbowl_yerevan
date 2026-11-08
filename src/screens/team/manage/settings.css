@@ -388,9 +388,6 @@
 }
 
 @media (min-width: 901px) {
-  /* DeskBuilder: the card stands last in the team page's right column, under the history (manage.css names the area). */
-  .g-manage__cols > .g-team-settings { grid-area: settings; }
-
   /* DeskBuilder's team card: 4px over the heading's 18, 24px at its sides, 20px under the last line; white in the kit's ring. */
   .g-team-settings {
     padding: var(--space-4) var(--space-24) var(--space-20);

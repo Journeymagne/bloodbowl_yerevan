@@ -12,9 +12,11 @@
  *
  * On a phone the page is a dark treasury card with «+ Add» and «− Take», then the safe, the correction, the
  * resources and the history, in that order (decision 19), and the DOM keeps it; a row last leads to the team's
- * settings, a screen of their own at their address (settings-screen.mjs; owner, 2026-10-20). On a desk the strip says
- * the treasury, and two columns follow: the resources at the left, the safe, the correction, the history and the
- * settings' card at the right (manage.css places them); their address is this page, the focus on the card. The width
+ * settings, a screen of their own at their address (settings-screen.mjs; owner, 2026-10-20). On a desk two columns
+ * stand under the head (the owner, 2026-11-08): at the left «Treasury» — the sum with its pencil, Coach's Safe, the
+ * correction — and the resources under it; at the right the settings' card, and the history under it. The
+ * settings' address is this page, the focus on their card. The roster's strip says the treasury and what the team holds
+ * in one row, so the page draws it no more: its resources and the treasury card say it. The width
  * is asked at each draw (`isPhone`), and the page is drawn again in the other form when it crosses 900px.
  */
 import { drawKeepingFocus, drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
@@ -41,7 +43,7 @@ import { matchLock, phaseOf, resourceRows } from "./model.mjs";
 import { resourcesMarkup, wireResources } from "./resources.mjs";
 import { settingsEntryMarkup, settingsScreenMarkup } from "./settings-screen.mjs";
 import { SETTINGS_PLACE, settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
-import { renderTreasuryStrip, shutOpener, treasuryCardMarkup, wireTreasuryStrip } from "./strip.mjs";
+import { shutOpener, treasuryBlockMarkup, treasuryCardMarkup, wireTreasuryStrip } from "./strip.mjs";
 
 /**
  * What the page shows of a team.
@@ -63,7 +65,7 @@ import { renderTreasuryStrip, shutOpener, treasuryCardMarkup, wireTreasuryStrip 
  * @returns {{teamId: string, team: object, treasury: number, safe: number, worth: number|null,
  *   phase: ReturnType<typeof phaseOf>, lock: ReturnType<typeof matchLock>, rows: ReturnType<typeof resourceRows>,
  *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean, phone: boolean,
- *   screen: "page"|"settings", settings: ReturnType<typeof settingsModel>}} `team` is what the strip is drawn from
+ *   screen: "page"|"settings", settings: ReturnType<typeof settingsModel>}} `team` names the phone's settings screen
  */
 export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false, queue, phone = false, screen = "page" }) {
   const roster = team.roster ?? {};
@@ -124,15 +126,25 @@ export function manageMarkup(model) {
     // On a phone the team's value is in the card (TeamManage.html): the head says the title and the phase.
     phoneSub: false,
   });
-  const side = `<div class="g-manage__side">${safeMarkup({ safe: model.safe, entries: model.ledger.entries })}`
-    + `${shutOpener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live)}</div>`;
+  // The safe and the correction: under the phone's card on a phone, inside the desk's treasury card on a desk. Across
+  // 900px they change places, and a focus on the correction goes to the page's title (`drawKeepingFocus`).
+  const safe = safeMarkup({ safe: model.safe, entries: model.ledger.entries });
+  const fix = shutOpener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live);
+  const resources = resourcesMarkup({ rows: model.rows, busy: model.busy });
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
-  // The settings: the right column's last card on a desk (the columns keyed: a callout coming over them keeps their nodes,
-  // and a focus in them); on a phone, a row last on the page leads to their screen.
-  const [card, entry] = model.phone ? ["", settingsEntryMarkup(model.teamId)] : [settingsMarkup(model), ""];
-  return `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`
-    + `${renderTreasuryStrip({ team: model.team, games: model.games })}${treasuryCardMarkup(model, live)}`
-    + `<div class="g-manage__cols" data-key="manage-cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}${card}</div>${entry}</div>`;
+  const page = `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`;
+  // A phone (TeamManage): the dark treasury card, the safe and the correction, the resources, the history, and a row
+  // last on the page that leads to the settings' screen.
+  if (model.phone) {
+    return `${page}${treasuryCardMarkup(model, live)}<div class="g-manage__cols" data-key="manage-cols">`
+      + `<div class="g-manage__side">${safe}${fix}</div>${resources}${history}</div>${settingsEntryMarkup(model.teamId)}</div>`;
+  }
+  // A desk: two columns, each a stack of its own (the owner, 2026-11-08) — the treasury card, which holds the safe and
+  // the correction, over the resources; the settings' card over the history. The columns keyed: a callout coming over
+  // them keeps their nodes, and a focus in them.
+  return `${page}<div class="g-manage__cols" data-key="manage-cols">`
+    + `<div class="g-manage__col" data-key="manage-col-main">${treasuryBlockMarkup(model, live, safe + fix)}${resources}</div>`
+    + `<div class="g-manage__col" data-key="manage-col-side">${settingsMarkup(model)}${history}</div></div></div>`;
 }
 
 /** The page of `teamId` (its `screen`, at the width there is now) as the state has it now; "" when the team is not on the coach's list. */

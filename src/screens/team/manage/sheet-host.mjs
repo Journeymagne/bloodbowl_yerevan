@@ -47,9 +47,9 @@ export function unmountSheetHost(host) {
 /**
  * The focus back to the button that opened a sheet, if the page still shows it. A sheet that names its openers'
  * attribute (`openerKey`: the money sheet's `data-treasury-money`, the team it writes to) finds another when a redraw
- * took that button away or a width that crossed 900px hid it (the desk strip's pencil and the phone card's «+ Add» and
- * «− Take» all stay in the page, each shown on one width): the first shown button of the same team, else the page's
- * h1, never the body. A sheet with none (the settings find their own place) gives it only to the button itself.
+ * took that button away (a width that crossed 900px draws the desk's treasury card, with its pencil, or the phone's,
+ * with «+ Add» and «− Take», in the other's place) or a stylesheet hid it: the first shown button of the same team,
+ * else the page's h1, never the body. A sheet with none (the settings find their own place) gives it only to the button itself.
  * @param {Element} back @param {string} openerKey
  */
 function giveFocusBack(back, openerKey) {

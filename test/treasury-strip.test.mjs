@@ -17,7 +17,7 @@ const { invalidateGames } = await import("../src/data/games.mjs");
 const { onMyTeamsChange, setMyTeams } = await import("../src/data/teams.mjs");
 const { medicalStaffDefinitions } = await import("../src/domain/league-rules.mjs");
 const { COUNTER_KEYS } = await import("../src/screens/team/manage/model.mjs");
-const { renderTreasuryStrip, wireTreasuryStrip } = await import("../src/screens/team/manage/strip.mjs");
+const { renderTreasuryStrip, treasuryBlockMarkup, wireTreasuryStrip } = await import("../src/screens/team/manage/strip.mjs");
 const { ICON_NAMES } = await import("../src/ui/icons.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -64,14 +64,18 @@ afterEach(() => {
   initLocale("en");
 });
 
-function stand(extra = "", options = {}) {
+/** The desk team page's treasury card of t1 (70k), its «+ Add» and «− Take» shut when `live`: what opens the sheet. */
+const block = (live = false) => treasuryBlockMarkup({ teamId: "t1", treasury: 70 }, live);
+
+function stand(extra = block()) {
   root = el(document, "div");
   document.body.appendChild(root);
-  root.innerHTML = renderTreasuryStrip({ team: state.myTeams.items[0], ...options }) + extra;
+  root.innerHTML = renderTreasuryStrip({ team: state.myTeams.items[0] }) + extra;
   unwire = wireTreasuryStrip(root);
   return root;
 }
-const edit = () => root.querySelector("button.g-funds__edit");
+const edit = () => root.querySelector("a.g-funds__edit");
+const add = () => root.querySelector('.g-manage__treasury [data-treasury-sign="1"]');
 const sheetHost = () => document.querySelector(SHEET_HOST);
 const sheetDialog = () => document.querySelector(`${SHEET_HOST} dialog#treasury-money`);
 
@@ -82,16 +86,16 @@ test("the strip says the treasury and what the team holds, as on DeskRoster", ()
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "0", "yes"]);
   const section = document.querySelector("section.g-funds");
   assert.equal(section.getAttribute("data-treasury-strip"), "t1");
-  assert.equal(section.getAttribute("aria-label"), "Treasury and resources");
+  assert.equal(section.getAttribute("aria-label"), "Team, treasury and resources");
   const cells = section.querySelectorAll(".g-funds__cell");
   assert.match(cells[0].getAttribute("class"), /g-funds__cell--money/, "the treasury is the first cell, and the one set apart");
   assert.equal(section.querySelectorAll(".g-funds__cell--money").length, 1);
-  const button = document.querySelector('button.g-funds__edit[data-treasury-money="t1"][data-treasury-sign="1"]');
-  assert.equal(button.getAttribute("type"), "button");
-  assert.equal(button.getAttribute("aria-label"), "Add to or take from the treasury");
-  assert.equal(button.hasAttribute("aria-disabled"), false);
-  assert.equal(button.hasAttribute("title"), false);
-  assert.equal(button.querySelector("path").getAttribute("d"), "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z", "07a draws the same pencil");
+  // The pencil leads to the team page, «Team, treasury and resources», where all of it is changed (the owner, 2026-11-08).
+  const link = document.querySelector("a.g-funds__edit");
+  assert.equal(link.getAttribute("href"), "#/t/t1/team");
+  assert.equal(link.getAttribute("aria-label"), "Team, treasury and resources");
+  assert.equal(link.hasAttribute("data-treasury-money"), false, "it opens no sheet of its own");
+  assert.equal(link.querySelector("path").getAttribute("d"), "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z", "07a draws the same pencil");
   assert.ok(ICON_NAMES.includes("pencil") && !ICON_NAMES.includes("edit"));
   assertCspSafe(fragment);
   assertStyled(fragment, CSS);
@@ -126,8 +130,8 @@ test("the strip reads in Russian: the labels the prototype shortens are shortene
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
   assert.deepEqual(labels(), ["Казна", "Старт. рер.", "Ком. рер.", "Фаны", "Coaches", "Cheer", "Bribes", "Апот."]);
   assert.equal(values().at(-1), "есть");
-  assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Казна и ресурсы");
-  assert.equal(document.querySelector("button.g-funds__edit").getAttribute("aria-label"), "Зачислить или списать");
+  assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Команда, казна и ресурсы");
+  assert.equal(document.querySelector("a.g-funds__edit").getAttribute("aria-label"), "Команда, казна и ресурсы");
   mount(renderTreasuryStrip({ team: { ...state.myTeams.items[0], roster: { ...TEAM.roster, apothecary: 0 } } }));
   assert.equal(values().at(-1), "нет");
 });
@@ -137,7 +141,8 @@ test("every counter and medic has its label, and the strip's words, in both dict
   assert.ok(keys.length >= 9);
   for (const dictionary of [en, ru]) {
     for (const key of keys) assert.ok(dictionary[`treasury.strip.${key}`], key);
-    for (const key of ["treasury.title", "treasury.strip.yes", "treasury.strip.no", "treasury.strip.edit"]) assert.ok(dictionary[key], key);
+    for (const key of ["treasury.title", "treasury.strip.yes", "treasury.strip.no"]) assert.ok(dictionary[key], key);
+    assert.equal(dictionary["treasury.strip.edit"], undefined, "the pencil is named for the page it leads to");
   }
   assert.deepEqual(
     ["startingRerolls", "teamRerolls", "dedicatedFans", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
@@ -164,14 +169,32 @@ test("a team with no roster at all draws a strip of nothing, and does not throw"
   assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "0", "no"]);
 });
 
-test("the strip's button opens the same sheet as the team page, and leaving takes it away", () => {
+test("the desk's treasury card: the sum as a resources' row, one pencil beside it; the strip's pencil is no button of the sheet", () => {
   coach();
-  const take = `<button type="button" data-treasury-money="t1" data-treasury-sign="-1">Take</button>`;
-  stand(take);
+  const fragment = mount(block());
+  const card = document.querySelector("section.g-manage__treasury");
+  assert.equal(card.getAttribute("aria-labelledby"), "manage-treasury-title");
+  assert.equal(card.querySelector("h2#manage-treasury-title").textContent, "Treasury");
+  assert.equal(card.querySelector(".g-resource .g-manage__treasury-sum").textContent, "70k");
+  const buttons = card.querySelectorAll("button");
+  assert.deepEqual(buttons.map((button) => [button.getAttribute("class"), button.getAttribute("data-treasury-sign"), button.getAttribute("aria-label"), button.getAttribute("aria-haspopup")]),
+    [["g-resource__btn", "1", "Add to or take from the treasury", "dialog"]]);
+  assert.equal(buttons[0].hasAttribute("aria-disabled"), false);
+  assert.equal(card.querySelector(".g-resource--locked"), null);
+  assertCspSafe(fragment);
+  mount(block(true));
+  const shut = document.querySelector(".g-manage__treasury button");
+  assert.deepEqual([shut.getAttribute("aria-disabled"), shut.getAttribute("title")], ["true", "After the match's post-match"], "shut during a match, and saying why");
+  assert.ok(document.querySelector(".g-manage__treasury .g-resource--locked"), "the row quiet, as a locked resource's");
+});
+
+test("the pencil opens the sheet the phone's card opens, and leaving takes it away", () => {
+  coach();
+  stand(`${block()}<button type="button" id="take" data-treasury-money="t1" data-treasury-sign="-1">− Take</button>`);
   const off = unwire;
   assert.equal(sheetHost().querySelector("dialog"), null, "the host is mounted at wiring, empty; the dialog is drawn by the press");
   assert.equal(document.body.childNodes.at(-1), sheetHost(), "at the end of the body, as the sheet host puts it");
-  const button = edit();
+  const button = add();
   button.focus();
   fireEvent(button, "click");
   assert.ok(sheetDialog().matches(":modal"));
@@ -180,31 +203,26 @@ test("the strip's button opens the same sheet as the team page, and leaving take
   assert.equal(sheetDialog().querySelector("#money-amount").value, "20");
   fireEvent(sheetDialog().querySelector("[data-sheet-close]"), "click");
   assert.equal(sheetDialog(), null);
-  assert.equal(document.activeElement, button, "the focus goes back to the strip's button");
-  // The phone's treasury card is another button of the same kind; its sign is its own.
-  fireEvent(root.querySelector('[data-treasury-sign="-1"]'), "click");
+  assert.equal(document.activeElement, button, "the focus goes back to the button");
+  // The phone's «− Take» is another button of the same kind; its sign is its own.
+  fireEvent(root.querySelector("#take"), "click");
   assert.equal(sheetDialog().querySelector(".g-sheet__title").textContent, "Take from the treasury");
   assert.equal(sheetDialog().querySelector('[data-seg-value="out"]').getAttribute("aria-checked"), "true");
   off();
   assert.equal(sheetHost(), null, "leaving takes the host, and the sheet in it, away");
 });
 
-test("after leaving the strip hears nothing: the teams and the games change and it stays as it was, and a shut button says nothing", async () => {
+test("after leaving the strip hears nothing: the teams change and it stays as it was, and a shut button says nothing", async () => {
   coach();
-  stand();
-  const button = edit();
+  stand(block(true));
+  const link = edit();
   unwire();
   setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
-  api.reply("GET /api/games", 200, { games: [LIVE] });
-  await invalidateGames();
   assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "70k", "a strip that was still listening would read 30k");
-  assert.equal(edit(), button);
-  assert.equal(button.hasAttribute("aria-disabled"), false, "nor does it lock for the match");
+  assert.equal(edit(), link);
   // A press on a shut button is answered by a toast while the strip listens; not after it has left.
-  button.setAttribute("aria-disabled", "true");
-  button.setAttribute("title", "shut");
   await withoutTimers(async () => {
-    fireEvent(button, "click");
+    fireEvent(add(), "click");
   });
   assert.deepEqual(toasts(), []);
   assert.equal(sheetHost(), null);
@@ -216,14 +234,14 @@ test("wired twice on one root the strip has one host and opens one dialog; the f
   const first = unwire;
   const second = wireTreasuryStrip(root);
   assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "the second wiring mounts nothing");
-  fireEvent(edit(), "click");
+  fireEvent(add(), "click");
   assert.equal(document.querySelectorAll("dialog#treasury-money").length, 1, "one press, one sheet");
   first();
   first();
   assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a release is spent once: the other holder keeps the wiring");
   fireEvent(sheetDialog().querySelector("[data-sheet-close]"), "click");
-  fireEvent(edit(), "click");
-  assert.ok(sheetDialog().matches(":modal"), "and the strip still answers a press");
+  fireEvent(add(), "click");
+  assert.ok(sheetDialog().matches(":modal"), "and the wiring still answers a press");
   setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
   assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k", "and still draws itself");
   second();
@@ -241,7 +259,7 @@ test("an entry made from the strip shows on the strip without the screen drawing
   const heard = [];
   const stop = onMyTeamsChange(() => heard.push(state.myTeams.items[0].revision));
   try {
-    fireEvent(edit(), "click");
+    fireEvent(add(), "click");
     fireEvent(sheetDialog().querySelector('[data-money-reason="sponsor"]'), "click");
     api.reply(POST, 201, { team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } }, entry: ENTRY });
     await withoutTimers(async () => {
@@ -260,17 +278,17 @@ test("an entry made from the strip shows on the strip without the screen drawing
   assert.equal(sheetDialog(), null);
 });
 
-test("a strip patched keeps the focus on its button, though the cells around it come and go", () => {
+test("a strip patched keeps the focus on its pencil, though the cells around it come and go", () => {
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   stand();
   assert.equal(labels(root).includes("Apo"), true);
-  const button = edit();
-  button.focus();
-  // The race the list names changes: a cell goes, and the button, which is last, must be the same node still.
+  const link = edit();
+  link.focus();
+  // The race the list names changes: a cell goes, and the pencil, which is last, must be the same node still.
   setMyTeams([{ ...state.myTeams.items[0], baseTeamSlug: "teams/necromantic-horror" }]);
   assert.equal(labels(root).includes("Apo"), false);
-  assert.equal(edit(), button);
-  assert.equal(document.activeElement, button);
+  assert.equal(edit(), link);
+  assert.equal(document.activeElement, link);
 });
 
 test("a team gone from the list leaves its strip as it was, and a strip of another team is not touched", () => {
@@ -293,10 +311,12 @@ test("a shut button that carries no reason of its own (the phone's treasury card
   assert.equal(document.querySelector("dialog"), null);
 });
 
-test("a live match: the button is refused with its reason, no sheet opens", async () => {
+test("a live match: a shut «+ Add» is refused with its reason, no sheet opens; the pencil still leads to the team page", async () => {
   coach({ games: [LIVE] });
-  stand();
-  const button = edit();
+  stand(block(true));
+  assert.equal(edit().getAttribute("href"), "#/t/t1/team", "the team page says what the match closes there");
+  assert.equal(edit().hasAttribute("aria-disabled"), false);
+  const button = add();
   assert.equal(button.getAttribute("aria-disabled"), "true");
   assert.equal(button.getAttribute("title"), "After the match's post-match");
   await withoutTimers(async () => {
@@ -309,35 +329,19 @@ test("a live match: the button is refused with its reason, no sheet opens", asyn
   assert.equal(api.calls.length, 0);
 });
 
-test("the games are the screen's to give: the strip honours a live game from the model, and the state's list when none is given", () => {
+test("the strip is the same whether a match is on or not, and a match that goes live does not touch it", async () => {
   coach();
   const team = state.myTeams.items[0];
-  const disabled = (markup) => mount(markup) && document.querySelector("button.g-funds__edit").getAttribute("aria-disabled");
-  assert.equal(disabled(renderTreasuryStrip({ team, games: [LIVE] })), "true");
-  assert.equal(disabled(renderTreasuryStrip({ team })), null);
+  const quiet = renderTreasuryStrip({ team });
   state.games.items = [LIVE];
-  assert.equal(disabled(renderTreasuryStrip({ team })), "true", "no games given: the list the app holds");
-  assert.equal(disabled(renderTreasuryStrip({ team, games: [] })), null, "a list given wins, even an empty one");
-  assert.equal(disabled(renderTreasuryStrip({ team, games: null })), null, "games not read yet is no match on");
-  assert.equal(disabled(renderTreasuryStrip({ team: { ...team, id: "t9" }, games: [LIVE] })), null, "another team's match is not this team's");
-});
-
-test("a match that goes live while the strip is up locks its button, and the end of the match opens it again, with no screen drawing it", async () => {
-  coach();
+  assert.equal(renderTreasuryStrip({ team }), quiet, "it reads no games");
+  state.games.items = [];
   stand();
-  const button = edit();
-  assert.equal(button.hasAttribute("aria-disabled"), false);
+  const link = edit();
   api.reply("GET /api/games", 200, { games: [LIVE] });
   await invalidateGames();
-  assert.equal(edit(), button, "patched in place");
-  assert.equal(button.getAttribute("aria-disabled"), "true");
-  assert.equal(button.getAttribute("title"), "After the match's post-match");
-  api.reply("GET /api/games", 200, { games: [] });
-  await invalidateGames();
-  assert.equal(button.hasAttribute("aria-disabled"), false);
-  assert.equal(button.hasAttribute("title"), false);
-  fireEvent(button, "click");
-  assert.ok(sheetDialog().matches(":modal"));
+  assert.equal(edit(), link);
+  assert.equal(link.getAttribute("href"), "#/t/t1/team");
 });
 
 test("from 901px only, and the cells wrap rather than clip", () => {
@@ -350,8 +354,8 @@ test("from 901px only, and the cells wrap rather than clip", () => {
   assertReadable(CSS, ".g-funds__cell--money .g-funds__k", "color", ["--accent-tint"], 4.5);
   assertReadable(CSS, ".g-funds__k", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-funds__v", "color", ["--surface"], 4.5);
-  assertReadable(CSS, ".g-funds__edit", "color", ["--surface"], 4.5);
-  assert.deepEqual(valuesOf(CSS, '.g-funds__edit[aria-disabled="true"]', "color"), ["var(--disabled)"], "a shut button is the disabled colour, which WCAG exempts, and says why when pressed");
+  assertReadable(CSS, ".g-funds__edit", "color", ["--surface", "--surface-2"], 4.5);
+  assert.doesNotMatch(read(CSS), /aria-disabled/, "the pencil is a link, never shut");
   assert.deepEqual(valuesOf(CSS, ".g-funds__k", "font"), ["600 11px/1.2 var(--font-body)"]);
   assert.deepEqual(valuesOf(CSS, ".g-funds__v", "font"), ["700 20px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(CSS, ".g-funds__edit", "min-height"), ["var(--size-touch)"]);
