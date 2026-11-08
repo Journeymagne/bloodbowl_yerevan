@@ -135,6 +135,8 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/* The last pair draws no rule; the head keeps its own even over no pair. */
+.g-adminseason__row:not(.g-adminseason__row--head):last-child { border-bottom: 0; }
 /* The rule under the head is the prototype's #C9D3CE, a tone over the rows' lines. */
 .g-adminseason__row--head {
   min-height: 0;
@@ -207,6 +209,7 @@
   min-height: 56px;
   border-bottom: 1px solid var(--line);
 }
+.g-adminseason__wait:last-child { border-bottom: 0; }
 .g-adminseason__waittext {
   flex: 1 1 auto;
   min-width: 0;
@@ -381,6 +384,7 @@
   letter-spacing: 0;
   text-transform: none;
 }
+.g-adminentries__row:last-child { border-bottom: 0; }
 .g-adminentries__who {
   display: flex;
   flex: 1 1 220px;

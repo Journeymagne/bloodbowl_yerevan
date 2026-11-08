@@ -108,6 +108,8 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/* The last coach draws no rule; the head keeps its own even over no coach. */
+.g-coaches__row:not(.g-coaches__head):last-child { border-bottom: 0; }
 
 /* The coach: his letter, the login, «admin». */
 .g-coaches__who {
@@ -218,6 +220,7 @@
   color: var(--ink);
   text-decoration: none;
 }
+.g-coaches__item:last-child { border-bottom: 0; }
 .g-coaches__item > .g-icon {
   flex: none;
   color: var(--faint);

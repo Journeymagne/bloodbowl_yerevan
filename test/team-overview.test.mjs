@@ -1828,8 +1828,8 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   // A phone's row is 56 as Team.html's content-box draws it, and the phone shows the three newest; a desk's row is 53, its 52 and the rule.
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__result", "min-height"), ["56px", "53px"]);
   assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(n\+4\) \{ display: none; \}/, "the fourth and fifth result wait for a desk");
-  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(3\),\s*\.g-overview__result:last-child \{ border-bottom: 0; \}/, "Team.html's last row has no rule");
-  assert.doesNotMatch(deskOf(LISTS_CSS), /:last-child \{ border-bottom: 0/, "DeskOverview.html's last row keeps its rule");
+  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(3\) \{ border-bottom: 0; \}/, "a phone's third shown row, its last, has no rule");
+  assert.match(bareOf(LISTS_CSS), /^\.g-overview__result:last-child \{ border-bottom: 0; \}/m, "nor the last row on either width: the card's edge ends the list (the owner, 2026-11-08)");
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__score", "font-variant-numeric"), ["tabular-nums", "tabular-nums"], "after each shorthand, which resets it");
   assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "34px"], "a phone's figure keeps to one line at 320px; a desk's is DeskOverview.html's 34px, its cards wrapping instead");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");

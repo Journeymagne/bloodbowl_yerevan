@@ -20,6 +20,8 @@
   text-transform: none;
   letter-spacing: 0;
 }
+/* The last of a list draws no rule under it: the list's edge ends it. So the key–value and ranked rows below. */
+.g-list-row:last-child { border-bottom: 0; }
 .g-list-row .g-icon { color: var(--faint); }
 
 .g-list-row__text {
@@ -69,6 +71,7 @@
   text-transform: none;
   letter-spacing: 0;
 }
+.g-kv:last-child { border-bottom: 0; }
 
 /* Either side may wrap rather than push the other out of the row. */
 .g-kv__label { min-width: 0; }
@@ -97,6 +100,7 @@
   text-transform: none;
   letter-spacing: 0;
 }
+.g-ranked:last-child { border-bottom: 0; }
 
 .g-ranked__lead {
   display: flex;

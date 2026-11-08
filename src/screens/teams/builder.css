@@ -218,6 +218,7 @@
   min-height: 52px;
   border-bottom: 1px solid var(--line);
 }
+.g-build__row:last-child { border-bottom: 0; }
 .g-build__row--logo { min-height: 60px; }
 
 .g-build__label {
@@ -303,6 +304,7 @@
   padding: var(--space-8) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-hire:last-child { border-bottom: 0; }
 
 .g-hire__avatar {
   display: flex;

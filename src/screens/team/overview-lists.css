@@ -192,6 +192,8 @@
   border-bottom: 1px solid var(--line);
   background: none;
 }
+/* The last row draws no rule on either width: the card's edge, or the next block, ends the list. */
+.g-overview__result:last-child { border-bottom: 0; }
 
 .g-overview__row {
   box-sizing: border-box;
@@ -341,8 +343,7 @@ a.g-overview__opponent {
 
   /* A phone shows the three newest matches: the fourth and the fifth are for a desk. Team.html's last row has no rule. */
   .g-overview__result:nth-child(n+4) { display: none; }
-  .g-overview__result:nth-child(3),
-  .g-overview__result:last-child { border-bottom: 0; }
+  .g-overview__result:nth-child(3) { border-bottom: 0; }
 }
 
 @media (min-width: 901px) {
@@ -453,7 +454,7 @@ a.g-overview__opponent {
 
   /*
    * A row (DeskOverview.html): the pill 30, the round, the opponent, the casualties 90, the score 70, 14 apart, at least
-   * 52 high with its rule under it — the last too. The round's column is the prototype's 60 for «Round 6», and as wide as
+   * 52 high with its rule under it — but the last, as on a phone. The round's column is the prototype's 60 for «Round 6», and as wide as
    * the widest word in it when that is wider («Товарищеский» is some 90px): it is one track of the list's grid, which
    * every row and its link take as their own (subgrid), so the columns of all the rows agree. A browser with no
    * subgrid (Chrome 111–116) drops that line and keeps the list's tracks above it: each row on one line, on its own.
