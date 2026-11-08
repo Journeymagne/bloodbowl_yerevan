@@ -106,9 +106,11 @@ export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
   const page = skillPageOf(data, name);
   const skill = line.skills.find((item) => item.name === name);
   const rule = page ? skillRuleMarkup(page) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
-  // A gained skill's box is green and names the advancement that gave it as the panel does (StatsSkill.html, fidelity F8); any other keeps 07a's words on the grey.
+  // The box is coloured as the chip that opened it (skill-chip.css): a gained skill's green, naming the advancement as the
+  // panel does (StatsSkill.html, fidelity F8); the captain's gold; any other white in the ring, in 07a's words.
+  const captain = skill?.source === "captain";
   const from = skill
-    ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
+    ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained", captain && "g-roster__from--captain")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
     : "";
   const origin = skill?.origin ? gettingEvenDetails({ ...skill.origin, attacker: { ...skill.origin.attacker, keywords: [skill.origin.keyword] } }) : '';
   return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}${origin}` });

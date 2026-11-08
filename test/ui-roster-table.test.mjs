@@ -537,6 +537,12 @@ test("the colours of the table are readable in every palette", () => {
     assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), valuesOf("src/ui/number-badge.css", ".g-num__captain", property), property);
   }
   assertReadable("src/ui/skill-chip.css", ".g-skill--captain", "color", ["--crest-gold"], 4.5);
+  // The skill's sheet says whose it is in a box coloured as the chip that opened it (the owner, 2026-11-08).
+  const BOX = "src/screens/team/roster/sheets.css";
+  for (const property of ["background", "color"]) {
+    assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", property), valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), `captain's ${property}`);
+  }
+  assert.deepEqual(valuesOf(BOX, ".g-roster__from", "box-shadow"), valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), "a starting skill's box in the chip's ring");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), []);
   // SPP that buy nothing yet: quiet, and readable; the chosen row's tint under the row's words.
   assertReadable(SHEET, ".g-rtable__c--quiet", "color", grounds, 4.5);

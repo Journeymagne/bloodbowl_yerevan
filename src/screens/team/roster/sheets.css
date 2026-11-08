@@ -4,24 +4,33 @@
  * ui/sheet.css's.
  */
 /*
- * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html:
- * #F3F6F4, 14px at 600, radius 12; a gained skill's on #E4F0E9); a skill the reference has no page for.
+ * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html: 14px
+ * at 600, radius 12), coloured as the chip that opened it (skill-chip.css; the owner, 2026-11-08): a starting skill's
+ * white in the controls' ring, a gained one's green, the captain's gold; a skill the reference has no page for.
  */
 .g-roster__from {
   margin: var(--space-12) 0 0;
   padding: var(--space-10) var(--space-12);
   border: 0;
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
   color: var(--ink-2);
   font: 600 14px/1.4 var(--font-body);
   letter-spacing: 0;
   text-transform: none;
 }
-/* A skill an advancement gave: StatsSkill.html's #E4F0E9 on #163A28, the accent's tint of the palette; the rest is the grey box above. */
+/* A skill an advancement gave: the accent's tint, as its chip (StatsSkill.html's #E4F0E9 on #163A28). */
 .g-roster__from--gained {
   background: var(--accent-tint);
+  box-shadow: none;
   color: var(--on-accent-tint);
+}
+/* The captain's own skill: the badge's «C», as its chip. */
+.g-roster__from--captain {
+  background: var(--crest-gold);
+  box-shadow: none;
+  color: var(--pitch-900);
 }
 
 .g-roster__nopage {
