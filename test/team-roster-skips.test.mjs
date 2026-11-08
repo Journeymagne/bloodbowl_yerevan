@@ -340,7 +340,7 @@ test("a skill chip of a fallen player opens its rule, in his row and in the pane
     const sheet = view.querySelector("dialog#roster-skill");
     assert.ok(sheet);
     assert.equal(sheet.querySelector("h2").textContent, "Block");
-    assert.equal(sheet.querySelector(".g-roster__from").textContent, "Pike · starting");
+    assert.equal(sheet.querySelector(".g-roster__from").textContent, "Pike · Starting");
     fireEvent(sheet, "keydown", { key: "Escape" });
     assert.ok(!view.querySelector("dialog#roster-skill"));
     fireEvent(toggle("fallen-f1"), "click");

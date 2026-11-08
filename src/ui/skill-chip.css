@@ -18,7 +18,12 @@
   padding: 0 var(--space-10);
   border: 0;
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  /*
+   * A starting skill: white in the controls' ring. On --surface-2 with no ring it was the colour of a phone's row and of a
+   * chosen row, and all but lost there (the owner, 2026-11-08).
+   */
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
   color: var(--ink-2);
   font: 500 13px/1.2 var(--font-body);
   text-transform: none;
@@ -29,7 +34,16 @@
 /* Earned by an advancement. */
 .g-skill--gained {
   background: var(--accent-tint);
+  box-shadow: none;
   color: var(--on-accent-tint);
+  font-weight: 700;
+}
+
+/* The captain's own skill: the gold and the ink of the badge's «C» (number-badge.css), the same in every palette. */
+.g-skill--captain {
+  background: var(--crest-gold);
+  box-shadow: none;
+  color: var(--pitch-900);
   font-weight: 700;
 }
 
@@ -49,6 +63,11 @@
 .g-skill--card.g-skill--gained {
   background: var(--accent-tint);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.g-skill--card.g-skill--captain {
+  background: var(--crest-gold);
+  box-shadow: none;
+  color: var(--pitch-900);
 }
 
 .g-skill__source {

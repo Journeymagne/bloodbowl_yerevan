@@ -17,12 +17,13 @@ import { classNames, dataAttributes } from "./markup.mjs";
  * @param {object} props
  * @param {string} props.name the skill as the rules spell it; never translated
  * @param {boolean} [props.gained] earned by an advancement rather than starting with the player
+ * @param {boolean} [props.captain] the captain's own skill, in gold (the owner, 2026-11-08)
  * @param {boolean} [props.card] the larger chip, which can say where the skill came from
  * @param {string} [props.source] the small line under the name; drawn on a card only
  */
-export function renderSkillChip({ name, gained = false, card = false, source = "" }) {
+export function renderSkillChip({ name, gained = false, captain = false, card = false, source = "" }) {
   if (!name) throw new Error("a skill chip needs a name: it is what opens the rule");
-  const className = classNames("g-skill", gained && "g-skill--gained", card && "g-skill--card");
+  const className = classNames("g-skill", gained && "g-skill--gained", captain && "g-skill--captain", card && "g-skill--card");
   const origin = card && source ? `<small class="g-skill__source">${escapeHtml(source)}</small>` : "";
   return `<button type="button" class="${className}" aria-haspopup="dialog"${dataAttributes({ skill: name })}>${escapeHtml(name)}${origin}</button>`;
 }
@@ -32,7 +33,7 @@ export function renderSkillChip({ name, gained = false, card = false, source = "
  * with none gets a word: an empty row would read as a missing section.
  *
  * @param {object} props
- * @param {{name: string, gained?: boolean, source?: string}[]} props.skills
+ * @param {{name: string, gained?: boolean, captain?: boolean, source?: string}[]} props.skills
  * @param {boolean} [props.card] every chip is a card
  */
 export function renderSkillChips({ skills, card = false }) {

@@ -191,7 +191,7 @@ test("a skill chip opens its rule: the name as written, its category and type, t
   assert.equal(dialog.querySelector("h2").textContent, "Mighty Blow");
   assert.equal(dialog.querySelector(".g-sheet__sub").textContent, "Strength · Active");
   assert.ok(dialog.querySelector(".g-sheet__body .g-prose").textContent.length > 20, "the rule from the reference");
-  assert.equal(dialog.querySelector(".g-roster__from").textContent, "Bors · primary");
+  assert.equal(dialog.querySelector(".g-roster__from").textContent, "Bors · Primary");
   fireEvent(dialog.querySelector("[data-sheet-close]"), "click");
   assert.equal(sheet(), null);
   assert.equal(document.activeElement, chip);
@@ -210,8 +210,8 @@ test("the sheet's box says whose skill it is: a skill an advancement gave, by th
     return said;
   };
   assert.deepEqual(boxOf("Dodge"), ["Bors · Random primary", "g-roster__from g-roster__from--gained"]);
-  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Chosen primary", "g-roster__from g-roster__from--gained"]);
-  assert.deepEqual(boxOf("Block"), ["Bors · starting", "g-roster__from"]);
+  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Block"), ["Bors · Starting", "g-roster__from"]);
 });
 
 test("a chip in the panel opens the same rule; a skill with a number in it opens its template's rule under the name the player has", async () => {
@@ -222,7 +222,7 @@ test("a chip in the panel opens the same rule; a skill with a number in it opens
   assert.ok(loner.classList.contains("g-skill--card"));
   fireEvent(loner, "click");
   assert.equal(sheet().querySelector("h2").textContent, "Loner (3+)");
-  assert.equal(sheet().querySelector(".g-roster__from").textContent, "Grom · starting");
+  assert.equal(sheet().querySelector(".g-roster__from").textContent, "Grom · Starting");
   assert.ok(sheet().querySelector(".g-prose"), "Loner (X+)'s rule");
   // A redraw while it is open (the games came again) keeps it open.
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
@@ -241,7 +241,7 @@ test("a skill the reference has no page for opens all the same and says so", asy
   assert.equal(sheet().querySelector("h2").textContent, "No Such Skill");
   assert.equal(sheet().querySelector(".g-roster__nopage").textContent, "The reference has no page for this skill.");
   assert.equal(sheet().querySelector(".g-sheet__sub"), null);
-  assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · primary");
+  assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · Primary");
 });
 
 test("«Profile and advancement» on a phone leads to the player's address (the roster's player mode, stage 07d); on a desk «Advance» opens his advancement and the pencil his edit", async () => {
@@ -317,7 +317,7 @@ test("the desk panel: badge, name, position and value, the characteristics, SPP 
   // The captain: his skills as cards, each with where it came from; the one who sits out says so.
   fireEvent(toggle("p2#0"), "click");
   assert.deepEqual(aside().querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]),
-    [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "primary"], ["Pro", "the captain's"]]);
+    [["Block", "Starting"], ["Tackle", "Starting"], ["Mighty Blow", "Primary"], ["Pro", "Captain's"]]);
   assert.ok(aside().querySelector('.g-skill--card.g-skill--gained[data-skill="Mighty Blow"]'));
   assert.equal(aside().querySelector(".g-roster__availn").textContent, "3");
   fireEvent(toggle("p4#0"), "click");

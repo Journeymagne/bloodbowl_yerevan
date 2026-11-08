@@ -467,7 +467,7 @@ test("a table or chosen advancement can be taken again; one that does not say wh
     });
     await withWindow({ phone: true }, async () => {
       await openUndo(true, { teamAnswer: withOne(CHOSEN) });
-      assert.deepEqual(rows(), [["What it gave", "Diving Catch · Chosen primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(rows(), [["What it gave", "Diving Catch · Primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
       assert.equal(note(), TABLE);
     });
     await withWindow({ phone: true }, async () => {
@@ -508,7 +508,7 @@ test("only the last is undone; the sheet closes if the roster changed under it",
     assert.equal(undo().textContent, "Undo the last: Diving Catch");
     fireEvent(undo(), "click");
     assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 2 of 6");
-    assert.deepEqual(rows(), [["What it gave", "Diving Catch · Chosen primary skill"], ["SPP back", "+8"], ["The player's value", "−20k"]]);
+    assert.deepEqual(rows(), [["What it gave", "Diving Catch · Primary skill"], ["SPP back", "+8"], ["The player's value", "−20k"]]);
     api.reply(PATCH, 200, { team: withOne(ADVANCED, { revision: 6 }) });
     fireEvent(send(), "click");
     assert.ok(document.activeElement === pencil(), "the focus on the pencil");
@@ -526,7 +526,7 @@ test("only the last is undone; the sheet closes if the roster changed under it",
 test("the same count with another last advancement closes the sheet, saying so; nothing is sent", async () => {
   await withoutTimers(async () => {
     await openUndo(false, { teamAnswer: withOne(TWICE) });
-    assert.deepEqual(rows()[0], ["What it gave", "Diving Catch · Chosen primary skill"]);
+    assert.deepEqual(rows()[0], ["What it gave", "Diving Catch · Primary skill"]);
     send().focus();
     // Another device undid Diving Catch and took Sure Hands: two advancements still, the last another one.
     const other = { ...ADVANCED, extraSkills: [...ADVANCED.extraSkills, { name: "Sure Hands", access: "primary" }],
@@ -891,7 +891,7 @@ test("Favoured of Nurgle: undoing an advancement takes back the god's skill its 
       reopenFix();
       assert.equal(undo().textContent, "Undo the last: Block");
       fireEvent(undo(), "click");
-      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−40k"]], "Block's 20k and the god's Tentacles' 20k");
+      assert.deepEqual(rows(), [["What it gave", "Block · Primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−40k"]], "Block's 20k and the god's Tentacles' 20k");
       assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE], "nothing loose to point at");
       api.reply(PATCH, 200, { team: nurgle([ROT], { revision: 6 }) });
       fireEvent(send(), "click");
@@ -920,7 +920,7 @@ test("an advancement without a tie: the undo names the loose god's skills and po
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
       await openUndo(true, { id: "n1", teamAnswer: nurgle([legacy]) });
-      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(rows(), [["What it gave", "Block · Primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
       assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE, LOOSE]);
       api.reply(PATCH, 200, { team: nurgle([{ ...ROT, favouredSkills: legacy.favouredSkills }], { revision: 5 }) });
       fireEvent(send(), "click");
@@ -985,7 +985,7 @@ test("a skill an advancement gave says how in its sheet; a site roll gave it —
       close();
       // A chosen skill: how it came, and nothing read, nothing said of dice.
       fireEvent(chip("Diving Catch"), "click");
-      assert.equal(line(), "Advancement 3 · Chosen primary skill");
+      assert.equal(line(), "Advancement 3 · Primary skill");
       assert.ok(!rollState() && !said());
       close();
       // A skill no advancement gave (written by hand, 2.x): no block.

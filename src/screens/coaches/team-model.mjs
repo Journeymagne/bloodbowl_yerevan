@@ -89,7 +89,7 @@ export function wayBack({ phone, activeTeamId = null }) {
 
 /**
  * @typedef {{key: string, number: string, name: string, position: string, captain: boolean, out: boolean, line: string,
- *   touchdowns: number, casualties: number, spp: number, skills: {name: string, gained: boolean}[]}} SquadRow
+ *   touchdowns: number, casualties: number, spp: number, skills: {name: string, gained: boolean, captain: boolean}[]}} SquadRow
  */
 
 /**
@@ -104,7 +104,7 @@ function squadOf(lines) {
     return {
       at, key: line.key, number: line.number, name: line.name, position: line.position, captain: line.captain, out: line.skip,
       line: line.skip ? t("opponent.out", words) : t("opponent.sub", { ...words, touchdowns, casualties }),
-      touchdowns, casualties, spp: line.earned, skills: line.skills.map(({ name, gained }) => ({ name, gained })),
+      touchdowns, casualties, spp: line.earned, skills: line.skills.map(({ name, gained, source }) => ({ name, gained, captain: source === "captain" })),
     };
   }).sort((one, other) => Number(one.out) - Number(other.out) || other.spp - one.spp || one.at - other.at)
     .map(({ at, ...row }) => row);

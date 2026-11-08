@@ -135,7 +135,7 @@ test("the roster: who misses the match last, then by SPP; the captain, the gaine
   assert.match(brakk.key, /^d3#0$/);
   assert.deepEqual([brakk.number, brakk.position, brakk.touchdowns, brakk.casualties], ["3", "Blitzer", 2, 1]);
   assert.equal(brakk.line, "#3 Blitzer · TD 2 · CAS 1");
-  assert.deepEqual(brakk.skills.filter(({ gained }) => gained), [{ name: "Wrestle", gained: true }]);
+  assert.deepEqual(brakk.skills.filter(({ gained }) => gained), [{ name: "Wrestle", gained: true, captain: false }]);
   assert.ok(brakk.skills.some(({ name, gained }) => name === "Block" && !gained), "a position's skill is not gained");
   assert.equal(model.squad.find(({ name }) => name === "Grimm").captain, true);
   assert.equal(model.squad.find(({ name }) => name === "Dunn").line, "#2 Dwarf Blocker Lineman · misses the match");

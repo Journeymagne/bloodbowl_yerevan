@@ -223,13 +223,13 @@ export function actionsMarkup(line, screen) {
   return `<div class="g-roster__actions">${first}${sellMarkup(line, screen)}</div>`;
 }
 
-/** Where a skill came from in 07a's words: «starting», «primary», «the captain's». */
+/** Where a skill came from in 07a's words: «Starting», «Primary», «Captain's». */
 const sourceWords = (skill) => t(`teamRoster.source.${skill.source}`);
 
 /**
  * Where a skill came to him (K29): an advancement's type — on the profile in full and, when it was rolled, how («Random
- * primary skill · rolled on the site»); in the desk's panel (`short`) as DeskRoster's cards name it («Chosen primary») —
- * and any other skill in the roster's own words («starting», «the captain's»).
+ * primary skill · rolled on the site»); in the desk's panel (`short`) as DeskRoster's cards name it («Primary») — and
+ * any other skill in the roster's own words («Starting», «Captain's»).
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./model.mjs").PlayerLine["skills"][number]} skill
@@ -251,7 +251,7 @@ export function skillSourceOf(line, skill, { short = false } = {}) {
  * @param {{card?: boolean, sourceOf?: (skill: import("./model.mjs").PlayerLine["skills"][number]) => string}} [options]
  */
 export function skillChipsMarkup(line, { card = false, sourceOf = sourceWords } = {}) {
-  const skills = line.skills.map((skill) => ({ name: skill.name, gained: skill.gained, source: card ? sourceOf(skill) : "" }));
+  const skills = line.skills.map((skill) => ({ name: skill.name, gained: skill.gained, captain: skill.source === "captain", source: card ? sourceOf(skill) : "" }));
   return renderSkillChips({ skills, card });
 }
 
