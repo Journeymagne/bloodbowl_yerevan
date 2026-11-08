@@ -1462,14 +1462,23 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.deepEqual(own(".g-overview__title", "font"), ["700 24px/normal var(--font-display)"]);
   assert.deepEqual(own(".g-overview__title", "margin"), ["0"]);
   assert.deepEqual(own(".g-overview__leaders", "gap"), ["var(--space-6)", "var(--space-12)"], "a phone's title is 6 over its rows (Team.html), a desk's 12 over its cards");
-  assert.match(desk, /\.g-overview__leaders \{ gap: var\(--space-12\); \}/);
-  // The cards: a grid that wraps by 150px, 12 apart; a card 14 round, white in the ring, 14 16 in, a column 10 apart, a link without its line.
+  assert.match(desk, /\.g-overview__leaders \{\s*gap: var\(--space-12\);/);
+  // A desk's leaders are a card as the results: 16 round, white in the ring, the title 22 from the top, 24 in.
+  assert.deepEqual(own(".g-overview__leaders", "padding"), ["0", "var(--space-22) var(--space-24) var(--space-24)"]);
+  assert.deepEqual(own(".g-overview__leaders", "border-radius"), ["var(--radius-2xl)"]);
+  assert.deepEqual(own(".g-overview__leaders", "background"), ["none", "var(--surface)"]);
+  assert.deepEqual(own(".g-overview__leaders", "box-shadow"), ["var(--ring)"]);
+  // The columns: a grid that wraps by 150px, 12 between the lines, no box of their own in the card but a rule at the left,
+  // the first of each line's hidden by the grid, 16 wider than the card's content; a column 16 in, a link without its line.
   assert.deepEqual(own(".g-overview__leadercards", "grid-template-columns"), ["repeat(auto-fit, minmax(150px, 1fr))"]);
-  assert.deepEqual(own(".g-overview__leadercards", "gap"), ["var(--space-12)"]);
-  assert.deepEqual(own(".g-overview__leader", "border-radius"), ["var(--radius-xl)"]);
-  assert.deepEqual(own(".g-overview__leader", "background"), ["var(--surface)"]);
-  assert.deepEqual(own(".g-overview__leader", "box-shadow"), ["var(--ring)"]);
-  assert.deepEqual(own(".g-overview__leader", "padding"), ["var(--space-14) var(--space-16)"]);
+  assert.deepEqual(own(".g-overview__leadercards", "gap"), ["var(--space-12) 0"]);
+  assert.deepEqual(own(".g-overview__leadercards", "margin"), ["0 calc(var(--space-16) * -1)"]);
+  assert.deepEqual(own(".g-overview__leadercards", "overflow"), ["hidden"]);
+  assert.deepEqual(own(".g-overview__leader", "background"), ["none"]);
+  assert.deepEqual(own(".g-overview__leader", "box-shadow"), []);
+  assert.deepEqual(own(".g-overview__leader", "border-left"), ["1px solid var(--line)"]);
+  assert.deepEqual(own(".g-overview__leader", "margin"), ["0 0 0 -1px"]);
+  assert.deepEqual(own(".g-overview__leader", "padding"), ["var(--space-4) var(--space-16)"]);
   assert.deepEqual(own(".g-overview__leader", "flex-direction"), ["column"]);
   assert.deepEqual(own(".g-overview__leader", "gap"), ["var(--space-10)"]);
   assert.deepEqual(own(".g-overview__leader", "text-decoration"), ["none"]);
