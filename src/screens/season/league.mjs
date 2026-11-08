@@ -129,7 +129,7 @@ const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed"
 function deskMarkup(model) {
   const admin = model.admin
     ? `<a class="g-league__admin" href="${escapeHtml(adminSeasonUrl())}">${escapeHtml(t("league.admin"))}</a>` : "";
-  const head = renderPageHead({ title: t("shell.tab.table"), sub: model.line, metaHtml: admin });
+  const head = renderPageHead({ title: t("league.title"), sub: model.line, metaHtml: admin });
   const viewer = { viewerId: model.viewerId, signedIn: model.signedIn };
   return `${head}<div class="g-league">${failureMarkup(model)}<div class="g-season__row">`
     + `${tableCardMarkup({ titleId: "league-title", bodyHtml: tableMarkup(model) })}`
@@ -144,7 +144,7 @@ export function leagueMarkup(model) {
   if (!model.phone) return deskMarkup(model);
   const bar = `<div class="g-league__bar"><h2 class="g-league__title" id="league-title">${escapeHtml(model.title)}</h2>`
     + `${model.after ? `<span class="g-league__after">${escapeHtml(model.after)}</span>` : ""}</div>`;
-  return `${renderPageHead({ title: t("shell.tab.table") })}<div class="g-league">${failureMarkup(model)}${bar}${tableMarkup(model)}`
+  return `${renderPageHead({ title: t("league.title") })}<div class="g-league">${failureMarkup(model)}${bar}${tableMarkup(model)}`
     + `${roundsMarkup(model.rounds, { viewerId: model.viewerId, signedIn: model.signedIn })}</div>`;
 }
 

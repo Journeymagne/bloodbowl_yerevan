@@ -15,8 +15,12 @@
  * side-nav.css's; this sheet says where they stand and when.
  */
 
-/* A sheet locks the page's scrolling (ui/sheet.css); the scrollbar's room stays, so nothing shifts sideways. */
-html { scrollbar-gutter: stable; }
+/*
+ * A sheet locks the page's scrolling (ui/sheet.css); while it is open the scrollbar's room stays, so a page that
+ * scrolled does not shift sideways under it. Not always: a page with nothing to scroll then kept an empty gutter at
+ * its right, past the end of the head's band (the owner, 2026-11-08).
+ */
+html:has(dialog.g-sheet:modal) { scrollbar-gutter: stable; }
 
 .g-frame {
   box-sizing: border-box;

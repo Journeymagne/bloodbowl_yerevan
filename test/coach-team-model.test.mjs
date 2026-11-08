@@ -165,7 +165,7 @@ test("Telegram: a contact the forms accept leads to t.me; another leads nowhere"
 });
 
 test("the way back: a phone's to the table, a desk's to the active team's season, or the table with no team", () => {
-  assert.deepEqual(opponentModel({ ...base, phone: true }).back, { label: "Table", href: "#/season" });
+  assert.deepEqual(opponentModel({ ...base, phone: true }).back, { label: "Standings", href: "#/season" });
   assert.deepEqual(opponentModel(base).back, { label: "Season", href: "#/t/t1/matches" });
   assert.deepEqual(opponentModel({ ...base, activeTeamId: null }).back, { label: "Season", href: "#/season" });
 });

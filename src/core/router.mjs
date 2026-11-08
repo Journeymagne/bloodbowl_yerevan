@@ -169,7 +169,20 @@ export function renderRoute() {
   // screen that sent the address on drew nothing: the heading still in the
   // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
-    if (current === ticket && location.hash === startedAt) announce(view.querySelector("h1, h2")?.textContent ?? "");
+    if (current !== ticket || location.hash !== startedAt) return;
+    const heading = view.querySelector("h1, h2")?.textContent?.trim() ?? "";
+    announce(heading);
+    titleWindow(heading);
   });
   return rendered;
+}
+
+/**
+ * The browser's tab says the screen (the owner, 2026-11-08: it said «Gata Blood Bowl League Reference» on every one):
+ * «Roster · Gata Blood Bowl League», the league's name alone where a screen has no heading.
+ * @param {string} heading the screen's h1 (or h2), as it is drawn
+ */
+function titleWindow(heading) {
+  if (typeof document === "undefined") return;
+  document.title = heading ? `${heading} · ${t("app.title")}` : t("app.title");
 }
