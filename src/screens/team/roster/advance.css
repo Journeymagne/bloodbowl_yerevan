@@ -464,7 +464,8 @@
     justify-content: center;
     gap: 2px;
     min-height: 40px;
-    padding: 0 var(--space-10);
+    /* 6px over and under: a skill with «+15k · elite combination» under its name is two lines, which stood on the ring (the owner, 2026-11-08). */
+    padding: var(--space-6) var(--space-10);
     border-radius: var(--radius-md);
     box-shadow: var(--ring);
     font: 500 14px/normal var(--font-body);
