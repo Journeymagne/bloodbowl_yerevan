@@ -177,7 +177,6 @@ export function renderRoute() {
   return rendered;
 }
 
-/** The browser's tab: «Roster · Gata Blood Bowl League», or the league's name alone on a screen with no heading. */
 function titleWindow(heading) {
   if (typeof document === "undefined") return;
   document.title = heading ? `${heading} · ${t("app.title")}` : t("app.title");

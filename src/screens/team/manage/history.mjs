@@ -77,7 +77,6 @@ const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escape
  */
 const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
 
-/** The fold, and «More» in its look without the chevron; keyed as the action above. */
 const foldMarkup = (expanded, label) => renderFoldButton({ label, expanded, data: { key: "ledger-all", ledgerAll: true } });
 const moreMarkup = () => `<button type="button" class="g-link-btn g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
 

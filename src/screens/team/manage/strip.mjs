@@ -44,7 +44,7 @@ function resourceCell(row) {
   return cell(t(`treasury.strip.${row.key}`), value);
 }
 
-/** The pencil: a link to the team page, named for it. Keyed, so a patch keeps the focus on it. */
+/** Keyed, so a patch keeps the focus on it. */
 function editLink(teamId) {
   return `<a class="g-funds__edit" data-key="treasury-edit" href="${escapeHtml(teamUrl(teamId, "team"))}" aria-label="${escapeHtml(t("treasury.title"))}">${icon("pencil")}</a>`;
 }
@@ -69,10 +69,7 @@ export function treasuryCardMarkup(model, live) {
     + `<div class="g-manage__card-actions">${money("1", "g-manage__in", t("treasury.in"))}${money("-1", "g-manage__out", t("treasury.out"))}</div></section>`;
 }
 
-/**
- * The desk's «Treasury» card of the team page: the sum in a resource's row, its pencil opening the strip's sheet on
- * «Add», then `after` (Coach's Safe and the correction, index.mjs). A match on shuts the pencil, as the phone's «+ Add».
- */
+/** The desk's «Treasury» card of the team page; `after` is what index.mjs puts under the sum (the safe, the correction). */
 export function treasuryBlockMarkup(model, live, after = "") {
   const shut = live ? ` aria-disabled="true" title="${escapeHtml(t("treasury.lockedLive"))}"` : "";
   const edit = `<button type="button" class="g-resource__btn" data-treasury-money="${escapeHtml(model.teamId)}" data-treasury-sign="1" aria-haspopup="dialog"`

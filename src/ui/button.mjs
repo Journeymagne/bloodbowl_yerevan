@@ -48,10 +48,7 @@ export function renderButton({ label, kind = "outline", type = "button", href = 
   return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${busy ? ' aria-busy="true" aria-disabled="true"' : ""}${popup}${out}${dataAttributes(data)}>${content}</button>`;
 }
 
-/**
- * The fold under a list or over a box that opens («Show N more», «About Block»): its words in the accent, then the
- * chevron, turned once `expanded`. `controls` is the id of the box it opens, when there is one.
- */
+/** `controls`: the id of the box the fold opens, when it opens one rather than the rest of a list. */
 export function renderFoldButton({ label, expanded, controls = "", className = "", data = {} }) {
   const owns = controls ? ` aria-controls="${escapeHtml(controls)}"` : "";
   return `<button type="button" class="${classNames("g-link-btn g-more", className)}" aria-expanded="${Boolean(expanded)}"${owns}${dataAttributes(data)}>`

@@ -317,7 +317,6 @@
   white-space: nowrap;
 }
 
-/* A desk's «Treasury» card over the resources (strip.mjs's `treasuryBlockMarkup`); a phone has the dark card instead. */
 .g-manage__treasury {
   display: flex;
   flex-direction: column;
@@ -490,7 +489,7 @@
 @media (min-width: 901px) {
   .g-manage .g-pagehead { margin-bottom: var(--space-8); }
 
-  /* The treasury card over the resources says it (index.mjs draws the phone's card on a phone alone). */
+  /* A phone's drawing can stand past 900px until the page is drawn again in the desk's form. */
   .g-manage__card { display: none; }
 
   /* Two columns, each a stack of its own: a tall one leaves no gap in the other. */

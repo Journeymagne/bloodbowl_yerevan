@@ -12,11 +12,8 @@
  *
  * On a phone the page is a dark treasury card with «+ Add» and «− Take», then the safe, the correction, the
  * resources and the history, in that order (decision 19), and the DOM keeps it; a row last leads to the team's
- * settings, a screen of their own at their address (settings-screen.mjs; owner, 2026-10-20). On a desk two columns
- * stand under the head: at the left «Treasury» — the sum with its pencil, Coach's Safe, the
- * correction — and the resources under it; at the right the settings' card, and the history under it. The
- * settings' address is this page, the focus on their card. The roster's strip says the treasury and what the team holds
- * in one row, so the page draws it no more: its resources and the treasury card say it. The width
+ * settings, a screen of their own at their address (settings-screen.mjs; owner, 2026-10-20). On a desk the
+ * settings are a card of the page, and their address is this page with the focus on that card. The width
  * is asked at each draw (`isPhone`), and the page is drawn again in the other form when it crosses 900px.
  */
 import { drawKeepingFocus, drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";

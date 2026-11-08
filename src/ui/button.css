@@ -116,7 +116,6 @@
   }
 }
 
-/* A text button that reads as a link: «Correct the treasury by hand», «Fix by hand». */
 .g-link-btn {
   box-sizing: border-box;
   display: inline-flex;
@@ -143,10 +142,7 @@
   cursor: not-allowed;
 }
 
-/*
- * A fold under a list (button.mjs's `renderFoldButton`), a size down and centred; «More», which reads a list on, takes
- * its look without the chevron.
- */
+/* «More», which reads a list on rather than folds it, takes this look too, without the chevron. */
 .g-more {
   align-self: center;
   justify-content: center;

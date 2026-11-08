@@ -159,7 +159,6 @@
 }
 #player-advance .g-advance__tag--held { color: var(--muted); }
 
-/* The chosen skill's rule under the skills: the fold (button.css's `.g-more`) at the column's start, then the box. */
 #player-advance .g-advance__rule {
   display: flex;
   flex-direction: column;

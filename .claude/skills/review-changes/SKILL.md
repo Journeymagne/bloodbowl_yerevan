@@ -234,9 +234,17 @@ the shared components in `src/ui/` (`*.mjs` + `*.css`).
 
 ## 10. Comments and notes
 
-- Match the file's own comment style and density. Remove comments that only restate the code, narrate the change
-  ("now we…", "fixed…"), or are left over from a previous version.
-- Keep comments that explain a non-obvious reason or constraint.
+A comment earns its place only by saying what the code cannot: a non-obvious reason, a constraint, a workaround, a
+link to where a value must stay in sync. List every comment the change adds or edits (`diff -U0 <base>`, the added
+lines with `/*`, ` *` or `//`) and judge each one:
+
+- **Added: strict.** Remove it if it restates the code, narrates the change («now we…», «fixed…», «the owner asked…»
+  with nothing else), or describes a layout or markup the code already spells out. A JSDoc that paraphrases a short
+  function's output is duplication too: `/** The tab: «Roster · Gata Blood Bowl League», or the name alone */` over a
+  two-line `document.title = heading ? … : …` says nothing the code doesn't.
+- **Edited: moderate.** An existing comment usually stays, but shorten it to its reason when it can be.
+- **A trimmed comment is judged again.** Shortening is not enough: if what is left only restates the code, it goes.
+- The file's dense prose style, or a «(the owner, date)» provenance note, is no reason on its own to keep one.
 
 ## 11. Build gotchas
 
