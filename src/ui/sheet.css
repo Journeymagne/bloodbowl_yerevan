@@ -88,6 +88,17 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
 }
 /* A scroller the keyboard can reach: its ring sits inside, where the panel does not clip it. */
 .g-sheet__body:focus-visible { outline-offset: -3px; }
+/*
+ * A sheet with no footer (a skill's rule, an overview card) ends on its body: the body keeps the room under it that the
+ * footer would have, where its 8px left the last box at the panel's edge (the owner, 2026-11-08).
+ */
+.g-sheet__body:last-child { padding-bottom: var(--space-24); }
+/*
+ * The vault's prose in a body (screens/ref/prose.css): the body's padding and gap set the room around it — its first
+ * heading's 28px over it and its last paragraph's margin under it doubled them (the owner, 2026-11-08).
+ */
+.g-sheet__body > .g-prose > :first-child { margin-top: 0; }
+.g-sheet__body > .g-prose > :last-child { margin-bottom: 0; }
 
 /* On a phone the footer is a column: the quiet control (if the sheet has one) over the one button. */
 .g-sheet__foot {
@@ -159,6 +170,8 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
     border-bottom: 1px solid var(--line);
   }
   .g-sheet__spacer { display: none; }
+  /* A desk's footer ends 20px over the window's edge: so does a body with none after it. */
+  .g-sheet__body:last-child { padding-bottom: var(--space-20); }
   .g-sheet__titles { flex: 1 1 auto; }
   .g-sheet__title {
     font-size: 26px;
