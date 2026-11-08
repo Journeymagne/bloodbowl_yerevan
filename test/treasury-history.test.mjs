@@ -111,7 +111,7 @@ test("three lines, then the whole history by its count, then more by pages", asy
   assert.equal(rows().length, 3);
   // As the overview's who can advance folds (the owner, 2026-11-08): the lines not shown, the chevron, its state.
   assert.equal(text("[data-ledger-all]"), "Show 22 more");
-  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("class"), "g-more");
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("class"), "g-link-btn g-more");
   assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "false");
   assert.ok(document.querySelector("[data-ledger-all] svg"), "the chevron");
   assert.equal(document.querySelector("[data-ledger-more]"), null, "the pages are for the whole history");
@@ -119,7 +119,7 @@ test("three lines, then the whole history by its count, then more by pages", asy
   click("[data-ledger-all]");
   assert.equal(historyExpanded("t-pages"), true);
   assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "true");
-  assert.equal(document.querySelector("[data-ledger-more]").getAttribute("class"), "g-more");
+  assert.equal(document.querySelector("[data-ledger-more]").getAttribute("class"), "g-link-btn g-more");
   assert.equal(rows().length, 5);
   assert.deepEqual(rows().map((row) => row.querySelector(".g-ledger__amount").textContent), ["+10k", "+11k", "+12k", "+13k", "+14k"], "newest first, as the server sent them");
   assert.equal(text("[data-ledger-all]"), "Show less");

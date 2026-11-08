@@ -109,6 +109,16 @@ test("a sheet opened over a page pads it by the scrollbar the lock hides, and by
     fireEvent(cancelOf(), "click");
     await answer;
   }
+  // A question over an open sheet finds the scrollbar gone already: the first sheet's measure stays.
+  globalThis.innerWidth = 1015;
+  root.clientWidth = 1000;
+  opener();
+  const first = confirmAction({ message: "First?" });
+  root.clientWidth = 1015;
+  const second = confirmAction({ message: "Second?" });
+  assert.equal(root.style.getPropertyValue("--scrollbar-gap"), "15px");
+  for (const button of document.querySelectorAll('[data-confirm="no"]')) fireEvent(button, "click");
+  await Promise.all([first, second]);
   delete globalThis.innerWidth;
   delete root.clientWidth;
 });

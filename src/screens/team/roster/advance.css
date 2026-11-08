@@ -166,10 +166,7 @@
   gap: var(--space-6);
   min-width: 0;
 }
-#player-advance .g-advance__ruletoggle {
-  align-self: flex-start;
-  text-align: left;
-}
+#player-advance .g-advance__ruletoggle { align-self: flex-start; }
 #player-advance .g-advance__ruletext {
   box-sizing: border-box;
   min-width: 0;

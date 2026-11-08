@@ -154,32 +154,6 @@
 #player-fix .g-player-sheet__prep,
 #player-fix .g-player-sheet__refusal { margin-top: var(--space-14); }
 
-/* The edit's last line, which opens the fix: a link's look, as manage.css's «Correct the treasury by hand». */
-#player-edit .g-player-edit__fix {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--accent-text);
-  font: 600 15px/1.3 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-  text-align: left;
-  text-transform: none;
-  cursor: pointer;
-}
-#player-edit .g-player-edit__fix:hover:not([aria-disabled="true"]) { text-decoration: underline; }
-#player-edit .g-player-edit__fix[aria-disabled="true"] {
-  color: var(--disabled);
-  cursor: default;
-}
-
 /* Up to 900px what is pressed is 44px or more (D2). */
 @media (max-width: 900px) {
   .g-player-fix__toggle { min-height: 44px; }

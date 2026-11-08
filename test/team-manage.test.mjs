@@ -597,9 +597,10 @@ test("the phone has the card, the desk two columns with the treasury card over t
   assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-columns"), ["minmax(0, 1.1fr) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), [], "each column a stack of its own: no areas that tie their rows");
   assert.deepEqual(valuesOf(sheet, ".g-manage__col", "flex-direction"), ["column"]);
-  for (const selector of [".g-manage__in", ".g-manage__out", ".g-manage__fix"]) {
+  for (const selector of [".g-manage__in", ".g-manage__out"]) {
     assert.ok(valuesOf(sheet, selector, "min-height").includes("var(--size-touch)"), selector);
   }
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-height"), ["var(--size-touch)"], "the correction, the kit's link button");
   assert.ok(valuesOf(sheet, ".g-manage__card :focus-visible", "outline-color").includes("var(--header-ink)"));
   assert.ok(!read(sheet).includes("--focus-ring"));
   assertReadable(sheet, ".g-manage__card", "color", ["--header"], 4.5);
@@ -607,7 +608,7 @@ test("the phone has the card, the desk two columns with the treasury card over t
   assertReadable(sheet, ".g-manage__card-tv", "color", ["--header"], 4.5);
   assertReadable(sheet, ".g-manage__out", "color", ["--header"], 4.5);
   assertReadable(sheet, ".g-manage__in", "color", ["--header-ink"], 4.5);
-  assertReadable(sheet, ".g-manage__fix", "color", ["--page", "--desk"], 4.5);
+  assertReadable("src/ui/button.css", ".g-link-btn", "color", ["--page", "--desk"], 4.5);
   assertContrast("--header-ink", ["--header"], 3, { what: "«+ Add» on the card" });
   assertContrast("--header-muted", ["--header"], 3, { what: "the outline of «− Take»" });
   assert.ok(read("src/styles.css").includes('@import url("screens/team/manage/manage.css");'));

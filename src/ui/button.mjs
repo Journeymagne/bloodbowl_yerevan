@@ -54,7 +54,7 @@ export function renderButton({ label, kind = "outline", type = "button", href = 
  */
 export function renderFoldButton({ label, expanded, controls = "", className = "", data = {} }) {
   const owns = controls ? ` aria-controls="${escapeHtml(controls)}"` : "";
-  return `<button type="button" class="${classNames("g-more", className)}" aria-expanded="${Boolean(expanded)}"${owns}${dataAttributes(data)}>`
+  return `<button type="button" class="${classNames("g-link-btn g-more", className)}" aria-expanded="${Boolean(expanded)}"${owns}${dataAttributes(data)}>`
     + `${escapeHtml(label)}${renderIcon("down", 16)}</button>`;
 }
 

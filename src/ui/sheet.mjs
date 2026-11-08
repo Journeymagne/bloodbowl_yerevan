@@ -152,11 +152,16 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
   };
 }
 
-/** Measured before the dialog opens: sheet.css's scroll lock then hides the scrollbar and pads the page by its width. */
+/**
+ * Measured before the first sheet opens: sheet.css's scroll lock then hides the scrollbar and pads the page by its
+ * width. A sheet over another finds the scrollbar gone already, and keeps the first one's measure.
+ */
 function showSheet(dialog) {
   const root = dialog.ownerDocument.documentElement;
-  const scrollbar = globalThis.innerWidth - root.clientWidth;
-  root.style.setProperty("--scrollbar-gap", `${scrollbar > 0 ? scrollbar : 0}px`);
+  if (!root.querySelector("dialog.g-sheet:modal")) {
+    const scrollbar = globalThis.innerWidth - root.clientWidth;
+    root.style.setProperty("--scrollbar-gap", `${scrollbar > 0 ? scrollbar : 0}px`);
+  }
   dialog.showModal();
 }
 

@@ -94,7 +94,7 @@ function sppMarkup(line, screen) {
  */
 function fixLineMarkup(line, reason) {
   const closed = reason ? ` aria-disabled="true" title="${escapeHtml(reason)}"` : "";
-  return `<button type="button" class="g-player-edit__fix" aria-haspopup="dialog"${closed}${dataAttributes({ playerFix: line.key, rosterClosed: Boolean(reason) })}>`
+  return `<button type="button" class="g-link-btn" aria-haspopup="dialog"${closed}${dataAttributes({ playerFix: line.key, rosterClosed: Boolean(reason) })}>`
     + `${escapeHtml(t("teamPlayer.fix.open"))}</button>`;
 }
 

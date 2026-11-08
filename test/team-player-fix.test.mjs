@@ -25,6 +25,7 @@ const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 const PATCH = "PATCH /api/teams/t1";
 const TEAM_READ = "GET /api/teams/t1";
 const FIX = "src/screens/team/roster/fix.css";
+const LINK = "src/ui/button.css";
 const OPEN = "Fix by hand: injuries, characteristics, contract, skills, advancements";
 const SAVE_FIRST = "Save or cancel the edit first";
 const SUB = "What was settled at the table otherwise than the site recorded";
@@ -111,7 +112,7 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         const line = entry();
         assert.equal(line.tagName, "BUTTON");
         assert.equal(line.getAttribute("type"), "button");
-        assert.equal(line.getAttribute("class"), "g-player-edit__fix");
+        assert.equal(line.getAttribute("class"), "g-link-btn");
         assert.equal(line.getAttribute("aria-haspopup"), "dialog");
         assert.equal(line.getAttribute("data-player-fix"), "p3#0");
         assert.equal(line.textContent, OPEN);
@@ -691,7 +692,7 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
     assert.doesNotMatch(css, /--focus-ring/);
     assert.doesNotMatch(css, /text-overflow/, "a long name wraps; nothing is cut with «…»");
     assert.deepEqual(mediaQueries(FIX), ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
-    for (const selector of [".g-player-fix__title", ".g-player-fix__name", ".g-player-fix__note", ".g-player-fix__toggle", ".g-player-fix__value", "#player-edit .g-player-edit__fix"]) {
+    for (const selector of [".g-player-fix__title", ".g-player-fix__name", ".g-player-fix__note", ".g-player-fix__toggle", ".g-player-fix__value"]) {
       for (const property of ["font", "letter-spacing", "text-transform", "border", "background"]) {
         assert.ok(valuesOf(FIX, selector, property).length >= 1, `${selector} ${property}`);
       }
@@ -711,18 +712,17 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
     assert.deepEqual(valuesOf(FIX, '.g-player-fix__toggle[aria-pressed="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
     assert.deepEqual(valuesOf(FIX, ".g-player-fix__value", "font"), ["400 14px/normal var(--font-body)"]);
     assert.deepEqual(valuesOf(FIX, ".g-player-fix__after", "font-weight"), ["700"]);
-    // A link's look, as the team page's «Correct the treasury by hand» (manage.css; the owner, 2026-11-08).
-    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "font"), ["600 15px/1.3 var(--font-body)"]);
-    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "color"), valuesOf("src/screens/team/manage/manage.css", ".g-manage__fix", "color"));
-    assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "border-top"), [], "no rule over it");
-    assert.deepEqual(valuesOf(FIX, '#player-edit .g-player-edit__fix[aria-disabled="true"]', "color"), ["var(--disabled)"]);
+    // The line to the fix is the kit's link button, as the team page's «Correct the treasury by hand».
+    assert.deepEqual(valuesOf(LINK, ".g-link-btn", "font"), ["600 15px/1.3 var(--font-body)"]);
+    assert.deepEqual(valuesOf(LINK, ".g-link-btn", "border-top"), [], "no rule over it");
+    assert.deepEqual(valuesOf(LINK, '.g-link-btn[aria-disabled="true"]', "color"), ["var(--disabled)"]);
     assertReadable(FIX, ".g-player-fix__title", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__name", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__note", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__toggle", "color", ["--surface"], 4.5);
     assertReadable(FIX, '.g-player-fix__toggle[aria-pressed="true"]', "color", ["--accent-tint"], 4.5);
     assertReadable(FIX, ".g-player-fix__value", "color", ["--surface"], 4.5);
-    assertReadable(FIX, "#player-edit .g-player-edit__fix", "color", ["--surface"], 4.5);
+    assertReadable(LINK, ".g-link-btn", "color", ["--surface"], 4.5);
     // The frame and its lines are player-sheets.css's (T8): fix.css copies none of them.
     assert.doesNotMatch(css, /\.g-player-sheet__(prep|refusal)\s*\{[^}]*font/);
     assert.doesNotMatch(css, /\.g-player-sheet \.g-sheet__/);
@@ -739,7 +739,7 @@ test("D2: up to 900px the toggles 44px, from 901px 32px; the line to the fix a f
   const desk = mediaText(FIX, "min-width: 901px");
   assert.deepEqual(px(phone.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [44], "a phone's toggles");
   assert.deepEqual(px(desk.match(/\.g-player-fix__toggle \{[^}]*min-height: (\d+)px;/)), [32], "a desk's toggles, 24 or more");
-  assert.deepEqual(valuesOf(FIX, "#player-edit .g-player-edit__fix", "min-height"), ["var(--size-touch)"], "the line, as «Correct the treasury by hand»");
+  assert.deepEqual(valuesOf(LINK, ".g-link-btn", "min-height"), ["var(--size-touch)"], "the line, as «Correct the treasury by hand»");
   // The counters are stage 08's as they are: 44px buttons.
   assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__btn", "height"), ["var(--size-touch)"]);
 });

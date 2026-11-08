@@ -79,7 +79,7 @@ const actionMarkup = (name, label) => `<button type="button" class="g-ledger__ac
 
 /** The fold, and «More» in its look without the chevron; keyed as the action above. */
 const foldMarkup = (expanded, label) => renderFoldButton({ label, expanded, data: { key: "ledger-all", ledgerAll: true } });
-const moreMarkup = () => `<button type="button" class="g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
+const moreMarkup = () => `<button type="button" class="g-link-btn g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
 
 /**
  * What stands in place of the list, or under it: nothing yet, nothing at all, the reason the history did not come,

@@ -128,7 +128,7 @@ export function manageMarkup(model) {
   });
   // Across 900px the safe and the correction change places, and a focus on the correction goes to the page's title.
   const safe = safeMarkup({ safe: model.safe, entries: model.ledger.entries });
-  const fix = shutOpener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live);
+  const fix = shutOpener("g-manage__fix g-link-btn", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live);
   const resources = resourcesMarkup({ rows: model.rows, busy: model.busy });
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
   const page = `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`;

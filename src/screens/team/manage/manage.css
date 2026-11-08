@@ -468,8 +468,7 @@
 }
 
 .g-manage__in[aria-disabled="true"],
-.g-manage__out[aria-disabled="true"],
-.g-manage__fix[aria-disabled="true"] {
+.g-manage__out[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -485,24 +484,8 @@
   padding: 0;
 }
 
-/* «Correct the treasury by hand»: a text button under the safe, as tall as a finger. */
-.g-manage__fix {
-  box-sizing: border-box;
-  align-self: flex-start;
-  min-height: var(--size-touch);
-  margin: calc(-1 * var(--space-8)) 0 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--accent-text);
-  font: 600 15px/1 var(--font-body);
-  text-align: left;
-  text-transform: none;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-.g-manage__fix:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+/* «Correct the treasury by hand» (button.css's `.g-link-btn`), drawn up to the safe over the column's gap. */
+.g-manage__fix { margin: calc(-1 * var(--space-8)) 0 0; }
 
 @media (min-width: 901px) {
   .g-manage .g-pagehead { margin-bottom: var(--space-8); }
