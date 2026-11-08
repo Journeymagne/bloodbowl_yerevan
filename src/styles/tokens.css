@@ -115,7 +115,11 @@
   --warn: #B07A1E;
   --warn-tint: #FBF1DD;
   --on-warn-tint: #6B4A0E;
-  --disabled: #A9B3AE;
+  /*
+   * What is closed: a disabled icon's colour, a closed main button's fill. The prototypes' #A9B3AE was 2.1:1 on white
+   * and all but lost (the owner, 2026-11-08); this is 3.6:1 there, and under a white label, still lighter than --muted.
+   */
+  --disabled: #7F8A84;
   --scrim: rgba(10, 22, 16, 0.5);
 }
 
@@ -158,7 +162,8 @@
   --warn: #E8C26A;
   --warn-tint: #3B2E14;
   --on-warn-tint: #F2D08A;
-  --disabled: #4E5F56;
+  /* A disabled icon on the dark surfaces: 3.9:1, where #4E5F56 was 2.3:1 (the owner, 2026-11-08). */
+  --disabled: #6F8078;
   --scrim: rgba(0, 0, 0, 0.6);
 }
 
@@ -337,7 +342,7 @@
     --warn: #E8C26A;
     --warn-tint: #3B2E14;
     --on-warn-tint: #F2D08A;
-    --disabled: #4E5F56;
+    --disabled: #6F8078;
     --scrim: rgba(0, 0, 0, 0.6);
     --header: #17392C;
     --page: #0F1A15;
