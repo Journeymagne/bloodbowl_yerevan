@@ -204,6 +204,9 @@
   border: 0;
   border-bottom: 1px solid var(--line);
 }
+/* The card's last line, a row or the check, draws no rule: the card's edge ends it. */
+.g-team-settings__row:last-child,
+.g-team-settings__check:last-child { border-bottom: 0; }
 .g-team-settings__violations {
   display: flex;
   flex-direction: column;

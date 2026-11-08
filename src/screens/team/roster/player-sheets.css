@@ -173,6 +173,7 @@
   padding: var(--space-6) 0;
   border-bottom: 1px solid var(--line);
 }
+#player-unadvance .g-unadvance__row:last-child { border-bottom: 0; }
 #player-unadvance .g-unadvance__key,
 #player-unadvance .g-unadvance__value,
 #player-unadvance .g-unadvance__note {

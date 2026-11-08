@@ -207,6 +207,7 @@
   padding: var(--space-8) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-ledger__row:last-child { border-bottom: 0; }
 
 .g-ledger__title {
   color: var(--ink);

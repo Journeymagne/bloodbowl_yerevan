@@ -27,6 +27,7 @@
   text-transform: none;
   cursor: pointer;
 }
+.g-after__event:last-child { border-bottom: 0; }
 
 .g-after__num { flex: none; width: 28px; font: 700 17px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 

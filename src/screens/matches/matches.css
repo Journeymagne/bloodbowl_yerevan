@@ -333,6 +333,9 @@
   margin: 0;
   padding: 0;
 }
+/* The rule is the row's, the item's only child: the last item's row draws none. */
+.g-matches__item:last-child > .g-matches__row,
+.g-matches__item:last-child > .g-matches__later { border-bottom: 0; }
 
 /* A finished match: the pill, the opponent over its lines, the score; the row is one link (pre-flight L14). */
 .g-matches__row {
@@ -481,6 +484,7 @@
   border: 0;
   border-bottom: 1px solid var(--line);
 }
+.g-matches__calrow:last-child { border-bottom: 0; }
 
 /* A played match's square in its result's colour (a friendly's «F» in its own); the match on's in the tint, a later one ringed. */
 .g-matches__square {

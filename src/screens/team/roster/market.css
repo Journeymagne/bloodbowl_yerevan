@@ -375,6 +375,7 @@
   padding: var(--space-6) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-market__fact:last-child { border-bottom: 0; }
 .g-market__factkey {
   min-width: 0;
   margin: 0;
