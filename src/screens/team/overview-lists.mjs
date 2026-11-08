@@ -9,7 +9,7 @@
  * whole row, so that a thumb has 44px to press where the prototype's link is the name's 32px. One the roster stores no
  * id for is said all the same, but no address knows him, and he is no link.
  *
- * The recent results (decision 52) are a desk's card «Results» with its head inside (DeskOverview.html): a row is the
+ * The recent results (decision 52) are a desk's card «Recent matches» with its head inside (DeskOverview.html): a row is the
  * pill, the round («Friendly» for a friendly), the opponent with the race and the team's MVP of the match under it, the
  * casualties and the score. A phone keeps Team.html's rows under «Recent matches»: the small pill, the opponent over the
  * round and the casualties, the score. On both a press on the row opens the match (spec §3). A phone's row is the link.
@@ -126,12 +126,12 @@ const resultRow = (result, phone) => `<li class="g-overview__result">${phone ? p
 
 /**
  * The team's recent results in the form of the width, with the way to the whole season at the head: a desk's card
- * «Results», a phone's «Recent matches». "" when no match is finished.
+ * «Recent matches», as a phone's. "" when no match is finished.
  * @param {{results: (ReturnType<typeof import("../../data/team-record.mjs").recentResults>[number] & {race: string, raceHref: string, teamHref: string})[], teamId: string, phone: boolean}} input
  */
 export function resultsMarkup({ results, teamId, phone }) {
   if (!results.length) return "";
-  const title = `<h2 class="g-overview__title" id="overview-results-title">${escapeHtml(t(phone ? "teamOverview.results" : "teamOverview.resultsTitle"))}</h2>`;
+  const title = `<h2 class="g-overview__title" id="overview-results-title">${escapeHtml(t("teamOverview.results"))}</h2>`;
   return `<section class="g-overview__results" aria-labelledby="overview-results-title"><div class="g-overview__bar">${title}`
     + `<a class="g-overview__all" href="${escapeHtml(teamUrl(teamId, "matches"))}">${escapeHtml(t("teamOverview.wholeSeason"))}</a></div>`
     + `<ul class="g-overview__list">${results.map((result) => resultRow(result, phone)).join("")}</ul></section>`;

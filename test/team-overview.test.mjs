@@ -925,11 +925,11 @@ test("on a desk a row says what is known under the opponent: the MVP alone when 
   assert.equal(bare[1].querySelector(".g-overview__race svg"), null, "no book without the rules");
 });
 
-test("on a desk the results are a card with its head inside: «Results» and «Whole season →»", () => {
+test("on a desk the results are a card with its head inside: «Recent matches», as a phone's, and «Whole season →»", () => {
   const section = mount(overviewMarkup(overviewModel(input("t1")))).querySelector(".g-overview__results");
   assert.deepEqual(classesOf(section), ["g-overview__bar", "g-overview__list"]);
   const title = section.querySelector(".g-overview__bar h2.g-overview__title");
-  assert.equal(title.textContent, "Results");
+  assert.equal(title.textContent, "Recent matches");
   assert.equal(section.getAttribute("aria-labelledby"), title.getAttribute("id"));
   assert.equal(section.querySelector('.g-overview__bar a.g-overview__all[href="#/t/t1/matches"]').textContent, "Whole season →");
   // DeskOverview.html: the section is the card, 16 round, white in the ring, 8 24 12 in; its head 14 0 6, the title and the link at its two ends.
@@ -1413,7 +1413,6 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   assert.deepEqual([en["teamOverview.leadersShort"], ru["teamOverview.leadersShort"]], ["Leaders", "Лидеры"], "a phone's (Team.html)");
   // A desk's results (DeskOverview.html): the title, the round's column, the casualties' and the MVP under the opponent.
   const RESULT_WORDS = {
-    "teamOverview.resultsTitle": ["Results", "Результаты"],
     "teamOverview.round": ["Round {round}", "Тур {round}"],
     "teamOverview.friendly": ["Friendly", "Товарищеский"],
     "teamOverview.cas": ["CAS {cas}", "CAS {cas}"],

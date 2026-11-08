@@ -1,5 +1,5 @@
 /**
- * The lists of the matches page under the card (Matches.html): «Results» — the season's finished matches, the newest
+ * The lists of the matches page under the card (Matches.html): «Played matches» — the season's finished matches, the newest
  * first, the record in its head — and «Later in the season» — the team's other open matches, then the next round, whose
  * opponent the Swiss pairing gives once every result of the round is in.
  *
@@ -37,7 +37,7 @@ function resultRow(row) {
 }
 
 /**
- * «Results», with «4 · 1 · 1» (the season's league record) at the right of its head; «No matches played yet» when none.
+ * «Played matches», with «4 · 1 · 1» (the season's league record) at the right of its head; «No matches played yet» when none.
  * @param {ReturnType<typeof import("./model.mjs").matchesModel>["results"]} rows
  * @param {{wins: number, draws: number, losses: number}|null} record null outside the table
  */
