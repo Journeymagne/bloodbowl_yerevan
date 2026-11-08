@@ -413,8 +413,11 @@ test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, giving way down 
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "vertical-align"), ["super"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "line-height"), ["0"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "flex-direction"), ["column"]);
+  // The buttons' fill stands 4px off the ring at the sides and under them (the owner, 2026-11-08: 2px read as none).
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "padding"), ["var(--space-6) var(--space-4) var(--space-4)"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper__line", "display"), ["flex"]);
-  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__label", "font-size"), ["11px"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__label", "font-size"), ["12px"], "as every other stepper's (the owner, 2026-11-08)");
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__mid", "gap"), ["3px"], "a phone's label stands off its count");
 });
 
 // ---------------------------------------------------------------------------
