@@ -219,8 +219,9 @@
 }
 
 /*
- * «Show N more» / «Show less» under a long list, centred: the accent's words as the cards' «Whole season →», a finger's
- * 44px high, and the builder's chevron after them, turned up once the list is open (builder-roster.css).
+ * «Show N more» / «Show less» under a long list, centred: the accent's words as the cards' «Whole season →», at a desk's
+ * 24px as theirs (D2; the list is a desk's alone), and the builder's chevron after them, turned up once the list is open
+ * (builder-roster.css).
  */
 .g-overview__readymore {
   box-sizing: border-box;
@@ -228,7 +229,7 @@
   align-self: center;
   align-items: center;
   gap: var(--space-4);
-  min-height: var(--size-touch);
+  min-height: 24px;
   margin: 0;
   padding: 0;
   border: 0;
