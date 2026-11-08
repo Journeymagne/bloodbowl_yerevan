@@ -1324,7 +1324,7 @@ test("readable: the labels in the ink and the notes in --muted, the violations i
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["600 15px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "color"), ["var(--ink)"]);
   assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__name", "font"), valuesOf(SETTINGS, ".g-team-settings__label", "font"), "the same as a resource's name");
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["700 15px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["400 15px/1.3 var(--font-body)"], "the label the bold word, the value plain (the owner, 2026-11-08)");
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "font"), ["400 14px/1.4 var(--font-body)"]);
   // Builder's 52px and 60px are content-box, over a 1px rule: 53px and 61px as drawn.

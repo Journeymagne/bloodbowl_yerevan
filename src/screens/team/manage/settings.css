@@ -94,13 +94,14 @@
   gap: var(--space-10);
   min-width: 0;
   color: var(--ink);
-  font: 700 15px/1.3 var(--font-body);
+  /* The label is the row's bold word; what it holds is plain (the owner, 2026-11-08). */
+  font: 400 15px/1.3 var(--font-body);
   text-align: right;
   text-transform: none;
   letter-spacing: 0;
 }
 .g-team-settings__value b {
-  font-weight: 700;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 

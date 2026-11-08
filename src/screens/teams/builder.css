@@ -223,9 +223,10 @@
 .g-build__row:last-child { border-bottom: 0; }
 .g-build__row--logo { min-height: 60px; }
 
+/* A row's name in the ink at 600, what it holds plain, as the team page's settings (the owner, 2026-11-08). */
 .g-build__label {
-  color: var(--muted);
-  font: 400 14px/1.3 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
 }
 .g-build__value {
   display: flex;
@@ -234,11 +235,11 @@
   gap: var(--space-10);
   min-width: 0;
   color: var(--ink);
-  font: 700 15px/1.3 var(--font-body);
+  font: 400 15px/1.3 var(--font-body);
   text-align: right;
 }
 .g-build__value b {
-  font-weight: 700;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 .g-build__change { flex: none; }

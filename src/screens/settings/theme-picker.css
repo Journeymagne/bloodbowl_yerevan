@@ -37,9 +37,10 @@
   min-width: 0;
 }
 
+/* «Theme» and «Palette» over their controls: named as a field is (text-field.css). */
 .g-theme__caption {
-  color: var(--muted);
-  font: 600 13px/1.35 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.35 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -50,8 +51,13 @@
   gap: var(--space-10);
 }
 
-/* A card: the page's own surface and ring, so the miniature is the only thing in another palette. */
+/*
+ * A card: the page's own surface and ring, so the miniature is the only thing in another palette. The ring is drawn
+ * over the card (::after): an inset shadow is painted under the content, and the miniature's fill hid it at the top —
+ * the ring read half there and whole at the bottom (the owner, 2026-11-08).
+ */
 .g-palette {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -62,7 +68,6 @@
   border: 0;
   border-radius: var(--radius-xl);
   background: var(--surface);
-  box-shadow: var(--ring);
   color: var(--ink);
   font: 400 14px/1.3 var(--font-body);
   text-align: left;
@@ -70,11 +75,18 @@
   letter-spacing: 0;
   cursor: pointer;
 }
-
-/* The chosen card wears the page's accent; the part outside the card is the one that shows. */
-.g-palette[aria-checked="true"] {
-  box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 2px var(--accent);
+.g-palette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--ring);
+  pointer-events: none;
 }
+
+/* The chosen card wears the page's accent, 2px in over the miniature and 2px out: as thick on every side. */
+.g-palette[aria-checked="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.g-palette[aria-checked="true"]::after { box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* The chosen card's ring is 2px out; the focus ring goes outside that. */
 .g-palette:focus-visible {

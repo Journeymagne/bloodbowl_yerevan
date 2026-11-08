@@ -178,7 +178,13 @@ test("the cards sit two to a row, the mood on one line, and the whole thing is s
   assert.deepEqual(valuesOf(SHEET, ".g-palettes", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palettes", "gap"), ["var(--space-10)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palette", "border-radius"), ["var(--radius-xl)"]);
-  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent), 0 0 0 2px var(--accent)"]);
+  // The ring is drawn over the card, so the miniature's fill cannot hide it at the top (the owner, 2026-11-08):
+  // the chosen card 2px in over the content and 2px out, as thick on every side.
+  assert.deepEqual(valuesOf(SHEET, ".g-palette::after", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-palette::after", "pointer-events"), ["none"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]::after', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]', "box-shadow"), ["0 0 0 2px var(--accent)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-palette", "box-shadow"), [], "no inset ring under the content");
   assert.deepEqual(valuesOf(SHEET, ".g-palette__mood", "white-space"), ["nowrap"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palette__mood", "text-overflow"), ["ellipsis"]);
   assert.match(valuesOf(SHEET, ".g-palette__mood", "font").at(-1), /^400 11px\//);

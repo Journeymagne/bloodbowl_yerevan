@@ -59,8 +59,8 @@
 
 /* The field label's own look (text-field.css); the group's name is read from the radio group, so this one is not. */
 .g-money__label {
-  color: var(--muted);
-  font: 600 13px/1.35 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.35 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }

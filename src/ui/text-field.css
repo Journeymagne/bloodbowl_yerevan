@@ -20,9 +20,10 @@
   gap: var(--space-8);
 }
 
+/* A field's name as a row's is named, 600 15px in the ink (team settings; the owner, 2026-11-08); its help stays quiet. */
 .g-field__label {
-  color: var(--muted);
-  font: 600 13px/1.35 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.35 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }

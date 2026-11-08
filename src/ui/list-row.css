@@ -74,11 +74,15 @@
 .g-kv:last-child { border-bottom: 0; }
 
 /* Either side may wrap rather than push the other out of the row. */
-.g-kv__label { min-width: 0; }
+/* The label is the row's word at 600, the value plain (the owner, 2026-11-08: as every row that names what it holds). */
+.g-kv__label {
+  min-width: 0;
+  font-weight: 600;
+}
 
 .g-kv__value {
   min-width: 0;
-  font-weight: 600;
+  font-weight: 400;
   text-align: right;
 }
 
