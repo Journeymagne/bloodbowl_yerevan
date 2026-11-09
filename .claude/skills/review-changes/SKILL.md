@@ -31,6 +31,18 @@ Reading and running read-only checks is fine; so is `npm run build`, though it r
     checked out (usually `HEAD`). Otherwise review it with `diff A B` and `show <commit>` per commit, read files with
     `show B:<path>`, and skip the checks — they would run on the checked-out code, not on `B`; say so in the report.
   - `uncommitted`: the work not committed yet; the base is `HEAD`.
+- For a branch, check that it still stands on the latest `main` and that the remote has what is reviewed
+  (`fetch` reads, it changes nothing local):
+
+  ```powershell
+  & $g fetch origin --quiet
+  & $g rev-list --count HEAD..origin/main      # main's commits the branch lacks: 0, or say how many
+  & $g rev-list --count "@{u}..HEAD"           # commits not pushed (none when the branch has no upstream)
+  & $g rev-list --count "HEAD..@{u}"           # commits on the remote not here: review those too, or say so
+  ```
+
+  When `main` moved on, the review still compares against the merge-base, but the merge may conflict and the
+  checks ran without `main`'s new code: say so in the report and suggest merging `main` in (or rebasing) first.
 - Start with `diff --stat <base>` (the working tree against the base: commits and uncommitted work together),
   `log --oneline <base>..HEAD` and `status --short`, then read every changed hunk. Read the surrounding code too, not
   only the diff: most problems are in how a change meets what was already there.
@@ -223,6 +235,9 @@ the shared components in `src/ui/` (`*.mjs` + `*.css`).
 
 - Every new user-facing string goes through `t()` / `data-i18n*` with keys in both `en.json` and `ru.json`
   (CLAUDE.md §2); RU wording follows `docs/i18n-glossary.md`.
+- A changed or new UI term updates `docs/i18n-glossary.md` too: its row in «3.0 UI terms», or a note above the table
+  that quotes the old words (the glossary's own rule: "When a dictionary word changes, change its row"). Grep the
+  glossary for the old EN and RU words of every changed key; a stale row is a finding.
 - A change under `content/Gata/` needs the matching change under `content/Gata-ru/` (CLAUDE.md §1).
 
 ## 9. Tests and docs
@@ -263,8 +278,9 @@ a bug.
 
 Start with what was reviewed (range, number of files), then the checks as a short table: each command and its result
 — passed, failed (with the message), new test failures against the baseline (named), or not run and why (with the
-command). Then one line: the number of must-fix findings and what blocks a merge (or "nothing blocks a merge").
-Then the manual-pass checklist, when the change is visual.
+command) — and, for a branch, whether it stands on the latest `main` and matches its remote (§0). Then one line:
+the number of must-fix findings and what blocks a merge (or "nothing blocks a merge"). Then the manual-pass
+checklist, when the change is visual.
 
 Then the findings, most severe first, each with `path:line` as a clickable link, what is wrong, a concrete failure
 scenario, and a severity: **must fix** (wrong behaviour, a crash, lost data or state, a security or accessibility
