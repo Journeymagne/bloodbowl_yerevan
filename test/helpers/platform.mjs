@@ -15,6 +15,19 @@
  * The deploy target is Linux, so these still run where it counts — in CI and on
  * the server — and announce themselves as skipped anywhere else.
  */
-export const posixOnly = process.platform === "win32"
+const windows = process.platform === "win32";
+
+export const posixOnly = windows
   ? { skip: "POSIX file modes and symlinks; runs on Linux, which is where this deploys" }
+  : {};
+
+/** A file's mode is the POSIX one: on Windows `fs.stat` makes one up, so a check of it there says nothing. */
+export const posixModes = !windows;
+
+/**
+ * A test that hands a script (`test/fixtures/*.mjs`, a fake Chrome) to code that starts it as a program, through
+ * its shebang: Windows has none, and starts no `.mjs` file as one.
+ */
+export const shebangScripts = windows
+  ? { skip: "starts a .mjs fake Chrome as a program, which Windows cannot; runs on Linux and macOS" }
   : {};
