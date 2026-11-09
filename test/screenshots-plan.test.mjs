@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { connect, openPage } from "../scripts/screenshots/cdp.mjs";
 import { startFakeDevTools } from "./helpers/fake-devtools.mjs";
+import { shebangScripts } from "./helpers/platform.mjs";
 import {
   DEFAULT_MAC_CHROME,
   chromeEnvironment,
@@ -543,7 +544,7 @@ test("a command to a socket Chrome has closed, or a wait for an event on one, fa
   }
 });
 
-test("a Chrome that dies in the middle of a run: its shot and every later one are NOT TAKEN at once", async () => {
+test("a Chrome that dies in the middle of a run: its shot and every later one are NOT TAKEN at once", shebangScripts, async () => {
   const site = http.createServer((request, response) => response.end("ok"));
   await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gata-screens-test-"));
@@ -575,7 +576,7 @@ test("a Chrome that dies in the middle of a run: its shot and every later one ar
   }
 });
 
-test("a page that sends a guest elsewhere is shot at its own address: after the storage, a fresh load of the url, not a reload", async () => {
+test("a page that sends a guest elsewhere is shot at its own address: after the storage, a fresh load of the url, not a reload", shebangScripts, async () => {
   // The first load is a guest's: a coach page sends it to #/login, and a reload would photograph the sign-in screen.
   const site = http.createServer((request, response) => response.end("ok"));
   await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
