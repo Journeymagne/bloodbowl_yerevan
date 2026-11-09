@@ -250,6 +250,15 @@
   justify-content: center;
   column-gap: var(--space-16);
 }
+/*
+ * On a phone the history's buttons keep their 44px target but are drawn 6px closer to what is over and under them. Only
+ * here: the history's lines take no press, so the overlap steals none (over a list of choices it would). Two buttons
+ * wrapped onto two lines keep 12px between them, which the two 6px give back, so their targets never overlap.
+ */
+@media (max-width: 900px) {
+  .g-ledger__actions { row-gap: var(--space-12); }
+  .g-ledger__actions .g-link-btn { margin-block: calc(-1 * var(--space-6)); }
+}
 
 .g-ledger__since {
   margin: 0;

@@ -153,10 +153,6 @@
   line-height: normal;
 }
 .g-more[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
-/* A finger's 44 on a phone, drawn 12px closer to what is over and under it: the target stays, the gap shrinks. */
-@media (max-width: 900px) {
-  .g-more { margin-block: calc(-1 * var(--space-6)); }
-}
 @media (min-width: 901px) {
   .g-more { min-height: 24px; }
 }

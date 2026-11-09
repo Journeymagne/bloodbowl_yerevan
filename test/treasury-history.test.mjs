@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test, { afterEach } from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 
@@ -480,6 +480,10 @@ test("the cards are surfaces with their own text, a row is 60px, a button is tou
   // «Try again» and «More» are the kit's link buttons, as the fold beside them.
   assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-height"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
+  // On a phone they sit closer to the lines, keeping the target; only here, where nothing under the overlap takes a
+  // press (the advancement's fold, over the skills to choose, keeps its room).
+  assert.ok(mediaText(CSS, "max-width: 900px").includes(".g-ledger__actions .g-link-btn { margin-block: calc(-1 * var(--space-6)); }"));
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-more", "margin-block"), [], "not on every fold");
   assert.deepEqual(valuesOf(CSS, ".g-ledger__amount", "white-space"), ["nowrap"]);
   assertReadable(CSS, ".g-ledger__amount--out", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-ledger__amount--in", "color", ["--surface"], 4.5);
