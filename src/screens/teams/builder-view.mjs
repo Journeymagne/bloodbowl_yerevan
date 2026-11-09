@@ -149,7 +149,7 @@ function logoRow(logoData) {
   return `<div class="g-build__row g-build__row--logo"><span class="g-build__logo-line"><span class="g-build__logo">${picture}</span>`
     + `<span class="g-build__logo-text"><span class="g-build__logo-name">${escapeHtml(t("newTeam.logo"))}</span><span class="g-build__hint">${escapeHtml(t("newTeam.logoNote"))}</span></span></span>`
     + `<span class="g-build__logo-actions"><input class="g-sr-only g-build__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg">`
-    + `<label class="g-btn g-build__upload" for="${LOGO_ID}">${escapeHtml(t("newTeam.upload"))}</label>${remove}</span></div>`;
+    + `<label class="g-btn g-build__upload" for="${LOGO_ID}">${icon("upload", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>${remove}</span></div>`;
 }
 
 function teamMarkup(race, draft) {

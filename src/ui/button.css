@@ -139,9 +139,10 @@
   text-transform: none;
 }
 .g-link-btn:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+/* Closed, as a closed .g-btn is: its own colour, dimmed. Only a main button turns to the --disabled fill. */
 .g-link-btn[aria-disabled="true"] {
-  color: var(--disabled);
   cursor: not-allowed;
+  opacity: .6;
 }
 
 /* Any action under a list: its fold (`renderFoldButton`), and «More» and «Try again», which take it without the chevron. */
@@ -152,6 +153,10 @@
   line-height: normal;
 }
 .g-more[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
+/* A finger's 44 on a phone, drawn 12px closer to what is over and under it: the target stays, the gap shrinks. */
+@media (max-width: 900px) {
+  .g-more { margin-block: calc(-1 * var(--space-6)); }
+}
 @media (min-width: 901px) {
   .g-more { min-height: 24px; }
 }

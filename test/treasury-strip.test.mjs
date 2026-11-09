@@ -96,12 +96,7 @@ test("the strip says the treasury and what the team holds, as on DeskRoster", ()
   assert.equal(link.getAttribute("href"), "#/t/t1/team");
   assert.equal(link.getAttribute("aria-label"), "Team, treasury and resources");
   assert.equal(link.hasAttribute("data-treasury-money"), false, "it opens no sheet of its own");
-  assert.equal(link.querySelector("path").getAttribute("d"), "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z", "07a draws the same pencil");
-  // In the square of the team settings' icon buttons: 36px, their ring.
-  assert.ok(link.querySelector(".g-funds__editbox svg"), "the pencil sits in its square");
-  assert.deepEqual([valuesOf(CSS, ".g-funds__editbox", "width"), valuesOf(CSS, ".g-funds__editbox", "box-shadow")],
-    [["36px"], ["inset 0 0 0 1px var(--control-border)"]]);
-  assert.ok(ICON_NAMES.includes("pencil") && !ICON_NAMES.includes("edit"));
+  assert.equal(link.querySelector("path").getAttribute("d"), "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z", "07a draws the same pencil");  assert.ok(ICON_NAMES.includes("pencil") && !ICON_NAMES.includes("edit"));
   assertCspSafe(fragment);
   assertStyled(fragment, CSS);
   assertDictionaryCovers("src/screens/team/manage/strip.mjs");

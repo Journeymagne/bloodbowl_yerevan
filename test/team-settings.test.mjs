@@ -407,9 +407,9 @@ test("on a desk the settings are a card in the right column, over the history; t
 });
 
 // DeskBuilder.html's «Команда» card: `padding: 4px 24px 20px`, a radius of 16, `inset 0 0 0 1px #DCE3DF`, which is the
-// kit's ring in --line-strong (the plan's token map, L9); its heading `padding: 18px 0 4px`, Oswald 700 22px. Builder.html
-// draws the same rows with no frame, in the screen's body.
-test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over the heading's 18, a radius of 16 in the kit's ring", () => {
+// kit's ring in --line-strong (the plan's token map, L9). Its heading is the team page's cards' (Oswald 26px, 16px from
+// the card's top), not the prototype's 22px. Builder.html draws the same rows with no frame, in the screen's body.
+test("on a desk the card is DeskBuilder's team card: 24px at its sides, a radius of 16 in the kit's ring, its heading the other cards'", () => {
   const desk = mediaText(SETTINGS, "min-width: 901px");
   const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
   const valueIn = (property) => rule.match(new RegExp(`(?:^|\\s)${property}: ([^;]+);`))?.[1];
@@ -420,9 +420,12 @@ test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over
   const token = (name) => tokens.match(new RegExp(`${name}: ([^;]+);`))[1];
   assert.deepEqual(["--space-4", "--space-24", "--space-20", "--radius-2xl"].map(token), ["4px", "24px", "20px", "16px"]);
   assert.deepEqual([token("--ring"), token("--line-strong")], ["inset 0 0 0 1px var(--line-strong)", "#DCE3DF"], "the prototype's #DCE3DF ring");
-  // The heading: 18px over it inside the card's 4px, 4px under; Oswald 22px on the font's own line. Only the desk's card draws it.
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "padding"), ["18px 0 var(--space-4)"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
+  // The heading as Treasury's, Resources' and History's: the same type, 16px from the card's top (its 4px and 12px over
+  // the heading, as their 4px and 12px margin). Only the desk's card draws it.
+  const MANAGE = "src/screens/team/manage/manage.css";
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), valuesOf(MANAGE, ".g-manage__resources-title", "font"));
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "padding"), ["var(--space-12) 0 var(--space-4)"]);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources-title", "margin"), ["var(--space-12) 0"]);
   assert.equal(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings" }))).querySelector("h2"), null, "the phone's screen: its h1 names the rows");
 });
 
@@ -1258,9 +1261,9 @@ test("a row's edit and the logo's upload are a square pencil, its removal a squa
   assert.deepEqual([remove.getAttribute("class"), remove.getAttribute("aria-label"), remove.getAttribute("aria-describedby")], ["g-btn g-team-settings__btn g-team-settings__icon", "Remove", "team-settings-logo-label"]);
   assert.equal(fragment.querySelector("#team-settings-logo-label").textContent, "Logo");
   assert.ok(remove.querySelector("svg") && iconOf(remove) === "other", "the trash");
-  // The upload is the file field's label: the pencil seen, its word unseen, so the field is still named «Upload».
+  // The upload is the file field's label: the upload icon seen, its word unseen, so the field is still named «Upload».
   const upload = fragment.querySelector('label[for="team-settings-logo"]');
-  assert.equal(iconOf(upload), "pencil");
+  assert.equal(upload.querySelector("path").getAttribute("d"), "M12 15V4M7 9l5-5 5 5", "the upload icon, as the builder's");
   assert.equal(upload.querySelector(".g-sr-only").textContent, "Upload");
   assert.equal(fragment.querySelector("[data-settings-order]").textContent, "By number", "an action, not an edit: the word stays");
   assert.equal(fragment.querySelector("[data-settings-order]").getAttribute("class"), "g-btn g-team-settings__btn");
@@ -1319,18 +1322,18 @@ test("styled: the section, its callout, and every sheet; nothing the CSP refuses
   }
 });
 
-test("readable: the labels in the ink and the notes in --muted, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
+test("readable: the labels and the notes in --muted, the values bold in the ink, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
   for (const selector of [".g-team-settings__label", ".g-team-settings__note"]) assertReadable(SETTINGS, selector, "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__violation", "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__btn", "color", ["--surface"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__value", "color", ["--surface", "--page"], 4.5);
   assertReadable("src/screens/teams/new.css", ".g-races__resets", "color", ["--warn-tint"], 4.5);
-  // A row's name as the team page's other rows name theirs (the owner, 2026-11-08): the resources', the treasury's.
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["600 15px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "color"), ["var(--ink)"]);
-  assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__name", "font"), valuesOf(SETTINGS, ".g-team-settings__label", "font"), "the same as a resource's name");
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["400 15px/1.3 var(--font-body)"], "the label the bold word, the value plain (the owner, 2026-11-08)");
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
+  // Builder's rows (the kit's key–value row): the label quiet, what it holds bold.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["400 14px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "color"), ["var(--muted)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["700 15px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf("src/screens/teams/builder.css", ".g-build__value", "font"), valuesOf(SETTINGS, ".g-team-settings__value", "font"), "as the builder's");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 26px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "font"), ["400 14px/1.4 var(--font-body)"]);
   // Builder's 52px and 60px are content-box, over a 1px rule: 53px and 61px as drawn.
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row", "min-height"), ["53px"]);

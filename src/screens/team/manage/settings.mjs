@@ -159,9 +159,9 @@ function logoRow({ logoData, held }) {
     + `<span class="g-team-settings__note">${escapeHtml(t("newTeam.logoNote"))}</span></span>`;
   // Never disabled: held, the field stays in the tab order with its reason, and a press of it or of its label (which is
   // the button) says why instead of opening the picker; a field that is disabled under the focus would drop it. The
-  // label is the row's pencil; its word, unseen, stays the field's name.
+  // label is the row's upload icon; its word, unseen, stays the field's name.
   const file = `<input class="g-sr-only g-team-settings__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg" aria-describedby="team-settings-logo-label"${shut(held)}>`
-    + `<label class="${ICON_BUTTON}" for="${LOGO_ID}"${shut(held)}>${icon("pencil", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>`;
+    + `<label class="${ICON_BUTTON}" for="${LOGO_ID}"${shut(held)}>${icon("upload", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>`;
   const remove = logoData ? iconButton('data-settings-logo-remove aria-describedby="team-settings-logo-label"', "trash", t("teamSettings.remove"), held) : "";
   return '<div class="g-team-settings__row g-team-settings__row--logo" data-settings-row="logo" data-key="team-settings-logo">'
     + `<span class="g-team-settings__logo-line"><span class="g-team-settings__logo">${picture}</span>${text}</span>`

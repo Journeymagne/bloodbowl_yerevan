@@ -41,6 +41,8 @@ const SHAPES = {
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   // A picture: its frame and the hills in it (Builder's logo frame, where the team's settings show no logo).
   image: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
+  // A file sent up: the logo's «Upload» (Builder, the team's settings).
+  upload: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
   // The roster table's: a signal crossed out for a connection that dropped (its hand edit's pencil is above, shared with the treasury).
   offline: '<path d="M3 3l18 18"/><path d="M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 4.6-2.6M14.4 10.3A10 10 0 0 1 19 12.9M2 9.4a15 15 0 0 1 4.2-2.6M12 19.5h.01"/>',
   // More to read (the board's bubbles, DeskSeason.html): a ring with the «i» in it.

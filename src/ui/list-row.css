@@ -73,14 +73,11 @@
 .g-kv:last-child { border-bottom: 0; }
 
 /* Either side may wrap rather than push the other out of the row. */
-.g-kv__label {
-  min-width: 0;
-  font-weight: 600;
-}
+.g-kv__label { min-width: 0; }
 
 .g-kv__value {
   min-width: 0;
-  font-weight: 400;
+  font-weight: 600;
   text-align: right;
 }
 

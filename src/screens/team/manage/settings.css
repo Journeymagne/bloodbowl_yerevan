@@ -22,14 +22,15 @@
 }
 
 /*
- * DeskBuilder's heading: Oswald 22px on the font's own line (the prototype sets none), 18px over it and 4px under. Only
- * the desk's card draws it: the phone's screen is named by its head's h1 (settings-screen.mjs).
+ * The heading of a card of the team page, as Treasury's, Resources' and History's (manage.css) and the builder's
+ * (builder.css): Oswald 26px, 16px from the card's top as theirs. Only the desk's card draws it: the phone's screen is
+ * named by its head's h1 (settings-screen.mjs).
  */
 .g-team-settings__title {
   margin: 0;
-  padding: 18px 0 var(--space-4);
+  padding: var(--space-12) 0 var(--space-4);
   color: var(--ink);
-  font: 700 22px/normal var(--font-display);
+  font: 700 26px/1.1 var(--font-display);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -41,7 +42,7 @@
 
 /*
  * A line of the card: a rule under it, the label at the left, the value and the button at the right. Builder's rows are
- * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; 8px over and under keep a button off the
+ * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; 6px over and under keep a button off the
  * rules, as the resources' rows do (resource-counter.css).
  */
 .g-team-settings__row {
@@ -52,7 +53,7 @@
   gap: var(--space-10);
   min-height: 53px;
   margin: 0;
-  padding: var(--space-8) 0;
+  padding: var(--space-6) 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: none;
@@ -71,10 +72,9 @@
   flex-direction: column;
 }
 
-/* As the team page's other rows name theirs (resource-counter.css). */
 .g-team-settings__label {
-  color: var(--ink);
-  font: 600 15px/1.3 var(--font-body);
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -94,7 +94,7 @@
   gap: var(--space-10);
   min-width: 0;
   color: var(--ink);
-  font: 400 15px/1.3 var(--font-body);
+  font: 700 15px/1.3 var(--font-body);
   text-align: right;
   text-transform: none;
   letter-spacing: 0;
@@ -393,7 +393,7 @@
 }
 
 @media (min-width: 901px) {
-  /* DeskBuilder's team card: 4px over the heading's 18, 24px at its sides, 20px under the last line; white in the kit's ring. */
+  /* DeskBuilder's team card: 4px over the heading, 24px at its sides, 20px under the last line; white in the kit's ring. */
   .g-team-settings {
     padding: var(--space-4) var(--space-24) var(--space-20);
     border-radius: var(--radius-2xl);

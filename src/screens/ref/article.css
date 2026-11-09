@@ -364,6 +364,14 @@
   font-size: 15px;
 }
 
+.g-skill-detail__facts .g-kv__label {
+  color: var(--muted);
+}
+
+.g-skill-detail__facts .g-kv__value {
+  font-weight: 700;
+}
+
 .g-skill-detail__ours {
   display: flex;
   flex-direction: column;

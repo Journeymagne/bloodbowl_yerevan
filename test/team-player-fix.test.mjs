@@ -715,7 +715,9 @@ test("styled: the edit's frame, stage 08's counters, the toggles as chips; its c
     // The line to the fix is the kit's link button, as the team page's «Correct the treasury by hand».
     assert.deepEqual(valuesOf(LINK, ".g-link-btn", "font"), ["600 15px/1.3 var(--font-body)"]);
     assert.deepEqual(valuesOf(LINK, ".g-link-btn", "border-top"), [], "no rule over it");
-    assert.deepEqual(valuesOf(LINK, '.g-link-btn[aria-disabled="true"]', "color"), ["var(--disabled)"]);
+    // Closed, it keeps its colour, dimmed, as a closed .g-btn: only a main button turns to the --disabled fill.
+    assert.deepEqual(valuesOf(LINK, '.g-link-btn[aria-disabled="true"]', "color"), []);
+    assert.deepEqual(valuesOf(LINK, '.g-link-btn[aria-disabled="true"]', "opacity"), [".6"]);
     assertReadable(FIX, ".g-player-fix__title", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__name", "color", ["--surface"], 4.5);
     assertReadable(FIX, ".g-player-fix__note", "color", ["--surface"], 4.5);
