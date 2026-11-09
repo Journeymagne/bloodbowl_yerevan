@@ -89,7 +89,20 @@
   background: var(--surface);
   color: var(--ink);
 }
-.g-funds__edit:hover { background: var(--surface-2); }
+
+/* The pencil in the square of the team settings' icon buttons (settings.css), in the middle of its column. */
+.g-funds__editbox {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+}
+.g-funds__edit:hover .g-funds__editbox { background: var(--surface-2); }
 
 /* The ring inside the pencil: the strip clips what lies outside its edge, which is where the pencil sits. */
 .g-funds__edit:focus-visible {

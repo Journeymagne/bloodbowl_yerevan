@@ -46,7 +46,7 @@ function resourceCell(row) {
 
 /** Keyed, so a patch keeps the focus on it. */
 function editLink(teamId) {
-  return `<a class="g-funds__edit" data-key="treasury-edit" href="${escapeHtml(teamUrl(teamId, "team"))}" aria-label="${escapeHtml(t("treasury.title"))}">${icon("pencil")}</a>`;
+  return `<a class="g-funds__edit" data-key="treasury-edit" href="${escapeHtml(teamUrl(teamId, "team"))}" aria-label="${escapeHtml(t("treasury.title"))}"><span class="g-funds__editbox">${icon("pencil")}</span></a>`;
 }
 
 /**
