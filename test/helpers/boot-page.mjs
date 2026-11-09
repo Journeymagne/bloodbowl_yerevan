@@ -34,6 +34,10 @@ export function bootPage(api, { hash }) {
   globalThis.window = globalThis;
   globalThis.history = { length: 1, back() {} };
   globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  // The locale stored below is not read: core/storage.mjs took `localStorage` when this file imported i18n.mjs,
+  // before the test installed its fake one. The app falls back to the system's language, which Node gives as the
+  // machine's (ru-RU on a Russian Windows): an English one makes the page the same on every machine.
+  Object.defineProperty(globalThis, "navigator", { value: { language: "en-US", languages: ["en-US"] }, configurable: true, writable: true });
   const replaced = [];
   globalThis.location = {
     hash,

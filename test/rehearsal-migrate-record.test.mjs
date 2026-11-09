@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertMigrateRecord, mergeMigrateRecord } from "../scripts/rehearsal/migrate-record.mjs";
+import { posixOnly } from "./helpers/platform.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -69,7 +70,7 @@ async function runWithRecord(record) {
   }
 }
 
-test("rehearsal:migrate reads and checks its record first: one of the wrong shape stops the run before the database is reached", async () => {
+test("rehearsal:migrate reads and checks its record first: one of the wrong shape stops the run before the database is reached", posixOnly, async () => {
   const control = await runWithRecord(JSON.stringify(first));
   assert.match(control.stderr, /DATABASE_URL is not a URL/, "a good record goes on to the database guard");
   for (const bad of ["{}", "[]", '{"runs":[]}', '{"applied":"x","ms":1}', '{"runs":[null]}', '{"applied":[1],"ms":1,"at":"x"}', '{"applied":[],"ms":1}']) {

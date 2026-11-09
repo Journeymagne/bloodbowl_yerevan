@@ -9,7 +9,7 @@ import { icon } from "../src/ui/icons.mjs";
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const sources = (dir) => readdirSync(new URL(`../${dir}/`, import.meta.url), { recursive: true })
   .filter((name) => name.endsWith(".mjs") || name.endsWith(".js"))
-  .map((name) => `${dir}/${name}`);
+  .map((name) => `${dir}/${name.replaceAll("\\", "/")}`);
 
 // Stage 11's hand-off to 13 (spec :474), the plan's decision 25: what the reference repeated, said once.
 

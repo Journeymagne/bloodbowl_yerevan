@@ -1,0 +1,6 @@
+# Every checkout keeps the LF the repository stores, Windows included: the tests and the build read files as they
+# are, and a checkout converted to CRLF fails them. Windows' own scripts keep CRLF, as cmd.exe expects.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf

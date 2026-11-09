@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { STALE_OUTPUTS, TRANSITIONS_FINISH, TRANSITIONS_RECORD } from "../scripts/rehearsal/outputs.mjs";
 import { seedToRecord, seedTransitions } from "../scripts/rehearsal/transitions-seed.mjs";
+import { posixModes } from "./helpers/platform.mjs";
 
 // A 2.1.0 site as far as the seed's creates go: coaches, teams, the season, challenges and their accepts. The
 // call numbered `failAt` is refused with a 409, and so is anything past the creates (the pre-matches), so a
@@ -86,7 +87,7 @@ test("--seed writes its record as it goes, 0600, and a seed that stops says to r
     return true;
   });
   const file = path.join(dir, TRANSITIONS_RECORD);
-  assert.equal((await fs.stat(file)).mode & 0o777, 0o600);
+  if (posixModes) assert.equal((await fs.stat(file)).mode & 0o777, 0o600);
   const record = JSON.parse(await fs.readFile(file, "utf8"));
   assert.equal(record.complete, false);
   assert.deepEqual(record.seeded, seededOf(site.made));
