@@ -475,12 +475,13 @@ test("the cards are surfaces with their own text, a row is 60px, a button is tou
   assert.deepEqual(valuesOf(CSS, ".g-manage__history", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-manage__safe", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-ledger__row", "min-height"), ["60px"]);
-  assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-height"), ["var(--size-touch)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
+  // «Try again» and «More» are the kit's link buttons, as the fold beside them.
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
   assert.deepEqual(valuesOf(CSS, ".g-ledger__amount", "white-space"), ["nowrap"]);
   assertReadable(CSS, ".g-ledger__amount--out", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-ledger__amount--in", "color", ["--surface"], 4.5);
-  assertReadable(CSS, ".g-ledger__action", "color", ["--surface"], 4.5);
+  assertReadable("src/ui/button.css", ".g-link-btn", "color", ["--surface"], 4.5);
   for (const selector of [".g-ledger__title", ".g-ledger__note", ".g-ledger__when", ".g-ledger__since", ".g-ledger__state", ".g-manage__history-title", ".g-manage__safe-title", ".g-manage__safe-rule", ".g-manage__safe-last", ".g-manage__safe-amount"]) {
     assertReadable(CSS, selector, "color", ["--surface"], 4.5);
   }

@@ -75,10 +75,9 @@ const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escape
  * load comes in ahead of that row, and an unkeyed row would be taken for another), so a page drawn again keeps
  * the keyboard focus on it.
  */
-const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
+const actionMarkup = (name, label) => `<button type="button" class="g-link-btn g-more" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
 
 const foldMarkup = (expanded, label) => renderFoldButton({ label, expanded, data: { key: "ledger-all", ledgerAll: true } });
-const moreMarkup = () => `<button type="button" class="g-link-btn g-more" data-key="ledger-more" data-ledger-more>${escapeHtml(t("treasury.history.more"))}</button>`;
 
 /**
  * What stands in place of the list, or under it: nothing yet, nothing at all, the reason the history did not come,
@@ -97,7 +96,7 @@ function actionsMarkup({ entries, next, total, error }, expanded) {
   let toggle = "";
   if (expanded) toggle = foldMarkup(true, t("common.showLess"));
   else if (total > HISTORY_PREVIEW) toggle = foldMarkup(false, t("common.showMore", { count: total - HISTORY_PREVIEW }));
-  const more = expanded && next ? moreMarkup() : "";
+  const more = expanded && next ? actionMarkup("more", t("treasury.history.more")) : "";
   return retry + toggle + more;
 }
 

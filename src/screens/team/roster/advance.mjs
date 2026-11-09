@@ -534,7 +534,8 @@ export function advanceHandlers(saving, lent) {
       if (before) change(sheet, { step: before, ...(before === "stat" ? { instead: false, category: "", skill: "" } : {}) });
     },
     onAdvanceTake: () => void takeChosen(saving, lent),
-    onAdvanceRule: () => openSheet(visit) && change(openSheet(visit), { ruleOpen: !openSheet(visit).ruleOpen }),
+    // Not `change`: reading the rule changes no choice, so a refusal said of the choice stays.
+    onAdvanceRule: () => { const sheet = openSheet(visit); if (sheet) { sheet.ruleOpen = !sheet.ruleOpen; draw(); } },
     onAdvanceKeep: close,
     onAdvanceDone: close,
     ...rollHandlers(saving, lent, { pressed, change }),

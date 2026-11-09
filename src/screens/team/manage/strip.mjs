@@ -1,8 +1,8 @@
 /**
  * The treasury strip of the desk roster (DeskRoster): the money and what the team holds in one row, and the pencil
  * that leads to the team page, where they are changed. Stage 07a puts it over the roster
- * table; two of its exports are that stage's contract — renderTreasuryStrip({team}) and wireTreasuryStrip(root). The
- * strip redraws itself when the team changes.
+ * table; two of its exports are that stage's contract — renderTreasuryStrip({team}) and wireStripRedraw(root), which
+ * draws it again when the team changes.
  *
  * The others are the team page's (index.mjs): its phone's treasury card (`treasuryCardMarkup`), whose «+ Add» and
  * «− Take», and its desk's (`treasuryBlockMarkup`), whose pencil, open «Add / Take» through the wiring here, in a host
@@ -77,7 +77,7 @@ export function treasuryBlockMarkup(model, live, after = "") {
   const title = escapeHtml(t("roster.treasuryTitle"));
   return `<section class="g-manage__treasury" data-key="manage-treasury" aria-labelledby="manage-treasury-title">`
     + `<h2 class="g-manage__resources-title" id="manage-treasury-title">${title}</h2>`
-    + `<div class="${live ? "g-resource g-resource--locked" : "g-resource"}"><span class="g-resource__text"><span class="g-resource__name">${title}</span></span>`
+    + `<div class="${live ? "g-resource g-resource--locked" : "g-resource"}"><span class="g-resource__text"><span class="g-resource__name">${escapeHtml(t("treasury.balance"))}</span></span>`
     + `<span class="g-resource__stepper"><span class="g-resource__value g-manage__treasury-sum">${escapeHtml(formatMoney(model.treasury))}</span>${edit}</span></div>`
     + `${after}</section>`;
 }
@@ -98,15 +98,20 @@ function stripContent(team) {
  * @returns {string} a section, hidden up to 900px (the phone has the Team tab's treasury card)
  */
 export function renderTreasuryStrip({ team }) {
-  return `<section class="g-funds" data-treasury-strip="${escapeHtml(team.id)}" aria-label="${escapeHtml(t("treasury.title"))}">${stripContent(team)}</section>`;
+  return `<section class="g-funds" data-treasury-strip="${escapeHtml(team.id)}" aria-label="${escapeHtml(t("treasury.strip.title"))}">${stripContent(team)}</section>`;
 }
 
-/** Every strip under `root` is drawn again from what the page holds now; one whose team is gone from the list stays as it was. */
-function redrawStrips(root) {
-  for (const section of root.querySelectorAll("[data-treasury-strip]")) {
-    const team = state.myTeams.items.find((item) => item.id === section.getAttribute("data-treasury-strip"));
-    if (team) patch(section, stripContent(team));
-  }
+/**
+ * The strips under `root` drawn again whenever the coach's teams change; one whose team is gone from the list stays as
+ * it was. All the roster needs: its strip opens no sheet. @returns {() => void} the listener's removal
+ */
+export function wireStripRedraw(root) {
+  return onMyTeamsChange(() => {
+    for (const section of root.querySelectorAll("[data-treasury-strip]")) {
+      const team = state.myTeams.items.find((item) => item.id === section.getAttribute("data-treasury-strip"));
+      if (team) patch(section, stripContent(team));
+    }
+  });
 }
 
 /**
@@ -158,7 +163,7 @@ export function wireTreasuryStrip(root) {
   const group = listenerGroup(root);
   group.own(wireMoneySheet(host));
   group.on("click", "[data-treasury-money]", (event, button) => press(host, button));
-  group.own(onMyTeamsChange(() => redrawStrips(root)));
+  group.own(wireStripRedraw(root));
   const entry = {
     holders: 1,
     release() {

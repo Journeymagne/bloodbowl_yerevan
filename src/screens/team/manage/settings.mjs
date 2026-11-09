@@ -128,7 +128,6 @@ function iconButton(attributes, name, label, reason) {
   return `<button type="button" class="${ICON_BUTTON}" ${attributes} aria-label="${escapeHtml(label)}"${shut(reason)}>${icon(name, 18)}</button>`;
 }
 
-/** The pencil that opens a row's sheet, described by the row's label. */
 function opener(kind, label, reason) {
   return iconButton(`data-settings-open="${kind}" aria-haspopup="dialog" aria-describedby="team-settings-${kind}-label"`, "pencil", label, reason);
 }
@@ -191,8 +190,8 @@ function heldCallout(teamId, { held, waitsRoster }) {
 const prepCallout = ({ preparing }) => (preparing ? renderCallout({ tone: "warn", title: prepResetWords("teamSettings.prep") }) : "");
 
 /**
- * The section: the title, what holds it, the rows, the roster's check. On a desk it is the team page's card, the last of
- * its right column (index.mjs); on a phone the rows of a screen of its own (settings-screen.mjs), whose h1 names it.
+ * The section: the title, what holds it, the rows, the roster's check. On a desk it is the team page's card, over the
+ * history in its right column (index.mjs); on a phone the rows of a screen of its own (settings-screen.mjs), whose h1 names it.
  * @param {{teamId: string, settings: ReturnType<typeof settingsModel>}} model the page's model
  * @param {{titled?: boolean}} [options] `titled: false` draws no h2: the screen's h1 carries its id
  * @returns {string}

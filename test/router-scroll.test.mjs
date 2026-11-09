@@ -73,6 +73,18 @@ test("another team's page is the same route: the router leaves the place to the 
   releaseCurrentScreen();
 });
 
+test("the browser's tab names the screen it shows, then the league", async () => {
+  const { view } = await import("../src/core/view.mjs");
+  coach();
+  for (const hash of ["#/t/t1/roster", "#/t/t1/matches"]) {
+    await go(hash);
+    const heading = view.querySelector("h1, h2")?.textContent.trim();
+    assert.ok(heading, hash);
+    assert.equal(document.title, `${heading} · Gata Blood Bowl League`, hash);
+  }
+  releaseCurrentScreen();
+});
+
 test("an address the router sends on scrolls nothing, and the route before it stays the one drawn", async () => {
   coach();
   await go("#/t/t1");

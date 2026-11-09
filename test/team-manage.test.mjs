@@ -157,7 +157,7 @@ test("a desk's two columns (the owner, 2026-11-08): «Treasury» — the sum, th
   assert.equal(treasury.querySelector("h2#manage-treasury-title").textContent, "Treasury");
   // The sum is a row of the resources' look, with one pencil beside the number: the sheet it opens has «Add» and «Take».
   const row = treasury.querySelector(".g-resource");
-  assert.equal(row.querySelector(".g-resource__name").textContent, "Treasury");
+  assert.equal(row.querySelector(".g-resource__name").textContent, "Balance", "not «Treasury» a second time under the card's title");
   assert.equal(row.querySelector(".g-resource__stepper .g-manage__treasury-sum").textContent, "70k");
   const edit = row.querySelector("button.g-resource__btn");
   assert.deepEqual([edit.getAttribute("data-treasury-money"), edit.getAttribute("data-treasury-sign"), edit.getAttribute("aria-label"), edit.getAttribute("aria-haspopup")],

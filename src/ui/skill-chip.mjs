@@ -17,7 +17,7 @@ import { classNames, dataAttributes } from "./markup.mjs";
  * @param {object} props
  * @param {string} props.name the skill as the rules spell it; never translated
  * @param {boolean} [props.gained] earned by an advancement rather than starting with the player
- * @param {boolean} [props.captain] the captain's own skill, in gold (the owner, 2026-11-08)
+ * @param {boolean} [props.captain] the captain's own skill, in gold
  * @param {boolean} [props.card] the larger chip, which can say where the skill came from
  * @param {string} [props.source] the small line under the name; drawn on a card only
  */

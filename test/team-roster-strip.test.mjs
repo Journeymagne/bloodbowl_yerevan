@@ -69,11 +69,11 @@ test("a desk roster has the treasury strip over the table; a phone has none, the
   fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
   assert.equal(order()[0], "Cade", "the roster drawn again");
   assert.equal(document.activeElement, stripEdit(), "the strip patched, its pencil the same node");
-  // Drawn again for the same team, the roster shares the one wiring; leaving takes it away.
-  await renderTeamRoster("t1");
-  assert.equal(document.querySelectorAll(STRIP_HOST).length, 1);
-  releaseCurrentScreen();
+  // The strip opens no sheet, so the roster mounts no host for one, drawn once or again.
   assert.equal(document.querySelector(STRIP_HOST), null);
+  await renderTeamRoster("t1");
+  assert.equal(document.querySelector(STRIP_HOST), null);
+  releaseCurrentScreen();
   assert.ok(valuesOf("src/screens/team/roster/roster.css", ".g-roster__strip", "display").includes("none"));
 });
 

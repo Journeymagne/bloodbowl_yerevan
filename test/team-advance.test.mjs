@@ -714,6 +714,9 @@ test("a refusal of the take is said in the sheet, which stays", async () => {
         await settle();
         assert.equal(patches().length, 0);
         assertStyled(view, ...ADVANCE_STYLES);
+        // Reading the skill's rule changes no choice: the refusal stays said.
+        fireEvent(sheet().querySelector("[data-advance-rule]"), "click");
+        assert.equal(refusal()?.textContent, OTHER_TAB);
         // Choosing again: the refusal was the last press's.
         choose(skill("Leap"));
         assert.equal(refusal(), null);

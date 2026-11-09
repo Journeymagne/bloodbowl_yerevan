@@ -250,23 +250,6 @@
   column-gap: var(--space-16);
 }
 
-.g-ledger__action {
-  box-sizing: border-box;
-  min-width: var(--size-touch);
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--accent-text);
-  font: 600 15px/1 var(--font-body);
-  text-transform: none;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-.g-ledger__action:hover { text-decoration: underline; }
-
 .g-ledger__since {
   margin: 0;
   color: var(--muted);
@@ -328,7 +311,6 @@
   white-space: nowrap;
 }
 
-/* The safe inside the card is one of its rows, not a card of its own. */
 .g-manage__treasury .g-manage__safe {
   padding: var(--space-12) 0;
   border: 0;

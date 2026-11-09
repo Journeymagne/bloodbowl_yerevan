@@ -86,7 +86,7 @@ test("the strip says the treasury and what the team holds, as on DeskRoster", ()
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "0", "yes"]);
   const section = document.querySelector("section.g-funds");
   assert.equal(section.getAttribute("data-treasury-strip"), "t1");
-  assert.equal(section.getAttribute("aria-label"), "Team, treasury and resources");
+  assert.equal(section.getAttribute("aria-label"), "Treasury and resources", "named for what it holds, not for the page its pencil leads to");
   const cells = section.querySelectorAll(".g-funds__cell");
   assert.match(cells[0].getAttribute("class"), /g-funds__cell--money/, "the treasury is the first cell, and the one set apart");
   assert.equal(section.querySelectorAll(".g-funds__cell--money").length, 1);
@@ -130,7 +130,7 @@ test("the strip reads in Russian: the labels the prototype shortens are shortene
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
   assert.deepEqual(labels(), ["Казна", "Старт. рер.", "Ком. рер.", "Фаны", "Coaches", "Cheer", "Bribes", "Апот."]);
   assert.equal(values().at(-1), "есть");
-  assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Команда, казна и ресурсы");
+  assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Казна и ресурсы");
   assert.equal(document.querySelector("a.g-funds__edit").getAttribute("aria-label"), "Команда, казна и ресурсы");
   mount(renderTreasuryStrip({ team: { ...state.myTeams.items[0], roster: { ...TEAM.roster, apothecary: 0 } } }));
   assert.equal(values().at(-1), "нет");

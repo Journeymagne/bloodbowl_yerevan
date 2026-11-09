@@ -1,22 +1,21 @@
 /**
- * Stage 08's treasury strip over the desk roster (DeskRoster): the money and what the team holds, and the button
- * that opens 08's «Add / Take» sheet. The strip is 08's (screens/team/manage/strip.mjs): it draws itself again on
- * every change of the coach's teams and games, and its sheet stands in a host of its own on the body, so a redraw
- * of the roster closes nothing. What is here is where it stands, what it is drawn from, and how the roster hears
- * what it writes.
+ * Stage 08's treasury strip over the desk roster (DeskRoster): the money and what the team holds, and a pencil that
+ * leads to the team page, where they are changed. The strip is 08's (screens/team/manage/strip.mjs) and draws itself
+ * again on every change of the coach's teams. What is here is where it stands, what it is drawn from, and how the
+ * roster hears a write made elsewhere.
  *
- * It is drawn from the team as the coach's list holds it (K4 c), where 08's writes land, so a redraw of the roster
- * never takes back an entry the strip has drawn; the roster's own read stands in for a team the list does not hold.
- * Up to 900px it is hidden (roster.css): the phone's treasury is the Team tab's card.
+ * It is drawn from the team as the coach's list holds it (K4 c), where the team page's writes land; the roster's own
+ * read stands in for a team the list does not hold. Up to 900px it is hidden (roster.css): the phone's treasury is the
+ * Team tab's card.
  *
- * A write of the strip moves the team's revision, and the roster's next save, sent on the one before, would meet it
- * as a 409 and lay the roster it read over the entry. So the roster listens to the list too (`wireStrip`), and reads
- * the team again when the list is ahead of its queue (`listAhead`; index.mjs, `followList`, K4 b).
+ * A write of the team page moves the team's revision, and the roster's next save, sent on the one before, would meet
+ * it as a 409. So the roster listens to the list too (`wireStrip`), and reads the team again when the list is ahead of
+ * its queue (`listAhead`; index.mjs, `followList`, K4 b).
  */
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
 import { state } from "../../../core/state.mjs";
 import { onMyTeamsChange } from "../../../data/teams.mjs";
-import { renderTreasuryStrip, wireTreasuryStrip } from "../manage/strip.mjs";
+import { renderTreasuryStrip, wireStripRedraw } from "../manage/strip.mjs";
 
 const listed = (teamId) => state.myTeams.items.find((item) => item.id === teamId) ?? null;
 
@@ -37,16 +36,12 @@ export function listAhead(teamId, revision) {
 }
 
 /**
- * The strips under `root` wired for the visit — once per mount, as 08 asks: a visit drawn again for the same team
- * shares the wiring, and its sheet stays open — and `onListChange` on every change of the coach's teams, both until
- * the screen is left.
+ * The strip drawn again, and `onListChange` called, on every change of the coach's teams until the screen is left.
  * @param {Element} root the view @param {() => void} onListChange
  */
 export function wireStrip(root, onListChange) {
-  const release = wireTreasuryStrip(root);
-  const off = onMyTeamsChange(onListChange);
+  const offs = [wireStripRedraw(root), onMyTeamsChange(onListChange)];
   onScreenLeave("team-roster:strip", () => {
-    off();
-    release();
+    for (const off of offs) off();
   });
 }

@@ -122,6 +122,8 @@
   align-self: flex-start;
   align-items: center;
   gap: var(--space-4);
+  /* A short word («Ещё») is narrower than a finger. */
+  min-width: var(--size-touch);
   min-height: var(--size-touch);
   margin: 0;
   padding: 0;
