@@ -99,10 +99,7 @@
   text-transform: none;
   letter-spacing: 0;
 }
-.g-team-settings__value b {
-  font-weight: 400;
-  overflow-wrap: anywhere;
-}
+.g-team-settings__shown { overflow-wrap: anywhere; }
 
 /* The logo: Builder's 40px frame with the picture, or the glyph of one in --muted; its name and its sizes, then its buttons. */
 .g-team-settings__logo-line {

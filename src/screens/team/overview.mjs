@@ -306,7 +306,6 @@ function readyToggle(count, all) {
   return renderFoldButton({ label, expanded: all, data: { readyToggle: true } });
 }
 
-/** A desk's list (DeskOverview.html). */
 function readyListMarkup(ready, teamId, all) {
   if (!ready.length) return "";
   const shown = all ? ready : ready.slice(0, READY_SHOWN);

@@ -5,7 +5,7 @@
  * draws it again when the team changes.
  *
  * The others are the team page's (index.mjs): its phone's treasury card (`treasuryCardMarkup`), whose «+ Add» and
- * «− Take», and its desk's (`treasuryBlockMarkup`), whose pencil, open «Add / Take» through the wiring here, in a host
+ * «− Take», and its desk's (`treasuryBlockMarkup`), whose pencil, open «Add / Take» (`wireMoneyOpeners`), in a host
  * of its own on the body, so a screen redrawing around it closes nothing; and the shut opener they draw (`shutOpener`).
  *
  * What the strip announces. Every write of the team page (an entry by hand, a step of a resource, a correction
@@ -13,14 +13,14 @@
  * data/teams.mjs) and is announced by `onMyTeamsChange` (data/teams.mjs), whose listeners read the new revision
  * off the list. A screen with a save
  * queue of its own, which sends a revision with each save, takes it from there and not from a copy it kept; the
- * strip itself keeps none and reads the team and the games again at each announcement.
+ * strip itself keeps none and reads the team again at each announcement.
  *
  * The cells are what `resourceRows` says the team holds (a counter's number, a medic's yes or no); what is closed
  * to the coach's hand is not the strip's business, but a resource priced by a race not read yet (Bribes) has no
  * cell. The pencil is a link even during a match: the team page says what the match closes there. Nothing is entered
  * during a match: a shut opener of the team page says why, as the sheet would.
  *
- * Wire once per screen mount, and keep the function `wireTreasuryStrip` returns for `onScreenLeave`.
+ * Wire once per screen mount, and keep the function each wiring returns for `onScreenLeave`.
  */
 import { toast } from "../../../components/toast.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../../core/dom.mjs";
@@ -76,7 +76,7 @@ export function treasuryBlockMarkup(model, live, after = "") {
     + ` aria-label="${escapeHtml(t("treasury.edit"))}"${shut}>${icon("pencil", 18)}</button>`;
   const title = escapeHtml(t("roster.treasuryTitle"));
   return `<section class="g-manage__treasury" data-key="manage-treasury" aria-labelledby="manage-treasury-title">`
-    + `<h2 class="g-manage__resources-title" id="manage-treasury-title">${title}</h2>`
+    + `<h2 class="g-manage__treasury-title" id="manage-treasury-title">${title}</h2>`
     + `<div class="${live ? "g-resource g-resource--locked" : "g-resource"}"><span class="g-resource__text"><span class="g-resource__name">${escapeHtml(t("treasury.balance"))}</span></span>`
     + `<span class="g-resource__stepper"><span class="g-resource__value g-manage__treasury-sum">${escapeHtml(formatMoney(model.treasury))}</span>${edit}</span></div>`
     + `${after}</section>`;
@@ -103,7 +103,7 @@ export function renderTreasuryStrip({ team }) {
 
 /**
  * The strips under `root` drawn again whenever the coach's teams change; one whose team is gone from the list stays as
- * it was. All the roster needs: its strip opens no sheet. @returns {() => void} the listener's removal
+ * it was. @returns {() => void} the listener's removal
  */
 export function wireStripRedraw(root) {
   return onMyTeamsChange(() => {
@@ -145,15 +145,14 @@ function releaseOf(root, entry) {
 }
 
 /**
- * Everything the strips and the treasury cards under `root` do: a press on an opener opens «Add / Take» in a host of
- * its own on the body, and the strips draw themselves again when the coach's teams change, so a screen has nothing to
- * redraw after an entry. A root is wired once: wiring it again shares the first wiring (one host, one dialog, one
+ * The team page's openers of «Add / Take» under `root` (`[data-treasury-money]`): a press opens the sheet in a host of
+ * its own on the body. A root is wired once: wiring it again shares the first wiring (one host, one dialog, one
  * listener) and returns a release of its own, and everything goes when the last release is called.
  *
- * @param {Element} root the screen's element, which holds the strips (and any other `[data-treasury-money]` button)
+ * @param {Element} root the screen's element
  * @returns {() => void} removes the listeners, closes the sheet and takes its host away
  */
-export function wireTreasuryStrip(root) {
+export function wireMoneyOpeners(root) {
   const held = wired.get(root);
   if (held) {
     held.holders += 1;
@@ -163,7 +162,6 @@ export function wireTreasuryStrip(root) {
   const group = listenerGroup(root);
   group.own(wireMoneySheet(host));
   group.on("click", "[data-treasury-money]", (event, button) => press(host, button));
-  group.own(wireStripRedraw(root));
   const entry = {
     holders: 1,
     release() {

@@ -40,7 +40,7 @@ import { matchLock, phaseOf, resourceRows } from "./model.mjs";
 import { resourcesMarkup, wireResources } from "./resources.mjs";
 import { settingsEntryMarkup, settingsScreenMarkup } from "./settings-screen.mjs";
 import { SETTINGS_PLACE, settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
-import { shutOpener, treasuryBlockMarkup, treasuryCardMarkup, wireTreasuryStrip } from "./strip.mjs";
+import { shutOpener, treasuryBlockMarkup, treasuryCardMarkup, wireMoneyOpeners } from "./strip.mjs";
 
 /**
  * What the page shows of a team.
@@ -123,9 +123,10 @@ export function manageMarkup(model) {
     // On a phone the team's value is in the card (TeamManage.html): the head says the title and the phase.
     phoneSub: false,
   });
-  // Across 900px the safe and the correction change places, and a focus on the correction goes to the page's title.
-  const safe = safeMarkup({ safe: model.safe, entries: model.ledger.entries });
-  const fix = shutOpener("g-manage__fix g-link-btn", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live);
+  // Across 900px these blocks change parents, which a patch does not follow: the keys of their buttons (the correction,
+  // the resources' counters and switches, the history's) let the focus find them in their new place.
+  const safe = safeMarkup({ safe: model.safe, entries: model.ledger.entries, heading: model.phone ? "h2" : "h3" });
+  const fix = shutOpener("g-manage__fix g-link-btn", `data-key="manage-fix" data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live);
   const resources = resourcesMarkup({ rows: model.rows, busy: model.busy });
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
   const page = `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`;
@@ -191,7 +192,7 @@ export async function renderTeamManage(teamId, { settings = false } = {}) {
     onMyTeamsChange(draw),
     onGamesChange(draw),
     onLedgerChange(draw),
-    wireTreasuryStrip(view),
+    wireMoneyOpeners(view),
     wireResources(view, teamId),
     wireFixSheet(view),
     wireHistory(view, teamId, draw),

@@ -152,7 +152,7 @@ test("a desk's two columns (the owner, 2026-11-08): «Treasury» — the sum, th
   assert.deepEqual(blocks(columns[0]), ["g-manage__treasury", "g-manage__resources"]);
   assert.deepEqual(blocks(columns[1]), ["g-team-settings", "g-manage__history"]);
   const treasury = columns[0].querySelector(".g-manage__treasury");
-  assert.deepEqual(blocks(treasury), ["g-manage__resources-title", "g-resource", "g-manage__safe", "g-manage__fix"],
+  assert.deepEqual(blocks(treasury), ["g-manage__treasury-title", "g-resource", "g-manage__safe", "g-manage__fix"],
     "the title, the treasury's row before the safe, the correction inside the card, last");
   assert.equal(treasury.querySelector("h2#manage-treasury-title").textContent, "Treasury");
   // The sum is a row of the resources' look, with one pencil beside the number: the sheet it opens has «Add» and «Take».

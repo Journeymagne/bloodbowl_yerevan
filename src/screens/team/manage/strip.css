@@ -4,7 +4,7 @@
  *
  * From 901px only: the phone has the treasury card instead. The strip wraps, so a narrow desktop (901 to about
  * 1050px, with the SideNav beside it) never clips a cell; the lines between the cells are the one-pixel gap that
- * shows the strip's own background, so a wrapped row has them too and none is drawn twice. The button is a column
+ * shows the strip's own background, so a wrapped row has them too and none is drawn twice. The pencil is a column
  * of its own along the right edge, whatever the number of rows: left among the cells it would wrap on its own.
  */
 .g-funds {
@@ -85,18 +85,13 @@
   justify-content: center;
   width: var(--size-touch);
   min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
   border-left: 1px solid var(--line);
-  border-radius: 0;
   background: var(--surface);
   color: var(--ink);
-  cursor: pointer;
 }
 .g-funds__edit:hover { background: var(--surface-2); }
 
-/* The ring inside the button: the strip clips what lies outside its edge, which is where this button sits. */
+/* The ring inside the pencil: the strip clips what lies outside its edge, which is where the pencil sits. */
 .g-funds__edit:focus-visible {
   outline-offset: -3px;
 }

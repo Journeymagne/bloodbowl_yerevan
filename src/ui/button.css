@@ -144,7 +144,7 @@
   cursor: not-allowed;
 }
 
-/* «More», which reads a list on rather than folds it, takes this look too, without the chevron. */
+/* Any action under a list: its fold (`renderFoldButton`), and «More» and «Try again», which take it without the chevron. */
 .g-more {
   align-self: center;
   justify-content: center;

@@ -136,7 +136,7 @@ function opener(kind, label, reason) {
 function row(kind, { label, note = "", value = "", action = "" }) {
   const name = `<span class="g-team-settings__label" id="team-settings-${kind}-label">${escapeHtml(label)}</span>`;
   const text = note ? `<span class="g-team-settings__text">${name}<span class="g-team-settings__note">${escapeHtml(note)}</span></span>` : name;
-  const shown = value === "" ? "" : `<b>${escapeHtml(value)}</b>`;
+  const shown = value === "" ? "" : `<span class="g-team-settings__shown">${escapeHtml(value)}</span>`;
   return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shown}${action}</span></div>`;
 }
 

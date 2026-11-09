@@ -238,10 +238,7 @@
   font: 400 15px/1.3 var(--font-body);
   text-align: right;
 }
-.g-build__value b {
-  font-weight: 400;
-  overflow-wrap: anywhere;
-}
+.g-build__shown { overflow-wrap: anywhere; }
 .g-build__change { flex: none; }
 
 .g-build__logo-line {

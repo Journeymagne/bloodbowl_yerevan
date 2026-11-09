@@ -28,13 +28,16 @@ function checkedHook(hook) {
  * needs no explanation. `blockedReason` is the explained one: the button is
  * marked `aria-disabled`, never `disabled`, so it stays in the tab order, still
  * takes a click (the wiring takes no step and tells `onRefused`) and shows the
- * reason as a tooltip, which a disabled button would not do.
+ * reason as a tooltip, which a disabled button would not do. `focusKey` is its
+ * `data-key`, for a page that moves the row to another parent and would lose
+ * the focus on it.
  */
-export function renderStepButton({ hook, delta, label, disabled = false, blockedReason = "", className }) {
+export function renderStepButton({ hook, delta, label, disabled = false, blockedReason = "", className, focusKey = "" }) {
   if (delta !== -1 && delta !== 1) throw new RangeError(`a step is -1 or 1, not ${delta}`);
   if (!label) throw new Error("a step button needs a label: nothing else names it");
   const refusal = blockedReason ? ` aria-disabled="true" title="${escapeHtml(blockedReason)}"` : "";
-  return `<button type="button" class="${escapeHtml(className)}" data-${checkedHook(hook)}-step="${delta}" aria-label="${escapeHtml(label)}"${disabled ? " disabled" : ""}${refusal}>${icon(delta < 0 ? "minus" : "plus", 18)}</button>`;
+  const keyed = focusKey ? ` data-key="${escapeHtml(focusKey)}"` : "";
+  return `<button type="button" class="${escapeHtml(className)}"${keyed} data-${checkedHook(hook)}-step="${delta}" aria-label="${escapeHtml(label)}"${disabled ? " disabled" : ""}${refusal}>${icon(delta < 0 ? "minus" : "plus", 18)}</button>`;
 }
 
 /**

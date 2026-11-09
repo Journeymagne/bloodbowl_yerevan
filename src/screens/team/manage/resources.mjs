@@ -97,10 +97,12 @@ function rowMarkup(row) {
   if (row.kind === "medic") {
     // A switch that cannot be pressed says why under its name; one that is on can always be turned off.
     const disabled = Boolean(row.lock) || (row.value === 0 && row.incRefusal !== null);
-    return renderToggle({ key: row.key, label: words.name, caption: words.caption, checked: row.value > 0, disabled });
+    return renderToggle({ key: row.key, label: words.name, caption: words.caption, checked: row.value > 0, disabled, focusKey: `resource-${row.key}` });
   }
   const { name, note, noteTone, lockedReason, incBlockedReason } = words;
-  return renderResourceCounter({ key: row.key, name, note, noteTone, value: row.value, decDisabled: !canStepDown(row), incBlockedReason, lockedReason });
+  return renderResourceCounter({
+    key: row.key, name, note, noteTone, value: row.value, decDisabled: !canStepDown(row), incBlockedReason, lockedReason, focusKey: `resource-${row.key}`,
+  });
 }
 
 /**

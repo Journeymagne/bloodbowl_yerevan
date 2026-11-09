@@ -106,7 +106,7 @@ const sheetOpen = () => Boolean($("dialog#team-settings-sheet")?.matches(":modal
 const rowOf = (kind, root = view) => root.querySelector(`[data-settings-row="${kind}"]`);
 /** A row as one reads it: its name, its value, its buttons — an icon button by its name, as a screen reader says it. */
 const rowText = (kind, root = view) => rowOf(kind, root)
-  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__value b, .g-team-settings__btn, .g-team-settings__icon")
+  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__shown, .g-team-settings__btn, .g-team-settings__icon")
   .map((node) => node.getAttribute("aria-label") ?? node.textContent.trim()).join(" · ") ?? null;
 /** Every button of the settings: the text ones (Upload, By number) and the icons (the pencils, the trash). */
 const BUTTONS = ".g-team-settings__btn, .g-team-settings__icon";
@@ -553,7 +553,7 @@ test("a sheet left open across 900px gives the focus back to its row's button as
 });
 
 // T36 review m4, as the overview's fix round 1: a node the patch keeps and the width's stylesheet hides drops the focus too.
-test("the team page across 900px: a focus on what the other width's stylesheet hides goes to the page's title; from the settings, to the settings' place", async () => {
+test("the team page across 900px: a focus on what the other width draws no more goes to the page's title; from the settings, to the settings' place; on what moves, it follows", async () => {
   await atWidth(false, async ({ cross }) => {
     await page("t1");
     // The desk's treasury card under the safe is the desk's: across 900px the phone's card stands in its place.
@@ -572,12 +572,17 @@ test("the team page across 900px: a focus on what the other width's stylesheet h
     view.querySelector('[data-settings-open="fans"]').focus();
     cross(true);
     assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"));
-    // The correction stands under the safe on a phone and inside the desk's treasury card: across 900px it changes
-    // places, and the focus on it goes to the page's title, never the body.
+    // The correction stands under the safe on a phone and inside the desk's treasury card, and the resources under
+    // other parents too: across 900px they change places, and the focus, found by their keys, stays on them.
     view.querySelector(".g-manage__fix").focus();
     cross(false);
     assert.ok(view.querySelector(".g-manage__treasury .g-manage__fix"), "the desk's correction is the treasury card's");
-    assert.ok(document.activeElement === view.querySelector(".g-manage h1"));
+    assert.ok(document.activeElement === view.querySelector(".g-manage__fix"), "the focus on the correction in its new place");
+    const plus = view.querySelector('.g-manage__resources [data-resource-step="1"]');
+    plus.focus();
+    const key = plus.getAttribute("data-key");
+    cross(true);
+    assert.ok(key && document.activeElement === view.querySelector(`[data-key="${key}"]`), "and on a resource's +");
   });
 });
 
@@ -1224,7 +1229,7 @@ test("names are text", async () => {
   const team = { ...TEAMS[0], name: HOSTILE, logoData: HOSTILE };
   const fragment = mount(manageMarkup(model(team)));
   assert.ok(!fragment.querySelector(".g-team-settings img"), "a logo that is no picture is not drawn");
-  assert.equal(rowOf("name", fragment).querySelector("b").textContent, HOSTILE);
+  assert.equal(rowOf("name", fragment).querySelector(".g-team-settings__shown").textContent, HOSTILE);
   assertCspSafe(fragment);
   await page("t1", { teams: [team, ...TEAMS.slice(1)] });
   openRow("name");
@@ -1363,7 +1368,7 @@ test("a long team name wraps; nothing is cut with «…»; breakpoints only 900/
   const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/text-overflow:\s*ellipsis/.test(css));
   assert.ok(!/white-space:\s*nowrap/.test(css));
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value b", "overflow-wrap"), ["anywhere"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__shown", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "overflow-wrap"), ["anywhere"]);
   // At 320px with a logo the buttons wrap before «Logo» runs into them (fix round 1, M-2): the buttons may shrink and
   // wrap; the logo's side takes what they leave and never shrinks under its longest word.

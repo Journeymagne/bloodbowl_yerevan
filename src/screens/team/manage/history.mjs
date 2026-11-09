@@ -171,15 +171,16 @@ export function wireHistory(root, teamId, onChange) {
  * @param {object} input
  * @param {number} input.safe thousands in the safe
  * @param {object[]} input.entries the lines of the history read so far, newest first
+ * @param {"h2"|"h3"} [input.heading] h3 inside a desk's «Treasury» card, whose h2 it stands under
  * @returns {string}
  */
-export function safeMarkup({ safe, entries }) {
+export function safeMarkup({ safe, entries, heading = "h2" }) {
   const deposit = lastSafeDeposit(entries);
   const last = deposit
     ? `<p class="g-manage__safe-last">${escapeHtml(t("treasury.safeLast", { amount: formatMoney(deposit.amount), date: formatDay(deposit.createdAt) }))}</p>`
     : "";
   return `<section class="g-manage__safe" aria-labelledby="manage-safe-title"><div class="g-manage__safe-text">`
-    + `<h2 class="g-manage__safe-title" id="manage-safe-title">${escapeHtml(t("treasury.safeTitle"))}</h2>`
+    + `<${heading} class="g-manage__safe-title" id="manage-safe-title">${escapeHtml(t("treasury.safeTitle"))}</${heading}>`
     + `<p class="g-manage__safe-rule">${escapeHtml(t("treasury.safeRule"))}</p>${last}</div>`
     + `<span class="g-manage__safe-amount">${escapeHtml(formatMoney(safe))}</span></section>`;
 }

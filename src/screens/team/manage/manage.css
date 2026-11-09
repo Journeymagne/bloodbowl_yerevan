@@ -146,6 +146,7 @@
 }
 
 .g-manage__resources-title,
+.g-manage__treasury-title,
 .g-manage__history-title {
   margin: var(--space-12) 0;
   color: var(--ink);
@@ -454,7 +455,6 @@
   cursor: not-allowed;
 }
 
-/* The columns, one under the other on a phone; the phone's safe and its correction (a desk's are the treasury card's). */
 .g-manage__cols,
 .g-manage__side {
   display: flex;

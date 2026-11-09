@@ -140,7 +140,7 @@ function choiceRow(kind, label, value, options) {
     ? `<button type="button" class="g-btn g-build__change" data-new-team-choice="${kind}" aria-describedby="new-team-${kind}-label">${escapeHtml(t("newTeam.change"))}</button>`
     : "";
   return `<div class="g-build__row"><span class="g-build__label" id="new-team-${kind}-label">${escapeHtml(label)}</span>`
-    + `<span class="g-build__value"><b>${escapeHtml(value)}</b>${change}</span></div>`;
+    + `<span class="g-build__value"><span class="g-build__shown">${escapeHtml(value)}</span>${change}</span></div>`;
 }
 
 function logoRow(logoData) {
@@ -156,7 +156,7 @@ function teamMarkup(race, draft) {
   const leagues = teamLeagueOptions(race);
   const alignments = teamFavouredOptions(race);
   const tier = race.team?.meta?.league;
-  const rows = [`<div class="g-build__row"><span class="g-build__label">${escapeHtml(t("newTeam.race"))}</span><span class="g-build__value"><b>${escapeHtml(tier ? `${race.title} · ${tier}` : race.title)}</b></span></div>`];
+  const rows = [`<div class="g-build__row"><span class="g-build__label">${escapeHtml(t("newTeam.race"))}</span><span class="g-build__value"><span class="g-build__shown">${escapeHtml(tier ? `${race.title} · ${tier}` : race.title)}</span></span></div>`];
   if (leagues.length) rows.push(choiceRow("league", t("newTeam.league"), draft.selectedLeague, leagues));
   if (alignments.length) rows.push(choiceRow("favoured", t("roster.favouredOf"), draft.favouredChoice, alignments));
   rows.push(logoRow(String(draft.logoData ?? "")));

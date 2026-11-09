@@ -432,6 +432,7 @@ test("Coach's Safe: the balance, the rule, the last deposit", () => {
   assert.equal(text(".g-manage__safe-amount"), "20k");
   assert.equal(text(".g-manage__safe-last"), "Last deposit: 20k · 18 Oct");
   assertCspSafe(fragment);
+  assert.ok(mount(safeMarkup({ safe: 20, entries, heading: "h3" })).querySelector("h3#manage-safe-title"), "under the desk's «Treasury» h2");
 
   mount(safeMarkup({ safe: 0, entries: [line("l2")] }));
   assert.equal(text(".g-manage__safe-amount"), "0k");

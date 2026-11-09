@@ -17,7 +17,7 @@ const { invalidateGames } = await import("../src/data/games.mjs");
 const { onMyTeamsChange, setMyTeams } = await import("../src/data/teams.mjs");
 const { medicalStaffDefinitions } = await import("../src/domain/league-rules.mjs");
 const { COUNTER_KEYS } = await import("../src/screens/team/manage/model.mjs");
-const { renderTreasuryStrip, treasuryBlockMarkup, wireTreasuryStrip } = await import("../src/screens/team/manage/strip.mjs");
+const { renderTreasuryStrip, treasuryBlockMarkup, wireMoneyOpeners, wireStripRedraw } = await import("../src/screens/team/manage/strip.mjs");
 const { ICON_NAMES } = await import("../src/ui/icons.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -71,7 +71,8 @@ function stand(extra = block()) {
   root = el(document, "div");
   document.body.appendChild(root);
   root.innerHTML = renderTreasuryStrip({ team: state.myTeams.items[0] }) + extra;
-  unwire = wireTreasuryStrip(root);
+  const offs = [wireMoneyOpeners(root), wireStripRedraw(root)];
+  unwire = () => { for (const off of offs) off(); };
   return root;
 }
 const edit = () => root.querySelector("a.g-funds__edit");
@@ -228,11 +229,11 @@ test("after leaving the strip hears nothing: the teams change and it stays as it
   assert.equal(sheetHost(), null);
 });
 
-test("wired twice on one root the strip has one host and opens one dialog; the first release leaves it working, the last takes everything away", () => {
+test("the openers wired twice on one root have one host and open one dialog; the first release leaves them working, the last takes everything away", () => {
   coach();
   stand();
-  const first = unwire;
-  const second = wireTreasuryStrip(root);
+  const first = wireMoneyOpeners(root);
+  const second = wireMoneyOpeners(root);
   assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "the second wiring mounts nothing");
   fireEvent(add(), "click");
   assert.equal(document.querySelectorAll("dialog#treasury-money").length, 1, "one press, one sheet");
@@ -242,13 +243,10 @@ test("wired twice on one root the strip has one host and opens one dialog; the f
   fireEvent(sheetDialog().querySelector("[data-sheet-close]"), "click");
   fireEvent(add(), "click");
   assert.ok(sheetDialog().matches(":modal"), "and the wiring still answers a press");
-  setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
-  assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k", "and still draws itself");
   second();
+  unwire();
   assert.equal(sheetHost(), null, "the last release takes the host and the sheet away");
-  setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 40 } }]);
-  assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k");
-  unwire = wireTreasuryStrip(root);
+  unwire = wireMoneyOpeners(root);
   assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a root left can be wired again, afresh");
 });
 
