@@ -27,11 +27,24 @@ description groups them (Major / Normal / …). For each, pick how it is drawn:
 - **Something only one side has**: the other side shows a `g-preview-none` note saying where it lives on that side.
 - **A wording change**: a row in `renames` (EN · RU per side). When the word shows inside a component (a chip's
   source line, a sheet's title), the component's frame shows it too, from each side's dictionary.
-- **A whole screen that needs a running app** (the overview with its live reads): a screenshot pair, only if
-  `output/screens/<name>/{before,after}/` already holds one (from `npm run screens`); do not start a long screenshot
-  run for a preview without asking — 950 shots a side take ~35 minutes.
+- **What needs a running app** (the overview with its live reads, a sheet after some clicks, a live match's panel):
+  a screenshot pair — from `output/screens/<name>/{before,after}/` if a run already holds it, or from a small states
+  file of your own taken with `--only` on both sides (a minute; see §4). Never start the whole run for a preview
+  without asking — 950 shots a side take ~35 minutes.
 
 Pick the width per section: `desk` (laid out at 1100px, ≥ 901px rules) or `phone` (390px).
+
+**Cover the whole description.** Go through the PR description's items one by one and give every Major and Normal one
+a place: a section, a screenshot, a row of `renames`, or a row of `notShown` (what a still page cannot show — a
+behaviour, focus, a screen reader's words, a non-UI change — with how to check it by hand). Nothing is left out
+silently; Minor items may be.
+
+- **A sheet** (an advancement's step, a skill's rule): render it with `renderSheet` and open it in the recipe
+  (`html.replace("<dialog", "<dialog open")`); the frame draws an open sheet where it stands, at its whole height, with
+  no backdrop. Show the sheet around a change made inside one — the change alone loses its place.
+- **Screenshots go stale.** A screenshot taken before a later code change shows the old branch: retake the states the
+  page uses on both sides after the last change (`npm run screens -- <states> --out … --only <id,id>`, a minute), never
+  reuse older ones.
 
 ## 2. Two checkouts
 
@@ -95,8 +108,10 @@ Write `<scratchpad>\preview-spec.json`:
 }
 ```
 
-`intro` lines are HTML (write `<code>` yourself; nothing else in the spec is). `shots` and `renames` are optional.
-`palettes` (`{"light": "grass", "dark": "night"}`) sets what the light/dark switch puts on the frames.
+`intro` lines are HTML (write `<code>` yourself; nothing else in the spec is). `shots`, `renames` and `notShown`
+(`[["change", "how to check it"], …]`) are optional. `palettes` (`{"light": "grass", "dark": "night"}`) sets what the
+light/dark switch puts on the frames. Frame helpers for a recipe's markup: `g-preview-col` (a 420px column),
+`g-preview-label` (names a part of a frame), `g-preview-none` (a note), `g-preview-tiles` (four tiles in a 380px panel).
 
 **Say what changed on each side.** `what` names the before and the after in plain words a reviewer can check against
 the picture ("main: a navigation row, full width, a chevron at the right; branch: a green link like «Correct the
@@ -108,7 +123,9 @@ all when the two sides do not fit in one row. So every section and every shot ge
   branch: one «Treasury» card), the buttons at the right of the settings rows"). Shown as a «Look at» line.
 - for a frame, `mark` (both sides), `markBefore`, `markAfter`: CSS selectors of what changed, outlined in pink inside
   the frames. Check the selectors exist in that side's fragment (grep the fragment JSON) — a side without the element
-  just shows no outline. Skip marks on a frame small enough that the change is the whole of it.
+  just shows no outline. Skip marks on a frame small enough that the change is the whole of it. Where the outline
+  would sit on the thing's own ring or border (a palette card), give the section `markOffset` (px, 3 by default) so
+  the two read apart.
 
 **Show a change where it can be judged.** A lone element out of its place often hides what changed: a line that
 became a link means nothing without what is around it. Put the field above it, or the other place the change makes it
@@ -120,8 +137,13 @@ dictionary (`t()` in the recipe), never typed into the recipe, so a renamed word
 the screen's whole width, so it keeps its place; a cut is never shown larger than its own pixels.
 When the sizes differ the whole layout moves and every pixel differs (`main`'s desk shots were 15px narrower while it
 kept a scrollbar gutter), so give the cut yourself, in the branch picture's pixels: `area` `{x, y, width, height}`
-and `boxes` (a list of the same shape) for what changed inside it. Read the branch's PNG to pick them. `whole: true`
-shows a pair uncut.
+and `boxes` (a list of the same shape) for what changed inside it. Read the branch's PNG to pick them. A box is drawn
+at the same place on both sides, so where `main`'s layout sits further left, widen it leftwards until it holds the
+change on both, or it cuts through `main`'s text. `whole: true` shows a pair uncut.
+A shot with `group` (one of `groups`, or the build stops) stands in that group after its sections, linked from the
+contents bar, not in the «Screenshots» block at the end: use it when a change is best seen in the running app (a
+sheet's state after clicks, a live match's panel, a 1px line). Write a small states file for those states (as
+`npm run screens` takes, its `run` steps clicking through) and take it on both sides with `--only <id>`.
 
 ```powershell
 node .claude/skills/ui-preview/build.mjs <scratchpad>\preview-spec.json

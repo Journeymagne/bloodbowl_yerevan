@@ -230,6 +230,13 @@ the shared components in `src/ui/` (`*.mjs` + `*.css`).
 - Never change a global token to fix one place (e.g. `--size-touch` is every control's touch target); propose a
   component-level token instead, and ask first.
 - A pattern now used in two or more screens with its own CSS each is a candidate for a `src/ui/` class.
+- A change to a shared component (`src/ui/*.css`) reaches every use of it: grep its class, and check each place,
+  above all a negative margin or a widened target, which can lay one control's press area over another's (a phone
+  fold's −6px once reached over the skill list under the advancement's «About …»).
+- Read the component's own rule before changing its look: a row's label/value weights (`ui/list-row.mjs`: "a label,
+  and its value heavier"), a closed control (only a main button takes the `--disabled` fill; quieter ones are dimmed
+  in their own colour, as `.g-btn:disabled`). A change against it is a finding even if it was asked for earlier — say
+  so and ask.
 
 ## 8. i18n and content
 

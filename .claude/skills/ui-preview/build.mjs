@@ -38,17 +38,24 @@ const labels = { before: spec.labels?.before ?? "main", after: spec.labels?.afte
 
 // What a section asks the reader to look at is outlined in its frames: one colour, outside the app's palettes.
 const MARK = "#d6336c";
-const markCss = (selectors) => (selectors.length ? `${selectors.join(",\n")}{outline:3px solid ${MARK} !important;outline-offset:3px !important}` : "");
+// `offset`: how far out of what it marks the outline stands; a section raises it where the mark would sit on the thing's
+// own ring (a palette card's), so the two read apart.
+const markCss = (selectors, offset = 3) => (selectors.length
+  ? `${selectors.join(",\n")}{outline:3px solid ${MARK} !important;outline-offset:${offset}px !important}` : "");
 const FRAME_CSS = `body{margin:0}
 #app-view.g-preview{display:block;box-sizing:border-box;width:100%;max-width:none;margin:0;padding:16px}
 #app-view.g-preview > * + *{margin-top:16px}
 .g-preview-col{display:flex;flex-direction:column;gap:12px;max-width:420px}
 .g-preview-label{margin:0 0 8px;color:var(--muted);font:600 11px/1.3 var(--font-body);letter-spacing:.06em;text-transform:uppercase}
+.g-preview-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:380px;max-width:100%}
+/* A sheet a recipe opened (<dialog open>) stands where it is drawn: no modal, no backdrop, its whole height. */
+dialog.g-sheet[open]{position:static;margin:0 auto;max-height:none}
+dialog.g-sheet[open] .g-sheet__panel,dialog.g-sheet[open] .g-sheet__body{max-height:none}
 .g-preview-none{margin:0;padding:16px;border:1px dashed var(--line-strong);border-radius:12px;color:var(--muted);font:400 14px/1.4 var(--font-body)}`;
 
 // A frame: the fragment inside the app's view, without the app's frame (its desk grid keeps a SideNav column, and
 // the content would land in it). Messages, not the parent reaching in: a page opened from disk may not touch its frames.
-const frame = (side, html, marks = []) => `<!doctype html>
+const frame = (side, html, marks = [], markOffset = 3) => `<!doctype html>
 <html lang="en" data-mode="light" data-palette="${spec.palettes?.light ?? "grass"}">
 <head>
 <meta charset="utf-8">
@@ -58,7 +65,7 @@ const frame = (side, html, marks = []) => `<!doctype html>
 <link rel="stylesheet" href="../fonts/fonts.css">
 <link rel="stylesheet" href="../css/${side}.css">
 <style>${FRAME_CSS}
-${markCss(marks)}</style>
+${markCss(marks, markOffset)}</style>
 </head>
 <body><section id="app-view" class="g-preview">${html}</section>
 <script>
@@ -88,13 +95,13 @@ for (const section of spec.sections) {
       return frags[side][key] ?? "";
     }).join("");
     const marks = [...(section.mark ?? []), ...(section[side === "before" ? "markBefore" : "markAfter"] ?? [])];
-    fs.writeFileSync(path.join(out, "frames", `${section.id}-${side}.html`), frame(side, html, marks));
+    fs.writeFileSync(path.join(out, "frames", `${section.id}-${side}.html`), frame(side, html, marks, section.markOffset));
   }
 }
 
 // A screenshot pair is cut to where the two differ (the box screens:diff finds), with a margin, so the big same parts
-// go; the whole screen stays a press away. Pairs of different sizes have no box and are shown whole.
-const shots = spec.shots?.items ?? [];
+// go. Pairs of different sizes differ everywhere: their cut is the spec's `area` and `boxes`.
+const shots = (spec.shots?.items ?? []).map((shot) => ({ id: `shot-${shot.file.replace(/\.png$/, "")}`, ...shot }));
 const { comparePngs, decodePng } = await import(pathToFileURL(path.join(repo, "scripts", "screenshots", "png.mjs")).href);
 const MARGIN = 48;
 // Two full-page shots of different heights: the box where they differ inside the part both have, top-aligned.
@@ -176,18 +183,33 @@ const shotHtml = (shot) => {
   const where = shot.crop
     ? `${cut}: ${shot.crop.width}×${shot.crop.height}px of the ${after.width}×${after.height}px screen, the changes boxed.${narrower}${taller}`
     : "Shown whole: the two pictures are the same.";
-  return `<section class="change"><header class="change__head"><h3>${esc(shot.title)}</h3>`
+  return `<section class="change" id="${esc(shot.id)}"><header class="change__head"><h3>${esc(shot.title)}</h3>`
     + `<span class="width">${shot.phone ? "Phone" : "Desk"} · screenshot</span></header><p class="change__what">${esc(shot.what)}</p>${lookHtml(shot.look)}`
     + `<p class="change__what">${where}</p><div class="pair pair--${shot.crop ? "crop" : shot.phone ? "phone" : "shot"}">`
     + ["before", "after"].map((side) => `<figure class="pane"><figcaption><span class="tag tag--${side}">${esc(labels[side])}</span></figcaption>${cropHtml(shot, side)}</figure>`).join("")
     + "</div></section>";
 };
 
+// A screenshot pair may name a group: it then stands with that group's sections, in order, not at the page's end.
+const grouped = shots.filter((shot) => shot.group);
+const loose = shots.filter((shot) => !shot.group);
 const groupNames = spec.groups ?? [...new Set(spec.sections.map((section) => section.group))];
-const groups = groupNames.map((group) => `<h2 class="group">${esc(group)}</h2>${spec.sections.filter((section) => section.group === group).map(sectionHtml).join("")}`).join("");
-const toc = spec.sections.map((section) => `<li><a href="#${esc(section.id)}">${esc(section.title)}</a></li>`).join("")
-  + (shots.length ? `<li><a href="#shots">Screenshots</a></li>` : "") + (spec.renames?.length ? `<li><a href="#names">Names</a></li>` : "");
-const shotsHtml = shots.length ? `<h2 class="group" id="shots">Screenshots</h2><p class="change__what">${esc(spec.shots.note ?? "")}</p>${shots.map(shotHtml).join("")}` : "";
+const lost = [...spec.sections, ...grouped].filter((entry) => !groupNames.includes(entry.group));
+if (lost.length) throw new Error(`not in "groups", so never drawn: ${lost.map((entry) => entry.title).join(", ")}`);
+const groups = groupNames.map((group) => `<h2 class="group">${esc(group)}</h2>`
+  + spec.sections.filter((section) => section.group === group).map(sectionHtml).join("")
+  + grouped.filter((shot) => shot.group === group).map(shotHtml).join("")).join("");
+const tocEntries = groupNames.flatMap((group) => [...spec.sections.filter((section) => section.group === group),
+  ...grouped.filter((shot) => shot.group === group)]);
+const toc = tocEntries.map((entry) => `<li><a href="#${esc(entry.id)}">${esc(entry.title)}</a></li>`).join("")
+  + (loose.length ? `<li><a href="#shots">Screenshots</a></li>` : "") + (spec.renames?.length ? `<li><a href="#names">Names</a></li>` : "")
+  + (spec.notShown?.length ? `<li><a href="#not-shown">Not shown</a></li>` : "");
+// What a still page cannot show (a behaviour, a screen reader's words): listed, so a reviewer knows it was not forgotten.
+const notShownHtml = spec.notShown?.length ? `<h2 class="group" id="not-shown">Not shown here</h2><section class="change"><p class="change__what">Changes a still page cannot show, and how to check each.</p>
+    <div class="scroller"><table><thead><tr><th>Change</th><th>How to check it</th></tr></thead><tbody>
+    ${spec.notShown.map(([change, how]) => `<tr><td>${esc(change)}</td><td>${esc(how)}</td></tr>`).join("")}
+    </tbody></table></div></section>` : "";
+const shotsHtml = loose.length ? `<h2 class="group" id="shots">Screenshots</h2><p class="change__what">${esc(spec.shots.note ?? "")}</p>${loose.map(shotHtml).join("")}` : "";
 const namesHtml = spec.renames?.length ? `<h2 class="group" id="names">Names</h2><section class="change"><p class="change__what">Words that changed, in English and Russian.</p>
     <div class="scroller"><table><thead><tr><th>Where</th><th>${esc(labels.before)}</th><th>${esc(labels.after)}</th></tr></thead><tbody>
     ${spec.renames.map(([where, before, after]) => `<tr><td>${esc(where)}</td><td>${esc(before)}</td><td>${esc(after)}</td></tr>`).join("")}
@@ -277,6 +299,7 @@ th { color: var(--muted); font-weight: 600; }
   ${groups}
   ${shotsHtml}
   ${namesHtml}
+  ${notShownHtml}
 </div>
 <script>
 (() => {
