@@ -113,8 +113,11 @@ test("Bribes are on the strip for every race (the owner, 2026-10-28); the medics
   assert.deepEqual([goblin.Bribes, goblin.Apo], ["2", "no"]);
   assert.equal(strips("teams/human", { bribes: 4 }).Bribes, "4", "a race without Bribery and Corruption buys them at 100k");
   const undead = strips("teams/necromantic-horror", { apothecary: 1, mortuaryAssistant: 1 });
-  assert.deepEqual([undead.Mortuary, "Apo" in undead, "Plague" in undead], ["yes", false, false]);
-  assert.equal(strips("teams/nurgle", { plagueDoctor: 0 }).Plague, "no");
+  assert.deepEqual([undead.Assistant, "Apo" in undead, "Doctor" in undead], ["yes", false, false]);
+  assert.equal(strips("teams/nurgle", { plagueDoctor: 0 }).Doctor, "no");
+  // The medic's own word, not the half of his name that reads as something else (the owner, 2026-11-11); English in both languages, as the strip's other short labels.
+  for (const key of ["plagueDoctor", "mortuaryAssistant"]) assert.equal(en[`treasury.strip.${key}`], ru[`treasury.strip.${key}`], key);
+  assert.deepEqual([en["treasury.strip.plagueDoctor"], en["treasury.strip.mortuaryAssistant"]], ["Doctor", "Assistant"]);
 });
 
 test("a team whose race has not come yet still has its treasury and counters, and nothing throws", () => {

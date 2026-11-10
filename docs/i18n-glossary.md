@@ -104,7 +104,9 @@ content task:
   not as part of a named inducement) → "апотекарий", consistent with the
   structural-label translation. Named inducements built on these words
   (`Wandering Apothecary`, `Mortuary Assistant`, `Plague Doctor`) stay fully
-  English as inducement names.
+  English as inducement names. The roster's treasury strip shortens the two medics to
+  their own word, «Doctor» and «Assistant» (not «Plague» and «Mortuary»), English in
+  both languages like the strip's other short labels.
 - **"Inducements"** (the generic category noun, not one specific inducement's
   name) — kept in English throughout, treated as an adopted term rather than
   translated inconsistently case-by-case.
