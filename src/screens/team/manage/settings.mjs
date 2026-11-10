@@ -18,10 +18,10 @@ import { toastError } from "../../../components/toast.mjs";
 import { delegate, escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/logo-upload.mjs";
-import { teamUrl } from "../../../core/routes.mjs";
+import { pageUrl, teamUrl } from "../../../core/routes.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, refusalWords } from "../../../data/teams.mjs";
+import { leaguePageOf, loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, refusalWords } from "../../../data/teams.mjs";
 import { isWriting, readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { byNumber, rosterViolations, withFans, withFavoured, withLeague } from "../../../domain/roster/team-edits.mjs";
@@ -30,6 +30,7 @@ import { countToNumber } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { icon } from "../../../ui/icons.mjs";
+import { assertLinkHref } from "../../../ui/markup.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
@@ -85,10 +86,11 @@ function holdOf({ lock, queue, busy }) {
  * @param {{kind: "live"|"preparing"}|null} [input.lock] `matchLock`
  * @param {boolean} [input.busy] a save of the team is on its way (`isWriting`)
  * @param {{status: string, waiting: number}} [input.queue] where the roster's queue stands (`saveState`)
- * @returns {{name: string, logoData: string, raceTitle: string, tier: string, league: string, leagues: string[],
- *   favoured: string, alignments: string[], fans: number, violations: {code: string, params: object}[], held: string,
- *   waitsRoster: boolean, preparing: boolean}}
- *   `league` and `favoured` as the rules read them (`choiceOf`); `logoData` only a picture (`LOGO_DATA_URL`);
+ * @returns {{name: string, logoData: string, raceTitle: string, raceHref: string, tier: string, league: string,
+ *   leagueHref: string, leagues: string[], favoured: string, alignments: string[], fans: number,
+ *   violations: {code: string, params: object}[], held: string, waitsRoster: boolean, preparing: boolean}}
+ *   `league` and `favoured` as the rules read them (`choiceOf`); `raceHref` and `leagueHref` their pages in the
+ *   reference, "" for none; `logoData` only a picture (`LOGO_DATA_URL`);
  *   `preparing` a match of the team's being prepared, which any save of the settings starts over for both teams
  *   (decision 20, final review I1)
  */
@@ -97,12 +99,16 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
   const hold = holdOf({ lock, queue, busy });
   const logo = String(team.logoData ?? "");
   const [leagues, alignments] = race ? [teamLeagueOptions(race), teamFavouredOptions(race)] : [[], []];
+  const league = choiceOf(leagues, draft.selectedLeague);
+  const leaguePage = leaguePageOf(league);
   return {
     name: String(team.name ?? ""),
     logoData: LOGO_DATA_URL.test(logo) ? logo : "",
     raceTitle: race?.title ?? "",
+    raceHref: race ? pageUrl(race) : "",
     tier: race?.team?.meta?.league ?? "",
-    league: choiceOf(leagues, draft.selectedLeague),
+    league,
+    leagueHref: leaguePage ? pageUrl(leaguePage) : "",
     leagues,
     favoured: choiceOf(alignments, draft.favouredChoice),
     alignments,
@@ -132,24 +138,34 @@ function opener(kind, label, reason) {
   return iconButton(`data-settings-open="${kind}" aria-haspopup="dialog" aria-describedby="team-settings-${kind}-label"`, "pencil", label, reason);
 }
 
+/** A row's value; one the reference has a page for leads there, the reference's book before it. */
+function shownMarkup(value, href) {
+  if (value === "") return "";
+  if (!href) return `<span class="g-team-settings__shown">${escapeHtml(value)}</span>`;
+  assertLinkHref(href);
+  return `<a class="g-team-settings__shown g-team-settings__ref" href="${escapeHtml(href)}">${icon("book", 14)}<span>${escapeHtml(value)}</span></a>`;
+}
+
 /** A line of the card (Builder): its label, with a note under it when it has one; its value and its button at the right. */
-function row(kind, { label, note = "", value = "", action = "" }) {
+function row(kind, { label, note = "", value = "", href = "", action = "" }) {
   const name = `<span class="g-team-settings__label" id="team-settings-${kind}-label">${escapeHtml(label)}</span>`;
   const text = note ? `<span class="g-team-settings__text">${name}<span class="g-team-settings__note">${escapeHtml(note)}</span></span>` : name;
-  const shown = value === "" ? "" : `<span class="g-team-settings__shown">${escapeHtml(value)}</span>`;
-  return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shown}${action}</span></div>`;
+  return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shownMarkup(value, href)}${action}</span></div>`;
 }
 
-/** The race and its tier, read only on every width and in every state: a coach does not change a team's race (owner, 2026-10-20). */
+/**
+ * The race and its tier, read only on every width and in every state: a coach does not change a team's race (owner,
+ * 2026-10-20). It leads to the race's rules.
+ */
 function raceRow(settings) {
   const value = settings.tier ? `${settings.raceTitle} · ${settings.tier}` : settings.raceTitle;
-  return row("race", { label: t("teamSettings.race"), value });
+  return row("race", { label: t("teamSettings.race"), value, href: settings.raceHref });
 }
 
-/** A league or a god: no line for a race that has none, no button for one that has one only. */
-function choiceRow(kind, label, value, options, held) {
+/** A league or a god: no line for a race that has none, no button for one that has one only. A league leads to its page. */
+function choiceRow(kind, label, value, options, held, href = "") {
   if (!options.length) return "";
-  return row(kind, { label, value, action: options.length >= 2 ? opener(kind, t("teamSettings.change"), held) : "" });
+  return row(kind, { label, value, href, action: options.length >= 2 ? opener(kind, t("teamSettings.change"), held) : "" });
 }
 
 /** The logo (Builder): the picture or Builder's glyph of one, the file field the label opens, and «Remove» when there is one. */
@@ -203,7 +219,7 @@ export function settingsMarkup({ teamId, settings }, { titled = true } = {}) {
   const rows = [
     row("name", { label: t("teamSettings.name"), value: settings.name, action: opener("name", t("teamSettings.change"), held) }),
     raceRow(settings),
-    choiceRow("league", t("teamSettings.league"), settings.league, settings.leagues, held),
+    choiceRow("league", t("teamSettings.league"), settings.league, settings.leagues, held, settings.leagueHref),
     choiceRow("favoured", t("teamSettings.favoured"), settings.favoured, settings.alignments, held),
     logoRow(settings),
     row("fans", { label: t("teamSettings.fans"), note: t("teamSettings.fansNote"), value: String(settings.fans), action: fans }),

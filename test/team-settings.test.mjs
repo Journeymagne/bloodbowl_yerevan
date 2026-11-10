@@ -225,6 +225,29 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(rowText("favoured", norse), "Favoured of… · Khorne", "one god: nothing to change it to");
 });
 
+test("the league leads to its page in the reference, its star players; a league with no page, or a god, is text", () => {
+  const before = state.data;
+  try {
+    state.data = { ...before, pages: [
+      { section: "Star Players", title: "Old World Classic", slug: "old-world-classic" },
+      { section: "Teams", title: "Chaos Clash", slug: "not-a-league" },
+    ] };
+    const link = rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a.g-team-settings__ref");
+    assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/old-world-classic", "Old World Classic"]);
+    assert.ok(link.querySelector("svg"), "the reference's book before it");
+    const chosen = mount(manageMarkup(model(TEAMS[1])));
+    assert.equal(rowOf("league", chosen).querySelector("a"), null, "only a Star Players page is a league's");
+    assert.equal(rowOf("favoured", chosen).querySelector("a"), null);
+    assert.equal(model(TEAMS[0]).settings.leagueHref, "#/old-world-classic");
+  } finally {
+    state.data = before;
+  }
+  assert.equal(rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a"), null, "no pages read yet: text");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__ref", "color"), ["var(--accent-text)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__ref", "min-height"), ["var(--size-touch)", "24px"], "D2: a thumb on a phone, 24 on a desk");
+  assertReadable(SETTINGS, ".g-team-settings__ref", "color", ["--surface", "--page"], 4.5);
+});
+
 // Owner, 2026-10-20 (decisions 56–58): «отдельный экран на мобилке, справа на десктопе, есть кнопка назад в мобильной версии».
 test("a phone's team page has no settings section but a row «Team settings» last, after the history, leading to #/t/t1/settings", async () => {
   const fragment = mount(manageMarkup(model(TEAMS[0], { phone: true })));
@@ -840,7 +863,7 @@ test("by number: one PATCH with the players in number order; in order already �
 });
 
 // Owner, 2026-10-20: a coach does not change a team's race, and the page shows it and nothing more (Review Focus 5).
-test("the race is read only on every width and in every state: «Race · Human · Tier 1», no button, no note — in the season or out of it, during a preparation, during a match", async () => {
+test("the race is read only on every width and in every state: «Race · Human · Tier 1», a link to its rules, no button, no note — in the season or out of it, during a preparation, during a match", async () => {
   const states = [
     ["out of the season", {}, TEAMS[0]],
     ["in the season", {}, { ...TEAMS[0], inActiveSeason: true }],
@@ -852,7 +875,9 @@ test("the race is read only on every width and in every state: «Race · Human �
     const rows = view.querySelectorAll('[data-settings-row="race"]');
     assert.equal(rows.length, 1, `${name}: one row for every width`);
     assert.equal(rowText("race"), "Race · Human · Tier 1", name);
-    assert.deepEqual([rows[0].querySelectorAll("button, a, input, label").length, rows[0].querySelectorAll(".g-team-settings__note").length], [0, 0], `${name}: no button, no note`);
+    assert.deepEqual([rows[0].querySelectorAll("button, input, label").length, rows[0].querySelectorAll(".g-team-settings__note").length], [0, 0], `${name}: no button, no note`);
+    assert.deepEqual(rows[0].querySelectorAll("a").map((link) => [link.getAttribute("class"), link.getAttribute("href"), link.textContent]),
+      [["g-team-settings__shown g-team-settings__ref", "#/teams/human", "Human · Tier 1"]], `${name}: the race leads to its rules`);
     assert.equal(view.querySelector('[data-settings-open="race"]'), null, name);
   }
   initLocale("ru");

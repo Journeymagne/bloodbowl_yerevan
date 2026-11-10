@@ -101,6 +101,25 @@
 }
 .g-team-settings__shown { overflow-wrap: anywhere; }
 
+/*
+ * A value the reference has a page for (the race, the league): the value's weight in the accent's text, the reference's
+ * book before it, as the coach's team page leads to a race; a thumb tall on a phone, 24 on a desk.
+ */
+.g-team-settings__ref {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch);
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.g-team-settings__ref > svg { flex: none; }
+.g-team-settings__ref:hover { text-decoration: underline; }
+@media (min-width: 901px) {
+  .g-team-settings__ref { min-height: 24px; }
+}
+
 /* The logo: Builder's 40px frame with the picture, or the glyph of one in --muted; its name and its sizes, then its buttons. */
 .g-team-settings__logo-line {
   display: flex;
