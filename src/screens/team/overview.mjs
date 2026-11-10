@@ -86,7 +86,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { delegate, drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl, playerTeamUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { pageUrl, playerTeamUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -163,19 +163,22 @@ const ahead = ({ touchdowns, casualties }) => touchdowns >= 0 && casualties >= 0
  * «/ 10» (a desk's only: a phone's header says it), the points «13» with «· 4/1/1», «+6 / +4» in the accent when it is
  * good news, the value and the treasury. The record and the difference are the season's league matches with a
  * confirmed score (`seasonRecord`, `seasonDifference`); `games` is null while they are not read, and then the points
- * stand alone and the difference is a dash.
+ * stand alone and the difference is a dash. Each leads where it is read in full: the place and the points to the table
+ * (a desk's is the team's season, a phone's the league's tab), the difference to the team's matches.
  * @param {{teamId: string, standing: object|null, games: object[]|null, seasonId: string|null, own: object[], phone: boolean}} input
  */
 function tilesOf({ teamId, standing, games, seasonId, own, phone }) {
   if (!standing) return own;
   const record = games && seasonRecord(games, teamId, seasonId);
   const difference = games && seasonDifference(games, teamId, seasonId);
-  const place = { label: t("teamOverview.tile.place"), value: String(standing.rank), rest: `/ ${standing.of}` };
+  const matches = teamUrl(teamId, "matches");
+  const table = phone ? seasonTabUrl() : matches;
+  const place = { key: "tile-place", label: t("teamOverview.tile.place"), value: String(standing.rank), rest: `/ ${standing.of}`, href: table };
   return [
     ...(phone ? [] : [place]),
-    { label: t("teamOverview.tile.points"), value: String(standing.points), rest: record ? `· ${record.wins}/${record.draws}/${record.losses}` : "" },
-    { label: t("teamOverview.tile.diff"), value: difference ? `${signed(difference.touchdowns)} / ${signed(difference.casualties)}` : UNREAD,
-      accent: Boolean(difference) && ahead(difference) },
+    { key: "tile-points", label: t("teamOverview.tile.points"), value: String(standing.points), rest: record ? `· ${record.wins}/${record.draws}/${record.losses}` : "", href: table },
+    { key: "tile-diff", label: t("teamOverview.tile.diff"), value: difference ? `${signed(difference.touchdowns)} / ${signed(difference.casualties)}` : UNREAD,
+      accent: Boolean(difference) && ahead(difference), href: matches },
     ...own,
   ];
 }
@@ -222,8 +225,8 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   const worth = teamValue(team, raceTeam);
   const draft = normalizeDraft(team.roster ?? {});
   const own = [
-    { label: t("teamOverview.tile.value"), value: formatMoney(worth) },
-    { label: t("roster.treasuryTitle"), value: formatMoney(draft.treasury), href: teamUrl(team.id, "team") },
+    { key: "tile-value", label: t("teamOverview.tile.value"), value: formatMoney(worth), href: teamUrl(team.id, "roster") },
+    { key: "tile-treasury", label: t("roster.treasuryTitle"), value: formatMoney(draft.treasury), href: teamUrl(team.id, "team") },
   ];
   return {
     teamId: team.id,

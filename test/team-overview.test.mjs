@@ -172,13 +172,15 @@ test("a desk's tiles are five: the place «2» with «/ 4», the points «3» wi
   // ga 2–1 and CAS 1–0 at home, gb 0–2 and CAS 0–2 away: one win, one loss, a touchdown and a casualty behind; the friendly is not the season's.
   assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]), [
     ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
-  assert.equal(model.tiles[4].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
+  assert.deepEqual(model.tiles.map(({ href }) => href), ["#/t/t1/matches", "#/t/t1/matches", "#/t/t1/matches", "#/t/t1/roster", "#/t/t1/team"],
+    "the place and the points to the season's table, the difference to the matches, the value to the roster, the treasury to the team page");
   assert.deepEqual(model.tiles.map((tile) => Boolean(tile.accent)), [false, false, false, false, false], "a difference below zero is no good news");
   const fragment = mount(overviewMarkup(model));
   assert.ok(fragment.querySelector(".g-kpis.g-kpis--row"));
   assert.deepEqual(tilesOf(fragment), [
     ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
   assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
+  assert.equal(fragment.querySelectorAll("a.g-kpi.g-kpi--link").length, 5, "every tile is a link");
   assert.equal(fragment.querySelector(".g-kpi--accent"), null);
   assert.deepEqual([...model.tiles[2].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
@@ -198,11 +200,12 @@ test("a phone's tiles are the desk's but the place, which the phone's header say
   const worth = model.tiles[2].value;
   assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]),
     [["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
-  assert.equal(model.tiles[3].href, "#/t/t1/team");
+  assert.deepEqual(model.tiles.map(({ href }) => href), ["#/season", "#/t/t1/matches", "#/t/t1/roster", "#/t/t1/team"], "a phone's table is the league's tab");
   const fragment = mount(overviewMarkup(model));
   assert.deepEqual(tilesOf(fragment), [["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.equal(fragment.querySelectorAll("a.g-kpi.g-kpi--link").length, 4);
   const desk = overviewModel(input("t1"));
-  assert.deepEqual(model.tiles, desk.tiles.slice(1), "one set of figures: the desk's without its place");
+  assert.deepEqual(model.tiles.map(({ href, ...tile }) => tile), desk.tiles.slice(1).map(({ href, ...tile }) => tile), "one set of figures: the desk's without its place");
   initLocale("ru");
   try {
     assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Очки · В/Н/П", "TD ± / CAS ±", "Стоимость команды", "Казна"]);
@@ -320,12 +323,12 @@ test("the overview follows the width: a desk turned phone draws the phone's tile
     assert.deepEqual(labels(), PHONE);
     assert.equal(view.querySelector("#overview-query"), null);
     assert.ok(document.activeElement === view.querySelector("h1"), "the page's title, a place the keyboard goes on from");
-    // The treasury the coach is on is another tile on a desk: the title again.
-    view.querySelector("a.g-kpi").focus();
+    // The treasury the coach is on is the last tile on both widths: the focus stays on it.
+    view.querySelector('a.g-kpi[href="#/t/t1/team"]').focus();
     cross(false);
     assert.deepEqual(labels(), DESK);
     assert.ok(view.querySelector("#overview-query"), "the field is back");
-    assert.ok(document.activeElement === view.querySelector("h1"));
+    assert.ok(document.activeElement === view.querySelector('a.g-kpi[href="#/t/t1/team"]'));
     // A focus on a node the redraw keeps but the width's stylesheet hides is lost as well (fix round 1, I1): the desk's
     // «Advance» stays in the page on a phone, hidden (overview.css), and a browser would drop the focus to the body.
     const advance = view.querySelector("a.g-overview__advance");
@@ -575,7 +578,7 @@ test("a team outside the season: two tiles, and a way to enter it instead of a b
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Draft");
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.deepEqual(fragment.querySelectorAll(".g-kpi__k").map((label) => label.textContent), ["Team value", "Treasury"]);
-  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t4/team");
+  assert.deepEqual(fragment.querySelectorAll("a.g-kpi").map((tile) => tile.getAttribute("href")), ["#/t/t4/roster", "#/t/t4/team"]);
 });
 
 test("a team in its build says so on a phone too: the chip is the page's first line there, and the desk's head has it (R4)", () => {

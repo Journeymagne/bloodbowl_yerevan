@@ -68,7 +68,7 @@
 .g-kpi--accent .g-kpi__v { color: var(--accent-text); }
 
 /*
- * A figure managed on a page of its own (the overview's treasury): the whole tile is the link, with the same face.
+ * A figure read in full or managed on a page of its own (the overview's figures): the whole tile is the link, with the same face.
  * The hover is a shade of the ink over the tile, not --surface-3, which is --surface-2 itself in the dark palettes;
  * the keyboard ring is base.css's.
  */
