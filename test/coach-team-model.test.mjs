@@ -64,33 +64,34 @@ const base = { user: COACH_U2, team: RIVAL, seasonData: SEASON, games: [], viewe
 test("the opponent in the table: his place, value, record, points and differences, his form", () => {
   const model = opponentModel({ user: COACH_U2, team: RIVAL, seasonData: SEASON, games: [], viewerId: "u1", activeTeamId: "t1", phone: false });
   assert.equal(model.place, 2);
-  assert.deepEqual(model.tiles.map(({ value }) => value), [formatMoney(teamValue(RIVAL, raceTeamOf(RIVAL.baseTeamSlug))), "3 · 0 · 3", "9", "+1 / −4"]);
+  assert.deepEqual(model.tiles.map(({ value, rest = "" }) => [value, rest]), [["9", "· 3/0/3"], ["+1 / −4", ""], [formatMoney(teamValue(RIVAL, raceTeamOf(RIVAL.baseTeamSlug))), ""]]);
   assert.deepEqual(model.form, ["l", "w", "w", "l", "w"]);
-  assert.deepEqual(model.tiles.map(({ label }) => label), ["TV", "W · D · L", "Points", "TD ± / CAS ±"], "DeskOppTeam.html's words");
-  assert.deepEqual(opponentModel({ ...base, phone: true }).tiles.map(({ label }) => label), ["Team value", "W · D · L", "Points", "TD / CAS difference"], "OppTeam.html's");
+  assert.deepEqual(model.tiles.map(({ label }) => label), ["Points · W/D/L", "TD ± / CAS ±", "Team value"], "the overview's order and words, the place the head's");
+  assert.deepEqual(opponentModel({ ...base, phone: true }).tiles, model.tiles, "the same on a phone");
+  assert.ok(model.tiles.every((tile) => !tile.href && !tile.accent), "no links and no good news: they would be the looking coach's, not this team's");
   assert.deepEqual([model.userId, model.teamId, model.name, model.initials, model.raceKnown], ["u2", "r1", "Karak Hold Hammers", "KH", true]);
   assert.deepEqual(model.race, { title: "Dwarf", href: "#/teams/dwarf" });
   assert.deepEqual(model.coach, { login: "rival", href: "#/coaches/u2" });
-  assert.equal([...model.tiles[3].value].filter((sign) => sign === "−").length, 1, "a real minus sign");
+  assert.equal([...model.tiles[1].value].filter((sign) => sign === "−").length, 1, "a real minus sign");
 });
 
 test("outside the table: no place, no form, the value alone", () => {
   const model = opponentModel({ ...base, seasonData: { ...SEASON, standings: SEASON.standings.filter((row) => row.team.id !== "r1") } });
   assert.equal(model.place, null);
   assert.deepEqual(model.form, []);
-  assert.deepEqual(model.tiles.map(({ label }) => label), ["TV"]);
+  assert.deepEqual(model.tiles.map(({ label }) => label), ["Team value"]);
   // A withdrawn entry is outside it too.
   const withdrawn = { ...SEASON, standings: SEASON.standings.map((row) => (row.team.id === "r1" ? { ...row, withdrawnAt: "2026-10-01T00:00:00Z" } : row)) };
   assert.equal(opponentModel({ ...base, seasonData: withdrawn }).place, null);
   assert.equal(opponentModel({ ...base, seasonData: withdrawn }).tiles.length, 1);
 });
 
-test("the table not read: four tiles, the three of the table a dash", () => {
+test("the table not read: three tiles, the points and the difference a dash", () => {
   const model = opponentModel({ ...base, seasonData: null });
   assert.equal(model.place, null);
   assert.deepEqual(model.form, []);
-  assert.deepEqual(model.tiles.map(({ value }) => value).slice(1), ["–", "–", "–"]);
-  assert.equal(model.tiles.length, 4);
+  assert.deepEqual(model.tiles.map(({ value, rest = "" }) => [value, rest]).slice(0, 2), [["–", ""], ["–", ""]]);
+  assert.equal(model.tiles.length, 3);
 });
 
 test("a race the reference does not know: no value and no roster", () => {
@@ -99,7 +100,7 @@ test("a race the reference does not know: no value and no roster", () => {
   assert.equal(model.race, null);
   assert.deepEqual(model.squad, []);
   assert.deepEqual(model.lines, []);
-  assert.deepEqual(model.tiles.map(({ label }) => label), ["W · D · L", "Points", "TD ± / CAS ±"], "no TV tile");
+  assert.deepEqual(model.tiles.map(({ label }) => label), ["Points · W/D/L", "TD ± / CAS ±"], "no value tile");
   assert.deepEqual(opponentModel({ ...base, team: { ...RIVAL, id: "r9", baseTeamSlug: "teams/nobody" } }).tiles, [], "outside the table as well: nothing");
 });
 
@@ -174,7 +175,7 @@ test("every key in both dictionaries", () => {
   assertDictionaryCovers("src/screens/coaches/team-model.mjs");
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   // The keys the model picks by the width, which the scan of `t("…")` does not see.
-  for (const key of ["opponent.tile.tv", "teamOverview.tile.value", "teamOverview.tile.diff", "teamOverview.tile.diffDesk", "shell.tab.table", "shell.side.season", "teamOverview.friendly"]) {
+  for (const key of ["shell.tab.table", "shell.side.season", "teamOverview.friendly"]) {
     assert.ok(en[key] && ru[key], key);
   }
   const WORDS = {
@@ -182,7 +183,6 @@ test("every key in both dictionaries", () => {
     "opponent.coachLine": ["coach {coach}", "тренер {coach}"],
     "opponent.next": ["Next opponent", "Следующий соперник"],
     "opponent.meeting": ["Our meeting", "Наша встреча"],
-    "opponent.tile.record": ["W · D · L", "В · Н · П"],
     "opponent.out": ["#{number} {position} · misses the match", "#{number} {position} · пропускает матч"],
     "opponent.noRace": ["The team's race is not in the reference: its roster cannot be shown.", "Расы команды нет в справочнике — состав не показать."],
   };

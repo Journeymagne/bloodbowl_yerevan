@@ -112,8 +112,8 @@ test("a phone's opponent page: back to the table, his name and race, the next ma
   assert.equal(view.querySelector(".g-opp__coachlink").getAttribute("href"), "#/coaches/u2", "a phone reaches the coach's page from the head");
   assert.match(view.querySelector(".g-opp__next").textContent, /Next opponent.*Round 3 · home/s);
   assert.equal(view.querySelector(".g-opp__next").getAttribute("href"), "#/t/t1/matches");
-  assert.deepEqual(view.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["Team value", "W · D · L", "Points", "TD / CAS difference"]);
-  assert.deepEqual(view.querySelectorAll(".g-kpi__v").map((node) => node.textContent).slice(1), ["0 · 0 · 1", "4", "−1 / −1"]);
+  assert.deepEqual(view.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["Points · W/D/L", "TD ± / CAS ±", "Team value"]);
+  assert.deepEqual(view.querySelectorAll(".g-kpi__v").map((node) => node.textContent).slice(0, 2), ["4 · 0/0/1", "−1 / −1"]);
   assert.deepEqual(view.querySelectorAll(".g-opp__formrow .g-form__item").map((node) => node.getAttribute("data-result")), ["l"]);
   const card = view.querySelector("a.g-opp__coach");
   assert.equal(card.getAttribute("href"), "https://t.me/rival_bb");
@@ -153,7 +153,7 @@ test("a desk's opponent page: its head with the coach and Telegram, the left col
   const left = view.querySelector(".g-opp__left");
   assert.deepEqual(left.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]),
     ["g-opp__next", "g-opp__meeting", "g-opp__card", "g-btn", "g-opp__readonly"]);
-  assert.deepEqual(left.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["TV", "W · D · L", "Points", "TD ± / CAS ±"]);
+  assert.deepEqual(left.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["Points · W/D/L", "TD ± / CAS ±", "Team value"]);
   assert.ok(left.querySelector(".g-opp__card .g-opp__formrow"), "the form in the tiles' card");
   const squad = view.querySelector("section.g-opp__squad");
   assert.equal(squad.querySelector('[role="table"]').getAttribute("aria-labelledby"), "opp-squad");
@@ -306,7 +306,7 @@ test("the table or the games not read: their words; the rest is drawn", async ()
   const titles = failed.querySelectorAll(".g-callout__title").map((node) => node.textContent);
   assert.match(titles[0], /^The league table did not load: /);
   assert.match(titles[1], /^The matches did not load: /);
-  assert.deepEqual(view.querySelectorAll(".g-kpi__v").map((node) => node.textContent).slice(1), ["–", "–", "–"]);
+  assert.deepEqual(view.querySelectorAll(".g-kpi__v").map((node) => node.textContent).slice(0, 2), ["–", "–"]);
   assert.ok(!view.querySelector(".g-opp__next") && !view.querySelector(".g-opp__meeting"));
   assert.equal(view.querySelector("h1").textContent, RIVAL.name);
   assert.equal(rows().length, 3, "the roster is drawn");

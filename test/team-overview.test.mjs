@@ -164,59 +164,57 @@ function crossingWindow(phone = false) {
   return { listeners, cross: (next) => { media.matches = next; listeners.forEach((listener) => listener()); } };
 }
 
-test("a desk's tiles are DeskOverview's five: the place «2» with «/ 4», the points «3» with «· 1/0/1», the value, the treasury leading to the team page, «TD ± / CAS ±» «−1 / −1»", () => {
+test("a desk's tiles are five: the place «2» with «/ 4», the points «3» with «· 1/0/1», «TD ± / CAS ±» «−1 / −1», the value, the treasury leading to the team page", () => {
   const model = overviewModel(input("t1"));
   assert.equal(model.phone, false, "a desk unless the screen says otherwise");
-  const worth = model.tiles[2].value;
+  const worth = model.tiles[3].value;
   assert.match(worth, /^\d[\d,]*k$/);
   // ga 2–1 and CAS 1–0 at home, gb 0–2 and CAS 0–2 away: one win, one loss, a touchdown and a casualty behind; the friendly is not the season's.
   assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]), [
-    ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
-  assert.equal(model.tiles[3].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
-  assert.deepEqual(model.tiles.map((tile) => Boolean(tile.href)), [false, false, false, true, false]);
+    ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.equal(model.tiles[4].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
   assert.deepEqual(model.tiles.map((tile) => Boolean(tile.accent)), [false, false, false, false, false], "a difference below zero is no good news");
   const fragment = mount(overviewMarkup(model));
   assert.ok(fragment.querySelector(".g-kpis.g-kpis--row"));
   assert.deepEqual(tilesOf(fragment), [
-    ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
+    ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
   assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
-  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
   assert.equal(fragment.querySelector(".g-kpi--accent"), null);
-  assert.deepEqual([...model.tiles[4].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
+  assert.deepEqual([...model.tiles[2].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
   assert.equal(fragment.querySelector(".g-pagehead__sub").textContent, "Mock Season · round 3");
   assert.equal(fragment.querySelector(".g-overview__stage"), null, "an active team has no stage to say");
   initLocale("ru");
   try {
-    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1"))))).map(([label]) => label), ["Место в лиге", "Очки · В/Н/П", "Стоимость команды", "Казна", "TD ± / CAS ±"]);
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1"))))).map(([label]) => label), ["Место в лиге", "Очки · В/Н/П", "TD ± / CAS ±", "Стоимость команды", "Казна"]);
   } finally {
     initLocale("en");
   }
 });
 
-test("a phone's tiles are Team.html's four: the value, the treasury, «W · D · L» «1 · 0 · 1», «TD / CAS difference» «−1 / −1»", () => {
+test("a phone's tiles are the desk's but the place, which the phone's header says: the same labels, the same order", () => {
   const model = overviewModel(input("t1", { phone: true }));
   assert.equal(model.phone, true);
-  const worth = model.tiles[0].value;
-  assert.deepEqual(model.tiles.map(({ label, value }) => [label, value]), [["Team value", worth], ["Treasury", "120k"], ["W · D · L", "1 · 0 · 1"], ["TD / CAS difference", "−1 / −1"]]);
-  assert.equal(model.tiles[1].href, "#/t/t1/team");
+  const worth = model.tiles[2].value;
+  assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]),
+    [["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.equal(model.tiles[3].href, "#/t/t1/team");
   const fragment = mount(overviewMarkup(model));
-  assert.deepEqual(tilesOf(fragment), [["Team value", worth, ""], ["Treasury", "120k", ""], ["W · D · L", "1 · 0 · 1", ""], ["TD / CAS difference", "−1 / −1", ""]],
-    "no second parts: the place is in the phone's header (Team.html)");
-  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t1/team");
-  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
+  assert.deepEqual(tilesOf(fragment), [["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  const desk = overviewModel(input("t1"));
+  assert.deepEqual(model.tiles, desk.tiles.slice(1), "one set of figures: the desk's without its place");
   initLocale("ru");
   try {
-    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Стоимость команды", "Казна", "В · Н · П", "TD / CAS разница"]);
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Очки · В/Н/П", "TD ± / CAS ±", "Стоимость команды", "Казна"]);
   } finally {
     initLocale("en");
   }
   const words = { en: dictionary("en"), ru: dictionary("ru") };
-  assert.deepEqual(["record", "diff", "diffDesk"].map((key) => [words.en[`teamOverview.tile.${key}`], words.ru[`teamOverview.tile.${key}`]]),
-    [["W · D · L", "В · Н · П"], ["TD / CAS difference", "TD / CAS разница"], ["TD ± / CAS ±", "TD ± / CAS ±"]]);
+  assert.deepEqual([words.en["teamOverview.tile.diff"], words.ru["teamOverview.tile.diff"]], ["TD ± / CAS ±", "TD ± / CAS ±"]);
+  assert.equal(words.en["teamOverview.tile.diffDesk"], undefined, "one label for both widths");
 });
 
-test("the difference is in the accent on a desk only when neither is below zero and one is above; never on a phone", () => {
+test("the difference is in the accent on both widths only when neither is below zero and one is above", () => {
   const cases = [
     { games: [played("ga", 1, [2, 1], [0, 0])], value: "+1 / 0", good: true },
     { games: [played("ga", 1, [1, 1], [2, 0])], value: "0 / +2", good: true },
@@ -226,29 +224,28 @@ test("the difference is in the accent on a desk only when neither is below zero 
     { games: GAMES, value: "−1 / −1", good: false },
   ];
   for (const { games, value, good } of cases) {
-    const desk = overviewModel(input("t1", { games }));
-    assert.deepEqual([desk.tiles[4].value, Boolean(desk.tiles[4].accent)], [value, good], value);
-    assert.equal(Boolean(mount(overviewMarkup(desk)).querySelector(".g-kpi--accent")), good, `${value} on a desk`);
-    const phone = overviewModel(input("t1", { games, phone: true }));
-    assert.deepEqual([phone.tiles[3].value, Boolean(phone.tiles[3].accent)], [value, false], `${value} on a phone`);
-    assert.equal(mount(overviewMarkup(phone)).querySelector(".g-kpi--accent"), null, `${value} is the ink on a phone (Team.html)`);
+    for (const [phone, at] of [[false, 2], [true, 1]]) {
+      const model = overviewModel(input("t1", { games, phone }));
+      assert.deepEqual([model.tiles[at].value, Boolean(model.tiles[at].accent)], [value, good], `${value} on a ${phone ? "phone" : "desk"}`);
+      assert.equal(Boolean(mount(overviewMarkup(model)).querySelector(".g-kpi--accent")), good, `${value} on a ${phone ? "phone" : "desk"}`);
+    }
   }
   // Only the difference ever is: the place, the points, the value and the treasury never.
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: cases[0].games }))));
-  assert.deepEqual(fragment.querySelectorAll(".g-kpi").map((tile) => tile.classList.contains("g-kpi--accent")), [false, false, false, false, true]);
+  assert.deepEqual(fragment.querySelectorAll(".g-kpi").map((tile) => tile.classList.contains("g-kpi--accent")), [false, false, true, false, false]);
 });
 
-test("before the games are read the record and the difference say «–»; outside the season two tiles on both widths", () => {
+test("before the games are read the points stand alone and the difference says «–»; outside the season two tiles on both widths", () => {
   for (const games of [null, []]) {
     const gamesError = games ? "No connection" : "";
     const desk = overviewModel(input("t1", { games, gamesError }));
-    assert.deepEqual(desk.tiles.map(({ value, rest = "", accent = false }) => [value, rest, accent]).filter((_, index) => index !== 2),
-      [["2", "/ 4", false], ["3", "", false], ["120k", "", false], ["–", "", false]], `${gamesError || "not read"}: the points alone, the difference a dash`);
+    assert.deepEqual(desk.tiles.map(({ value, rest = "", accent = false }) => [value, rest, accent]).filter((_, index) => index !== 3),
+      [["2", "/ 4", false], ["3", "", false], ["–", "", false], ["120k", "", false]], `${gamesError || "not read"}: the points alone, the difference a dash`);
     assert.deepEqual(tilesOf(mount(overviewMarkup(desk)))[1], ["Points · W/D/L", "3", ""], "no «·» left hanging after the points");
     const phone = overviewModel(input("t1", { games, gamesError, phone: true }));
-    assert.deepEqual(phone.tiles.slice(2).map(({ label, value }) => [label, value]), [["W · D · L", "–"], ["TD / CAS difference", "–"]], `${gamesError || "not read"} on a phone`);
+    assert.deepEqual(phone.tiles.slice(0, 2).map(({ label, value, rest = "" }) => [label, value, rest]), [["Points · W/D/L", "3", ""], ["TD ± / CAS ±", "–", ""]], `${gamesError || "not read"} on a phone`);
   }
-  assert.equal(overviewModel(input("t1", { games: null })).tiles[4].value.codePointAt(0), 0x2013, "the dash is an en dash (U+2013), not a hyphen or a minus");
+  assert.equal(overviewModel(input("t1", { games: null })).tiles[2].value.codePointAt(0), 0x2013, "the dash is an en dash (U+2013), not a hyphen or a minus");
   // Outside the table — a team not entered, a table not read or that failed — the value and the treasury alone, on both widths.
   const outside = [input("t4"), input("t1", { seasonData: null }), input("t1", { seasonData: null, seasonError: "No connection" }), input("t1", { seasonData: null, games: null })];
   for (const over of outside) {
@@ -307,11 +304,11 @@ test("a desk's head has the reference's search at its right; typing takes the co
   setRefQuery("");
 });
 
-test("the overview follows the width: a desk turned phone draws Team.html's tiles, and back", async () => {
+test("the overview follows the width: a desk turned phone draws the phone's tiles, and back", async () => {
   const { listeners, cross } = crossingWindow(false);
   const labels = () => view.querySelectorAll(".g-kpi__k").map((label) => label.textContent);
-  const DESK = ["Place in the league", "Points · W/D/L", "Team value", "Treasury", "TD ± / CAS ±"];
-  const PHONE = ["Team value", "Treasury", "W · D · L", "TD / CAS difference"];
+  const DESK = ["Place in the league", "Points · W/D/L", "TD ± / CAS ±", "Team value", "Treasury"];
+  const PHONE = ["Points · W/D/L", "TD ± / CAS ±", "Team value", "Treasury"];
   try {
     coach();
     await renderTeamOverview("t1");
@@ -598,7 +595,7 @@ test("a team in its build says so on a phone too: the chip is the page's first l
 
 test("an unknown race leaves a dash, not a crash", () => {
   const model = overviewModel({ ...input("t1"), raceTeam: null });
-  assert.equal(model.tiles[2].value, "—");
+  assert.equal(model.tiles[3].value, "—");
   assert.deepEqual(model.leaders, []);
   assert.doesNotThrow(() => overviewMarkup(model));
   assert.equal(model.board.own.sub, "", "no race, no line of race, place and value to leave a stray dot in front");
@@ -991,7 +988,7 @@ test("games that failed to load leave the figures and say so where the board was
   assert.match(fragment.querySelector(".g-overview__failed").textContent, /^The matches did not load/);
   assert.equal(fragment.querySelectorAll(".g-kpi").length, 5, "the table still gives the place and the points");
   assert.equal(fragment.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
-  assert.equal(fragment.querySelectorAll(".g-kpi__v")[4].textContent, "–", "nor a difference");
+  assert.equal(fragment.querySelectorAll(".g-kpi__v")[2].textContent, "–", "nor a difference");
 });
 
 test("a table that failed to load says so where the board would stand; the team's own figures stay", () => {
@@ -1043,7 +1040,7 @@ test("before the table and the games are read nothing is said that they may cont
 
 test("a treasury an administrator stored as text is the treasury (T2)", () => {
   const team = { ...TEAMS[0], roster: { ...TEAMS[0].roster, treasury: "120" } };
-  assert.equal(overviewModel({ ...input("t1"), team }).tiles[3].value, "120k");
+  assert.equal(overviewModel({ ...input("t1"), team }).tiles[4].value, "120k");
 });
 
 test("names from other coaches are text: the opponent, the opponent's race, the MVP, the leader's name and the position", () => {

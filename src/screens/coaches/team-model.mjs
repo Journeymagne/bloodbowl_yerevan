@@ -41,20 +41,19 @@ const UNREAD = "–";
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
 
 /**
- * The tiles (decision 17): the value, «W · D · L», the points and «TD / CAS» differences — each word a phone's
- * (OppTeam.html) or a desk's (DeskOppTeam.html). Outside the table the value alone; a race the reference does not
- * know has no value; the table not read leaves its three a dash.
+ * The tiles, in the overview's order and words on both widths: the points with «· 4/1/1», «TD ± / CAS ±» and the value
+ * (the place is the head's). Outside the table the value alone; a race the reference does not know has no value; the
+ * table not read leaves the points and the difference a dash.
  * @param {import("../../data/season-table.mjs").TableRow|null} row @param {number|null} worth
  */
-function tilesOf({ row, read, worth, phone }) {
-  const value = worth === null ? [] : [{ label: t(phone ? "teamOverview.tile.value" : "opponent.tile.tv"), value: formatMoney(worth) }];
+function tilesOf({ row, read, worth }) {
+  const value = worth === null ? [] : [{ label: t("teamOverview.tile.value"), value: formatMoney(worth) }];
   if (read && !row) return value;
-  const of = (figure) => (row ? figure(row) : UNREAD);
-  return [...value,
-    { label: t("opponent.tile.record"), value: of(({ wins, draws, losses }) => `${wins} · ${draws} · ${losses}`) },
-    { label: t("opponent.tile.points"), value: of(({ points }) => String(points)) },
-    { label: t(phone ? "teamOverview.tile.diff" : "teamOverview.tile.diffDesk"),
-      value: of(({ touchdowns, conceded, casualties, suffered }) => `${signed(touchdowns - conceded)} / ${signed(casualties - suffered)}`) },
+  return [
+    { label: t("teamOverview.tile.points"), value: row ? String(row.points) : UNREAD, rest: row ? `· ${row.wins}/${row.draws}/${row.losses}` : "" },
+    { label: t("teamOverview.tile.diff"),
+      value: row ? `${signed(row.touchdowns - row.conceded)} / ${signed(row.casualties - row.suffered)}` : UNREAD },
+    ...value,
   ];
 }
 
@@ -140,7 +139,7 @@ export function opponentModel({ user, team, rolls = [], seasonData, games = [], 
     telegram: { handle: user.telegram ?? "", href: telegramUrl(user.telegram) },
     next: nextOf(list, activeTeamId, team.id),
     meeting: meetingOf(list, activeTeamId, team.id),
-    tiles: tilesOf({ row, read: Boolean(seasonData), worth: raceTeam ? teamValue(team, raceTeam) : null, phone }),
+    tiles: tilesOf({ row, read: Boolean(seasonData), worth: raceTeam ? teamValue(team, raceTeam) : null }),
     form: row?.form ?? [],
     squad: squadOf(lines),
     lines,
