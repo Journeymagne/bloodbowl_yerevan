@@ -221,4 +221,6 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
+  /* Beside the table's card, the calendar's title is the table's size. */
+  .g-season__aside .g-league__caltitle { font-size: 26px; }
 }

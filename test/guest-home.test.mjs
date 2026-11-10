@@ -41,9 +41,9 @@ test("a guest's front page: what the league is, the way in, the table and the re
   assert.equal(view.querySelector("h1").textContent, "A league for Blood Bowl Sevens coaches");
   assert.deepEqual(view.querySelectorAll(".g-guest__hero a").map((a) => a.getAttribute("href")), ["#/login", "#/register"]);
   assert.deepEqual(view.querySelectorAll(".g-guest__tile").map((a) => a.getAttribute("href")), ["#/ref/teams", "#/ref/skills", "#/ref", "#/all-gata-changes"]);
-  assert.equal(view.querySelector(".g-guest__more").getAttribute("href"), "#/season");
+  assert.equal(view.querySelector("a.g-seeall.g-guest__more").getAttribute("href"), "#/season");
   assertCspSafe(view);
-  assertStyled(view, "src/screens/home/guest.css", "page-head.css", "button.css", "list-row.css");
+  assertStyled(view, "src/screens/home/guest.css", "page-head.css", "button.css", "list-row.css", "see-all.css");
 });
 
 test("the table is the top five, without the withdrawn, each with its race and points, and says after which round", () => {
@@ -248,7 +248,7 @@ test("the whole page is in the language of the visitor", () => {
   useLocale("ru");
   renderGuestHome();
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица сезона");
-  assert.equal(view.querySelector(".g-guest__more").textContent, "Вся таблица и календарь");
+  assert.equal(view.querySelector(".g-guest__more").textContent, "Вся таблица и календарь →");
   assert.deepEqual(view.querySelectorAll(".g-guest__hero a").map((a) => a.textContent), ["Войти", "Регистрация"]);
   assert.deepEqual(view.querySelectorAll(".g-guest__tile-title").map((b) => b.textContent), ["Правила команд", "Skills", "Перед матчем", "Изменения Gata"]);
   state.season = loaded(season(SIX, [{ roundNumber: 6, status: "completed" }]));
@@ -292,7 +292,6 @@ test("every colour of the page holds on what it sits on, in every palette", () =
   assertReadable(SHEET, ".g-guest__title", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__rank", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__note", "color", ["--surface"], 4.5);
-  assertReadable(SHEET, ".g-guest__more", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__tile", "color", ["--surface"], 4.5);
   assertReadable(SHEET, ".g-guest__tile-text", "color", ["--surface"], 4.5);
   // The ribbon: the lead and the text in the header's ink on its colour, the filled button turned over.

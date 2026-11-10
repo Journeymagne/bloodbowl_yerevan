@@ -643,7 +643,7 @@
   "guestHome.table": "Таблица сезона",
   "guestHome.tableAfter": "Таблица сезона · после {round} тура",
   "guestHome.season": "{season} · после {round} тура",
-  "guestHome.tableAll": "Вся таблица и календарь",
+  "guestHome.tableAll": "Вся таблица и календарь →",
   "guestHome.tableEmpty": "Таблица появится, когда тренеры заявятся в сезон.",
   "guestHome.tile.teams": "Правила команд",
   "guestHome.tile.teamsText": "Все расы лиги",

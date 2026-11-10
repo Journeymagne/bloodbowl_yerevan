@@ -15,6 +15,7 @@ import { t } from "../../core/i18n.mjs";
 import { seasonTabUrl, teamUrl } from "../../core/routes.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderResultPill, resultLabels } from "../../ui/result-pill.mjs";
+import { renderSeeAll } from "../../ui/see-all.mjs";
 
 /** A score sent: the outcome it proposes on the waiting tint, its letter seen and its word, with what it waits for, heard. */
 function sentPill(result) {
@@ -113,5 +114,5 @@ export function calendarMarkup(rows, teamId) {
   return `<section class="g-matches__calendar" aria-labelledby="matches-calendar"><div class="g-matches__calhead">`
     + `<h2 class="g-matches__caltitle" id="matches-calendar">${escapeHtml(t("matches.calendar"))}</h2>`
     + `<a class="g-matches__calfriendlies" href="${escapeHtml(teamUrl(teamId, "challenges"))}">${escapeHtml(t("teamOverview.friendlies"))}</a></div>${body}`
-    + `<a class="g-matches__calall" href="${escapeHtml(seasonTabUrl())}">${escapeHtml(t("league.calendarAll"))}</a></section>`;
+    + `${renderSeeAll({ label: t("league.calendarAll"), href: seasonTabUrl(), className: "g-matches__calall" })}</section>`;
 }

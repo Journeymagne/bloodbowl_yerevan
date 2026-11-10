@@ -290,16 +290,6 @@
   text-transform: none;
 }
 
-.g-minitable__all {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--accent-text);
-  font: 600 14px/1.2 var(--font-body);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
 .g-minitable__rows {
   display: flex;
   flex-direction: column;
@@ -366,7 +356,6 @@
 }
 
 @media (min-width: 901px) {
-  .g-minitable__all,
   .g-minitable__name,
   .g-minitable__link { min-height: 24px; }
 }
@@ -383,17 +372,7 @@ a.g-matches__calline {
   text-decoration: none;
 }
 
-.g-matches__calall {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin: var(--space-8) 0 var(--space-4);
-  color: var(--accent-text);
-  font: 600 14px/1.2 var(--font-body);
-  letter-spacing: 0;
-  text-decoration: none;
-  text-transform: none;
-}
+.g-matches__calall { margin: var(--space-8) 0 var(--space-4); }
 
 @media (min-width: 901px) {
   a.g-matches__calline {
@@ -401,11 +380,15 @@ a.g-matches__calline {
     align-items: center;
     min-height: 24px;
   }
-  .g-matches__calall { min-height: 24px; }
   /*
    * In the season's column (320 wide at the least) «Calendar» keeps its word whole, as DeskSeason.html's nowrap does,
-   * and «Friendlies» gives way, its words wrapping in the button as the prototype's do.
+   * and «Friendlies» gives way, its words wrapping in the button as the prototype's do. Its title is the size of the
+   * table's beside it (league.css).
    */
-  .g-season__aside .g-matches__caltitle { flex: none; }
+  .g-season__aside .g-matches__caltitle {
+    flex: none;
+    font-size: 26px;
+    line-height: 1.2;
+  }
   .g-season__aside .g-matches__calfriendlies { flex: 0 1 auto; }
 }

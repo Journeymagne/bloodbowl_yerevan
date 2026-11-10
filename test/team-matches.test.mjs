@@ -928,7 +928,7 @@ test("a desk outside the table: the call to enter the season, the board only wit
 
 test("a desk's calendar: styled as DeskSeason.html; readable; D2 from 901px; nothing cut", () => {
   const sheets = [CSS, "src/ui/match-card.css", "src/screens/matches/before.css", "match-board.css", "src/shell/crest.css", "status-chip.css", "button.css",
-    "callout.css", "page-head.css", "result-pill.css", "src/screens/season/table.css", "src/screens/season/league.css", "form-strip.css"];
+    "callout.css", "page-head.css", "result-pill.css", "src/screens/season/table.css", "src/screens/season/league.css", "form-strip.css", "see-all.css"];
   const live = gamesWith({ g2: { preparationStatus: "in_progress" } });
   for (const model of [modelOf("t1", { phone: false }), modelOf("t2", { phone: false, games: live }), modelOf("t3", { phone: false }), modelOf("t4", { phone: false })]) {
     assertStyled(mountHere(matchesMarkup(model)), ...sheets);
@@ -966,9 +966,8 @@ test("a desk's calendar: styled as DeskSeason.html; readable; D2 from 901px; not
   assert.deepEqual(own("a.g-matches__calopp", "min-height"), ["24px"]);
   const season = "src/screens/season/table.css";
   assert.ok(parseInt(inMedia(season, "min-width: 901px", "a.g-matches__calline", "min-height")[0], 10) >= 24, "a match's line that leads to it (pre-flight L19)");
-  assert.ok(parseInt(inMedia(season, "min-width: 901px", ".g-matches__calall", "min-height")[0], 10) >= 24);
   assertReadable(season, "a.g-matches__calline", "color", ["--surface"], 4.5);
-  assertReadable(season, ".g-matches__calall", "color", ["--surface"], 4.5);
+  assert.deepEqual(inMedia(season, "min-width: 901px", ".g-season__aside .g-matches__caltitle", "font-size"), ["26px"], "beside the table's card, its title's size");
   assert.deepEqual(valuesOf("src/ui/match-board.css", ".g-board__square", "width"), ["30px"]);
   for (const selector of [".g-matches__calopp", ".g-matches__calline", ".g-matches__caltitle"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /ellipsis|text-overflow|nowrap/);

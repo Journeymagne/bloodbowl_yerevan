@@ -786,7 +786,7 @@ test("a desk's right column has the table's top six, the team's row marked, and 
     ["1", "Rival Team", "0", "6", false], ["2", "Ashgrove Wardens", "+2", "3", true], ["3", "Rival Raiders", "0", "3", false],
     ["4", "Rival Wardens", "0", "3", false], ["5", "Fourth Wall", "−2", "1", false], ["6", "Fifth Column", "0", "1", false]]);
   assert.equal(table.querySelector("h2").textContent, "Season standings");
-  assert.equal(table.querySelector("a.g-minitable__all").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
+  assert.equal(table.querySelector("a.g-seeall").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
   assert.equal(table.querySelector(".g-minitable__row--mine a").getAttribute("href"), "#/t/t1", "the coach's own row leads to its overview");
   assert.equal(table.querySelectorAll(".g-minitable__row a")[0].getAttribute("href"), "#/coaches/u-r1/teams/r1", "another's to the opponent's page");
   // The screen gives the model the coach who looks.
@@ -931,7 +931,7 @@ test("on a desk the results are a card with its head inside: «Recent matches»,
   const title = section.querySelector(".g-overview__bar h2.g-overview__title");
   assert.equal(title.textContent, "Recent matches");
   assert.equal(section.getAttribute("aria-labelledby"), title.getAttribute("id"));
-  assert.equal(section.querySelector('.g-overview__bar a.g-overview__all[href="#/t/t1/matches"]').textContent, "Whole season →");
+  assert.equal(section.querySelector('.g-overview__bar a.g-seeall[href="#/t/t1/matches"]').textContent, "Whole season →");
   // DeskOverview.html: the section is the card, 16 round, white in the ring, 8 24 12 in; its head 14 0 6, the title and the link at its two ends.
   const desk = deskOf(LISTS_CSS);
   assert.match(ruleOf(desk, ".g-overview__results"), /^(?=[^]*padding: var\(--space-8\) var\(--space-24\) var\(--space-12\);)(?=[^]*border-radius: var\(--radius-2xl\);)(?=[^]*background: var\(--surface\);)(?=[^]*box-shadow: var\(--ring\);)(?=[^]*gap: 0;)/);
@@ -1423,12 +1423,12 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const [key, words] of Object.entries(RESULT_WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css", "button.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
   assertCspSafe(phone);
-  assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", "see-all.css");
 });
 
 test("the leaders and the columns as DeskOverview.html and Team.html draw them: styled; readable; D2; wrapping", () => {
@@ -1441,7 +1441,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.ok(Math.min(at("screens/team/overview.css"), at("ui/match-board.css")) >= 0);
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
-      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height where the prototypes give none.
   for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline", ".g-overview__leadertag", ".g-overview__leadername", ".g-overview__leaderpos", ".g-overview__leadervalue"]) {
@@ -1715,7 +1715,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
 
 test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
-  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
   for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
@@ -1841,16 +1841,16 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
     const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone }))));
     assertCspSafe(fragment);
     assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css",
-      "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+      "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).
-  const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line",
+  const texts = [".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line",
     ".g-overview__cas", ".g-overview__score"];
   for (const selector of texts) {
     for (const property of ["font", "letter-spacing", "text-transform", "color"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
     for (const font of own(selector, "font")) assert.match(font, /\/normal /, `${selector} keeps the font's own line height`);
   }
-  for (const selector of [".g-overview__results", ".g-overview__result", ".g-overview__row", ".g-overview__all"]) {
+  for (const selector of [".g-overview__results", ".g-overview__result", ".g-overview__row"]) {
     for (const property of ["border", "background"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
   }
   // DeskOverview.html: the round 13px, the opponent 16/500, under it the race and the MVP 12px 6 apart, the casualties 13px; the greys --muted.
@@ -1863,8 +1863,6 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   assert.deepEqual(own(".g-overview__cas", "font"), ["400 13px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__line", "font"), ["400 13px/normal var(--font-body)"], "Team.html's line under the opponent");
   assert.deepEqual(own(".g-overview__text", "gap"), [], "the two lines touch, as in both prototypes");
-  assert.deepEqual(own(".g-overview__all", "font"), ["600 14px/normal var(--font-body)"]);
-  assert.deepEqual(own(".g-overview__all", "color"), ["var(--accent-text)"]);
   assert.deepEqual(own(".g-overview__score", "text-align"), ["right"]);
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas"]) assert.deepEqual(own(selector, "color"), ["var(--muted)"], selector);
   // The desk's grid (DeskOverview.html): 30, the round, the opponent, 90, 70, 14 apart, a row at least 52 with its rule under it.
@@ -1882,8 +1880,8 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   }
   assert.match(ruleOf(deskOf(LISTS_CSS), ".g-overview__list"), /display: grid;/);
   assert.deepEqual(own(".g-overview__round", "overflow-wrap"), [], "a round's word keeps whole");
-  // D2: up to 900px «Whole season →» and a row are 44 or more; from 901px «Whole season →» 24, a row 53.
-  assert.deepEqual(own(".g-overview__all", "min-height"), ["var(--size-touch)", "24px"]);
+  // D2: up to 900px a row is 44 or more, from 901px 53 («Whole season →» is the kit's see-all link, see-all.test.mjs).
+  assert.equal(mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES })))).querySelector(".g-overview__bar .g-seeall").textContent, "Whole season →");
   for (const value of own(".g-overview__result", "min-height")) assert.ok(parseInt(value, 10) >= 44, value);
   // Wrapping: the opponent, the race and the MVP wrap; nothing is cut with «…» or held on one line.
   for (const selector of [".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
@@ -1892,7 +1890,6 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   // Readable in every palette: a desk's greys on its white card, a phone's on its page, the link on both.
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp", ".g-overview__cas"]) assertReadable(LISTS_CSS, selector, "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
-  assertReadable(LISTS_CSS, ".g-overview__all", "color", ["--page", "--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__opponent", "color", ["--page", "--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__score", "color", ["--page", "--surface"], 4.5);
 });

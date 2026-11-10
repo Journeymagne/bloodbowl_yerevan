@@ -643,7 +643,7 @@
   "guestHome.table": "Season standings",
   "guestHome.tableAfter": "Season standings · after round {round}",
   "guestHome.season": "{season} · after round {round}",
-  "guestHome.tableAll": "Full table and schedule",
+  "guestHome.tableAll": "Full table and schedule →",
   "guestHome.tableEmpty": "The table fills in once coaches enter the season.",
   "guestHome.tile.teams": "Team rules",
   "guestHome.tile.teamsText": "Every race in the league",

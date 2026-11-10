@@ -283,7 +283,7 @@ test("the overview's mini table: its rows, the team's own marked, the link to th
   const section = fragment.querySelector("section.g-minitable");
   assert.equal(section.getAttribute("aria-labelledby"), "overview-table");
   assert.equal(fragment.querySelector("h2#overview-table").textContent, t("season.standings"));
-  const all = fragment.querySelector("a.g-minitable__all");
+  const all = fragment.querySelector(".g-minitable__head a.g-seeall");
   assert.equal(all.getAttribute("href"), "#/t/t1/matches");
   assert.equal(all.textContent, t("teamOverview.tableAll"));
   const rows = [...fragment.querySelectorAll('.g-minitable__row[role="row"]')];
@@ -326,13 +326,13 @@ test("styled", () => {
     assertStyled(mount(tableNotesMarkup({ phone })), CSS);
   }
   assertStyled(mount(leagueTableMarkup({ rows: [], phone: true, labelledBy: "t" })), CSS);
-  assertStyled(mount(miniTableMarkup({ rows: ROWS, viewerId: "u1", href: "#/t/t1/matches" })), CSS);
+  assertStyled(mount(miniTableMarkup({ rows: ROWS, viewerId: "u1", href: "#/t/t1/matches" })), CSS, "see-all.css");
   const zoned = tableOf(8, { withdrawn: 2, own: 3 });
   for (const phone of [true, false]) {
     assertStyled(mount(leagueTableMarkup({ rows: zoned, phone, viewerId: "u1", signedIn: true, labelledBy: "t", playoffPlaces: 4 })), CSS, "form-strip.css");
     assertStyled(mount(tableNotesMarkup({ phone, playoffPlaces: 4 })), CSS);
   }
-  assertStyled(mount(miniTableMarkup({ rows: tableWindow(zoned, "k3"), viewerId: "u1", teamId: "k3", href: "#/t/k3/matches", playoffPlaces: 4 })), CSS);
+  assertStyled(mount(miniTableMarkup({ rows: tableWindow(zoned, "k3"), viewerId: "u1", teamId: "k3", href: "#/t/k3/matches", playoffPlaces: 4 })), CSS, "see-all.css");
   const styles = read("src/styles.css");
   const at = styles.indexOf('@import url("screens/season/table.css");');
   assert.ok(at > styles.indexOf('@import url("screens/matches/prep-inducements.css");') && at > styles.lastIndexOf('@import url("ui/'),
@@ -365,7 +365,6 @@ test("readable: the own row's tint, the signs' colours, the muted figures, in ev
     [".g-table__notes", ["--surface"]],
     [".g-minitable__diff--up", ["--surface"]],
     [".g-minitable__row--mine .g-minitable__diff--up", ["--accent-tint"]],
-    [".g-minitable__all", ["--surface"]],
     [".g-minitable__rank", ["--surface", "--accent-tint"]],
     [".g-table__row--zone .g-table__rank", ["--surface"]],
     [".g-table__row--mine.g-table__row--zone .g-table__rank", ["--accent-tint"]],
@@ -401,14 +400,12 @@ test("a long team name wraps; nothing is cut with «…»", () => {
   }
 });
 
-test("D2: a row, a race and «Whole table» are 44px to touch up to 900px and at least 24px from 901px", () => {
+test("D2: a row and a race are 44px to touch up to 900px and at least 24px from 901px («Whole table» is the kit's see-all link)", () => {
   const px = (values) => Number(String(values.at(-1)).replace("px", ""));
   assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-table__row", "min-height")) >= 44, "a phone's row, which its link covers");
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-table__row", "min-height")) >= 24);
   assert.deepEqual(valuesOf(CSS, ".g-table__link::after", "inset"), ["0"], "the link takes the whole row");
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-table__race", "min-height")) >= 24);
-  assert.ok(Number(valuesOf(CSS, ".g-minitable__all", "min-height")[0].replace("px", "")) >= 44, "the default, before any width's rule");
-  assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-minitable__all", "min-height")) >= 24);
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-minitable__link", "min-height")) >= 24);
 });
 

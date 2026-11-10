@@ -21,6 +21,7 @@ import { view } from "../../core/view.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderRankedRow } from "../../ui/list-row.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
+import { renderSeeAll } from "../../ui/see-all.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 
 /** How many teams the box shows; the full table is one link away. */
@@ -79,7 +80,7 @@ function tableMarkup(season, data) {
   const { round, rows } = guestTable(season.data, data);
   const title = round === null ? t("guestHome.table") : t("guestHome.tableAfter", { round });
   return `<section class="g-guest__card g-guest__table"><h2 class="g-guest__title">${escapeHtml(title)}</h2>${tableBodyMarkup(season, rows)}`
-    + `<a class="g-guest__more" href="${escapeHtml(seasonTabUrl())}">${escapeHtml(t("guestHome.tableAll"))}</a></section>`;
+    + `${renderSeeAll({ label: t("guestHome.tableAll"), href: seasonTabUrl(), className: "g-guest__more" })}</section>`;
 }
 
 function referenceMarkup() {
