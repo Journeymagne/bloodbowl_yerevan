@@ -515,7 +515,10 @@ test("a logo is picked with a label that a keyboard reaches, shown as a picture,
   const empty = mount(builderMarkup({ race: human, draft: filled() }));
   const input = empty.querySelector("input#new-team-logo");
   assert.deepEqual([input.getAttribute("type"), input.getAttribute("accept")], ["file", "image/png,image/jpeg"]);
-  assert.equal(empty.querySelector('label.g-btn[for="new-team-logo"]').textContent.trim(), "Upload");
+  const upload = empty.querySelector('label.g-btn[for="new-team-logo"]');
+  assert.equal(upload.textContent.trim(), "Upload", "the field's name, for a screen reader");
+  assert.deepEqual([upload.getAttribute("class"), upload.querySelector(".g-sr-only")?.textContent, Boolean(upload.querySelector("svg"))],
+    ["g-btn g-build__icon", "Upload", true], "on the screen an icon in a square, as the team settings' upload");
   assert.match(empty.querySelector(".g-build__team").textContent, /PNG or JPG up to 2 MB · optional/);
   assert.equal(empty.querySelector(".g-build__team img"), null);
   assert.equal(empty.querySelector("[data-new-team-logo-remove]"), null);
@@ -529,8 +532,13 @@ test("a logo is picked with a label that a keyboard reaches, shown as a picture,
   withLogo.logoData = "data:image/png;base64,AAAA";
   const shown = mount(builderMarkup({ race: human, draft: withLogo }));
   assert.deepEqual([shown.querySelector(".g-build__team img").getAttribute("alt"), shown.querySelector(".g-build__team img").getAttribute("src")], ["", "data:image/png;base64,AAAA"]);
-  assert.equal(shown.querySelector("[data-new-team-logo-remove]").textContent.trim(), "Remove logo");
+  const remove = shown.querySelector("button[data-new-team-logo-remove]");
+  assert.deepEqual([remove.getAttribute("class"), remove.getAttribute("type"), remove.getAttribute("aria-label"), remove.textContent.trim(), Boolean(remove.querySelector("svg"))],
+    ["g-btn g-build__icon", "button", "Remove logo", "", true], "a trash icon in a square, as the team settings' removal, named by its label");
   assertCspSafe(shown);
+  assertStyled(shown, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
+  assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__icon", "width"), ["var(--size-touch)"], "a thumb's square");
+  assert.ok(!readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8").includes("g-build__upload"), "one class for both icons");
 
   const picked = [];
   wire({ ...noop, onLogo: (file) => picked.push(file), onLogoRemove: () => picked.push("removed") });
