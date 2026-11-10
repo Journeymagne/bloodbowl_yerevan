@@ -421,7 +421,7 @@ test("a section stands 18px under the table before it, as in StatsInjured and De
 });
 
 test("the desk's card of tables holds its positioned parts, so a 901px page does not scroll sideways", () => {
-  // At 901px the card scrolls its tables (692px inside 245px); the hidden headers and the number badges are positioned,
+  // At 901px the card scrolls its tables (708px inside 245px); the hidden headers and the number badges are positioned,
   // and with no positioned card they took the page's block and widened it to 915px (stage 13, fidelity N1).
   const frame = "src/screens/team/roster/frame.css";
   assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "position"), ["relative"]);

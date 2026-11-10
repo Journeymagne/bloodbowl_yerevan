@@ -367,14 +367,20 @@ test("the columns' widths are on the <col>s, because a fixed table takes them fr
   assert.deepEqual(declared(narrow, ".g-rtable__col--stats"), ["36px"], "a phone: the characteristics' 36px, the player's column takes the rest");
   assert.deepEqual(declared(narrow, ".g-rtable__col--who"), [], "a phone gives the player's column no width of its own");
   // DeskRoster.html: the player takes what the numbers leave (minmax(180px, 1fr)): 32px a characteristic, 36px a count of the
-  // career, 44px «Total» and 52px «Avail.», a 12px gap before each group after the first, 16px at the row's end.
+  // career, 44px «Total» and 52px «Avail.», a 20px gap before each group after the first (the owner, 2026-11-11: the
+  // prototype's 12 ran the groups together), 16px at the row's end.
   assert.deepEqual(
     [".g-rtable__col--who", ".g-rtable__col--stats", ".g-rtable__col--career", ".g-rtable__col--career.g-rtable__col--lead",
       ".g-rtable__col--spp.g-rtable__col--lead", ".g-rtable__col--spp.g-rtable__col--last"].map((selector) => declared(wide, selector)),
-    [["auto"], ["32px"], ["36px"], ["48px"], ["56px"], ["68px"]],
+    [["auto"], ["32px"], ["36px"], ["56px"], ["64px"], ["68px"]],
   );
-  // The player's 180px at the least: the table is never narrower than them and the numbers (180 + 160 + 228 + 56 + 68).
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"]);
+  // The player's 180px at the least: the table is never narrower than them and the numbers (180 + 160 + 236 + 64 + 68).
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "708px"]);
+  // The gap is the same on the cells, the headers, the foot and the over-heads' rules.
+  for (const selector of [".g-rtable__c--lead", "th.g-rtable__h.g-rtable__c--lead", ".g-rtable__foot > .g-rtable__h.g-rtable__c--lead"]) {
+    assert.deepEqual(valuesOf(SHEET, selector, "padding-left"), ["var(--space-20)"], selector);
+  }
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__g--lead .g-rtable__glabel", "margin-left"), ["var(--space-20)"]);
   assert.match(narrow, /\.g-rtable__col--desk[^{]*\{[^}]*display:\s*none/, "a column that is hidden is gone from the grid, its <col> too");
 });
 
@@ -428,8 +434,8 @@ test("every number stands centred under its label, on a phone and on a desk, the
   assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
   assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
-  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--lead", "padding-left"), ["var(--space-20)"]);
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--lead", "padding-left"), ["var(--space-20)"]);
   assert.ok(!/justify-content:\s*flex-(end|start)/.test(wide.replace(/\.g-rtable__h--who \.g-sort\s*\{[^}]*\}/g, "")), "no column but the player's is pushed to an edge");
   assert.ok(!/text-align:\s*(right|left)/.test(narrow + wide), "no number column is aligned to an edge at either width");
 });
@@ -503,7 +509,7 @@ test("the sheet sets what the 2.x globals for table, th, td and button would oth
   ]) {
     assert.ok(valuesOf(SHEET, selector, property).length, `${selector} sets its ${property}`);
   }
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"], "none on a phone; a desk's numbers and 180px for the player");
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "708px"], "none on a phone; a desk's numbers and 180px for the player");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "width"), ["100%"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "border-collapse"), ["collapse"]);
 });
