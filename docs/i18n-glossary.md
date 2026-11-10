@@ -401,6 +401,10 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 
 "Where" gives the stage that brought the word and the key that holds it.
 
+**A cut word has no dot** (the owner, 2026-11-11), in both languages: a column header, a strip's label or a short
+mark is «Avail» / «Дост», «Призем», «Апот», «Кат», «Старт рер», «Ком рер», «tech» / «тех», «очк» — not «Дост.»,
+as Russian typography would have it. A new short label follows it. Sentences keep their full stops.
+
 | English | Russian | Where |
 |---|---|---|
 | Reference | Справочник | 05 · `shell.tab.ref` (the tab and the SideNav item) |
@@ -421,7 +425,7 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Edit outside the match | Правка вне матча | 07a · `teamRoster.match.outside` |
 | manual edit | ручная правка | 07a · `teamRoster.sppLine`, `teamPlayer.edit.spp`; note 1 |
 | TTM | TTM | 07a · `teamRoster.counter.throws`; TD, KO, CAS, INT, MVP and COMP stay English too |
-| Landing | Призем. | 07a · `teamRoster.counter.landings` (the full word: «приземление», `teamRoster.counterName.landings`) |
+| Landing | Призем | 07a · `teamRoster.counter.landings` (the full word: «приземление», `teamRoster.counterName.landings`) |
 | Bonus | Бонус | 07a · `teamRoster.counter.bonus` |
 | Missing the match | Пропускают матч | 07b · `teamRoster.skips.heading`; "Miss the match" in `matches.before.missing`; note 2 |
 | Fallen | Погибшие | 07b · `teamRoster.fallen.heading` |

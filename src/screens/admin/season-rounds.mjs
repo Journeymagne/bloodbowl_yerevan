@@ -16,7 +16,7 @@
  * - The rounds before, folded: «Rounds 1–6 · over · matches: 24», and «Show» opens the same tables.
  *
  * A pair's status is one of `PAIRING_STATUSES`; its score «2–1 · CAS 3:1», a technical one «2–0 · tech.», a bye's
- * «tech. +2» as the prototype writes it (pre-flight L21) — only the points the server holds for it, «—» until a result
+ * «tech +2» (the prototype's «tech. +2» without its dot, as every cut word: pre-flight L21) — only the points the server holds for it, «—» until a result
  * is saved: a bye keeps 2.x's scoring, the admin's score against the empty side (the owner, 2026-10-22: «как в коде
  * пока что»), so no figure of the house rules is promised before it. Long names wrap; nothing is cut.
  */

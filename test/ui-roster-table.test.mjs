@@ -22,7 +22,7 @@ const COLUMNS = [
   { key: "touchdowns", label: "TD", name: "touchdowns", group: "career", desk: true },
   { key: "casualties", label: "CAS", name: "casualties", group: "career", desk: true },
   { key: "earned", label: "Total", group: "spp", desk: true },
-  { key: "available", label: "Avail.", group: "spp", desk: true },
+  { key: "available", label: "Avail", group: "spp", desk: true },
 ];
 const GROUPS = [{ label: "Characteristics", span: 5 }, { label: "Career", span: 2 }, { label: "SPP", span: 2 }];
 
@@ -367,7 +367,7 @@ test("the columns' widths are on the <col>s, because a fixed table takes them fr
   assert.deepEqual(declared(narrow, ".g-rtable__col--stats"), ["36px"], "a phone: the characteristics' 36px, the player's column takes the rest");
   assert.deepEqual(declared(narrow, ".g-rtable__col--who"), [], "a phone gives the player's column no width of its own");
   // DeskRoster.html: the player takes what the numbers leave (minmax(180px, 1fr)): 32px a characteristic, 36px a count of the
-  // career, 44px «Total» and 52px «Avail.», a 20px gap before each group after the first (the owner, 2026-11-11: the
+  // career, 44px «Total» and 52px «Avail», a 20px gap before each group after the first (the owner, 2026-11-11: the
   // prototype's 12 ran the groups together), 16px at the row's end.
   assert.deepEqual(
     [".g-rtable__col--who", ".g-rtable__col--stats", ".g-rtable__col--career", ".g-rtable__col--career.g-rtable__col--lead",
@@ -428,7 +428,7 @@ test("every number stands centred under its label, on a phone and on a desk, the
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__h", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "justify-content"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-sort__arrow", "position"), ["absolute"]);
-  // The SPP pair: «Total» leads its group (the gap is its left padding, on the header and the cells alike), «Avail.»
+  // The SPP pair: «Total» leads its group (the gap is its left padding, on the header and the cells alike), «Avail»
   // ends the row (its 16px end on the header, the cells and the foot alike): both centred in what is left.
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "text-align"), ["center"]);

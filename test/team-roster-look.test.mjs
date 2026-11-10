@@ -181,7 +181,7 @@ test("under the tables a line on how to read them: a desk's columns and click; a
   coach();
   await renderTeamRoster("t1");
   assert.equal(view.querySelector(".g-roster__main .g-roster__caption").textContent,
-    "SPP: «Total» — earned in the career, «Avail.» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right." + reorderHint);
+    "SPP: «Total» — earned in the career, «Avail» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right." + reorderHint);
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");

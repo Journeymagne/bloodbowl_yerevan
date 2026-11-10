@@ -304,7 +304,7 @@ tfoot .g-rtable__glabel {
 
   /*
    * The numbers' widths (DeskRoster.html): 32px a characteristic, 36px a count of the career, 44px «Total» and 52px
-   * «Avail.»; a group after the first leads with a 20px gap (the owner, 2026-11-11: DeskRoster.html's 12 ran the groups
+   * «Avail»; a group after the first leads with a 20px gap (the owner, 2026-11-11: DeskRoster.html's 12 ran the groups
    * together), and the last column ends 16px short of the edge. The player takes the rest and never less than 180px:
    * 180 + 160 + 236 + 64 + 68.
    */
