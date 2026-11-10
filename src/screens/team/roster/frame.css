@@ -233,8 +233,11 @@
     background: none;
   }
   .g-roster__sections .g-roster__section--active > .g-roster__bar:has(.g-status) { padding: var(--space-10) var(--space-16) 0; }
+  /* At the start: left to its place at the band's end, the pixel it is would stick out of the table's sideways scroll. */
   .g-roster__section--active .g-roster__heading {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     margin: -1px;

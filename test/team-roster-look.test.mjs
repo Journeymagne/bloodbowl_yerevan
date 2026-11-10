@@ -248,6 +248,11 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   assert.deepEqual(valuesOf(frame, ".g-roster__conflict .g-btn--primary", "min-height"), ["var(--size-touch)", "40px"], "a thumb on a phone, 40px on a desk (D2)");
   // The status is a dot and its words, no capsule.
   assert.deepEqual([valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "background"), valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "padding")], [["transparent"], ["0"]]);
+  // A desk's «Active roster» is a screen reader's: pinned at the band's start, not left at its end, where its pixel
+  // stuck out of the tables' sideways scroll and gave it a scrollbar with nothing to scroll at 1440.
+  const heading = ".g-roster__section--active .g-roster__heading";
+  assert.deepEqual([valuesOf(frame, heading, "position"), valuesOf(frame, heading, "left"), valuesOf(frame, heading, "top")], [["absolute"], ["0"], ["0"]]);
+  assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__section--active > .g-roster__bar", "justify-content"), ["flex-end"], "the band the status keeps at its end");
 });
 
 // Fix round 1 of the fidelity pass.
