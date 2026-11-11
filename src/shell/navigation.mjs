@@ -61,6 +61,7 @@ const OWNERS = {
   ref: ["ref", "ref"],
   refSection: ["ref", "ref"],
   page: ["ref", "ref"],
+  league: ["ref", "ref"],
   overview: ["ref", "ref"],
   legal: ["ref", "ref"],
   settings: ["settings", "settings"],

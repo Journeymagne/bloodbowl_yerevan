@@ -171,8 +171,16 @@ function renderTeamRules(page, groups) {
   show(markup(), () => watchTeamData(() => patch(view, markup())));
 }
 
-/** Draw the page `slug` names (see `findPage`), or say there is none. */
-export function renderReferencePage(slug) {
+/** A league's section of the Leagues article brought to the top, when the article has one by that key. */
+function showLeague(league) {
+  view.querySelector(`#league-${league.replace(/[^a-z0-9-]/g, "")}`)?.scrollIntoView?.({ block: "start" });
+}
+
+/**
+ * Draw the page `slug` names (see `findPage`), or say there is none. `league` (`#/leagues/<key>`) is a league of the
+ * Leagues article to scroll to (routes.mjs `leagueKey`).
+ */
+export function renderReferencePage(slug, { league = "" } = {}) {
   const page = findPage(state.data, slug);
   if (!page) {
     show(notFoundMarkup(slug));
@@ -190,6 +198,7 @@ export function renderReferencePage(slug) {
   const markup = () => articleMarkup({ data: state.data, page, groups });
   // The die changes the article, not the screen around it: the page is drawn again in its place and nothing is wired twice.
   show(markup(), page.id === SKILL_TABLE_ID ? () => wireSkillTableRoller(view, () => patch(view, markup())) : null);
+  if (league && page.id === LEAGUES_ID) showLeague(league);
 }
 
 /** An item written "Label: text" keeps its label in strong. */

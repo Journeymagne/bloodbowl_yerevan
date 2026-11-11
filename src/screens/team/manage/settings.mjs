@@ -18,10 +18,10 @@ import { toastError } from "../../../components/toast.mjs";
 import { delegate, escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/logo-upload.mjs";
-import { pageUrl, teamUrl } from "../../../core/routes.mjs";
+import { leagueUrl, pageUrl, teamUrl } from "../../../core/routes.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { leaguePageOf, loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, refusalWords } from "../../../data/teams.mjs";
+import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, refusalWords } from "../../../data/teams.mjs";
 import { isWriting, readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { byNumber, rosterViolations, withFans, withFavoured, withLeague } from "../../../domain/roster/team-edits.mjs";
@@ -89,8 +89,8 @@ function holdOf({ lock, queue, busy }) {
  * @returns {{name: string, logoData: string, raceTitle: string, raceHref: string, tier: string, league: string,
  *   leagueHref: string, leagues: string[], favoured: string, alignments: string[], fans: number,
  *   violations: {code: string, params: object}[], held: string, waitsRoster: boolean, preparing: boolean}}
- *   `league` and `favoured` as the rules read them (`choiceOf`); `raceHref` and `leagueHref` their pages in the
- *   reference, "" for none; `logoData` only a picture (`LOGO_DATA_URL`);
+ *   `league` and `favoured` as the rules read them (`choiceOf`); `raceHref` the race's page in the reference and
+ *   `leagueHref` the league in the reference's Leagues, "" for none; `logoData` only a picture (`LOGO_DATA_URL`);
  *   `preparing` a match of the team's being prepared, which any save of the settings starts over for both teams
  *   (decision 20, final review I1)
  */
@@ -100,7 +100,6 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
   const logo = String(team.logoData ?? "");
   const [leagues, alignments] = race ? [teamLeagueOptions(race), teamFavouredOptions(race)] : [[], []];
   const league = choiceOf(leagues, draft.selectedLeague);
-  const leaguePage = leaguePageOf(league);
   return {
     name: String(team.name ?? ""),
     logoData: LOGO_DATA_URL.test(logo) ? logo : "",
@@ -108,7 +107,7 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
     raceHref: race ? pageUrl(race) : "",
     tier: race?.team?.meta?.league ?? "",
     league,
-    leagueHref: leaguePage ? pageUrl(leaguePage) : "",
+    leagueHref: league ? leagueUrl(league) : "",
     leagues,
     favoured: choiceOf(alignments, draft.favouredChoice),
     alignments,
@@ -162,7 +161,7 @@ function raceRow(settings) {
   return row("race", { label: t("teamSettings.race"), value, href: settings.raceHref });
 }
 
-/** A league or a god: no line for a race that has none, no button for one that has one only. A league leads to its page. */
+/** A league or a god: no line for a race that has none, no button for one that has one only. A league leads to the reference's Leagues. */
 function choiceRow(kind, label, value, options, held, href = "") {
   if (!options.length) return "";
   return row(kind, { label, value, href, action: options.length >= 2 ? opener(kind, t("teamSettings.change"), held) : "" });

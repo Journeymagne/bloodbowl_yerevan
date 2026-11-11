@@ -94,6 +94,7 @@ const screens = {
   adminSeason: ({ tab }) => renderAdminSeason(tab),
   legal: () => renderLegal(),
   page: ({ slug }) => renderReferencePage(slug),
+  league: ({ league }) => renderReferencePage("leagues", { league }),
 };
 
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */

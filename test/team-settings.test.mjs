@@ -225,24 +225,15 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(rowText("favoured", norse), "Favoured of… · Khorne", "one god: nothing to change it to");
 });
 
-test("the league leads to its page in the reference, its star players; a league with no page, or a god, is text", () => {
-  const before = state.data;
-  try {
-    state.data = { ...before, pages: [
-      { section: "Star Players", title: "Old World Classic", slug: "old-world-classic" },
-      { section: "Teams", title: "Chaos Clash", slug: "not-a-league" },
-    ] };
-    const link = rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a.g-team-settings__ref");
-    assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/old-world-classic", "Old World Classic"]);
-    assert.ok(link.querySelector("svg"), "the reference's book before it");
-    const chosen = mount(manageMarkup(model(TEAMS[1])));
-    assert.equal(rowOf("league", chosen).querySelector("a"), null, "only a Star Players page is a league's");
-    assert.equal(rowOf("favoured", chosen).querySelector("a"), null);
-    assert.equal(model(TEAMS[0]).settings.leagueHref, "#/old-world-classic");
-  } finally {
-    state.data = before;
-  }
-  assert.equal(rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a"), null, "no pages read yet: text");
+// Owner's review of PR 1: a league's own page in the vault is an empty star-player card; the league is in the reference's Leagues.
+test("the league leads to its section of the reference's Leagues; a god is text", () => {
+  const link = rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a.g-team-settings__ref");
+  assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/leagues/old-world-classic", "Old World Classic"]);
+  assert.ok(link.querySelector("svg"), "the reference's book before it");
+  const chosen = mount(manageMarkup(model(TEAMS[1])));
+  assert.equal(rowOf("league", chosen).querySelector("a").getAttribute("href"), "#/leagues/chaos-clash");
+  assert.equal(rowOf("favoured", chosen).querySelector("a"), null);
+  assert.equal(model({ ...TEAMS[0], baseTeamSlug: "teams/unknown" }).settings.leagueHref, "", "no race read: no league, no link");
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__ref", "color"), ["var(--accent-text)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__ref", "min-height"), ["var(--size-touch)", "24px"], "D2: a thumb on a phone, 24 on a desk");
   assertReadable(SETTINGS, ".g-team-settings__ref", "color", ["--surface", "--page"], 4.5);

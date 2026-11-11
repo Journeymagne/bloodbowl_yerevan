@@ -7,6 +7,8 @@ import {
   authUrl,
   challengeUrl,
   gameUrl,
+  leagueKey,
+  leagueUrl,
   matchRoute,
   navRouteForPage,
   newTeamUrl,
@@ -48,6 +50,13 @@ test("ids are percent-encoded so a slash in an id cannot invent a segment", () =
     adminTeamEditUrl("u/1", "t 1"),
     "#/administration/users/u%2F1/teams/t%201/edit",
   );
+});
+
+test("a league is the reference's Leagues at that league: its name as a key, read back by the route", () => {
+  assert.equal(leagueKey("World's Edge Superleague"), "world-s-edge-superleague");
+  assert.equal(leagueUrl("Old World Classic"), "#/leagues/old-world-classic");
+  assert.deepEqual(matchRoute(routeFromHash(leagueUrl("Chaos Clash"))), { name: "league", params: { league: "chaos-clash" } });
+  assert.deepEqual(matchRoute("leagues"), { name: "page", params: { slug: "leagues" } }, "the bare article stays a page");
 });
 
 test("a missing id gives an empty segment rather than the string 'undefined'", () => {

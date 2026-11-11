@@ -8,7 +8,7 @@
  */
 import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl } from "../../core/routes.mjs";
+import { leagueKey, pageUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
 import { leagueAccessNames } from "../../domain/league-rules.mjs";
 import { canonicalLeagueName, splitRuleAccessParts, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
@@ -69,12 +69,12 @@ function leagueSection(data, league) {
   const stars = starsForLeague(data, league);
   // A label and a number, which needs no plural form ("1 команд" would).
   const sum = [t("ref.league.teams", { count: teams.length }), t("ref.league.starPlayers", { count: stars.length })].join(" · ");
-  return `<section class="g-ref-league"><h2>${escapeHtml(league)}</h2><p class="g-ref-league__sum">${escapeHtml(sum)}</p>`
+  return `<section class="g-ref-league" id="${escapeHtml(`league-${leagueKey(league)}`)}"><h2>${escapeHtml(league)}</h2><p class="g-ref-league__sum">${escapeHtml(sum)}</p>`
     + `<h3>${escapeHtml(t("common.teams"))}</h3>${linkLine(teams, t("leagueRef.noTeams"))}`
     + `<h3>${escapeHtml(t("nav.starPlayers"))}</h3>${linkLine(stars, t("leagueRef.noStarPlayers"))}</section>`;
 }
 
-/** Leagues: for each league, how many teams and star players it has and who they are, each a link to its page. */
+/** Leagues: for each league, how many teams and star players it has and who they are, each a link to its page; a league's section is `#league-<leagueKey>`. */
 export function leaguesBody(data) {
   return `<div class="g-ref-leagues">${leagueAccessNames.map((league) => leagueSection(data, league)).join("")}</div>`;
 }

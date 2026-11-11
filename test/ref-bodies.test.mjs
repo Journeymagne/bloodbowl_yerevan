@@ -16,6 +16,7 @@ const { leagueAccessNames } = await import("../src/domain/league-rules.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { t } = await import("../src/core/i18n.mjs");
+const { leagueKey } = await import("../src/core/routes.mjs");
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const draw = (markup) => parseHtml(document, markup);
 const click = (selector) => fireEvent(view.querySelector(selector), "click");
@@ -46,6 +47,22 @@ test("Leagues lists each league's teams and stars as links, by the 2.x rules", (
   const human = teamsForLeague(state.data, "Old World Classic").map((page) => page.slug);
   assert.ok(human.includes("teams/human"));
   assert.ok(view.querySelector('.g-ref-league a[href="#/teams/human"]'));
+});
+
+test("a league's address draws Leagues and brings that league's section to the top; an unknown one leaves the article at its head", () => {
+  renderReferencePage("leagues");
+  const proto = Object.getPrototypeOf(view.querySelector(".g-ref-league"));
+  const shown = [];
+  proto.scrollIntoView = function scrollIntoView(options) { shown.push([this.getAttribute("id"), options.block]); };
+  try {
+    assert.deepEqual(view.querySelectorAll(".g-ref-league").map((section) => section.getAttribute("id")), leagueAccessNames.map((league) => `league-${leagueKey(league)}`));
+    renderReferencePage("leagues", { league: "chaos-clash" });
+    renderReferencePage("leagues", { league: "no-such-league" });
+    assert.deepEqual(shown, [["league-chaos-clash", "start"]]);
+    assert.equal(view.querySelector("h1").textContent, "Leagues");
+  } finally {
+    delete proto.scrollIntoView;
+  }
 });
 
 test("each league says how many teams and star players it has, and links every one of them", () => {

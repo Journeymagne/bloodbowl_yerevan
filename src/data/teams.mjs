@@ -17,23 +17,12 @@ import { API_ERROR, ApiError, errorText, refusalText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { apiRequest, sessionTokenHolds, tokenMoved } from "../core/api-client.mjs";
-import { ruleLookupKey } from "../domain/roster/team-rules.mjs";
 import { syncActiveTeam } from "./active-team.mjs";
 import { invalidateGames } from "./games.mjs";
 
 /** The race's page in the reference by the slug a team is based on; null while the data has not come, or when the slug names none. */
 export function raceTeamOf(slug) {
   return state.data?.teams?.find((item) => item.slug === slug) ?? null;
-}
-
-/**
- * A league's page in the reference (its star players, «Badlands Brawl»): the page of the Star Players' section with the
- * league's name, as the rules write it; null while the data has not come, or for a league with no page.
- */
-export function leaguePageOf(league) {
-  const key = ruleLookupKey(league);
-  if (!key) return null;
-  return state.data?.pages?.find((page) => page.section === "Star Players" && ruleLookupKey(page.title) === key) ?? null;
 }
 
 /** The race the reference calls a base team; "" when the data has not come. */
