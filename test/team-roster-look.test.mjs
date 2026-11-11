@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { assertCspSafe, assertDictionaryCovers, assertStyled } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -253,6 +253,9 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   const heading = ".g-roster__section--active .g-roster__heading";
   assert.deepEqual([valuesOf(frame, heading, "position"), valuesOf(frame, heading, "left"), valuesOf(frame, heading, "top")], [["absolute"], ["0"], ["0"]]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__section--active > .g-roster__bar", "justify-content"), ["flex-end"], "the band the status keeps at its end");
+  // Owner's review of PR 1: «Missing the match» and «Fallen» bands split the card themselves: no gap before them, no line over them.
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "gap"), ["0"]);
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections .g-rtable__player:last-of-type > tr > *", "border-bottom"), ["0"]);
 });
 
 // Fix round 1 of the fidelity pass.
