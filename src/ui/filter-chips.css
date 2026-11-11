@@ -11,6 +11,15 @@
   overflow-x: auto;
 }
 
+/*
+ * A phone draws the row's scroll bar along the chips' bottom edge, under them (the owner, 2026-11-12): the chip cut at
+ * the row's edge already says there is more to swipe. A desk keeps the bar, a mouse's way to scroll the row.
+ */
+@media (max-width: 900px) {
+  .g-chips { scrollbar-width: none; }
+  .g-chips::-webkit-scrollbar { display: none; }
+}
+
 /* 44px is the touch target of spec §0, over the 36px of the design system's README. */
 .g-chip {
   box-sizing: border-box;

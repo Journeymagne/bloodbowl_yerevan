@@ -447,6 +447,15 @@ test("from 901px the rows are a grid of 220px columns in a framed card, and the 
   assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"]', "box-shadow"), ["var(--ring-selected)"]);
 });
 
+test("on a phone the chips row scrolls with no bar under the chips; a desk keeps the bar", () => {
+  const CHIPS = "src/ui/filter-chips.css";
+  const phone = mediaText(CHIPS, "max-width: 900px");
+  assert.match(phone, /\.g-chips\s*\{[^}]*scrollbar-width:\s*none/);
+  assert.match(phone, /\.g-chips::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(read(CHIPS).replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, ""), /scrollbar-width/, "outside the phone's rule the bar is the browser's");
+  assert.deepEqual(valuesOf(CHIPS, ".g-chips", "overflow-x"), ["auto"]);
+});
+
 test("the list sheet breaks at 900/901 only, and sets the case wherever it sets a font", () => {
   const css = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
   assertBreakpoints(SHEET);
