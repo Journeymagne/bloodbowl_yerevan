@@ -7,7 +7,9 @@ import { t } from "../../../core/i18n.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { MAIN_COUNTERS } from "./model.mjs";
 
-/** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */
+/** No match is on: no count says what a match added (the dead's, another coach's team's). */
+export const NO_MATCH = Object.freeze({ kind: "plain" });
+
 export function rosterColumns() {
   return [
     { key: "player", label: t("teamRoster.column.player") },

@@ -10,7 +10,7 @@
  * (DeskOppTeam.html): the band (the circle, «‹ Season», the name, the line, Telegram at its right), then a column of
  * the next match on the header's colour, our meeting, a card of the tiles and the form and the note, beside the roster
  * in a card that scrolls sideways inside itself. The roster is the Roster's table on both widths, its rows to read
- * only and its columns unsorted (item 14 of PR 1).
+ * only and its columns unsorted.
  *
  * A skill's chip opens the skill's sheet of the roster (07d's `skillSheetMarkup`): its rule and, for a skill an
  * advancement rolled on the site, what the dice showed (`rollNotesMarkup` over the public rolls, stage 10 Task 1).
@@ -41,7 +41,7 @@ import { renderRosterTable } from "../../ui/roster-table.mjs";
 import { patchWithModal, wireSheets } from "../../ui/sheet.mjs";
 import { wireSkillChips } from "../../ui/skill-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
-import { rosterCells, rosterColumns, rosterGroups } from "../team/roster/columns.mjs";
+import { NO_MATCH, rosterCells, rosterColumns, rosterGroups } from "../team/roster/columns.mjs";
 import { absenceWords, skillChipsMarkup } from "../team/roster/panel.mjs";
 import { rollNotesMarkup } from "../team/roster/roll-view.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
@@ -119,13 +119,10 @@ function telegramMarkup({ handle, href }) {
   return href ? link(href, "g-opp__tg", inner, OUTSIDE) : `<span class="g-opp__tg g-opp__tg--text">${inner}</span>`;
 }
 
-/** No match of another coach's is this page's: a count says nothing a match added. */
-const PLAIN = Object.freeze({ kind: "plain" });
-
 /** The Roster's columns, as labels: the order is the model's (who misses the next match last, then the SPP), not a sort of the reader's. */
 const COLUMNS = () => rosterColumns().map((column) => ({ ...column, sortable: false }));
 
-/** A player of the roster to read (item 14 of PR 1): the Roster's row, with why he misses the next match under his name. */
+/** A player of the roster to read: the Roster's row, with why he misses the next match under his name. */
 const squadRow = (line) => ({
   key: line.key,
   still: true,
@@ -133,7 +130,7 @@ const squadRow = (line) => ({
   name: line.name,
   sub: line.skip ? absenceWords(line) : line.position,
   alert: line.skip,
-  cells: rosterCells(line, { mode: PLAIN }),
+  cells: rosterCells(line, { mode: NO_MATCH }),
   skillsHtml: skillChipsMarkup(line),
 });
 
@@ -173,7 +170,7 @@ export function opponentMarkup(model, { sheet = null, failures = {}, data = stat
   }
   const card = tiles || model.form.length ? `<section class="g-opp__card">${tiles}${formMarkup(model.form)}</section>` : "";
   // The skill's sheet stands beside the page, not in it: the page's resets (`.g-opp :where(h1, h2, p)`) are as strong as
-  // the sheet's own classes and come after them, and stripped its tag and its rule's margins (item 13 of PR 2).
+  // the sheet's own classes and come after them, and stripped its tag and its rule's margins.
   return `<div class="g-opp g-opp--desk" data-screen="coach-team"><header class="g-opp__head"><div class="g-opp__id">${idMarkup(model)}</div>`
     + `${telegramMarkup(model.telegram)}</header><div class="g-opp__body"><div class="g-opp__left">${failuresMarkup(failures)}${nextMarkup(model.next)}`
     + `${meetingMarkup(model.meeting)}${card}${play}${readOnlyMarkup()}</div>${squad}</div></div>${sheetHtml}`;

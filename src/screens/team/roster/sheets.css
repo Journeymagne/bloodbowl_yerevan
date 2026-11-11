@@ -7,7 +7,7 @@
  * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html: 14px
  * at 600, radius 12), coloured as the chip that opened it (skill-chip.css; the owner, 2026-11-08): a starting skill's
  * white in the controls' ring, a gained one's green, the captain's gold; a skill the reference has no page for. Under its
- * line, for a skill an advancement gave, how it was rolled and what the site's dice showed (item 6 of PR 2), smaller, in
+ * line, for a skill an advancement gave, how it was rolled and what the site's dice showed, smaller, in
  * the box's own ink: the box is the one place the advancement is said.
  */
 .g-roster__from {

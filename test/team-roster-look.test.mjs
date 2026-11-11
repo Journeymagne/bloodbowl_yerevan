@@ -256,7 +256,9 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   // Owner's review of PR 1: «Missing the match» and «Fallen» bands split the card themselves: no gap before them, no line over them.
   assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "gap"), ["0"]);
   assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster__count", "margin-left"), ["var(--space-4)"], "the number set off from its heading");
-  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp__count", "margin-left"), ["var(--space-4)"], "and the coach's team page's");
+  // The coach's team page's heading is a flex row: its 8px gap is that room already, with no margin on top of it.
+  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp__squadtitle", "gap"), ["0 var(--space-8)"]);
+  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp__count", "margin-left"), []);
   assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections .g-rtable__player:last-of-type > tr > *", "border-bottom"), ["0"]);
 });
 

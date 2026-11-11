@@ -224,7 +224,7 @@ function siteRollMarkup(line, taken, rolls) {
 
 /**
  * How an advancement gave a skill, as the small lines of the skill sheet's tag (sheets.mjs `skillSheetMarkup`, whose
- * own line names the advancement, item 6 of PR 2): how it was rolled — «rolled on the site», «rolled at the table», none
+ * own line names the advancement): how it was rolled — «rolled on the site», «rolled at the table», none
  * for a chosen one — and for a site roll what its dice showed (`siteRollMarkup`), the roll read once a visit. Nothing for
  * a skill no advancement gave. Spans, one a line: the tag is a box of lines, and a later line (a god's bonus skill) joins them.
  *

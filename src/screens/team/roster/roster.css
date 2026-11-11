@@ -78,7 +78,7 @@
   text-transform: none;
 }
 
-/* The number beside a heading: the body's face, quiet (Stats.html: 15px at 500), set off by more than the space (owner's review of PR 1). */
+/* The number beside a heading: the body's face, quiet (Stats.html: 15px at 500), set off by more than the space. */
 .g-roster__count {
   margin-left: var(--space-4);
   color: var(--muted);

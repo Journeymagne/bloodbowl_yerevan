@@ -266,7 +266,6 @@
   font: 700 24px/normal var(--font-display);
 }
 .g-opp__count {
-  margin-left: var(--space-4);
   color: var(--muted);
   font: 500 15px/1.3 var(--font-body);
 }
@@ -406,7 +405,7 @@
   .g-opp__readonly { font-size: 13px; }
 
   /*
-   * The roster as the Roster's table (item 14 of PR 1), in a card that scrolls sideways inside itself, never the page.
+   * The roster as the Roster's table, in a card that scrolls sideways inside itself, never the page.
    * The card's ring is a border, which the rows' backgrounds cannot paint over; the table's own frame is the card.
    */
   .g-opp__squad {

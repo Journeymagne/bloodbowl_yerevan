@@ -41,7 +41,7 @@
 
 /*
  * The captain's own skill: the gold and the ink of the badge's «C» (number-badge.css), the same in every palette. A filled
- * gold block with no edge read bigger than the ringed chips beside it (owner's review of PR 1): it has a darker gold ring.
+ * gold block with no edge read bigger than the ringed chips beside it: it has a darker gold ring.
  */
 .g-skill--captain {
   background: var(--crest-gold);

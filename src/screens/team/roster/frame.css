@@ -203,7 +203,7 @@
     gap: 0;
     margin-top: 0;
   }
-  /* A section's last player has no line under him: the next band, or the card's edge, is the line (owner's review of PR 1). */
+  /* A section's last player has no line under him: the next band, or the card's edge, is the line. */
   .g-roster__sections .g-rtable__player:last-of-type > tr > * { border-bottom: 0; }
   /* A search's words name the query as typed: a long one wraps. */
   .g-roster__sections .g-roster__empty {

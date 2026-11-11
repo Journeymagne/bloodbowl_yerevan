@@ -35,13 +35,22 @@ import { resourceRows } from "./model.mjs";
 import { openMoneySheet, wireMoneySheet } from "./money-sheet.mjs";
 import { mountSheetHost, unmountSheetHost } from "./sheet-host.mjs";
 
-const cell = (label, value, modifier = "") => `<div class="g-funds__cell${modifier}"><span class="g-funds__k">${escapeHtml(label)}</span><span class="g-funds__v">${escapeHtml(value)}</span></div>`;
+/**
+ * A cell: its label over its value. A short label («Assistant», «Start RR») carries the item's full name — in a tooltip,
+ * and in its place for a screen reader, which «Assistant» beside «Coaches» would leave guessing.
+ */
+function cell(label, value, modifier = "", full = "") {
+  const key = full && full !== label
+    ? `<span class="g-funds__k" title="${escapeHtml(full)}"><span aria-hidden="true">${escapeHtml(label)}</span><span class="g-sr-only">${escapeHtml(full)}</span></span>`
+    : `<span class="g-funds__k">${escapeHtml(label)}</span>`;
+  return `<div class="g-funds__cell${modifier}">${key}<span class="g-funds__v">${escapeHtml(value)}</span></div>`;
+}
 
 /** The cell of a resource the team holds: a counter's number, a medic's yes or no; none for bribes before the race is read. */
 function resourceCell(row) {
   if (row.lock === "unavailable") return "";
   const value = row.kind === "medic" ? t(row.value > 0 ? "treasury.strip.yes" : "treasury.strip.no") : String(row.value);
-  return cell(t(`treasury.strip.${row.key}`), value);
+  return cell(t(`treasury.strip.${row.key}`), value, "", t(`savedRoster.${row.key}`));
 }
 
 /** Keyed, so a patch keeps the focus on it. */

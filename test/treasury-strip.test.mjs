@@ -36,7 +36,8 @@ const LIVE = { id: "g1", home: { team: { id: "t1" } }, away: { team: { id: "r1" 
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const toasts = () => document.querySelectorAll("output").map((node) => ({ text: node.textContent, tone: node.className }));
-const labels = (scope = document) => scope.querySelectorAll(".g-funds__k").map((node) => node.textContent);
+/** The labels as the eye reads them: a short one's visible word, not the full name said to a screen reader. */
+const labels = (scope = document) => scope.querySelectorAll(".g-funds__k").map((node) => (node.querySelector('[aria-hidden="true"]') ?? node).textContent);
 const values = (scope = document) => scope.querySelectorAll(".g-funds__v").map((node) => node.textContent);
 
 /** A coach signed in with the team given (Human `t1`, 70k, revision 3, unless said) and the games given; the toasts of the test before are gone. */
@@ -279,6 +280,19 @@ test("an entry made from the strip shows on the strip without the screen drawing
   assert.equal(state.myTeams.items[0].revision, 4);
   assert.deepEqual(api.calls.find((call) => call.key === POST).body.revision, 3);
   assert.equal(sheetDialog(), null);
+});
+
+// Fresh-eye review of PR 2: «Coaches 2 · Assistant yes» left a reader guessing which assistant.
+test("a short label carries the item's full name: in its tooltip, and in its place for a screen reader", () => {
+  coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
+  mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
+  const key = (short) => document.querySelectorAll(".g-funds__k").find((node) => labels(node.parentNode)[0] === short);
+  for (const [short, full] of [["Apo", "Apothecary"], ["Start RR", "Starting Rerolls"], ["Coaches", "Assistant Coaches"], ["Fans", "Dedicated Fans"]]) {
+    assert.equal(key(short).getAttribute("title"), full, short);
+    assert.equal(key(short).querySelector(".g-sr-only").textContent, full, short);
+  }
+  assert.equal(key("Bribes").getAttribute("title"), null, "a label that is the full name says it once");
+  assert.equal(key("Treasury").querySelector(".g-sr-only"), null);
 });
 
 test("a strip patched keeps the focus on its pencil, though the cells around it come and go", () => {

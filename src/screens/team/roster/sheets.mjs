@@ -92,7 +92,7 @@ export const skillRuleMarkup = (page) => proseMarkup(page.html || `<p>${escapeHt
 
 /**
  * The tag's own line: whose skill it is and how he came by it — «Bors · Advancement 1 · Random primary» for a skill an
- * advancement gave (item 6 of PR 2: the advancement once, in the tag), else as the panel's card says it (`skillSourceOf`,
+ * advancement gave (the advancement said once, in the tag), else as the panel's card says it (`skillSourceOf`,
  * short): «Grom · Starting», «Kor · Captain's».
  */
 function fromWords(line, skill) {

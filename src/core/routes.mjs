@@ -77,7 +77,7 @@ export function refUrl(section = "") {
   return section && section !== "pages" ? `#/ref/${encodeURIComponent(section)}` : "#/ref";
 }
 
-/** A league's name as an address segment and an element id: «World's Edge Superleague» → `world-s-edge-superleague`. */
+/** A league's name as an address segment and an element id: «Worlds Edge Superleague» → `worlds-edge-superleague`. */
 export function leagueKey(name) {
   return String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

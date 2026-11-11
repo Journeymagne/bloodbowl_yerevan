@@ -45,7 +45,7 @@ import { renderToggle } from "../../../ui/toggle.mjs";
 import { advanceSheetMarkup } from "./advance-sheet.mjs";
 import { careerMarkup } from "./career.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
-import { rosterCells, rosterColumns, rosterGroups } from "./columns.mjs";
+import { NO_MATCH, rosterCells, rosterColumns, rosterGroups } from "./columns.mjs";
 import { counterSlots, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
@@ -70,8 +70,6 @@ export const OUTSIDE_TOGGLE = "roster-outside";
 const OUTSIDE_NOTE = "roster-outside-note";
 /** The ids of the three sections' headings, which name the sections. */
 const HEADINGS = Object.freeze({ active: "roster-heading", skipping: "roster-skips-heading", fallen: "roster-fallen-heading" });
-/** No match is on for the dead: no count of theirs says what one added. */
-const NO_MATCH = Object.freeze({ kind: "plain" });
 
 /**
  * @typedef {object} RosterScreen

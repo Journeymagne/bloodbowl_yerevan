@@ -15,7 +15,7 @@
  * - «Our meeting» is the active team's last confirmed match against this team, from our side: its outcome
  *   (`gameOutcome`, a friendly's too), «Round 4 · away» or «Friendly», and the score, ours first;
  * - the coach and his Telegram are the public team's `user`; a contact the forms would refuse has no address;
- * - the roster is the lines «Состав» draws (`rosterLines`), drawn in its table to read (item 14 of PR 1): those who
+ * - the roster is the lines «Состав» draws (`rosterLines`), drawn in the Roster's table to read: those who
  *   miss the next match last, then by the SPP earned, then in the roster's order; a match on of the opponent's is his
  *   own to see. No career by match of an opponent's player is shown (stage 07e: his history answers its owner and an
  *   admin only), so the rows lead nowhere.
