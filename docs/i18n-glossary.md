@@ -518,7 +518,7 @@ as Russian typography would have it. A new short label follows it. Sentences kee
      `savedRoster.<key>`; the strip's short label (`treasury.strip.<key>`) shortens that name and
      never changes language. So Bribes is «Взятки» on the strip too, Dedicated Fans «Фанаты», the
      Apothecary «Апотекарий» (`savedRoster.apothecary`). Assistant Coaches, Cheerleaders, Mortuary
-     Assistant and Plague Doctor stay English everywhere, their strip labels too («Coaches», «Cheer»,
+     Assistant and Plague Doctor stay English everywhere, their strip labels too («Coaches», «Cheers»,
      «Assistant», «Doctor»).
    - **Rerolls, not Re-rolls.** English UI copy writes "Starting Rerolls" / "Team Rerolls" (as the
      sidebar's "Rerolls" and the rules' **Rerolls:** label); Russian «стартовые / командные рероллы»,

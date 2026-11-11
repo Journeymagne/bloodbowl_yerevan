@@ -83,7 +83,7 @@ const sheetDialog = () => document.querySelector(`${SHEET_HOST} dialog#treasury-
 test("the strip says the treasury and what the team holds, as on DeskRoster", () => {
   coach();
   const fragment = mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers", "Bribes", "Apo"]);
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "0", "yes"]);
   const section = document.querySelector("section.g-funds");
   assert.equal(section.getAttribute("data-treasury-strip"), "t1");
@@ -124,7 +124,7 @@ test("a team whose race has not come yet still has its treasury and counters, an
   coach();
   state.data = null;
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers"]);
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1"]);
 });
 
@@ -132,7 +132,7 @@ test("the strip reads in Russian: the labels the prototype shortens are shortene
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   initLocale("ru");
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Казна", "Старт рер", "Ком рер", "Фанаты", "Coaches", "Cheer", "Взятки", "Апот"]);
+  assert.deepEqual(labels(), ["Казна", "Старт рер", "Ком рер", "Фанаты", "Coaches", "Cheers", "Взятки", "Апот"]);
   assert.equal(values().at(-1), "есть");
   assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Казна и ресурсы");
   assert.equal(document.querySelector("a.g-funds__edit").getAttribute("aria-label"), "Команда, казна и ресурсы");
@@ -171,7 +171,7 @@ test("a team with no treasury written has 0k, and a team id is text, not markup"
 test("a team with no roster at all draws a strip of nothing, and does not throw", () => {
   coach({ team: { ...TEAM, roster: null } });
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers", "Bribes", "Apo"]);
   assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "0", "no"]);
 });
 
