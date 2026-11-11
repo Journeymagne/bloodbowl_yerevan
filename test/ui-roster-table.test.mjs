@@ -641,4 +641,9 @@ test("a column that is not sorted keeps the button's box for its label: the same
   assert.deepEqual(heads.map((head) => head.querySelector("span.g-sort.g-sort--label")?.textContent), COLUMNS.map((column) => column.label));
   assertStyled(fragment, ...SHEETS);
   assert.deepEqual(valuesOf(SHEET, ".g-sort--label", "cursor"), ["auto"]);
+  // The box is `.g-sort`'s, for a button and a label alike: no rule of it may be a button's alone.
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "width"), ["100%"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)", "40px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "justify-content"), ["center"]);
+  assert.doesNotMatch(read(SHEET), /button\.g-sort/);
 });

@@ -2,9 +2,8 @@
  * A roll in the advancement's sheet (roll-view.mjs; stage 07d, Task 10): up to 900px as Adv3Random, Adv3Stat and
  * Adv3StatTable; from 901px in the window's columns as DeskRosterAdv.html and DeskRosterAdvStat.html. The sheet's frame
  * is player-sheets.css's, the advancement's own advance.css's; ui/segmented-control.css draws the way, ui/die.css the
- * die. This sheet sets what is the roll's own, by the sheet's id, after advance.css (K5) — and in a skill's sheet
- * (`#roster-skill`, Task 11) how an advancement gave the skill, and what a site roll's dice showed (Task 22). A random
- * skill is two dice (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in
+ * die. This sheet sets what is the roll's own, by the sheet's id, after advance.css (K5); what a skill's sheet says of
+ * the roll that gave the skill is its tag's, in sheets.css. A random skill is two dice (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in
  * Adv3Stat's card.
  *
  * Where the prototypes give no line height, the font's own (`normal`). A long skill or line wraps; nothing is cut with

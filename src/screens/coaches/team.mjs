@@ -128,19 +128,25 @@ const squadRow = (line) => ({
   still: true,
   badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
   name: line.name,
-  sub: line.skip ? absenceWords(line) : line.position,
+  sub: line.skip ? absenceWords(line, { shared: true }) : line.position,
   alert: line.skip,
   cells: rosterCells(line, { mode: NO_MATCH }),
   skillsHtml: skillChipsMarkup(line),
 });
 
-/** «Roster» and how many; the Roster's table to read, or the words for a race the reference does not know. */
+/** Words in the table's place: a race the reference does not know, a roster with nobody on it (as the Roster says it). */
+const squadWords = (words) => `<p class="g-opp__norace">${escapeHtml(words)}</p>`;
+
+/** «Roster» and how many; the Roster's table to read, or the words in its place. */
 function squadMarkup(model) {
   const head = `<h2 class="g-opp__squadtitle" id="opp-squad">${escapeHtml(t("opponent.squad"))}`
     + ` <span class="g-opp__count">${escapeHtml(t("opponent.count", { count: model.squad.length }))}</span></h2>`;
-  const body = model.raceKnown
-    ? renderRosterTable({ label: t("teamRoster.tableLabel", { team: model.name }), columns: COLUMNS(), groups: rosterGroups(), rows: model.squad.map(squadRow) })
-    : `<p class="g-opp__norace">${escapeHtml(t("opponent.noRace"))}</p>`;
+  let body = squadWords(t("opponent.noRace"));
+  if (model.raceKnown) {
+    body = model.squad.length
+      ? renderRosterTable({ label: t("teamRoster.tableLabel", { team: model.name }), columns: COLUMNS(), groups: rosterGroups(), rows: model.squad.map(squadRow) })
+      : squadWords(t("teamRoster.empty"));
+  }
   return `<section class="g-opp__squad" aria-labelledby="opp-squad">${head}${body}</section>`;
 }
 
