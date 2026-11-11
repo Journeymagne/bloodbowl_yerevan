@@ -439,6 +439,7 @@ as Russian typography would have it. A new short label follows it. Sentences kee
 | Cancel the purchase | Отменить покупку | 07c · `teamRoster.sell.cancelTitle` (its button: "Cancel purchase", `teamRoster.sell.cancelOpen`) |
 | Sell the player | Продать игрока | 07c · `teamRoster.sell.title` (the post-match says "Sell a player", `after.sellTitle`) |
 | Advancement | Прокачка | 07d · `teamAdvance.title`, `teamPlayer.advance` |
+| Advancement 1 · Advancements: 0 of 6 | Улучшение 1 · Улучшения: 0 из 6 | 07a, PR 2 item 6 · a numbered or counted advancement, not the act: `teamRoster.skill.fromAdvancement`, `teamRoster.advancements`, `teamAdvance.doneLevel` |
 | Random primary skill | Случайный основной навык | 07d · `teamAdvance.type.random` (the other types: the last item of "New-UI translation sweep" above) |
 | Rolled at the table | Бросил за столом | 07d · `teamAdvance.via.table` |
 | Skill in place of a characteristic | Навык вместо характеристики | 07d · `teamAdvance.insteadTitle`; note 3 |

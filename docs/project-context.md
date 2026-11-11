@@ -66,7 +66,8 @@ v3, исправления из `codex/fix-post-match-navigation` и прото�
 | Справочник и сборка | `content/Gata/`, `content/Gata-ru/`, `scripts/build-*.mjs` |
 
 Маршруты v3: `#/teams`, `#/t/:id`, `#/t/:id/roster`,
-`#/coaches/:uid/teams/:tid`, `#/games/:id/pre-match`, `#/games/:id/post-match`.
+`#/coaches/:uid/teams/:tid`, `#/games/:id/pre-match`, `#/games/:id/post-match`,
+`#/leagues/:league` (статья справочника «Лиги», прокрученная к лиге; ключ — `leagueKey` в `src/core/routes.mjs`).
 Ссылки демо перенесены из удалённых модулей v2 в SideNav, список своих команд
 и публичный экран команды. API демо подключён через `server/routes/index.mjs`.
 
