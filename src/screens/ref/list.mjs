@@ -25,7 +25,7 @@ import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mj
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, listScroll, refQuery, setListFilter, setListScroll } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
-import { badgeMarkup, skillDetailMarkup, tagsOf } from "./skill.mjs";
+import { badgeMarkup, isTrait, skillDetailMarkup, tagsOf } from "./skill.mjs";
 
 /** The lists whose rows are a letter and a name, and which keep a panel beside them. */
 const SPLIT_SECTIONS = new Set(["skills", "traits"]);
@@ -68,7 +68,7 @@ function referenceRow(page, selectedSlug) {
   const { category } = tagsOf(page);
   const current = page.slug === selectedSlug ? ' aria-current="page"' : "";
   return `<a class="g-ref-row" href="${escapeHtml(href)}"${current}>`
-    + badgeMarkup(category)
+    + badgeMarkup(category, { trait: isTrait(page) })
     + `<span class="g-sr-only">${escapeHtml(category)}</span>`
     + `<span class="g-ref-row__name">${escapeHtml(page.title)}</span></a>`;
 }

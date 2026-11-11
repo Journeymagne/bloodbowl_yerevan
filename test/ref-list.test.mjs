@@ -118,7 +118,7 @@ test("no link a list draws is sent on by the router, and every key is in both di
 
 // What the brief leaves to the screen.
 
-test("a skill names its category for a screen reader and wears its colour; a trait wears a dot", () => {
+test("a skill names its category for a screen reader and wears its colour; a trait wears a T", () => {
   renderRefSection("skills");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
   assert.equal(block.querySelector(".g-sr-only").textContent, "General");
@@ -126,7 +126,7 @@ test("a skill names its category for a screen reader and wears its colour; a tra
   assert.equal(block.querySelector(".g-ref-badge").getAttribute("aria-hidden"), "true");
   renderRefSection("traits");
   const trait = view.querySelector('a.g-ref-row[href="#/traits/always-hungry"]');
-  assert.equal(trait.querySelector(".g-ref-badge").textContent, "•");
+  assert.equal(trait.querySelector(".g-ref-badge").textContent, "T");
   assert.ok(trait.querySelector(".g-ref-badge--trait"));
   assert.equal(trait.querySelector(".g-sr-only").textContent, "Trait");
   assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
@@ -312,6 +312,8 @@ test("the same lists in Russian, from the Russian dictionary and the Russian vau
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Выберите навык, чтобы прочитать правило");
   type("#ref-list-query", "");
   assert.equal(view.querySelector("a.g-ref-back").textContent, "Справочник");
+  renderRefSection("traits");
+  assert.equal(view.querySelector('a.g-ref-row[href="#/traits/always-hungry"] .g-ref-badge').textContent, "T", "a trait's letter is the English one, as a skill's");
   renderRefSection("rules");
   assert.deepEqual(view.querySelectorAll(".g-ref-list h2").map((h) => h.textContent), ["Кратко", "Полный текст"]);
   assert.equal(view.querySelector('a.g-list-row[href="#/overview/code-of-conduct"] .g-list-row__title').textContent, "Кодекс поведения");

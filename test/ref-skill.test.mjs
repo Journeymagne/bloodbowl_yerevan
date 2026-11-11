@@ -201,11 +201,11 @@ test("with a signed-in coach's active team the panel on its page says who has th
   assert.equal(view.querySelector(".g-skill-detail__none").textContent, "No one has it", "a race the vault lacks has no one");
 });
 
-test("a trait has a dot for a letter, its tags for a caption and no roll", () => {
+test("a trait has a T for a letter, its tags for a caption and no roll", () => {
   renderReferencePage("traits/throw-team-mate");
   const panel = view.querySelector(".g-ref__panel .g-skill-detail");
   assert.equal(panel.querySelector("h1").textContent, "Throw Team-Mate");
-  assert.equal(panel.querySelector(".g-ref-badge").textContent, "•");
+  assert.equal(panel.querySelector(".g-ref-badge").textContent, "T");
   assert.ok(panel.querySelector(".g-ref-badge--trait"));
   assert.equal(panel.querySelector(".g-skill-detail__caption").textContent, "Trait · Passive");
   assert.equal(panel.querySelector(".g-kv"), null);
@@ -232,6 +232,8 @@ test("the category is the first tag the Skill Table has; a trait has none, and a
   assert.equal(categoryOf(state.data, pageOf("traits/always-hungry")), null);
   assert.equal(categoryOf({}, pageOf("skills/dodge")), null, "a vault without skill groups");
   assert.ok(draw(badgeMarkup("Elite")).querySelector(".g-ref-badge--trait"));
+  assert.equal(draw(badgeMarkup("Elite")).querySelector(".g-ref-badge").textContent, "•", "a tag with no colour is not a trait: no T");
+  assert.equal(draw(badgeMarkup(null, { trait: true })).querySelector(".g-ref-badge").textContent, "T");
   assert.equal(draw(badgeMarkup("Passing", { large: true })).querySelector(".g-ref-badge").textContent, "P");
 });
 

@@ -36,11 +36,20 @@ export function categoryOf(data, page) {
   return (page.tags ?? []).find((tag) => categories.has(tag)) ?? null;
 }
 
-/** The letter of a category on its colour; a trait, or a tag with no colour of its own, wears a dot. */
-export function badgeMarkup(category, { large = false } = {}) {
+/**
+ * The letter of a category on its colour. A trait wears a «T» on the neutral colour, in both languages, as skills
+ * keep their English letters (the owner, 2026-11-12); a tag with no colour of its own wears a dot on it.
+ */
+export function badgeMarkup(category, { large = false, trait = false } = {}) {
   const tone = String(category ?? "").toLowerCase();
-  const known = TONES.has(tone);
-  return `<span class="g-ref-badge g-ref-badge--${known ? tone : "trait"}${large ? " g-ref-badge--lg" : ""}" aria-hidden="true">${escapeHtml(known ? tone[0].toUpperCase() : "•")}</span>`;
+  const known = !trait && TONES.has(tone);
+  const letter = known ? tone[0].toUpperCase() : trait ? "T" : "•";
+  return `<span class="g-ref-badge g-ref-badge--${known ? tone : "trait"}${large ? " g-ref-badge--lg" : ""}" aria-hidden="true">${escapeHtml(letter)}</span>`;
+}
+
+/** Whether a page of the reference is a trait: its address, the same in both vaults. */
+export function isTrait(page) {
+  return String(page?.slug ?? "").startsWith("traits/");
 }
 
 /**
@@ -147,7 +156,7 @@ export function skillDetailMarkup({ data, page, team = null, teamPage = null }) 
   const { category: tagged, type } = tagsOf(page);
   const caption = [category ?? tagged, type].filter(Boolean).join(" · ");
   const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
-  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true })}`
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true, trait: isTrait(page) })}`
     + `<div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
     + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`
     + `${proseMarkup(rule)}${factsMarkup(data, page)}`
