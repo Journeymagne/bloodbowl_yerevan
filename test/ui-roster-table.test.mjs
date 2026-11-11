@@ -603,3 +603,25 @@ test("a table that would draw wrong refuses", () => {
   assert.equal(empty.querySelectorAll("tbody").length, 0);
   assert.ok(empty.querySelector("thead"));
 });
+
+// Item 14 of PR 1: another coach's team draws the same table, to read only.
+test("a still row is read, not pressed: no button, nothing reported; it cannot also open, choose or move", () => {
+  const fragment = mount(table({ rows: [row("p1", { still: true }), row("p2", { name: "Brug" })] }));
+  const [still, live] = fragment.querySelectorAll("tbody.g-rtable__player");
+  assert.ok(still.classList.contains("g-rtable__player--still"));
+  assert.equal(still.querySelector("th .g-rtable__toggle").tagName, "SPAN", "the name is text; his skill chips stay buttons, they open the skill");
+  assert.equal(still.querySelector("[data-row-key]") === null, true);
+  assert.equal(spaced(still.querySelector("th .g-rtable__name").textContent), "Grak");
+  assert.ok(live.querySelector("th button.g-rtable__toggle"));
+  const toggled = [];
+  const off = wireRosterTable(fragment, { onToggle: (key) => toggled.push(key) });
+  fireEvent(still.querySelector(".g-rtable__c"), "click");
+  fireEvent(live.querySelector(".g-rtable__c"), "click");
+  off();
+  assert.deepEqual(toggled, ["p2"]);
+  for (const extra of [{ controls: "aside" }, { expanded: true }, { selected: true }, { reorderIndex: 0 }]) {
+    assert.throws(() => table({ rows: [row("p1", { still: true, ...extra })] }), /still/, JSON.stringify(extra));
+  }
+  assertStyled(fragment, ...SHEETS);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player--still > .g-rtable__row", "cursor"), ["auto"]);
+});
