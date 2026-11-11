@@ -98,7 +98,7 @@ async function visit(over = {}, { phone = false } = {}) {
 }
 
 const words = (node) => node?.textContent.replace(/\s+/g, " ").trim() ?? "";
-/** The roster's players: the Roster's table (item 14 of PR 1), a body each. */
+/** The roster's players: the Roster's table (the owner, 2026-11-11), a body each. */
 const rows = () => view.querySelectorAll(".g-opp__squad tbody.g-rtable__player");
 
 test("a phone's opponent page: back to the table, his name and race, the next match, the tiles, his form, his coach, his roster", async () => {
@@ -159,7 +159,7 @@ test("a desk's opponent page: its head with the coach and Telegram, the left col
     ["g-opp__next", "g-opp__meeting", "g-opp__card", "g-btn", "g-opp__readonly"]);
   assert.deepEqual(left.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["Points · W/D/L", "TD ± / CAS ±", "Team value"]);
   assert.ok(left.querySelector(".g-opp__card .g-opp__formrow"), "the form in the tiles' card");
-  // Item 14 of PR 1: the Roster's table, every column of it, its rows to read.
+  // The owner, 2026-11-11: the Roster's table, every column of it, its rows to read.
   const squad = view.querySelector("section.g-opp__squad");
   assert.equal(squad.querySelector("table.g-rtable").getAttribute("aria-label"), t("teamRoster.tableLabel", { team: RIVAL.name }));
   assert.deepEqual(squad.querySelectorAll('thead th[scope="col"]').map((node) => node.textContent),
@@ -207,7 +207,7 @@ test("a gained skill's chip opens its rule and what the dice showed", async () =
   assert.equal(sheet.querySelector(".g-roster__rollpair").textContent, t("teamPlayer.roll.pair", { first: "Wrestle", second: "Fend" }));
   assert.equal(sheet.querySelector(".g-roster__fromline").textContent, "Brakk · Advancement 1 · Random primary");
   assert.equal(sheet.querySelector(".g-roster__rollline").textContent, "rolled on the site");
-  // Item 13 of PR 2: the sheet stands beside the page, out of reach of its resets, its tag drawn as the Roster's.
+  // The sheet stands beside the page, out of reach of its resets, its tag drawn as the Roster's.
   assert.equal(sheet.closest(".g-opp"), null);
   assert.equal(sheet.querySelector(".g-roster__from").getAttribute("class"), "g-roster__from g-roster__from--gained");
   // A roll the answer does not hold: said so, no error.
@@ -225,7 +225,7 @@ test("a starting skill's chip opens the rule alone", async () => {
   assert.ok(sheet.querySelector(".g-prose"));
   assert.equal(sheet.querySelector(".g-roster__rollline"), null, "no advancement's line");
   assert.equal(sheet.closest(".g-opp"), null, "on a desk too, beside the page");
-  // What stripped the tag (item 13 of PR 2): a reset of the page as strong as the tag's own class, after it.
+  // What stripped the tag: a reset of the page as strong as the tag's own class, after it.
   assert.ok(valuesOf(CSS, ".g-opp :where(h1, h2, p)", "padding").length, "the page's reset is still there, and still the page's alone");
 });
 
@@ -392,7 +392,7 @@ test("D2: a thumb's targets are 44 high up to 900px, a desk's 24 at least", () =
   for (const selector of [".g-opp__next", ".g-opp__coach", ".g-opp__meeting"]) assert.ok(px(valuesOf(CSS, selector, "min-height")[0]) >= 44, selector);
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-opp__tg", "min-height")[0]) >= 24);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad", "overflow-x"), ["auto"], "the roster scrolls in its card, never the page");
-  // The card's ring is a border the rows cannot paint over, and the table's own frame is the card (item 14 of PR 1).
+  // The card's ring is a border the rows cannot paint over, and the table's own frame is the card.
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad", "border"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad .g-rtable-frame", "border"), ["0"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad .g-rtable-frame", "overflow"), ["visible"]);
@@ -465,7 +465,7 @@ test("the prototypes' sizes: their padding on top of min-height, Oswald's figure
   assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi", "gap"), ["0"]);
   assert.deepEqual(valuesOf(CSS, ".g-opp__score", "font"), ["700 26px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(CSS, ".g-opp__squadtitle", "font"), ["700 24px/normal var(--font-display)"], "«Roster» 36 high");
-  // The roster's chips are the Roster's (item 14 of PR 1): this sheet sizes none of its own.
+  // The roster's chips are the Roster's: this sheet sizes none of its own.
   assert.doesNotMatch(text(CSS), /\.g-skill/);
   // H6: the title takes the focus on arrival, a place the keyboard starts from, not a control (page-head.css's).
   assert.deepEqual(valuesOf(CSS, ".g-opp__name:focus", "outline"), ["none"]);

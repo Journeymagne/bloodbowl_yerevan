@@ -127,7 +127,7 @@ test("our meeting: the last confirmed match of the active team against him, from
   assert.equal(opponentModel({ ...base, games, activeTeamId: null }).meeting, null);
 });
 
-// Item 14 of PR 1: the squad is the Roster's lines themselves, in this page's order, for the Roster's table.
+// The squad is the Roster's lines themselves, in this page's order, for the Roster's table (the owner, 2026-11-11).
 test("the roster: the Roster's lines, who misses the match last, then by SPP; the captain, the gained skills marked", () => {
   const model = opponentModel(base);
   assert.deepEqual(model.squad.map(({ name, skip, earned }) => [name, skip, earned]),

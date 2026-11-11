@@ -33,7 +33,7 @@ const SHEETS = "src/screens/team/roster/player-sheets.css";
 const ADVANCE = "src/screens/team/roster/advance.css";
 const ROLLS = "src/screens/team/roster/rolls.css";
 const FIX = "src/screens/team/roster/fix.css";
-/** The skill sheet's tag, which holds how an advancement's roll was made (item 6 of PR 2). */
+/** The skill sheet's tag, which holds how an advancement's roll was made (the owner, 2026-11-11). */
 const TAG = "src/screens/team/roster/sheets.css";
 const UNDO_STYLES = [...STYLES, "option-card.css", "die.css", "segmented-control.css"];
 const FIX_STYLES = [...UNDO_STYLES, "toggle.css", "text-field.css", "resource-counter.css"];
@@ -938,7 +938,7 @@ test("an advancement without a tie: the undo names the loose god's skills and po
 test("a skill an advancement gave says how in its sheet; a site roll gave it — what the two dice showed, read once", async () => {
   const skillSheet = () => view.querySelector("dialog#roster-skill");
   const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
-  // Item 6 of PR 2: the advancement is said once, in the tag's own line; how it was rolled and the dice, small lines in the tag.
+  // The owner, 2026-11-11: the advancement is said once, in the tag's own line; how it was rolled and the dice, small lines in the tag.
   const line = () => skillSheet().querySelector(".g-roster__fromline").textContent;
   const via = () => skillSheet().querySelector(".g-roster__rollline")?.textContent ?? "";
   const rollState = () => skillSheet().querySelector(".g-roster__rollstate");
@@ -1176,7 +1176,7 @@ test("every key in both dictionaries; styled; D2", () => {
   for (const [file, selector] of own) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(file, selector, property).length >= 1, `${selector} ${property}`);
   }
-  // The tag's small lines take their size of their own, the rest of the tag's (item 6 of PR 2).
+  // The tag's small lines take their size of their own, the rest of the tag's.
   for (const selector of [".g-roster__rollline", ".g-roster__rollstate", ".g-roster__rollpair"]) assert.ok(valuesOf(TAG, selector, "font").length >= 1, selector);
   // «Undo the last» is quiet (decisions 18, 40): a line of words in the accent at the block's left, no frame, no fill — never
   // the danger's; closed, the roster's closed look (`.g-roster__closed`), its pointer too.

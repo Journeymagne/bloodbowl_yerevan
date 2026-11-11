@@ -611,7 +611,7 @@ test("a table that would draw wrong refuses", () => {
   assert.ok(empty.querySelector("thead"));
 });
 
-// Item 14 of PR 1: another coach's team draws the same table, to read only.
+// The owner, 2026-11-11: another coach's team draws the same table, to read only.
 test("a still row is read, not pressed: no button, nothing reported; it cannot also open, choose or move", () => {
   const fragment = mount(table({ rows: [row("p1", { still: true }), row("p2", { name: "Brug" })] }));
   const [still, live] = fragment.querySelectorAll("tbody.g-rtable__player");
@@ -633,7 +633,7 @@ test("a still row is read, not pressed: no button, nothing reported; it cannot a
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player--still > .g-rtable__row", "cursor"), ["auto"]);
 });
 
-// Owner's review of item 14: a head of unsorted columns lost the button's box, and its labels ran together.
+// The owner, 2026-11-11: a head of unsorted columns lost the button's box, and its labels ran together.
 test("a column that is not sorted keeps the button's box for its label: the same width, height and centre", () => {
   const fragment = mount(table({ columns: COLUMNS.map((column) => ({ ...column, sortable: false })) }));
   const heads = fragment.querySelectorAll('thead th[scope="col"]');
