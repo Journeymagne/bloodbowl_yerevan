@@ -324,10 +324,10 @@
     text-decoration: none;
     text-transform: none;
   }
+  /* Marked as the open row of a list is, by its surface and not by a bolder, wider name. */
   .g-ref-toc__link[aria-current="page"] {
     background: var(--surface);
     color: var(--ink);
-    font-weight: 700;
   }
   .g-ref-toc__count {
     flex: none;
@@ -413,11 +413,11 @@
     border-bottom: 0;
     border-radius: var(--radius-md);
   }
+  /* The tint and the ring mark the open row; a bolder name would be wider and wrap where it did not (the owner, 2026-11-12). */
   .g-ref-row[aria-current="page"] {
     background: var(--accent-tint-soft);
     box-shadow: var(--ring-selected);
   }
-  .g-ref-row[aria-current="page"] .g-ref-row__name { font-weight: 700; }
 
   .g-ref-pick {
     border-radius: var(--radius-2xl);

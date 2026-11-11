@@ -440,6 +440,7 @@ test("from 901px the rows are a grid of 220px columns in a framed card, and the 
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list", "background"), ["none", "var(--surface)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "grid-column"), ["1 / -1"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"]', "box-shadow"), ["var(--ring-selected)"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"] .g-ref-row__name', "font-weight"), [], "the open row's name keeps its weight, so its width");
 });
 
 test("on a phone the chips row scrolls with no bar under the chips; a desk keeps the bar", () => {
