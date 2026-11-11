@@ -253,7 +253,7 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   const heading = ".g-roster__section--active .g-roster__heading";
   assert.deepEqual([valuesOf(frame, heading, "position"), valuesOf(frame, heading, "left"), valuesOf(frame, heading, "top")], [["absolute"], ["0"], ["0"]]);
   assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__section--active > .g-roster__bar", "justify-content"), ["flex-end"], "the band the status keeps at its end");
-  // Owner's review of PR 1: «Missing the match» and «Fallen» bands split the card themselves: no gap before them, no line over them.
+  // The owner, 2026-11-11: «Missing the match» and «Fallen» bands split the card themselves: no gap before them, no line over them.
   assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "gap"), ["0"]);
   assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster__count", "margin-left"), ["var(--space-4)"], "the number set off from its heading");
   // The coach's team page's heading is a flex row: its 8px gap is that room already, with no margin on top of it.

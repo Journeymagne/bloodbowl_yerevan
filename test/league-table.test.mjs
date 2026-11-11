@@ -422,7 +422,7 @@ test("the grids are the prototypes'", () => {
   assert.deepEqual(valuesOf(CSS, ".g-minitable__row", "grid-template-columns"), ["24px minmax(0, 1fr) 34px 30px"]);
 });
 
-// Owner's review of PR 1: the rows' backgrounds painted over the inset --ring, and the cards lost their sides by the table.
+// The owner, 2026-11-11: the rows' backgrounds painted over the inset --ring, and the cards lost their sides by the table.
 test("the standings' cards keep their sides: a border, not an inset ring the rows paint over", () => {
   for (const [sheet, card] of [[CSS, ".g-minitable"], ["src/screens/season/league.css", ".g-season__table"]]) {
     assert.deepEqual(valuesOf(sheet, card, "border"), ["1px solid var(--line-strong)"], card);

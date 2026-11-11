@@ -297,12 +297,11 @@ test("one's own team at an opponent's address goes to its overview", async () =>
   assert.equal(view.querySelector("h1").textContent, RIVAL.name);
 });
 
-// Fourth review round: what a coach wrote for himself is his; a rival reads that the player misses the match, not why.
-test("a missed match's own words stay the team's coach's; an injury is the game's and is said", async () => {
+// The owner, 2026-11-12: a reason written by hand is the league's to know, as «Before the match» shows it to the opponent.
+test("why a player misses the match is said to another coach: a reason written by hand, as an injury", async () => {
   const absent = (absence) => ({ ...RIVAL, roster: { ...RIVAL.roster, players: [player("d2", 0, "2", "Dunn", { skipNextGame: true, absence })] } });
-  await visit({ team: absent({ code: "other", note: "Family wedding" }) }, { phone: true });
-  assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, t("teamRoster.skip"));
-  assert.doesNotMatch(view.textContent, /Family wedding/);
+  await visit({ team: absent({ code: "other", note: "Suspended by the league" }) }, { phone: true });
+  assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, "Suspended by the league");
   await visit({ team: absent({ code: "miss" }) });
   assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, t("teamRoster.injury.miss"));
 });
@@ -310,7 +309,7 @@ test("a missed match's own words stay the team's coach's; an injury is the game'
 test("a roster with nobody on it says so, as the Roster does, and draws no empty table", async () => {
   for (const phone of [true, false]) {
     await visit({ team: { ...RIVAL, roster: { ...RIVAL.roster, players: [] } } }, { phone });
-    assert.equal(view.querySelector(".g-opp__squad .g-opp__norace").textContent, t("teamRoster.empty"));
+    assert.equal(view.querySelector(".g-opp__squad .g-opp__nosquad").textContent, t("teamRoster.empty"));
     assert.equal(view.querySelector(".g-opp__squad table"), null);
   }
 });
@@ -318,7 +317,7 @@ test("a roster with nobody on it says so, as the Roster does, and draws no empty
 test("a race the reference does not know: the words in the roster's place", async () => {
   for (const phone of [true, false]) {
     await visit({ team: { ...RIVAL, baseTeamSlug: "teams/nobody" } }, { phone });
-    assert.equal(view.querySelector(".g-opp__norace").textContent, "The team's race is not in the reference: its roster cannot be shown.");
+    assert.equal(view.querySelector(".g-opp__nosquad").textContent, "The team's race is not in the reference: its roster cannot be shown.");
     assert.equal(rows().length, 0);
     assert.equal(view.querySelector(".g-opp__race"), null, "no race to lead to");
     assert.ok(!view.querySelectorAll(".g-kpi__k").map((node) => node.textContent).some((label) => /value|TV/.test(label)), "no value");

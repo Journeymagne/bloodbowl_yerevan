@@ -128,14 +128,14 @@ const squadRow = (line) => ({
   still: true,
   badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
   name: line.name,
-  sub: line.skip ? absenceWords(line, { shared: true }) : line.position,
+  sub: line.skip ? absenceWords(line) : line.position,
   alert: line.skip,
   cells: rosterCells(line, { mode: NO_MATCH }),
   skillsHtml: skillChipsMarkup(line),
 });
 
 /** Words in the table's place: a race the reference does not know, a roster with nobody on it (as the Roster says it). */
-const squadWords = (words) => `<p class="g-opp__norace">${escapeHtml(words)}</p>`;
+const squadWords = (words) => `<p class="g-opp__nosquad">${escapeHtml(words)}</p>`;
 
 /** «Roster» and how many; the Roster's table to read, or the words in its place. */
 function squadMarkup(model) {

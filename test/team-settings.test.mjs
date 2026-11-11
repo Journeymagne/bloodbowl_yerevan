@@ -196,7 +196,7 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(rowText("logo", fragment), "Logo · Upload");
   assert.equal(rowOf("logo", fragment).querySelector(".g-team-settings__note").textContent, "PNG or JPG up to 2 MB · optional");
   assert.equal(rowText("fans", fragment), "Dedicated Fans · 3 · Correct");
-  assert.equal(rowOf("fans", fragment).querySelector(".g-team-settings__note"), null, "owner's review of PR 1: no note under the fans");
+  assert.equal(rowOf("fans", fragment).querySelector(".g-team-settings__note"), null, "no note under the fans (the owner, 2026-11-11)");
   assert.equal(rowText("order", fragment), "Roster order · By number");
   assert.equal(rowOf("order", fragment).querySelector(".g-team-settings__note").textContent, "Players in the order of their numbers");
   assert.deepEqual(fragment.querySelectorAll(".g-team-settings__row").map((row) => row.getAttribute("data-settings-row")), ["name", "race", "league", "logo", "fans", "order"]);
@@ -225,7 +225,7 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(rowText("favoured", norse), "Favoured of… · Khorne", "one god: nothing to change it to");
 });
 
-// Owner's review of PR 1: a league's own page in the vault is an empty star-player card; the league is in the reference's Leagues.
+// The owner, 2026-11-11: a league's own page in the vault is an empty star-player card; the league is in the reference's Leagues.
 test("the league leads to its section of the reference's Leagues; a god is text", () => {
   const link = rowOf("league", mount(manageMarkup(model(TEAMS[0])))).querySelector("a.g-team-settings__ref");
   assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/leagues/old-world-classic", "Old World Classic"]);

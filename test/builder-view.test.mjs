@@ -537,7 +537,7 @@ test("a logo is picked with a label that a keyboard reaches, shown as a picture,
     ["g-btn g-build__icon", "button", "Remove logo", "", true], "a trash icon in a square, as the team settings' removal, named by its label");
   assertCspSafe(shown);
   assertStyled(shown, ...BUILDER_SHEETS, "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
-  // Owner's review of PR 1: the same squares as the team settings' — a thumb's on a phone, the prototype's 36px on a desk.
+  // The owner, 2026-11-11: the same squares as the team settings' — a thumb's on a phone, the prototype's 36px on a desk.
   const SETTINGS_CSS = "src/screens/team/manage/settings.css";
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__icon", "width"), valuesOf(SETTINGS_CSS, ".g-team-settings__icon", "width"));
   assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__icon", "width"), ["var(--size-touch)", "36px"]);

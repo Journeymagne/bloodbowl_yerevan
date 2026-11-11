@@ -549,7 +549,7 @@ test("the colours of the table are readable in every palette", () => {
     assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", property), valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), `captain's ${property}`);
   }
   assert.deepEqual(valuesOf(BOX, ".g-roster__from", "box-shadow"), valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), "a starting skill's box in the chip's ring");
-  // Owner's review of PR 1: the filled gold read bigger than the ringed chips beside it; the captain's chip, card and box
+  // The owner, 2026-11-11: the filled gold read bigger than the ringed chips beside it; the captain's chip, card and box
   // have the gold's darker ring, inset as every chip's, so no size changes.
   const goldRing = ["inset 0 0 0 1px var(--crest-gold-ring)"];
   assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--captain", "box-shadow"), goldRing);

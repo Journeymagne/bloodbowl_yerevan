@@ -149,7 +149,7 @@ test("every counter and medic has its label, and the strip's words, in both dict
     for (const key of ["treasury.title", "treasury.strip.yes", "treasury.strip.no"]) assert.ok(dictionary[key], key);
     assert.equal(dictionary["treasury.strip.edit"], undefined, "the pencil is named for the page it leads to");
   }
-  // Owner's review of PR 1: the strip says what the team page says, shortened («Взятки», not «Bribes»).
+  // The owner, 2026-11-11: the strip says what the team page says, shortened («Взятки», not «Bribes»).
   assert.deepEqual(
     ["startingRerolls", "teamRerolls", "dedicatedFans", "bribes", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
     ["Старт рер", "Ком рер", "Фанаты", "Взятки", "Апот"],
@@ -282,7 +282,7 @@ test("an entry made from the strip shows on the strip without the screen drawing
   assert.equal(sheetDialog(), null);
 });
 
-// Fresh-eye review of PR 2: «Coaches 2 · Assistant yes» left a reader guessing which assistant.
+// «Coaches 2 · Assistant yes» left a reader guessing which assistant.
 test("a short label carries the item's full name: in its tooltip, and in its place for a screen reader", () => {
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));

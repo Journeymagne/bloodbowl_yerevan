@@ -80,23 +80,22 @@ export function injuryWords({ code, stat }) {
  * retirement; another reason as the coach wrote it; an injury as the match's are said. A 2.x skip, which has no reason,
  * and another reason with no words written (K10) say nothing here.
  */
-function absenceReason({ retired, absence }, shared) {
+function absenceReason({ retired, absence }) {
   if (retired) return t("teamRoster.skips.retired");
   if (!absence) return "";
-  if (absence.code === "other") return shared ? "" : absence.note ?? "";
+  if (absence.code === "other") return absence.note ?? "";
   return injuryWords(absence);
 }
 
 /**
  * The line under the name of a player who misses the next match: why, or where nothing says why, that he misses it
- * (the words 07a drew for every skip). `shared`: the line another coach reads, which keeps what the game says (an
- * injury, a retirement) and not the words the team's coach wrote for himself.
+ * (the words 07a drew for every skip). Another coach reads it too, a reason written by hand included: it is the
+ * league's to know (the owner, 2026-11-12).
  *
  * @param {import("./model.mjs").PlayerLine} line
- * @param {{shared?: boolean}} [options]
  */
-export function absenceWords(line, { shared = false } = {}) {
-  return absenceReason(line, shared) || t("teamRoster.skip");
+export function absenceWords(line) {
+  return absenceReason(line) || t("teamRoster.skip");
 }
 
 /**
