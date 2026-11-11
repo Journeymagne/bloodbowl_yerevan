@@ -453,6 +453,11 @@
   .g-build__title { font-size: 28px; line-height: 1.1; }
   .g-build__sub { font-size: 14px; }
 
+  /* The rows' buttons are the team settings' (settings.css): the prototype's 36px on a desk. */
+  .g-build__change,
+  .g-build__icon { min-height: 36px; }
+  .g-build__icon { width: 36px; }
+
   /* Row gaps are margins, so the budget and the save can meet as one card. */
   .g-build__budget {
     grid-column: 2;
