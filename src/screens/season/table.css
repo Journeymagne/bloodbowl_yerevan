@@ -260,10 +260,10 @@
   min-width: 0;
   margin: 0;
   padding: var(--space-20) 0 var(--space-8);
-  border: 0;
+  /* The ring as a border, not --ring's inset shadow: the rows' own backgrounds would paint over that at the sides. */
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-2xl);
   background: var(--surface);
-  box-shadow: var(--ring);
   color: var(--ink);
   font: 400 15px/1.3 var(--font-body);
   font-variant-numeric: tabular-nums;
