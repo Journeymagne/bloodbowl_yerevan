@@ -90,11 +90,6 @@ export function skillPageOf(data, name) {
 /** A skill page's rule as the vault's prose: the build escapes a page's html (scripts/build-data.mjs); a page without it has its text. */
 export const skillRuleMarkup = (page) => proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`);
 
-/**
- * The tag's own line: whose skill it is and how he came by it — «Bors · Advancement 1 · Random primary» for a skill an
- * advancement gave (the advancement said once, in the tag), else as the panel's card says it (`skillSourceOf`,
- * short): «Grom · Starting», «Kor · Captain's».
- */
 function fromWords(line, skill) {
   const source = skillSourceOf(line, skill, { short: true });
   const at = skill.advancement ?? null;

@@ -171,7 +171,6 @@ function renderTeamRules(page, groups) {
   show(markup(), () => watchTeamData(() => patch(view, markup())));
 }
 
-/** A league's section of the Leagues article brought to the top, when the article has one by that key. */
 function showLeague(league) {
   view.querySelector(`#league-${league.replace(/[^a-z0-9-]/g, "")}`)?.scrollIntoView?.({ block: "start" });
 }

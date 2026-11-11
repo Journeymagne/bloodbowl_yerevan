@@ -33,7 +33,6 @@ export const SELL_SHEET = "after-sell";
 const ROSTER_MOST = 14;
 const ROSTER_FEWEST = 7;
 
-/** A staff counter's name: Team Rerolls «· buy more», the rest as the team page names them. */
 function staffName(key, { buy = false } = {}) {
   if (key === "teamRerolls" && buy) return t("after.rerollsBuy");
   return t(`savedRoster.${key}`);

@@ -55,7 +55,6 @@ const isMedic = (key) => medicalStaffDefinitions.some((staff) => staff.key === k
 
 const STAFF_KEYS = new Set(["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes", ...medicalStaffDefinitions.map(({ key }) => key)]);
 
-/** What a staff is called: the dictionary's word, the one the team page and the administration use. */
 const staffTitle = (key) => (STAFF_KEYS.has(key) ? t(`savedRoster.${key}`) : key);
 
 /**

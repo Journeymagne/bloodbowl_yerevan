@@ -32,7 +32,6 @@ const LOCK_TEXT = {
   unavailable: () => t("treasury.lockRace"),
 };
 
-/** A resource is named as the builder and the administration name it. */
 const nameOf = (row) => t(`savedRoster.${row.key}`);
 
 /** The maximum is reached. Two re-roll counters share one limit, so it is said for both, never as the room one has left. */

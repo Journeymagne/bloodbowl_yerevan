@@ -137,7 +137,6 @@ function opener(kind, label, reason) {
   return iconButton(`data-settings-open="${kind}" aria-haspopup="dialog" aria-describedby="team-settings-${kind}-label"`, "pencil", label, reason);
 }
 
-/** A row's value; one the reference has a page for leads there, the reference's book before it. */
 function shownMarkup(value, href) {
   if (value === "") return "";
   if (!href) return `<span class="g-team-settings__shown">${escapeHtml(value)}</span>`;
@@ -152,16 +151,13 @@ function row(kind, { label, note = "", value = "", href = "", action = "" }) {
   return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shownMarkup(value, href)}${action}</span></div>`;
 }
 
-/**
- * The race and its tier, read only on every width and in every state: a coach does not change a team's race (owner,
- * 2026-10-20). It leads to the race's rules.
- */
+/** The race and its tier, read only on every width and in every state: a coach does not change a team's race (owner, 2026-10-20). */
 function raceRow(settings) {
   const value = settings.tier ? `${settings.raceTitle} · ${settings.tier}` : settings.raceTitle;
   return row("race", { label: t("teamSettings.race"), value, href: settings.raceHref });
 }
 
-/** A league or a god: no line for a race that has none, no button for one that has one only. A league leads to the reference's Leagues. */
+/** A league or a god: no line for a race that has none, no button for one that has one only. */
 function choiceRow(kind, label, value, options, held, href = "") {
   if (!options.length) return "";
   return row(kind, { label, value, href, action: options.length >= 2 ? opener(kind, t("teamSettings.change"), held) : "" });

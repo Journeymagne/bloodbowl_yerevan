@@ -122,7 +122,6 @@ function telegramMarkup({ handle, href }) {
 /** The Roster's columns, as labels: the order is the model's (who misses the next match last, then the SPP), not a sort of the reader's. */
 const COLUMNS = () => rosterColumns().map((column) => ({ ...column, sortable: false }));
 
-/** A player of the roster to read: the Roster's row, with why he misses the next match under his name. */
 const squadRow = (line) => ({
   key: line.key,
   still: true,
@@ -134,10 +133,8 @@ const squadRow = (line) => ({
   skillsHtml: skillChipsMarkup(line),
 });
 
-/** Words in the table's place: a race the reference does not know, a roster with nobody on it (as the Roster says it). */
 const squadWords = (words) => `<p class="g-opp__nosquad">${escapeHtml(words)}</p>`;
 
-/** «Roster» and how many; the Roster's table to read, or the words in its place. */
 function squadMarkup(model) {
   const head = `<h2 class="g-opp__squadtitle" id="opp-squad">${escapeHtml(t("opponent.squad"))}`
     + ` <span class="g-opp__count">${escapeHtml(t("opponent.count", { count: model.squad.length }))}</span></h2>`;

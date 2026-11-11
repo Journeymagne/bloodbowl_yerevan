@@ -82,7 +82,6 @@ export function leagueKey(name) {
   return String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-/** A league in the reference's Leagues article: the article, scrolled to that league. */
 export function leagueUrl(name) {
   return `#/leagues/${encodeURIComponent(leagueKey(name))}`;
 }

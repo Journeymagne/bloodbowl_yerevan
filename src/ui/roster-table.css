@@ -109,7 +109,6 @@
 .g-rtable__row { height: var(--size-row); }
 .g-rtable__row,
 .g-rtable__skillrow { cursor: pointer; }
-/* A row only to read: nothing under the pointer opens him. */
 .g-rtable__player--still > .g-rtable__row,
 .g-rtable__player--still > .g-rtable__skillrow,
 .g-rtable__player--still .g-rtable__toggle { cursor: auto; }
@@ -191,7 +190,6 @@ th.g-rtable__h {
   cursor: pointer;
 }
 [aria-sort] .g-sort { color: var(--accent-text); }
-/* A column that is not sorted: its label in the button's box, so the head stands as a sorting one does. */
 .g-sort--label { cursor: auto; }
 
 .g-sort__arrow {

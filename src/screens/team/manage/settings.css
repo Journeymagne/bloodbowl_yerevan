@@ -101,10 +101,6 @@
 }
 .g-team-settings__shown { overflow-wrap: anywhere; }
 
-/*
- * A value the reference has a page for (the race, the league): the value's weight in the accent's text, the reference's
- * book before it, as the coach's team page leads to a race; a thumb tall on a phone, 24 on a desk.
- */
 .g-team-settings__ref {
   box-sizing: border-box;
   display: inline-flex;
