@@ -5,7 +5,6 @@ import test from "node:test";
 import { assertDictionaryCovers } from "./helpers/ui.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { state } from "../src/core/state.mjs";
-import { initLocale } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
 import { teamValue } from "../src/data/team-record.mjs";
 import { raceTeamOf } from "../src/data/teams.mjs";
@@ -128,25 +127,19 @@ test("our meeting: the last confirmed match of the active team against him, from
   assert.equal(opponentModel({ ...base, games, activeTeamId: null }).meeting, null);
 });
 
-test("the roster: who misses the match last, then by SPP; the captain, the gained skills marked", () => {
+// Item 14 of PR 1: the squad is the Roster's lines themselves, in this page's order, for the Roster's table.
+test("the roster: the Roster's lines, who misses the match last, then by SPP; the captain, the gained skills marked", () => {
   const model = opponentModel(base);
-  assert.deepEqual(model.squad.map(({ name, out, spp }) => [name, out, spp]),
+  assert.deepEqual(model.squad.map(({ name, skip, earned }) => [name, skip, earned]),
     [["Brakk", false, 7], ["Grimm", false, 3], ["Kor", false, 2], ["Hild", false, 2], ["Ulf", false, 0], ["Dunn", true, 6]]);
   const brakk = model.squad[0];
   assert.match(brakk.key, /^d3#0$/);
-  assert.deepEqual([brakk.number, brakk.position, brakk.touchdowns, brakk.casualties], ["3", "Blitzer", 2, 1]);
-  assert.equal(brakk.line, "#3 Blitzer · TD 2 · CAS 1");
-  assert.deepEqual(brakk.skills.filter(({ gained }) => gained), [{ name: "Wrestle", gained: true, captain: false }]);
+  assert.deepEqual([brakk.number, brakk.position, brakk.career.touchdowns, brakk.career.casualties], ["3", "Blitzer", 2, 1]);
+  assert.deepEqual(brakk.skills.filter(({ gained }) => gained).map(({ name }) => name), ["Wrestle"]);
   assert.ok(brakk.skills.some(({ name, gained }) => name === "Block" && !gained), "a position's skill is not gained");
   assert.equal(model.squad.find(({ name }) => name === "Grimm").captain, true);
-  assert.equal(model.squad.find(({ name }) => name === "Dunn").line, "#2 Dwarf Blocker Lineman · misses the match");
-  assert.equal(model.lines.length, PLAYERS.length, "the lines, for the skill's sheet");
-  initLocale("ru");
-  try {
-    assert.equal(opponentModel(base).squad.at(-1).line, "#2 Dwarf Blocker Lineman · пропускает матч");
-  } finally {
-    initLocale("en");
-  }
+  assert.deepEqual(new Set(model.squad), new Set(model.lines), "the same lines, for the skill's sheet");
+  assert.equal(model.lines.length, PLAYERS.length);
 });
 
 test("the rolls are handed on as the server sent them; anything else is none", () => {
@@ -183,7 +176,6 @@ test("every key in both dictionaries", () => {
     "opponent.coachLine": ["coach {coach}", "тренер {coach}"],
     "opponent.next": ["Next opponent", "Следующий соперник"],
     "opponent.meeting": ["Our meeting", "Наша встреча"],
-    "opponent.out": ["#{number} {position} · misses the match", "#{number} {position} · пропускает матч"],
     "opponent.noRace": ["The team's race is not in the reference: its roster cannot be shown.", "Расы команды нет в справочнике — состав не показать."],
   };
   for (const [key, words] of Object.entries(WORDS)) assert.deepEqual([en[key], ru[key]], words, key);

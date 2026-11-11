@@ -15,10 +15,10 @@
  * - «Our meeting» is the active team's last confirmed match against this team, from our side: its outcome
  *   (`gameOutcome`, a friendly's too), «Round 4 · away» or «Friendly», and the score, ours first;
  * - the coach and his Telegram are the public team's `user`; a contact the forms would refuse has no address;
- * - the roster is the lines «Состав» draws (`rosterLines`): those who miss the next match last, then by the SPP
- *   earned, then in the roster's order; TD and CAS are the roster's counters (a match on of the opponent's is
- *   his own to see); a skill an advancement or a god gave is marked. No career of an opponent's player is shown
- *   (stage 07e: his history answers its owner and an admin only), so the rows lead nowhere.
+ * - the roster is the lines «Состав» draws (`rosterLines`), drawn in its table to read (item 14 of PR 1): those who
+ *   miss the next match last, then by the SPP earned, then in the roster's order; a match on of the opponent's is his
+ *   own to see. No career by match of an opponent's player is shown (stage 07e: his history answers its owner and an
+ *   admin only), so the rows lead nowhere.
  * The way back is the table's: a phone's «Table» (`#/season`), a desk's «Season» of the active team, or the
  * league's table without one. One's own team at this address is no model's business: the screen sends the
  * coach to its overview (decision 23).
@@ -87,27 +87,12 @@ export function wayBack({ phone, activeTeamId = null }) {
 }
 
 /**
- * @typedef {{key: string, number: string, name: string, position: string, captain: boolean, out: boolean, line: string,
- *   touchdowns: number, casualties: number, spp: number, skills: {name: string, gained: boolean, captain: boolean}[]}} SquadRow
- */
-
-/**
- * The roster's rows (decision 19): who misses the next match last, then the most SPP first, a tie in the roster's order.
+ * The roster's order (decision 19): who misses the next match last, then the most SPP earned first, a tie in the roster's order.
  * @param {import("../team/roster/model.mjs").PlayerLine[]} lines
- * @returns {SquadRow[]}
  */
-function squadOf(lines) {
-  return lines.map((line, at) => {
-    const touchdowns = line.blob.touchdowns ?? 0, casualties = line.blob.casualties ?? 0;
-    const words = { number: line.number, position: line.position };
-    return {
-      at, key: line.key, number: line.number, name: line.name, position: line.position, captain: line.captain, out: line.skip,
-      line: line.skip ? t("opponent.out", words) : t("opponent.sub", { ...words, touchdowns, casualties }),
-      touchdowns, casualties, spp: line.earned, skills: line.skills.map(({ name, gained, source }) => ({ name, gained, captain: source === "captain" })),
-    };
-  }).sort((one, other) => Number(one.out) - Number(other.out) || other.spp - one.spp || one.at - other.at)
-    .map(({ at, ...row }) => row);
-}
+const squadOf = (lines) => lines.map((line, at) => ({ line, at }))
+  .sort((one, other) => Number(one.line.skip) - Number(other.line.skip) || other.line.earned - one.line.earned || one.at - other.at)
+  .map(({ line }) => line);
 
 /**
  * What the opponent's page says of a coach's team.

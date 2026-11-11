@@ -275,58 +275,6 @@
   color: var(--muted);
   font: 400 14px/1.45 var(--font-body);
 }
-.g-opp__player {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--space-10);
-  padding: var(--space-10) 0;
-  border-bottom: 1px solid var(--line);
-}
-.g-opp__player:last-child { border-bottom: 0; }
-.g-opp__who {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.g-opp__pname {
-  color: var(--ink);
-  font: 500 16px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
-.g-opp__pline {
-  color: var(--muted);
-  font: 400 13px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
-.g-opp__chips { padding-top: var(--space-6); }
-.g-opp__chips .g-skills { gap: var(--space-4); }
-/* A chip opens the skill's rule (decision 20): the prototype's 12px tag, 44 high and wide to a thumb («Pro», «Leap»). */
-.g-opp .g-skill {
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 3px var(--space-8);
-  border-radius: 7px;
-  font: 500 12px/1.2 var(--font-body);
-}
-.g-opp .g-skill--gained { font-weight: 700; }
-.g-opp__spp {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-.g-opp__sppn {
-  color: var(--ink);
-  font: 700 17px/1.2 var(--font-body);
-}
-.g-opp__sppk {
-  color: var(--muted);
-  font: 600 11px/1.2 var(--font-body);
-}
-.g-opp__cell,
-.g-opp__num { min-width: 0; }
 
 .g-opp__readonly {
   color: var(--muted);
@@ -457,58 +405,27 @@
   .g-opp .g-kpi { border-radius: var(--radius-lg); }
   .g-opp__readonly { font-size: 13px; }
 
-  /* The roster as columns in a card that scrolls sideways inside itself, never the page. */
+  /*
+   * The roster as the Roster's table (item 14 of PR 1), in a card that scrolls sideways inside itself, never the page.
+   * The card's ring is a border, which the rows' backgrounds cannot paint over; the table's own frame is the card.
+   */
   .g-opp__squad {
     flex: 999 1 560px;
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius-2xl);
     background: var(--surface);
-    box-shadow: var(--ring);
     overflow-x: auto;
   }
-  .g-opp__inner { min-width: 620px; }
-  .g-opp__rows { display: block; }
+  .g-opp__squad .g-rtable-frame {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
   .g-opp__squadtitle {
     margin: 0;
     padding: 18px var(--space-20) var(--space-10);
     font-size: 26px;
   }
   .g-opp__norace { padding: 0 var(--space-20) var(--space-20); }
-  .g-opp__cols,
-  .g-opp__player {
-    display: grid;
-    grid-template-columns: 44px minmax(160px, 1fr) minmax(200px, 1.6fr) 44px 44px 52px;
-    align-items: center;
-    gap: 0 var(--space-10);
-    padding: 0 var(--space-20);
-  }
-  .g-opp__cols {
-    height: 38px;
-    border-bottom: 1px solid var(--line-strong);
-    color: var(--muted);
-    font: 600 12px/1.2 var(--font-body);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .g-opp__col { min-width: 0; }
-  .g-opp__col--center,
-  .g-opp__num { text-align: center; }
-  .g-opp__col--end { text-align: right; }
-  /* DeskOppTeam.html's row: 52 and its padding and rule on top. */
-  .g-opp__player {
-    min-height: 69px;
-    padding: var(--space-8) var(--space-20);
-  }
-  .g-opp__player .g-num {
-    width: 34px;
-    height: 34px;
-    font-size: 16px;
-  }
-  .g-opp__pname { font-weight: 600; }
-  .g-opp__chips { padding: 2px 0; }
-  .g-opp .g-skill {
-    min-width: 24px;
-    min-height: 24px;
-  }
-  .g-opp__num { font: 400 15px/1.2 var(--font-body); }
-  .g-opp__player > .g-opp__sppn { text-align: right; }
 }

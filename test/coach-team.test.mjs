@@ -98,7 +98,8 @@ async function visit(over = {}, { phone = false } = {}) {
 }
 
 const words = (node) => node?.textContent.replace(/\s+/g, " ").trim() ?? "";
-const rows = () => view.querySelectorAll(".g-opp__squad .g-opp__player");
+/** The roster's players: the Roster's table (item 14 of PR 1), a body each. */
+const rows = () => view.querySelectorAll(".g-opp__squad tbody.g-rtable__player");
 
 test("a phone's opponent page: back to the table, his name and race, the next match, the tiles, his form, his coach, his roster", async () => {
   await visit({}, { phone: true });
@@ -122,16 +123,19 @@ test("a phone's opponent page: back to the table, his name and race, the next ma
   assert.equal(card.querySelector(".g-opp__coachname").textContent, "Coach rival");
   assert.equal(card.querySelector(".g-opp__coachsub").textContent, "@rival_bb · to arrange the match");
   assert.equal(rows().length, RIVAL.roster.players.length);
-  assert.deepEqual(rows().map((row) => row.querySelector(".g-opp__pname").textContent), ["Brakk", "Kor", "Dunn"], "the most SPP first, who misses the match last");
-  assert.equal(rows()[2].querySelector(".g-opp__pline").textContent, "#2 Dwarf Blocker Lineman · misses the match");
+  assert.deepEqual(rows().map((row) => row.querySelector(".g-rtable__name").textContent), ["Brakk", "Kor", "Dunn"], "the most SPP first, who misses the match last");
+  assert.ok(rows()[2].querySelector(".g-rtable__sub--alert"), "why he misses the match, in red, as on the Roster");
+  assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, "Blitzer");
   assert.ok(rows()[1].querySelector(".g-num__captain"), "the captain's mark");
+  assert.ok(rows().every((row) => row.getAttribute("class").includes("g-rtable__player--still")), "rows to read: none opens a player");
+  assert.equal(view.querySelector(".g-opp__squad [data-row-key]"), null);
+  assert.equal(view.querySelector(".g-opp__squad .g-sort"), null, "no sort: the order is the page's");
   assert.equal(words(view.querySelector(".g-opp__squadtitle")), "Roster players: 3");
   assert.equal(view.querySelector(".g-opp__readonly").textContent, t("opponent.readOnly"));
   // OppTeam.html's order.
   const order = view.querySelector(".g-opp").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]);
   assert.deepEqual(order, ["g-opp__back", "g-opp__id", "g-opp__next", "g-opp__meeting", "g-kpis", "g-opp__formrow", "g-opp__coach", "g-btn", "g-opp__squad", "g-opp__readonly"]);
   assert.equal(view.querySelector('a.g-btn').getAttribute("href"), `/play?team=${encodeURIComponent(RIVAL.id)}`);
-  assert.ok(!view.querySelector(".g-opp__cols"), "no columns on a phone");
   api.assertAnswered();
 });
 
@@ -155,16 +159,18 @@ test("a desk's opponent page: its head with the coach and Telegram, the left col
     ["g-opp__next", "g-opp__meeting", "g-opp__card", "g-btn", "g-opp__readonly"]);
   assert.deepEqual(left.querySelectorAll(".g-kpi__k").map((node) => node.textContent), ["Points · W/D/L", "TD ± / CAS ±", "Team value"]);
   assert.ok(left.querySelector(".g-opp__card .g-opp__formrow"), "the form in the tiles' card");
+  // Item 14 of PR 1: the Roster's table, every column of it, its rows to read.
   const squad = view.querySelector("section.g-opp__squad");
-  assert.equal(squad.querySelector('[role="table"]').getAttribute("aria-labelledby"), "opp-squad");
-  assert.deepEqual(squad.querySelectorAll(".g-opp__col").map((node) => node.textContent), ["#", "Player", "Skills", "TD", "CAS", "SPP"]);
+  assert.equal(squad.querySelector("table.g-rtable").getAttribute("aria-label"), t("teamRoster.tableLabel", { team: RIVAL.name }));
+  assert.deepEqual(squad.querySelectorAll('thead th[scope="col"]').map((node) => node.textContent),
+    ["Player", "MA", "ST", "AG", "PA", "AR", "TD", "CAS", "COMP", "KO", "INT", "MVP", "Total", "Avail"]);
+  assert.deepEqual(squad.querySelectorAll("thead .g-rtable__glabel").map((node) => node.textContent), ["Characteristics", "Career", "SPP"]);
   const brakk = rows()[0];
-  const cells = brakk.querySelectorAll('[role="cell"]');
-  assert.equal(cells.length, 6);
-  assert.deepEqual([cells[1].querySelector(".g-opp__pname").textContent, cells[1].querySelector(".g-opp__pline").textContent], ["Brakk", "Blitzer"]);
-  assert.deepEqual(cells[2].querySelectorAll("[data-skill]").map((chip) => chip.textContent), ["Block", "Thick Skull", "Tackle", "Diving Tackle", "Wrestle"]);
-  assert.deepEqual(cells.slice(3).map((cell) => cell.textContent), ["2", "1", "7"]);
-  assert.equal(rows()[2].querySelector(".g-opp__pline").textContent, "Dwarf Blocker Lineman · misses the match");
+  assert.deepEqual([brakk.querySelector(".g-rtable__name").textContent, brakk.querySelector(".g-rtable__sub").textContent], ["Brakk", "Blitzer"]);
+  assert.deepEqual(brakk.querySelectorAll(".g-rtable__skills--desk [data-skill]").map((chip) => chip.textContent), ["Block", "Thick Skull", "Tackle", "Diving Tackle", "Wrestle"]);
+  const cells = brakk.querySelectorAll("td.g-rtable__c").map((cell) => cell.textContent);
+  assert.deepEqual([cells[5], cells[6], cells[11]], ["2", "1", "7"], "TD, CAS and the SPP earned");
+  assert.ok(rows()[2].querySelector(".g-rtable__sub--alert"));
   // A desk without a team goes back to the league's table.
   await (async () => {
     width(false);
@@ -328,7 +334,7 @@ test("names are text", async () => {
     await visit({ team: hostileTeam, user: { ...COACH, login: HOSTILE, telegram: HOSTILE } }, { phone });
     assertCspSafe(view);
     assert.equal(view.querySelector("h1").textContent, HOSTILE);
-    assert.equal(rows()[0].querySelector(".g-opp__pname").textContent, HOSTILE);
+    assert.equal(rows()[0].querySelector(".g-rtable__name").textContent, HOSTILE);
     assert.equal(view.querySelector(".g-opp__coachlink").textContent, `coach ${HOSTILE}`);
     assert.equal(view.querySelector("img"), null);
     assert.ok(!view.querySelectorAll("a").some((link) => /t\.me/.test(link.getAttribute("href"))), "a contact the forms would refuse leads nowhere");
@@ -340,7 +346,7 @@ test("names are text", async () => {
 });
 
 test("styled", async () => {
-  const sheets = [CSS, "src/screens/season/table.css", "button.css", "skill-chip.css", "kpi-tile.css", "form-strip.css", "number-badge.css", "result-pill.css", "callout.css"];
+  const sheets = [CSS, "src/screens/season/table.css", "button.css", "roster-table.css", "skill-chip.css", "kpi-tile.css", "form-strip.css", "number-badge.css", "result-pill.css", "callout.css"];
   for (const phone of [true, false]) {
     await visit({ rolls: ROLLS }, { phone });
     assertStyled(view, ...sheets);
@@ -352,7 +358,7 @@ test("styled", async () => {
   assert.ok(at("screens/coaches/team.css") > at("screens/season/league.css") && at("screens/season/league.css") > 0, "imported after the stage's sheets before it, at the end");
   assert.doesNotMatch(text(CSS), /ellipsis/, "no «…»");
   assertBreakpoints(CSS);
-  for (const selector of [".g-opp__name", ".g-opp__pname", ".g-opp__pline", ".g-opp__meta", ".g-opp__coachname", ".g-opp__tg"]) {
+  for (const selector of [".g-opp__name", ".g-opp__meta", ".g-opp__coachname", ".g-opp__tg"]) {
     assert.ok(valuesOf(CSS, selector, "overflow-wrap").includes("anywhere"), `${selector} wraps`);
   }
 });
@@ -372,16 +378,17 @@ test("readable: the header's words on its colour, the tint's, the links', the mu
 
 test("D2: a thumb's targets are 44 high up to 900px, a desk's 24 at least", () => {
   const px = (value) => Number(String(value).replace("px", ""));
-  for (const selector of [".g-opp__back", ".g-opp__race", ".g-opp__coachlink", ".g-opp .g-skill"]) {
+  for (const selector of [".g-opp__back", ".g-opp__race", ".g-opp__coachlink"]) {
     assert.ok(px(valuesOf(CSS, selector, "min-height")[0]) >= 44, `${selector}: a phone's`);
     assert.ok(px(inMedia(CSS, "min-width: 901px", selector, "min-height").at(-1)) >= 24, `${selector}: a desk's`);
   }
   for (const selector of [".g-opp__next", ".g-opp__coach", ".g-opp__meeting"]) assert.ok(px(valuesOf(CSS, selector, "min-height")[0]) >= 44, selector);
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-opp__tg", "min-height")[0]) >= 24);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad", "overflow-x"), ["auto"], "the roster scrolls in its card, never the page");
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__inner", "min-width"), ["620px"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__player", "grid-template-columns"), ["44px minmax(160px, 1fr) minmax(200px, 1.6fr) 44px 44px 52px"], "DeskOppTeam.html's columns");
-  assert.deepEqual(valuesOf(CSS, ".g-opp__player", "grid-template-columns")[0], "36px minmax(0, 1fr) auto", "OppTeam.html's row");
+  // The card's ring is a border the rows cannot paint over, and the table's own frame is the card (item 14 of PR 1).
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad", "border"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad .g-rtable-frame", "border"), ["0"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__squad .g-rtable-frame", "overflow"), ["visible"]);
 });
 
 test("the head line's race and coach: 44 to a thumb, 24 on a desk, and their zones never overlap — each other's on a wrapped line, the name's above, the next block's below", () => {
@@ -445,17 +452,14 @@ test("the prototypes' sizes: their padding on top of min-height, Oswald's figure
   // OppTeam.html and DeskOppTeam.html set no box-sizing: a min-height there is the content's, the padding on top of it.
   assert.deepEqual(valuesOf(CSS, ".g-opp__next", "min-height"), ["76px", "88px"], "a phone's 56 + 10·2; a desk's 64 + 12·2");
   assert.deepEqual(valuesOf(CSS, ".g-opp__meeting", "min-height"), ["76px", "0"], "a phone's 56 + 10·2; a desk's has none: its 14·2 and the score make 73");
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__player", "min-height"), ["69px"], "a desk's row: 52 + 8·2 + its rule");
   // Oswald's figures as the prototypes write them: no line height of their own, the font's (H4).
   assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi__v", "line-height"), ["normal"], "a tile 81 high");
   assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi__k", "line-height"), ["normal"], "the tile's word as the prototypes write it, right on the figure");
   assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi", "gap"), ["0"]);
   assert.deepEqual(valuesOf(CSS, ".g-opp__score", "font"), ["700 26px/normal var(--font-display)"]);
   assert.deepEqual(valuesOf(CSS, ".g-opp__squadtitle", "font"), ["700 24px/normal var(--font-display)"], "«Roster» 36 high");
-  // H1: «Pro» or «Leap» is a target as wide as it is high on a phone.
-  assert.deepEqual(valuesOf(CSS, ".g-opp .g-skill", "min-width"), ["44px", "24px"]);
-  assert.deepEqual(valuesOf(CSS, ".g-opp .g-skill", "justify-content"), ["center"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp .g-skill", "min-width"), ["24px"]);
+  // The roster's chips are the Roster's (item 14 of PR 1): this sheet sizes none of its own.
+  assert.doesNotMatch(text(CSS), /\.g-skill/);
   // H6: the title takes the focus on arrival, a place the keyboard starts from, not a control (page-head.css's).
   assert.deepEqual(valuesOf(CSS, ".g-opp__name:focus", "outline"), ["none"]);
 });
@@ -464,8 +468,8 @@ test("every key in both dictionaries", () => {
   assertDictionaryCovers("src/screens/coaches/team.mjs", "src/screens/coaches/team-model.mjs", "src/data/coaches.mjs");
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   assert.deepEqual([en["opponent.loading"], ru["opponent.loading"]], ["Reading the team…", "Читаем команду…"]);
-  assert.deepEqual([en["opponent.outDesk"], ru["opponent.outDesk"]], ["{position} · misses the match", "{position} · пропускает матч"]);
-  for (const gone of ["admin.loginToViewSavedTeams", "admin.savedRosterSubtitle", "roster.readOnly", "roster.playerDetails"]) {
+  for (const gone of ["admin.loginToViewSavedTeams", "admin.savedRosterSubtitle", "roster.readOnly", "roster.playerDetails",
+    "opponent.sub", "opponent.out", "opponent.outDesk", "opponent.col.player", "opponent.col.skills"]) {
     assert.ok(!(gone in en) && !(gone in ru), `${gone}: no reader since the 2.x public team went`);
   }
 });

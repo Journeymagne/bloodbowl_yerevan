@@ -6,10 +6,11 @@
  * A phone's page (OppTeam.html), in its order: «‹ Table», the head (the team's letters in a circle, its name, the race
  * leading to its rules, the place, the coach leading to his page — the prototype has no coach in the line, but a phone
  * has no other way to his page), «Next opponent», «Our meeting», the tiles, the form, the coach's card (his Telegram, or
- * his page for a contact the forms would refuse), the roster as rows, the note that the page is read-only. A desk's
+ * his page for a contact the forms would refuse), the roster, the note that the page is read-only. A desk's
  * (DeskOppTeam.html): the band (the circle, «‹ Season», the name, the line, Telegram at its right), then a column of
  * the next match on the header's colour, our meeting, a card of the tiles and the form and the note, beside the roster
- * as columns in a card that scrolls sideways inside itself.
+ * in a card that scrolls sideways inside itself. The roster is the Roster's table on both widths, its rows to read
+ * only and its columns unsorted (item 14 of PR 1).
  *
  * A skill's chip opens the skill's sheet of the roster (07d's `skillSheetMarkup`): its rule and, for a skill an
  * advancement rolled on the site, what the dice showed (`rollBlockMarkup` over the public rolls, stage 10 Task 1).
@@ -33,12 +34,15 @@ import { renderCallout } from "../../ui/callout.mjs";
 import { renderFormStrip } from "../../ui/form-strip.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
-import { assertLinkHref, classNames, dataAttributes } from "../../ui/markup.mjs";
+import { assertLinkHref, classNames } from "../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderResultPill } from "../../ui/result-pill.mjs";
+import { renderRosterTable } from "../../ui/roster-table.mjs";
 import { patchWithModal, wireSheets } from "../../ui/sheet.mjs";
-import { renderSkillChips, wireSkillChips } from "../../ui/skill-chip.mjs";
+import { wireSkillChips } from "../../ui/skill-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
+import { rosterCells, rosterColumns, rosterGroups } from "../team/roster/columns.mjs";
+import { absenceWords, skillChipsMarkup } from "../team/roster/panel.mjs";
 import { rollBlockMarkup } from "../team/roster/roll-view.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { SKILL_SHEET, skillSheetMarkup } from "../team/roster/sheets.mjs";
@@ -115,46 +119,32 @@ function telegramMarkup({ handle, href }) {
   return href ? link(href, "g-opp__tg", inner, OUTSIDE) : `<span class="g-opp__tg g-opp__tg--text">${inner}</span>`;
 }
 
-/** A player's chips, wrapping; none for a player with no skill (the prototypes draw nothing). */
-const chipsMarkup = (skills) => (skills.length ? `<div class="g-opp__chips">${renderSkillChips({ skills })}</div>` : "");
+/** No match of another coach's is this page's: a count says nothing a match added. */
+const PLAIN = Object.freeze({ kind: "plain" });
 
-/** The SPP figure and its word, a phone's at the right of a row. */
-const sppMarkup = (spp) => `<span class="g-opp__spp"><span class="g-opp__sppn">${escapeHtml(spp)}</span>`
-  + `<span class="g-opp__sppk">${escapeHtml(t("teamRoster.group.spp"))}</span></span>`;
+/** The Roster's columns, as labels: the order is the model's (who misses the next match last, then the SPP), not a sort of the reader's. */
+const COLUMNS = () => rosterColumns().map((column) => ({ ...column, sortable: false }));
 
-/** A phone's row (OppTeam.html): the number, the name and its line, the chips under them, the SPP. */
-const phoneRowMarkup = (row) => `<div class="g-opp__player" role="listitem"${dataAttributes({ squadKey: row.key })}>`
-  + `${renderPlayerBadge({ number: row.number, kind: "lineman", captain: row.captain })}<div class="g-opp__who">`
-  + `<span class="g-opp__pname">${escapeHtml(row.name)}</span><span class="g-opp__pline">${escapeHtml(row.line)}</span>${chipsMarkup(row.skills)}</div>`
-  + `${sppMarkup(row.spp)}</div>`;
+/** A player of the roster to read (item 14 of PR 1): the Roster's row, with why he misses the next match under his name. */
+const squadRow = (line) => ({
+  key: line.key,
+  still: true,
+  badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
+  name: line.name,
+  sub: line.skip ? absenceWords(line) : line.position,
+  alert: line.skip,
+  cells: rosterCells(line, { mode: PLAIN }),
+  skillsHtml: skillChipsMarkup(line),
+});
 
-/** A desk's row (DeskOppTeam.html): the number, the name over the position, the chips, TD, CAS and SPP in columns. */
-function deskRowMarkup(row) {
-  const cell = (className, inner) => `<span class="${className}" role="cell">${inner}</span>`;
-  const position = row.out ? t("opponent.outDesk", { position: row.position }) : row.position;
-  return `<div class="g-opp__player" role="row"${dataAttributes({ squadKey: row.key })}>`
-    + cell("g-opp__cell", renderPlayerBadge({ number: row.number, kind: "lineman", captain: row.captain }))
-    + cell("g-opp__who", `<span class="g-opp__pname">${escapeHtml(row.name)}</span><span class="g-opp__pline">${escapeHtml(position)}</span>`)
-    + cell("g-opp__cell", chipsMarkup(row.skills))
-    + cell("g-opp__num", escapeHtml(row.touchdowns)) + cell("g-opp__num", escapeHtml(row.casualties))
-    + cell("g-opp__sppn", escapeHtml(row.spp)) + "</div>";
-}
-
-/** The desk's heads of the columns: «#», «Player», «Skills», TD, CAS, SPP. */
-function columnsMarkup() {
-  const words = ["#", t("opponent.col.player"), t("opponent.col.skills"), t("teamRoster.counter.touchdowns"), t("teamRoster.counter.casualties"), t("teamRoster.group.spp")];
-  const sides = ["", "", "", "center", "center", "end"];
-  return `<div role="rowgroup"><div class="g-opp__cols" role="row">${words.map((word, at) => `<span class="${classNames("g-opp__col", sides[at] && `g-opp__col--${sides[at]}`)}" role="columnheader">${escapeHtml(word)}</span>`).join("")}</div></div>`;
-}
-
-/** «Roster» and how many; the rows, or the words for a race the reference does not know. */
+/** «Roster» and how many; the Roster's table to read, or the words for a race the reference does not know. */
 function squadMarkup(model) {
   const head = `<h2 class="g-opp__squadtitle" id="opp-squad">${escapeHtml(t("opponent.squad"))}`
     + ` <span class="g-opp__count">${escapeHtml(t("opponent.count", { count: model.squad.length }))}</span></h2>`;
-  if (!model.raceKnown) return `<section class="g-opp__squad" aria-labelledby="opp-squad">${head}<p class="g-opp__norace">${escapeHtml(t("opponent.noRace"))}</p></section>`;
-  if (model.phone) return `<section class="g-opp__squad" aria-labelledby="opp-squad">${head}<div role="list">${model.squad.map(phoneRowMarkup).join("")}</div></section>`;
-  return `<section class="g-opp__squad" aria-labelledby="opp-squad"><div class="g-opp__inner">${head}<div class="g-opp__rows" role="table" aria-labelledby="opp-squad">`
-    + `${columnsMarkup()}<div role="rowgroup">${model.squad.map(deskRowMarkup).join("")}</div></div></div></section>`;
+  const body = model.raceKnown
+    ? renderRosterTable({ label: t("teamRoster.tableLabel", { team: model.name }), columns: COLUMNS(), groups: rosterGroups(), rows: model.squad.map(squadRow) })
+    : `<p class="g-opp__norace">${escapeHtml(t("opponent.noRace"))}</p>`;
+  return `<section class="g-opp__squad" aria-labelledby="opp-squad">${head}${body}</section>`;
 }
 
 const readOnlyMarkup = () => `<p class="g-opp__readonly">${escapeHtml(t("opponent.readOnly"))}</p>`;
@@ -220,7 +210,7 @@ function wireVisit(visit, draw) {
     onGamesChange(draw),
     onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireSkillChips(view, (name, chip) => {
-      const key = chip.closest("[data-squad-key]")?.getAttribute("data-squad-key");
+      const key = chip.closest(".g-rtable__player")?.getAttribute("data-key");
       if (!key || !visit.answer || visit.answer.error) return;
       Object.assign(visit, { sheet: { key, name }, opener: chip });
       draw();
