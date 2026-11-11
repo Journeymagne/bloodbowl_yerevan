@@ -304,12 +304,11 @@ test("the markup a team draws is styled by its own sheet, the article's (the ski
   assertStyled(guest, SHEET, "src/screens/ref/article.css", "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
 });
 
-test("a phone has the cards and a desktop the table; the table is not cut to the prose's width", () => {
+test("a phone has the cards and a desktop the table", () => {
   const wide = mediaText(SHEET, "min-width: 901px");
   const narrow = mediaText(SHEET, "max-width: 900px");
   assert.match(narrow, /\.g-ref-roster\s*\{[^}]*display:\s*none;/);
   assert.match(wide, /\.g-ref-positions\s*\{[^}]*display:\s*none;/);
-  assert.match(wide, /\.g-article \.g-ref-roster\s*\{[^}]*max-width:\s*none;/);
   const outside = outsideMedia(SHEET, "max-width: 900px");
   assert.ok(!/\.g-ref-roster\s*[,{][^}]*display:/.test(outside), "nothing outside the phone's rule hides the table");
 });

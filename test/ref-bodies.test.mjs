@@ -330,16 +330,11 @@ test("the Skill Table's two shapes: up to 900px the lists, from 901px the vault'
   assertBreakpoints(SHEET);
 });
 
-test("from 901px the vault's Skill Table has the card's whole width, past the article's 820px, with snug cells so seven columns fit at 1440", () => {
+test("from 901px the vault's Skill Table has the card's whole width, as all of an article's content, with snug cells", () => {
   const { wide } = parts(SHEET);
   const rules = blocks(wide);
-  const classes = (selector) => (selector.match(/\./g) ?? []).length;
   const declared = (selector, property) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g"))].map((match) => match[1].trim()));
-  const cap = ".g-article .g-prose";
-  const desk = ".g-article .g-prose.g-ref-skilltable__desk";
-  assert.deepEqual(declared(cap, "max-width"), ["820px"], "the cap that the table has to get past");
-  assert.deepEqual(declared(desk, "max-width"), ["none"]);
-  assert.ok(classes(desk) > classes(cap), "and it wins by specificity, not by coming later");
+  assert.deepEqual(declared(".g-article .g-prose", "max-width"), [], "no cap inside the card: the text, the tables and the pager take its whole width");
   for (const part of ["th", "td"]) {
     const cell = `.g-article .g-ref-skilltable__desk ${part}`;
     assert.deepEqual(declared(cell, "padding-left"), ["var(--space-6)"], cell);

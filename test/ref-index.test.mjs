@@ -286,8 +286,7 @@ test("the head is the index's up to 900px, its title 32 and the search 20 under 
 
 test("the table of contents is the desktop's: 48px links, the current one on the surface in bold", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "display"), ["none", "flex"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "flex"), ["1 1 220px"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "max-width"), ["260px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "grid-column"), ["1"], "the grid's first column, var(--ref-nav)");
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__link", "min-height"), ["48px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__link", "border-radius"), ["var(--radius-sm)"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-toc__link[aria-current="page"]', "background"), ["var(--surface)"]);

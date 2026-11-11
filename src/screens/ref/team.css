@@ -166,14 +166,4 @@
   .g-ref-positions {
     display: none;
   }
-
-  /* The roster has ten columns: it takes the card's whole width, where the prose keeps to a line's. */
-  .g-article .g-ref-roster {
-    max-width: none;
-  }
-
-  .g-ref-team__facts,
-  .g-ref-inleague {
-    max-width: 820px;
-  }
 }

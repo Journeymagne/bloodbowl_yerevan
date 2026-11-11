@@ -467,23 +467,11 @@
 }
 
 @media (min-width: 901px) {
-  .g-ref--article .g-ref__body {
-    display: grid;
-    grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr);
-    align-items: start;
-  }
-
   .g-article {
     padding: 32px 40px;
     border-radius: var(--radius-2xl);
     background: var(--surface);
     box-shadow: var(--ring);
-  }
-
-  .g-article__head,
-  .g-article .g-prose,
-  .g-article__pager {
-    max-width: 820px;
   }
 
   .g-article__title {
@@ -493,15 +481,9 @@
   }
 
   /*
-   * The vault's Skill Table is seven columns, not a text to read: it takes the card's whole width, and
-   * its cells are snug enough that at 1440px none of them hides behind the table's own scroll (the
-   * natural width is about 810px of the 842px the card has). On a narrower desktop it scrolls sideways.
-   * Out-specifies the 820px of .g-article .g-prose above, and prose.css's first-column width of 48px.
+   * The vault's Skill Table is seven columns: snug cells, and it scrolls sideways in its card where the reference's
+   * one content width is narrower than the table (the owner, 2026-11-12). Out-specifies prose.css's first-column 48px.
    */
-  .g-article .g-prose.g-ref-skilltable__desk {
-    max-width: none;
-  }
-
   .g-article .g-ref-skilltable__desk th,
   .g-article .g-ref-skilltable__desk td {
     padding-right: var(--space-6);

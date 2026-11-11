@@ -343,54 +343,6 @@ test("a phone going back from a panel finds the list where it was read to; a lis
   });
 });
 
-/**
- * Give the fake page a layout for the list's box: 720px of 48px rows, one to a line, which scrolls. The
- * rows' tops follow the box's `scrollTop`, as a browser's do.
- */
-function withListLayout(run) {
-  const proto = Object.getPrototypeOf(view);
-  const classOf = (node) => node.getAttribute("class") ?? "";
-  const body = (node) => node.closest(".g-ref-list__body");
-  const original = Object.getOwnPropertyDescriptor(proto, "getBoundingClientRect");
-  Object.defineProperty(proto, "getBoundingClientRect", {
-    configurable: true,
-    value() {
-      if (classOf(this).includes("g-ref-list__body")) return { top: 100, bottom: 820 };
-      const index = body(this).querySelectorAll("a.g-ref-row").indexOf(this);
-      const top = 100 + index * 48 - body(this).scrollTop;
-      return { top, bottom: top + 48 };
-    },
-  });
-  Object.defineProperty(proto, "clientHeight", { configurable: true, get() { return classOf(this).includes("g-ref-list__body") ? 720 : 0; } });
-  Object.defineProperty(proto, "offsetHeight", { configurable: true, get() { return 48; } });
-  try {
-    run();
-  } finally {
-    Object.defineProperty(proto, "getBoundingClientRect", original);
-    delete proto.clientHeight;
-    delete proto.offsetHeight;
-  }
-}
-
-test("a skill opened by a link is brought into view in the list's box, which is all that moves; a row already in view stays", () => {
-  withListLayout(() => {
-    const rows = () => view.querySelectorAll("a.g-ref-row");
-    const body = () => view.querySelector(".g-ref-list__body");
-    const indexOf = (slug) => rows().findIndex((row) => row.getAttribute("href") === `#/${slug}`);
-    renderReferencePage("skills/evasive");
-    const at = indexOf("skills/evasive");
-    assert.ok(at * 48 > 720, "the row is below the fold of a box that shows fifteen");
-    assert.equal(body().scrollTop, at * 48 - (720 - 48) / 2, "it is in the middle of the box");
-    const kept = body().scrollTop;
-    renderReferencePage(rows()[at + 1].getAttribute("href").slice(2));
-    assert.equal(body().scrollTop, kept, "the next row is in view: nothing moves");
-    renderReferencePage("skills/accurate");
-    assert.equal(body().scrollTop, 0, "a link from the panel to a skill above is brought down to the top: it cannot be centred");
-    renderRefSection("skills");
-    assert.equal(body().scrollTop, 0, "a list with nothing chosen starts at its top");
-  });
-});
-
 test("every skill and trait of both vaults draws in the panel: one h1 with its name, nothing the CSP refuses, no link the router sends on", () => {
   for (const locale of ["en", "ru"]) {
     useLocale(locale);
@@ -476,9 +428,9 @@ test("the way back is a phone's link: shown up to 900px, hidden from 901px", () 
 });
 
 test("from 901px the split page's columns never wrap, and its panel stays in view while the list is read", () => {
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__body", "flex-flow"), []);
-  assert.ok(split(REF).wide.includes(".g-ref--split .g-ref__body"), "the columns are the desktop's");
+  assert.deepEqual(valuesOf(REF, ".g-ref__body", "display"), ["flex", "grid"]);
+  assert.deepEqual(valuesOf(REF, ".g-ref__body", "flex-flow"), []);
+  assert.ok(split(REF).wide.includes(".g-ref__body"), "the columns are the desktop's");
   assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
   // Sticking needs the frame's box not to be one that scrolls: the frame clips sideways for every screen (stage 13), so no rule of the reference's own does it.
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);

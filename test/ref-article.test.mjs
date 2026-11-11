@@ -403,18 +403,16 @@ test("the pager's links are 44px tall, 600 15px in the accent; the arrows are dr
   assert.ok(valuesOf(SHEET, ".g-article__next::after", "content").length >= 1);
 });
 
-test("from 901px the content stands at most 820px wide inside the card", () => {
+test("from 901px the content takes the card's whole width: the head, the text, the tables and the pager", () => {
   const { wide } = split(SHEET);
-  assert.match(wide, /max-width:\s*820px/);
+  assert.doesNotMatch(wide, /max-width:\s*820px/);
+  for (const selector of [".g-article__head", ".g-article .g-prose", ".g-article__pager"]) assert.deepEqual(valuesOf(SHEET, selector, "max-width"), [], selector);
 });
 
-test("from 901px an article is columns that never wrap: the contents as wide as a list's, the card the rest", () => {
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "align-items"), ["start"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "flex-flow"), [], "not a wrapping row");
-  assert.ok(split(SHEET).wide.includes(".g-ref--article .g-ref__body"), "the columns are the desktop's");
+test("from 901px an article stands in the reference's one grid, as wide as the Skills list; a wider table scrolls in its card", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), [], "no grid of its own: the one of every reference page");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--article .g-ref__main", "grid-column"), ["2"], "the main column, as every list's");
+  assert.deepEqual(valuesOf("src/screens/ref/prose.css", ".g-prose .table-scroll", "overflow-x"), ["auto"]);
 });
 
 test("the prose does not open with a margin of its own, and no .g-prose is inside a .content-panel", () => {

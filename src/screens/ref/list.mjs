@@ -124,6 +124,13 @@ function categoryChips(data, categories, selected) {
   return renderFilterChips({ label: t("sidebar.category"), items, selected, data: { chipGroup: CHIP_GROUP } });
 }
 
+/** What a list shows for its filter: its categories, the one chosen (one the vault does not have is All), and the rows. */
+function shownRows(data, section, filter) {
+  const categories = section === "skills" ? skillCategories(data) : [];
+  const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
+  return { categories, category, pages: listRows(data, section, { query: filter.query, category }) };
+}
+
 /**
  * A list: its title and count, its search and (for the skills) its categories, then the rows.
  *
@@ -135,9 +142,7 @@ function categoryChips(data, categories, selected) {
  * @param {string|null} [props.selectedSlug] the page open beside the list: its row is the current one, and the list's title is no longer a heading
  */
 export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null }) {
-  const categories = section === "skills" ? skillCategories(data) : [];
-  const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
-  const pages = listRows(data, section, { query: filter.query, category });
+  const { categories, category, pages } = shownRows(data, section, filter);
   const cards = section === "rules" ? overviewCards : [];
   const count = t("ref.count", { shown: pages.length + cards.length, total: sectionPages(data, section).length + cards.length });
   const title = escapeHtml(sectionTitle(section));
@@ -146,7 +151,7 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const search = label ? renderSearchField({ id: "ref-list-query", label, placeholder: label, value: filter.query, data: { listSearch: section } }) : "";
   const chips = section === "skills" ? categoryChips(data, categories, category) : "";
   const shape = SPLIT_SECTIONS.has(section) ? "" : " g-ref-list--nav";
-  // Keyed, so that the redraw which opens a skill beside the list (its way up is no longer in front of it) keeps the list's box, and with it the scroll.
+  // Keyed, so that the redraw which opens a skill beside the list (its way up is no longer in front of it) keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
     + `<div class="g-ref-list__top">${heading}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
@@ -156,27 +161,6 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
 function syncField(selector, value) {
   const field = view.querySelector(selector);
   if (field && field.value !== value) field.value = value;
-}
-
-/** The rows are a box that scrolls and that a redraw keeps, so a new set of rows starts at the top of it. */
-function rewind() {
-  const body = view.querySelector(".g-ref-list__body");
-  if (body) body.scrollTop = 0;
-}
-
-/**
- * A skill opened by a link (from a roster, from another skill's rule) may be a row below the fold of the
- * box that scrolls: the box moves to put it in the middle. Only the box: `scrollIntoView` would move the
- * page too. A row already in view stays where it is.
- */
-function revealSelected() {
-  const body = view.querySelector(".g-ref-list__body");
-  const row = body?.querySelector('[aria-current="page"]');
-  if (!row) return;
-  const box = body.getBoundingClientRect();
-  const at = row.getBoundingClientRect();
-  if (at.top >= box.top && at.bottom <= box.bottom) return;
-  body.scrollTop = Math.max(0, at.top - box.top + body.scrollTop - (body.clientHeight - row.offsetHeight) / 2);
 }
 
 /**
@@ -213,6 +197,8 @@ function draw(section, selected) {
   // A phone swaps the list for the panel, and the panel's screen starts at its top. Where the list was
   // read to is kept for the way back (below); a panel opened from anywhere but that list leaves the list at its top.
   if (phone && selected && !(sameList && shown !== null)) setListScroll(section, sameList ? (globalThis.scrollY ?? 0) : 0);
+  // A desk's panel is never an empty card (the owner, 2026-11-12): with nothing chosen it shows the first row the list shows.
+  const open = selected ?? (split && !phone ? shownRows(state.data, section, filter).pages[0] ?? null : null);
   drawScreen(view, refPageMarkup({
     layout: split ? "split" : "list",
     screen: screenOfList(section, selected, phone),
@@ -221,19 +207,13 @@ function draw(section, selected) {
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
     // With something chosen the list is hidden on a phone, and the panel brings the way back.
     mainHtml: (selected ? "" : backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }))
-      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null }),
-    panelHtml: split ? panelMarkup(section, selected) : "",
+      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: open?.slug ?? null }),
+    panelHtml: split ? panelMarkup(section, open) : "",
   }));
   syncField("#ref-list-query", filter.query);
   syncField("#ref-query", refQuery());
-  // Opening a skill redraws the same list beside it, which must stay where the coach scrolled it to.
-  if (!sameList) rewind();
   // The way back from a phone's panel is the list as it was left, not its top.
-  if (!selected) {
-    if (phone && shown !== null) globalThis.scrollTo?.(0, listScroll(section));
-    return;
-  }
-  if (selected.slug !== shown) revealSelected();
+  if (!selected && phone && shown !== null) globalThis.scrollTo?.(0, listScroll(section));
 }
 
 /**
@@ -250,12 +230,10 @@ export function renderRefSection(section, { selected = null } = {}) {
     delegate(view, "input", "[data-list-search]", (event, field) => {
       setListFilter(section, { query: field.value });
       redraw();
-      rewind();
     }),
     wireFilterChips(view, (category) => {
       setListFilter(section, { category });
       redraw();
-      rewind();
     }, { group: CHIP_GROUP }),
     wireRefSearch(view, { onQuery: goSearch }),
   ];

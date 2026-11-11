@@ -280,24 +280,34 @@
   /* DeskRef.html: the page head's band, then its main's 24 32 40 — the frame's padding, which the band goes out over. */
   .g-ref { gap: 0; }
 
+  /*
+   * Every reference page is the Skills page's grid (the owner, 2026-11-12): the contents, the main column, and the
+   * panel's column. Skills and Traits put their panel there; every other page leaves it empty, so its content is as
+   * wide as the Skills list and stands at the same place. The side columns narrow faster than the window, so the main
+   * column keeps 300px and more at 1024 (about 485 at 1440, 960 at 1920).
+   */
+  .g-ref {
+    --ref-nav: clamp(140px, 22vw - 97px, 220px);
+    --ref-side: clamp(200px, 42vw - 203px, 400px);
+  }
   .g-ref__body {
-    flex-flow: row wrap;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: var(--ref-nav) minmax(0, 1fr) var(--ref-side);
+    align-items: start;
   }
-  .g-ref__main {
-    flex: 2 1 380px;
-  }
-  .g-ref__panel {
-    flex: 1 1 320px;
-  }
+  .g-ref--list .g-ref__main,
+  .g-ref--split .g-ref__main,
+  .g-ref--article .g-ref__main { grid-column: 2; }
+  .g-ref__panel { grid-column: 3; }
+  /* The index has no contents beside it: its groups start at the left and end where every page's content ends. */
+  .g-ref--index .g-ref__main { grid-column: 1 / 3; }
 
   .g-ref-toc {
     display: flex;
-    flex: 1 1 220px;
+    grid-column: 1;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-    max-width: 260px;
   }
   .g-ref-toc__group {
     margin: 0;
@@ -340,7 +350,6 @@
   .g-ref-back { display: none; }
 
   /* Two columns of groups, each a card; the rows keep their own dividers except the last. */
-  .g-ref--index .g-ref__main { flex: 1 1 auto; }
   .g-ref-groups {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -354,24 +363,9 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
-  .g-ref-results { max-width: 760px; }
   .g-ref-group .g-list-row:last-child,
   .g-ref-results .g-list-row:last-child { border-bottom: 0; }
 
-  /*
-   * The lists and the split pages are a grid, not a row that wraps: the contents and the panel take
-   * what the window gives them between a floor and a ceiling, and the list takes the rest. A row that
-   * wrapped would drop the panel under the list from a window as wide as 1256px. At 1440 the columns
-   * are DeskRef's (contents 254–260, panel 402: the list one column of rows, as there); they narrow
-   * faster than the window, so at 1024 the list keeps 300px and more (stage 11: no panel under it).
-   */
-  .g-ref--list .g-ref__body,
-  .g-ref--split .g-ref__body {
-    display: grid;
-    align-items: start;
-  }
-  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr); }
-  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px); }
   /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
   .g-ref--split .g-ref__panel {
     position: sticky;
@@ -380,7 +374,7 @@
     overflow-y: auto;
   }
 
-  /* The list is a card: its head, then its rows in columns, scrolling from 720px. */
+  /* The list is a card: its head, then its rows in columns; the page scrolls, not the rows under the head. */
   .g-ref-list {
     border-radius: var(--radius-2xl);
     background: var(--surface);
@@ -401,13 +395,23 @@
     grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
     gap: 2px var(--space-8);
     align-content: start;
-    max-height: 720px;
     margin-top: 0;
     padding: var(--space-6) var(--space-8) var(--space-10);
-    overflow-y: auto;
   }
-  /* A row that says two lines and has a chevron wants more room than a letter and a name. */
-  .g-ref-list--nav .g-ref-list__body { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+  /*
+   * A row that says two lines and has a chevron wants more room than a letter and a name. In columns, a line under each
+   * row would stay under every row of the last line but the very last: the line is over each row instead, and the
+   * first line's lies on the head's rule.
+   */
+  .g-ref-list--nav .g-ref-list__body {
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    margin-top: -1px;
+    padding-top: 0;
+  }
+  .g-ref-list--nav .g-ref-list__body .g-list-row {
+    border-top: 1px solid var(--line);
+    border-bottom: 0;
+  }
   .g-ref-list__body .g-list-row { padding-inline: var(--space-10); }
   .g-ref-list__subtitle,
   .g-ref-list__body .g-ref-empty { grid-column: 1 / -1; }
