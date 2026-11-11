@@ -45,11 +45,11 @@ test("staff as counters: Team Re-rolls only up, the others both ways, each close
   const counter = (key) => card.querySelector(`[data-resource-key="${key}"]`);
   assert.deepEqual(card.querySelectorAll("[data-resource-key]").map((row) => row.getAttribute("data-resource-key")), ["teamRerolls", "assistantCoaches", "cheerleaders", "apothecary", "bribes"]);
   assert.equal(counter("bribes").querySelector(".g-resource__note").textContent, "100k · now 0", "bribes for every race, at 100k without Bribery and Corruption");
-  assert.equal(counter("teamRerolls").querySelector(".g-resource__name").textContent, "Team Re-rolls · buy more");
+  assert.equal(counter("teamRerolls").querySelector(".g-resource__name").textContent, "Team Rerolls · buy more");
   assert.equal(counter("teamRerolls").querySelector(".g-resource__note").textContent, "120k each · now 0");
   assert.ok(counter("teamRerolls").querySelector('[data-resource-step="-1"]').hasAttribute("disabled"), "Team Re-rolls are only bought");
   assert.equal(counter("teamRerolls").querySelector('[data-resource-step="1"]').getAttribute("aria-disabled"), null);
-  assert.match(card.querySelector(".g-after__note").textContent, /Team Re-rolls can only be bought after a match; they cannot be sold\./);
+  assert.match(card.querySelector(".g-after__note").textContent, /Team Rerolls can only be bought after a match; they cannot be sold\./);
   assert.equal(counter("assistantCoaches").querySelector(".g-resource__note").textContent, "10k · now 6");
   assert.equal(counter("assistantCoaches").querySelector('[data-resource-step="1"]').getAttribute("title"), "Assistant Coaches: maximum is 6.");
   assert.ok(!counter("assistantCoaches").querySelector('[data-resource-step="-1"]').hasAttribute("disabled"), "the others go both ways");
@@ -61,7 +61,7 @@ test("staff as counters: Team Re-rolls only up, the others both ways, each close
   assert.equal(draw(modelAt(poor)).querySelector('[data-resource-key="teamRerolls"] [data-resource-step="1"]').getAttribute("title"), "Not enough treasury · 70k");
   // Re-rolls and Start Re-rolls together: eight at most.
   const full = atRoster(begin({ home: { more: { teamRerolls: 3, startingRerolls: 5 }, treasury: 500 } }));
-  assert.equal(draw(modelAt(full)).querySelector('[data-resource-key="teamRerolls"] [data-resource-step="1"]').getAttribute("title"), "Team Re-rolls and Start Re-rolls: 8 at most");
+  assert.equal(draw(modelAt(full)).querySelector('[data-resource-key="teamRerolls"] [data-resource-step="1"]').getAttribute("title"), "Team Rerolls and Starting Rerolls: 8 at most");
   // Read only once passed.
   const passed = modelOf(reach(state, { home: 4, away: 4 }), "roster");
   assert.ok(draw(passed).querySelectorAll("[data-resource-step]").every((button) => button.getAttribute("aria-disabled") === "true"));

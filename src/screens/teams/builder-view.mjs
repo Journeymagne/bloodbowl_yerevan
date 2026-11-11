@@ -53,17 +53,10 @@ const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
 /** The staff the build sells as a switch, not a count: a medic is bought once. */
 const isMedic = (key) => medicalStaffDefinitions.some((staff) => staff.key === key);
 
-/** What a staff is called: the dictionary's word for the counted ones, the rule table's title for a medic. */
-function staffTitle(key) {
-  switch (key) {
-    case "startingRerolls": return t("savedRoster.startingRerolls");
-    case "dedicatedFans": return t("savedRoster.dedicatedFans");
-    case "assistantCoaches": return t("savedRoster.assistantCoaches");
-    case "cheerleaders": return t("savedRoster.cheerleaders");
-    case "bribes": return t("savedRoster.bribes");
-    default: return medicalStaffDefinitions.find((staff) => staff.key === key)?.title ?? key;
-  }
-}
+const STAFF_KEYS = new Set(["startingRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes", ...medicalStaffDefinitions.map(({ key }) => key)]);
+
+/** What a staff is called: the dictionary's word, the one the team page and the administration use. */
+const staffTitle = (key) => (STAFF_KEYS.has(key) ? t(`savedRoster.${key}`) : key);
 
 /**
  * A refusal of the build, `{ code, params }`, in words. The staff codes carry

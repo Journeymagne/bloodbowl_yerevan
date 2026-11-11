@@ -91,7 +91,7 @@ test("an active team's resources: Starting rerolls closed with the stage's words
   assert.equal(section.querySelector("p.g-manage__note").textContent, en["treasury.resources.note"]);
   assert.deepEqual(section.querySelectorAll("[data-resource-key]").map((node) => node.getAttribute("data-resource-key")), COUNTER_KEYS);
 
-  assert.equal(document.querySelector('[data-resource-key="startingRerolls"].g-resource--locked .g-resource__note').textContent, "Starting rerolls are bought only while the team is being built");
+  assert.equal(document.querySelector('[data-resource-key="startingRerolls"].g-resource--locked .g-resource__note').textContent, "Starting Rerolls are bought only while the team is being built");
   assert.equal(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, "Not enough in the treasury\u00a0·\u00a0120k");
   assert.equal(plus("teamRerolls").getAttribute("aria-disabled"), "true");
   assert.equal(plus("teamRerolls").getAttribute("title"), "Not enough in the treasury\u00a0·\u00a0120k");
@@ -166,7 +166,7 @@ test("a refused step is heard, not sent", async () => {
     await settle();
   });
   const [heard] = toasts();
-  assert.equal(heard.text, "Starting rerolls are bought only while the team is being built");
+  assert.equal(heard.text, "Starting Rerolls are bought only while the team is being built");
   assert.match(heard.tone, /g-toast--error/);
   assert.equal(api.calls.length, 0);
 });
@@ -195,7 +195,7 @@ test("a stage lock lets a purchase on record be taken back: the row is open to �
 test("Starting and Team rerolls share eight: at the line the plus says so, naming both", async () => {
   coach({ roster: { startingRerolls: 3, teamRerolls: 5 } });
   draw();
-  const title = "Starting rerolls + Team Rerolls: maximum is 8.";
+  const title = "Starting Rerolls + Team Rerolls: maximum is 8.";
   assert.equal(plus("teamRerolls").getAttribute("title"), title);
   assert.equal(counter("teamRerolls").querySelector(".g-resource__note--danger"), null, "a maximum is not a shortage");
   assert.equal(counter("teamRerolls").querySelector(".g-resource__note").textContent, "120k · bought in the season");
@@ -454,7 +454,7 @@ test("a busy section says so to a screen reader, and the wiring stops when it is
 test("the words of a row, by what closes it", () => {
   coach();
   const words = Object.fromEntries(rowsOf().map((row) => [row.key, resourceWords(row)]));
-  assert.deepEqual(words.startingRerolls, { name: "Starting rerolls", note: "60k · only while building", noteTone: "", lockedReason: en["treasury.lock.startingRerolls"], incBlockedReason: en["treasury.lock.startingRerolls"], caption: "" });
+  assert.deepEqual(words.startingRerolls, { name: "Starting Rerolls", note:"60k · only while building", noteTone: "", lockedReason: en["treasury.lock.startingRerolls"], incBlockedReason: en["treasury.lock.startingRerolls"], caption: "" });
   assert.deepEqual(words.teamRerolls, { name: "Team Rerolls", note: "Not enough in the treasury\u00a0·\u00a0120k", noteTone: "danger", lockedReason: "", incBlockedReason: "Not enough in the treasury\u00a0·\u00a0120k", caption: "" });
   assert.equal(words.dedicatedFans.lockedReason, "Change only after matches");
   assert.deepEqual([words.bribes.note, words.bribes.lockedReason, words.bribes.incBlockedReason], ["100k each", "", ""]);

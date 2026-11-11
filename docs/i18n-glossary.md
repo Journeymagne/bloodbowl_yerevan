@@ -456,7 +456,8 @@ as Russian typography would have it. A new short label follows it. Sentences kee
 | Building the team | Набор команды | 08 · `treasury.phase.draft`; note 5 |
 | Correct by hand · Fix by hand | Исправить вручную | 08 · `treasury.fix.title` (the treasury); 07d · `teamPlayer.fix.title` (a player); note 1 |
 | Coach's Safe | Coach's Safe | 08, 09b · `treasury.safeTitle`, `after.safe`; the plain word "safe" is «сейф» (`after.toSafe`) |
-| Bribes | Bribes · Взятки | 08 · `treasury.strip.bribes` (English in both); 06, 12 · `savedRoster.bribes`, `adminTeam.staff.bribes`; note 5 |
+| Bribes | Взятки | 06, 08, 12 · `savedRoster.bribes`, `treasury.strip.bribes`; note 5 |
+| Starting Rerolls · Team Rerolls | Стартовые рероллы · Командные рероллы | 06, 08, 09b, 12 · `savedRoster.startingRerolls`, `savedRoster.teamRerolls`; note 5 |
 | Before the match | Перед матчем | 09a · `prep.title`, `matches.before.title`, `guestHome.tile.match` |
 | Inducements | Индьюсменты | 09a · `pre.step.inducements`, `matches.inducements`, `prep.ind.title`; note 6 |
 | Journeymen | Journeymen | 09a · `prep.roster.journeymen`; note 6 |
@@ -512,12 +513,19 @@ as Russian typography would have it. A new short label follows it. Sentences kee
    матчам» beside it.
 5. **08.**
    - "Credit / Debit" are "Add" / "Take", and "Team draft" is "Building the team".
-   - **Bribes is written two ways.** The treasury's strip writes "Bribes" in both languages, like the
-     strip's other short English labels (as the prototype does, stage 08). The builder (06) and the
-     admin's staff (12) say «Взятки».
+   - **One name per staff item (owner's review of PR 1).** The builder (06), the team page and its
+     strip (08), the post-match (09b) and the administration (12) all take a staff item's name from
+     `savedRoster.<key>`; the strip's short label (`treasury.strip.<key>`) shortens that name and
+     never changes language. So Bribes is «Взятки» on the strip too, Dedicated Fans «Фанаты», the
+     Apothecary «Апотекарий» (`savedRoster.apothecary`). Assistant Coaches, Cheerleaders, Mortuary
+     Assistant and Plague Doctor stay English everywhere, their strip labels too («Coaches», «Cheer»,
+     «Assistant», «Doctor»).
+   - **Rerolls, not Re-rolls.** English UI copy writes "Starting Rerolls" / "Team Rerolls" (as the
+     sidebar's "Rerolls" and the rules' **Rerolls:** label); Russian «стартовые / командные рероллы»,
+     never "Start Re-rolls" / "Team Re-rolls" inside a Russian sentence.
    - The content's inducement is "Bribe" (`content/Gata/Inducements/Bribe.md`). The rule "Inducement
-     names used as UI labels elsewhere" above keeps that name English. Stage 13 does not settle this:
-     the words stay as built.
+     names used as UI labels elsewhere" above keeps that inducement's name English; the team's staff
+     counter is UI, «Взятки».
 6. **09a.**
    - **Inducements.** The match screens say «Индьюсменты» in Russian: the step, the tile, the card and
      the category switch. This is a deliberate UI exception to "Inducements" staying English, like the

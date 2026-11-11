@@ -128,11 +128,11 @@ test("a team whose race has not come yet still has its treasury and counters, an
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1"]);
 });
 
-test("the strip reads in Russian: the labels the prototype shortens are shortened, the staff's names stay English", () => {
+test("the strip reads in Russian: the labels the prototype shortens are shortened, the staff's English names stay English", () => {
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   initLocale("ru");
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Казна", "Старт рер", "Ком рер", "Фаны", "Coaches", "Cheer", "Bribes", "Апот"]);
+  assert.deepEqual(labels(), ["Казна", "Старт рер", "Ком рер", "Фанаты", "Coaches", "Cheer", "Взятки", "Апот"]);
   assert.equal(values().at(-1), "есть");
   assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Казна и ресурсы");
   assert.equal(document.querySelector("a.g-funds__edit").getAttribute("aria-label"), "Команда, казна и ресурсы");
@@ -148,12 +148,14 @@ test("every counter and medic has its label, and the strip's words, in both dict
     for (const key of ["treasury.title", "treasury.strip.yes", "treasury.strip.no"]) assert.ok(dictionary[key], key);
     assert.equal(dictionary["treasury.strip.edit"], undefined, "the pencil is named for the page it leads to");
   }
+  // Owner's review of PR 1: the strip says what the team page says, shortened («Взятки», not «Bribes»).
   assert.deepEqual(
-    ["startingRerolls", "teamRerolls", "dedicatedFans", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
-    ["Старт рер", "Ком рер", "Фаны", "Апот"],
+    ["startingRerolls", "teamRerolls", "dedicatedFans", "bribes", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
+    ["Старт рер", "Ком рер", "Фанаты", "Взятки", "Апот"],
   );
-  for (const key of ["assistantCoaches", "cheerleaders", "bribes", "mortuaryAssistant", "plagueDoctor"]) {
+  for (const key of ["assistantCoaches", "cheerleaders", "mortuaryAssistant", "plagueDoctor"]) {
     assert.equal(ru[`treasury.strip.${key}`], en[`treasury.strip.${key}`], `${key} is the staff's own name in both languages`);
+    assert.equal(ru[`savedRoster.${key}`], en[`savedRoster.${key}`], `${key}: the team page keeps it English too`);
   }
 });
 

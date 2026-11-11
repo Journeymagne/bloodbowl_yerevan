@@ -432,7 +432,7 @@ test("the staff the race may buy: counters with their price, medics as switches,
   const fragment = mount(builderMarkup({ race: human, draft: filled() }));
   const counter = (key) => fragment.querySelector(`[data-resource-key="${key}"]`);
   assert.deepEqual(["startingRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes"].map((key) => counter(key) !== null), [true, true, true, true, true]);
-  assert.equal(counter("startingRerolls").querySelector(".g-resource__name").textContent, "Starting rerolls");
+  assert.equal(counter("startingRerolls").querySelector(".g-resource__name").textContent, "Starting Rerolls");
   assert.equal(counter("startingRerolls").querySelector(".g-resource__note").textContent, "60k each");
   assert.equal(counter("startingRerolls").querySelector(".g-resource__value").textContent, "1");
   assert.equal(counter("dedicatedFans").querySelector(".g-resource__note").textContent, "10k · in the season they change only after matches");
@@ -443,7 +443,7 @@ test("the staff the race may buy: counters with their price, medics as switches,
   assert.match(fragment.querySelector(".g-toggle").textContent, /Apothecary\s*50k/);
   // Stage 12 (decision 26): the team is saved as a draft, which buys Start Re-rolls on its page too; Team Re-rolls wait for the season.
   assert.match(fragment.querySelector(".g-build__staff").textContent,
-    /Start Re-rolls cost 60k while the team is in its build: buy them now or later on the team's page, while it is in the build\. Team Re-rolls at 120k — on the team's page once it is in the season; an administrator can move the team into the season\./);
+    /Starting Rerolls cost 60k while the team is in its build: buy them now or later on the team's page, while it is in the build\. Team Rerolls at 120k — on the team's page once it is in the season; an administrator can move the team into the season\./);
 
   const mob = newBuild(goblin, { name: "G" });
   stepStaff(goblin, mob, "bribes", 1);
@@ -575,7 +575,7 @@ test("the rule's words for the four refusals the build gives are in both diction
   assert.deepEqual(refusals.map((refusal) => refusal.code), ["POSITION_MAX", "ROSTER_MAX_PLAYERS", "STAFF_MAX", "STAFF_UNAVAILABLE"]);
   const said = {
     en: ["Ogre: maximum is 1.", "A team has at most 14 players (now 14).", "Assistant Coaches: maximum is 6.", "Apothecary: not for this race."],
-    ru: ["Ogre: максимум 1.", "Игроков в команде — не больше 14 (сейчас 14).", "Assistant Coaches: максимум 6.", "Apothecary: этой расе недоступно."],
+    ru: ["Ogre: максимум 1.", "Игроков в команде — не больше 14 (сейчас 14).", "Assistant Coaches: максимум 6.", "Апотекарий: этой расе недоступно."],
   };
   for (const locale of ["en", "ru"]) {
     initLocale(locale);
@@ -647,7 +647,7 @@ test("the totals add up to the build's own numbers", () => {
 });
 
 test("the desk's three sums are named in both languages (newTeam.totals.*)", () => {
-  const labels = { en: ["Players", "Staff and re-rolls", "Total"], ru: ["Игроки", "Персонал и Re-rolls", "Всего"] };
+  const labels = { en: ["Players", "Staff and rerolls", "Total"], ru: ["Игроки", "Персонал и рероллы", "Всего"] };
   for (const locale of ["en", "ru"]) {
     initLocale(locale);
     try {

@@ -463,7 +463,7 @@ test("every key in both dictionaries", () => {
   assert.deepEqual(["playoff", "playoffPlaces", "playoffNote", "entriesCount", "addEntry", "entryActive", "entryBuild", "activate", "withdraw", "withdrawn", "noCandidates", "entriesNote"]
     .map((key) => ru[`adminSeason.${key}`]), ["Плей-офф", "Мест в плей-офф", "Таблица проведёт черту после этого места. Пусто — зоны нет.", "Участники · {count}", "+ Участник",
     "в сезоне", "набор · потрачено {spent} из {budget}", "Перевести в сезон", "Снять с сезона", "Сняты с сезона · {count}", "Все команды тренеров уже заявлены",
-    "Снятая команда остаётся в таблице и истории, но не попадает в новые туры. Перевод из набора в сезон закрывает Start Re-rolls и открывает Team Re-rolls."]);
+    "Снятая команда остаётся в таблице и истории, но не попадает в новые туры. Перевод из набора в сезон закрывает стартовые рероллы и открывает командные."]);
 });
 
 test("readable: the statuses, the coach, the buttons, in every palette", () => {

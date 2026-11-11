@@ -71,7 +71,7 @@ function staffOf(race) {
   return ADMIN_STAFF.filter((key) => COUNTER_KEYS.includes(key) || medics.has(key));
 }
 
-const staffName = (key) => t(`adminTeam.staff.${key}`);
+const staffName = (key) => t(`savedRoster.${key}`);
 
 /** How many of `key` the team may hold: its own maximum, the two re-roll counters what the other leaves of eight. */
 function staffMax(key, draft) {
