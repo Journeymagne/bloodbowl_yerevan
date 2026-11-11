@@ -52,7 +52,7 @@ import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
 import { fixSheetMarkup } from "./fix.mjs";
 import { editSheetMarkup, unadvanceSheetMarkup } from "./player-sheets.mjs";
-import { rollBlockMarkup } from "./roll-view.mjs";
+import { rollNotesMarkup } from "./roll-view.mjs";
 import { foundMarkup, lineMatches, queryWords, searchFieldMarkup } from "./search.mjs";
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
@@ -432,7 +432,7 @@ export function sheetMarkup(screen) {
   if (sheet.kind === "advance") return advanceSheetMarkup({ line, screen, sheet });
   if (sheet.kind === "unadvance") return unadvanceSheetMarkup({ line, screen, sheet });
   if (sheet.kind === "fix") return fixSheetMarkup({ line, screen, sheet });
-  return skillSheetMarkup({ data: screen.data, line, name: sheet.name, advancementHtml: rollBlockMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
+  return skillSheetMarkup({ data: screen.data, line, name: sheet.name, notesHtml: rollNotesMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
 }
 
 /**

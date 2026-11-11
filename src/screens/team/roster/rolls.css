@@ -334,46 +334,6 @@
 }
 
 /*
- * A skill's sheet (StatsSkill.html has none; Task 11, decision 19): how an advancement gave the skill, between the rule
- * and whose skill it is, 12 over them, its parts 6 apart — the line 14/600 in --ink-2, as the words of the box under it;
- * what the site's roll showed («Rolled: A and B», §9.5) 13px/1.45 in --ink-2; the read of it 13px, quiet, a failed one
- * in --danger.
- */
-#roster-skill .g-roster__rollblock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  margin: var(--space-12) 0 0;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-#roster-skill .g-roster__rollline,
-#roster-skill .g-roster__rollpair,
-#roster-skill .g-roster__rollstate {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  letter-spacing: 0;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
-#roster-skill .g-roster__rollline {
-  color: var(--ink-2);
-  font: 600 14px/1.4 var(--font-body);
-}
-#roster-skill .g-roster__rollpair {
-  color: var(--ink-2);
-  font: 400 13px/1.45 var(--font-body);
-}
-#roster-skill .g-roster__rollstate {
-  color: var(--muted);
-  font: 400 13px/normal var(--font-body);
-}
-#roster-skill .g-roster__rollstate--bad { color: var(--danger); }
-
-/*
  * Adv3Random, Adv3Stat, Adv3StatTable: the way's segments from 44px (D2; 40 in the prototype), its line centred; the die
  * 6 above and below; the result centred, from 22px; the faces 10 apart across, 6 8, 8 round — those marked at the table
  * from 44px (D2; 32), on --surface, the site's list from 32px as the prototype; the D8's faces eight to a row, from 44px.

@@ -209,8 +209,9 @@ test("the sheet's box says whose skill it is: a skill an advancement gave, by th
     fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
     return said;
   };
-  assert.deepEqual(boxOf("Dodge"), ["Bors · Random primary", "g-roster__from g-roster__from--gained"]);
-  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Primary", "g-roster__from g-roster__from--gained"]);
+  // Item 6 of PR 2: the advancement once, in the tag, with its number.
+  assert.deepEqual(boxOf("Dodge"), ["Bors · Advancement 1 · Random primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Advancement 2 · Primary", "g-roster__from g-roster__from--gained"]);
   assert.deepEqual(boxOf("Block"), ["Bors · Starting", "g-roster__from"]);
 });
 

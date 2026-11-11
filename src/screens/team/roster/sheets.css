@@ -6,9 +6,14 @@
 /*
  * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html: 14px
  * at 600, radius 12), coloured as the chip that opened it (skill-chip.css; the owner, 2026-11-08): a starting skill's
- * white in the controls' ring, a gained one's green, the captain's gold; a skill the reference has no page for.
+ * white in the controls' ring, a gained one's green, the captain's gold; a skill the reference has no page for. Under its
+ * line, for a skill an advancement gave, how it was rolled and what the site's dice showed (item 6 of PR 2), smaller, in
+ * the box's own ink: the box is the one place the advancement is said.
  */
 .g-roster__from {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: var(--space-12) 0 0;
   padding: var(--space-10) var(--space-12);
   border: 0;
@@ -19,6 +24,7 @@
   font: 600 14px/1.4 var(--font-body);
   letter-spacing: 0;
   text-transform: none;
+  overflow-wrap: anywhere;
 }
 /* A skill an advancement gave: the accent's tint, as its chip (StatsSkill.html's #E4F0E9 on #163A28). */
 .g-roster__from--gained {
@@ -26,12 +32,18 @@
   box-shadow: none;
   color: var(--on-accent-tint);
 }
-/* The captain's own skill: the badge's «C», as its chip. */
+/* The captain's own skill: the badge's «C», as its chip, in the chip's darker ring. */
 .g-roster__from--captain {
   background: var(--crest-gold);
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px var(--crest-gold-ring);
   color: var(--pitch-900);
 }
+.g-roster__fromline { font-weight: 600; }
+.g-roster__rollline,
+.g-roster__rollpair,
+.g-roster__rollstate { font: 400 13px/1.45 var(--font-body); }
+.g-roster__rollline::first-letter { text-transform: uppercase; }
+.g-roster__rollstate--bad { color: var(--danger); }
 
 .g-roster__nopage {
   margin: 0;

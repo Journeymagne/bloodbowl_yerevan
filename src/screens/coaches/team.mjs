@@ -13,7 +13,7 @@
  * only and its columns unsorted (item 14 of PR 1).
  *
  * A skill's chip opens the skill's sheet of the roster (07d's `skillSheetMarkup`): its rule and, for a skill an
- * advancement rolled on the site, what the dice showed (`rollBlockMarkup` over the public rolls, stage 10 Task 1).
+ * advancement rolled on the site, what the dice showed (`rollNotesMarkup` over the public rolls, stage 10 Task 1).
  * Closing it gives the focus back to the chip. No row leads to a player: an opponent's career is his coach's (07e).
  *
  * One's own team at this address goes to its overview (decision 23). A read the server refused says why, under the
@@ -43,7 +43,7 @@ import { wireSkillChips } from "../../ui/skill-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterCells, rosterColumns, rosterGroups } from "../team/roster/columns.mjs";
 import { absenceWords, skillChipsMarkup } from "../team/roster/panel.mjs";
-import { rollBlockMarkup } from "../team/roster/roll-view.mjs";
+import { rollNotesMarkup } from "../team/roster/roll-view.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { SKILL_SHEET, skillSheetMarkup } from "../team/roster/sheets.mjs";
 import { opponentModel, wayBack } from "./team-model.mjs";
@@ -153,7 +153,7 @@ const readOnlyMarkup = () => `<p class="g-opp__readonly">${escapeHtml(t("opponen
 function sheetMarkup(model, sheet, data) {
   const line = sheet && model.lines.find((item) => item.key === sheet.key);
   if (!line || !line.skills.some(({ name }) => name === sheet.name)) return "";
-  return skillSheetMarkup({ data, line, name: sheet.name, advancementHtml: rollBlockMarkup({ line, skill: sheet.name, rolls: { rolls: model.rolls } }) });
+  return skillSheetMarkup({ data, line, name: sheet.name, notesHtml: rollNotesMarkup({ line, skill: sheet.name, rolls: { rolls: model.rolls } }) });
 }
 
 /**
@@ -169,12 +169,14 @@ export function opponentMarkup(model, { sheet = null, failures = {}, data = stat
   if (model.phone) {
     return `<div class="g-opp g-opp--phone" data-screen="coach-team">${backMarkup(model.back)}<div class="g-opp__id">${idMarkup(model)}</div>`
       + `${failuresMarkup(failures)}${nextMarkup(model.next)}${meetingMarkup(model.meeting)}${tiles}${formMarkup(model.form)}`
-      + `${coachCardMarkup(model)}${play}${squad}${readOnlyMarkup()}${sheetHtml}</div>`;
+      + `${coachCardMarkup(model)}${play}${squad}${readOnlyMarkup()}</div>${sheetHtml}`;
   }
   const card = tiles || model.form.length ? `<section class="g-opp__card">${tiles}${formMarkup(model.form)}</section>` : "";
+  // The skill's sheet stands beside the page, not in it: the page's resets (`.g-opp :where(h1, h2, p)`) are as strong as
+  // the sheet's own classes and come after them, and stripped its tag and its rule's margins (item 13 of PR 2).
   return `<div class="g-opp g-opp--desk" data-screen="coach-team"><header class="g-opp__head"><div class="g-opp__id">${idMarkup(model)}</div>`
     + `${telegramMarkup(model.telegram)}</header><div class="g-opp__body"><div class="g-opp__left">${failuresMarkup(failures)}${nextMarkup(model.next)}`
-    + `${meetingMarkup(model.meeting)}${card}${play}${readOnlyMarkup()}</div>${squad}</div>${sheetHtml}</div>`;
+    + `${meetingMarkup(model.meeting)}${card}${play}${readOnlyMarkup()}</div>${squad}</div></div>${sheetHtml}`;
 }
 
 /** The page while the team is read, and the page of a read refused: the way back and the title alone. */

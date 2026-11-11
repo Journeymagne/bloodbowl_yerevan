@@ -20,7 +20,7 @@
  * roll is closed, `rollReason`, and whether one is out, `busy`), what it offers him (`choicesOf`), and whether it is a
  * desk's. What the sheet says of its roll, and a random skill's pair as it stands (`pairOf`, `pickedDie`), are this
  * module's too — pure, of the sheet and its choices — which advance.mjs's presses read (T21 fix round 1, M6). A skill's
- * sheet says how an advancement gave the skill, and for a site roll what its dice showed (`rollBlockMarkup`).
+ * sheet's tag says how an advancement's roll was made, and for a site roll what its dice showed (`rollNotesMarkup`).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -180,11 +180,11 @@ export function rollButtonMarkup({ sheet, choices }, label) {
   return footButton({ label, kind: "primary", data: { advanceRoll: true }, busy: Boolean(sheet.busy), reason });
 }
 
-/** The line of the skill's sheet that says what the site's roll showed: its dice's skills (`diceWords`); none for a roll that shows none. */
-const rollPairMarkup = (words) => (words ? `<p class="g-roster__rollpair">${escapeHtml(words)}</p>` : "");
+/** The tag's small line that says what the site's roll showed: its dice's skills (`diceWords`); none for a roll that shows none. */
+const rollPairMarkup = (words) => (words ? `<span class="g-roster__rollpair">${escapeHtml(words)}</span>` : "");
 
-/** A line of the skill's sheet about a site roll: read, on its way, failed (`bad`), or not on the site. */
-const rollStateMarkup = (words, bad = false) => `<p class="${classNames("g-roster__rollstate", bad && "g-roster__rollstate--bad")}" role="status">${escapeHtml(words)}</p>`;
+/** The tag's small line about a site roll: read, on its way, failed (`bad`), or not on the site. */
+const rollStateMarkup = (words, bad = false) => `<span class="${classNames("g-roster__rollstate", bad && "g-roster__rollstate--bad")}" role="status">${escapeHtml(words)}</span>`;
 
 /**
  * The roll a site advancement of his names, among the team's rolls as read (`readRolls`, which answers every player's,
@@ -223,20 +223,20 @@ function siteRollMarkup(line, taken, rolls) {
 }
 
 /**
- * How an advancement gave a skill, in the skill's sheet (decision 19; StatsSkill.html has none): «Advancement 1 · Random
- * primary skill · rolled on the site» — a chosen one without the way — and for a site roll what its dice showed
- * (`siteRollMarkup`), the roll read once a visit (player.mjs). Nothing for a skill no advancement gave.
+ * How an advancement gave a skill, as the small lines of the skill sheet's tag (sheets.mjs `skillSheetMarkup`, whose
+ * own line names the advancement, item 6 of PR 2): how it was rolled — «rolled on the site», «rolled at the table», none
+ * for a chosen one — and for a site roll what its dice showed (`siteRollMarkup`), the roll read once a visit. Nothing for
+ * a skill no advancement gave. Spans, one a line: the tag is a box of lines, and a later line (a god's bonus skill) joins them.
  *
  * @param {{line: import("./model.mjs").PlayerLine, skill: string, rolls: null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}}} props
  *   `rolls` the team's rolls as the visit read them; on its way, a read keeps the list read before it
  */
-export function rollBlockMarkup({ line, skill, rolls }) {
+export function rollNotesMarkup({ line, skill, rolls }) {
   const at = line.skills.find(({ name }) => name === skill)?.advancement ?? null;
   const taken = at === null ? null : line.advancements[at];
   if (!taken) return "";
-  const [level, type] = [at + 1, t(`teamAdvance.type.${taken.type}`)];
-  const words = taken.via ? t("teamPlayer.roll.line", { level, type, via: t(`teamPlayer.via.${taken.via}`) }) : t("teamPlayer.roll.lineBare", { level, type });
-  return `<div class="g-roster__rollblock"><p class="g-roster__rollline">${escapeHtml(words)}</p>${siteRollMarkup(line, taken, rolls)}</div>`;
+  const via = taken.via ? `<span class="g-roster__rollline">${escapeHtml(t(`teamPlayer.via.${taken.via}`))}</span>` : "";
+  return `${via}${siteRollMarkup(line, taken, rolls)}`;
 }
 
 /**

@@ -205,7 +205,11 @@ test("a gained skill's chip opens its rule and what the dice showed", async () =
   assert.equal(sheet.querySelector("h2").textContent, "Wrestle");
   assert.ok(sheet.querySelector(".g-prose"), "the rule");
   assert.equal(sheet.querySelector(".g-roster__rollpair").textContent, t("teamPlayer.roll.pair", { first: "Wrestle", second: "Fend" }));
-  assert.match(sheet.querySelector(".g-roster__rollline").textContent, /^Advancement 1 · /);
+  assert.equal(sheet.querySelector(".g-roster__fromline").textContent, "Brakk · Advancement 1 · Random primary");
+  assert.equal(sheet.querySelector(".g-roster__rollline").textContent, "rolled on the site");
+  // Item 13 of PR 2: the sheet stands beside the page, out of reach of its resets, its tag drawn as the Roster's.
+  assert.equal(sheet.closest(".g-opp"), null);
+  assert.equal(sheet.querySelector(".g-roster__from").getAttribute("class"), "g-roster__from g-roster__from--gained");
   // A roll the answer does not hold: said so, no error.
   await visit({ rolls: [] }, { phone: true });
   fireEvent(rows()[0].querySelector('[data-skill="Wrestle"]'), "click");
@@ -219,7 +223,10 @@ test("a starting skill's chip opens the rule alone", async () => {
   assert.ok(sheet?.isModal);
   assert.equal(sheet.querySelector("h2").textContent, "Block");
   assert.ok(sheet.querySelector(".g-prose"));
-  assert.equal(sheet.querySelector(".g-roster__rollblock"), null, "no advancement's line");
+  assert.equal(sheet.querySelector(".g-roster__rollline"), null, "no advancement's line");
+  assert.equal(sheet.closest(".g-opp"), null, "on a desk too, beside the page");
+  // What stripped the tag (item 13 of PR 2): a reset of the page as strong as the tag's own class, after it.
+  assert.ok(valuesOf(CSS, ".g-opp :where(h1, h2, p)", "padding").length, "the page's reset is still there, and still the page's alone");
 });
 
 test("closing gives the focus back to the chip; leaving closes the sheet", async () => {

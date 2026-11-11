@@ -549,6 +549,13 @@ test("the colours of the table are readable in every palette", () => {
     assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", property), valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), `captain's ${property}`);
   }
   assert.deepEqual(valuesOf(BOX, ".g-roster__from", "box-shadow"), valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), "a starting skill's box in the chip's ring");
+  // Owner's review of PR 1: the filled gold read bigger than the ringed chips beside it; the captain's chip, card and box
+  // have the gold's darker ring, inset as every chip's, so no size changes.
+  const goldRing = ["inset 0 0 0 1px var(--crest-gold-ring)"];
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--captain", "box-shadow"), goldRing);
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--card.g-skill--captain", "box-shadow"), goldRing);
+  assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", "box-shadow"), goldRing);
+  assert.match(read("src/styles/tokens.css"), /--crest-gold-ring: #[0-9A-F]{6};/);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), []);
   // SPP that buy nothing yet: quiet, and readable; the chosen row's tint under the row's words.
   assertReadable(SHEET, ".g-rtable__c--quiet", "color", grounds, 4.5);
