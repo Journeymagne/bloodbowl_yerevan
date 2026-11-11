@@ -221,7 +221,7 @@ export function settingsMarkup({ teamId, settings }, { titled = true } = {}) {
     choiceRow("league", t("teamSettings.league"), settings.league, settings.leagues, held, settings.leagueHref),
     choiceRow("favoured", t("teamSettings.favoured"), settings.favoured, settings.alignments, held),
     logoRow(settings),
-    row("fans", { label: t("teamSettings.fans"), note: t("teamSettings.fansNote"), value: String(settings.fans), action: fans }),
+    row("fans", { label: t("teamSettings.fans"), value: String(settings.fans), action: fans }),
     row("order", { label: t("teamSettings.order"), note: t("teamSettings.orderNote"), action: order }),
   ];
   // The address of the settings puts the focus on it (decision 58), as a place the keyboard starts from.

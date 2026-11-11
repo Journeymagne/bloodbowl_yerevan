@@ -1458,7 +1458,6 @@
   "teamSettings.remove": "Remove",
   "teamSettings.fans": "Dedicated Fans",
   "teamSettings.fansFix": "Correct",
-  "teamSettings.fansNote": "A correction moves no money",
   "teamSettings.order": "Roster order",
   "teamSettings.orderNote": "Players in the order of their numbers",
   "teamSettings.orderAction": "By number",

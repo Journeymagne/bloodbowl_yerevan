@@ -457,6 +457,7 @@ as Russian typography would have it. A new short label follows it. Sentences kee
 | Correct by hand · Fix by hand | Исправить вручную | 08 · `treasury.fix.title` (the treasury); 07d · `teamPlayer.fix.title` (a player); note 1 |
 | Coach's Safe | Coach's Safe | 08, 09b · `treasury.safeTitle`, `after.safe`; the plain word "safe" is «сейф» (`after.toSafe`) |
 | Bribes | Взятки | 06, 08, 12 · `savedRoster.bribes`, `treasury.strip.bribes`; note 5 |
+| Dedicated Fans | Преданные фанаты | 06, 07d, 08, 09a, 09b, 12 · `savedRoster.dedicatedFans`, `teamSettings.fans`, `prep.fans.*`, `after.fans*`; «Fan Factor» stays English; note 5 |
 | Starting Rerolls · Team Rerolls | Стартовые рероллы · Командные рероллы | 06, 08, 09b, 12 · `savedRoster.startingRerolls`, `savedRoster.teamRerolls`; note 5 |
 | Before the match | Перед матчем | 09a · `prep.title`, `matches.before.title`, `guestHome.tile.match` |
 | Inducements | Индьюсменты | 09a · `pre.step.inducements`, `matches.inducements`, `prep.ind.title`; note 6 |

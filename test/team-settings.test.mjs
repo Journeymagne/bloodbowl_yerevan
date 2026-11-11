@@ -196,7 +196,7 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(rowText("logo", fragment), "Logo · Upload");
   assert.equal(rowOf("logo", fragment).querySelector(".g-team-settings__note").textContent, "PNG or JPG up to 2 MB · optional");
   assert.equal(rowText("fans", fragment), "Dedicated Fans · 3 · Correct");
-  assert.equal(rowOf("fans", fragment).querySelector(".g-team-settings__note").textContent, "A correction moves no money");
+  assert.equal(rowOf("fans", fragment).querySelector(".g-team-settings__note"), null, "owner's review of PR 1: no note under the fans");
   assert.equal(rowText("order", fragment), "Roster order · By number");
   assert.equal(rowOf("order", fragment).querySelector(".g-team-settings__note").textContent, "Players in the order of their numbers");
   assert.deepEqual(fragment.querySelectorAll(".g-team-settings__row").map((row) => row.getAttribute("data-settings-row")), ["name", "race", "league", "logo", "fans", "order"]);
@@ -264,7 +264,7 @@ test("a phone's team page has no settings section but a row «Team settings» la
   try {
     const russian = mount(manageMarkup(model(TEAMS[0], { phone: true })));
     assert.equal(russian.querySelector(".g-list-row__title").textContent, "Настройки команды");
-    assert.equal(russian.querySelector(".g-list-row__desc").textContent, "Название, лига, логотип, Dedicated Fans, порядок в составе");
+    assert.equal(russian.querySelector(".g-list-row__desc").textContent, "Название, лига, логотип, преданные фанаты, порядок в составе");
   } finally {
     initLocale("en");
   }
@@ -809,7 +809,7 @@ test("fans corrected: one PATCH with the count, the treasury untouched; at 6 «+
   openRow("fans");
   assert.equal($(".g-sheet__title").textContent, "Dedicated Fans");
   assert.equal($(".g-resource__name").textContent, "Dedicated Fans");
-  assert.equal($(".g-resource__note").textContent, "A correction moves no money");
+  assert.equal($(".g-resource__note"), null);
   assert.equal($(".g-resource__value").textContent, "3");
   assert.equal($("[data-settings-save]").hasAttribute("disabled"), true);
   const plus = () => $('[data-resource-step="1"]');
@@ -1299,7 +1299,7 @@ test("every key in both dictionaries, with the same placeholders; Russian words"
     assert.deepEqual(placeholders(ru[key]), placeholders(en[key]), key);
   }
   assert.deepEqual(Object.keys(ru).filter((key) => key.startsWith("teamSettings.")).sort(), [...keys].sort());
-  assert.deepEqual([en["teamSettings.entryDesc"], ru["teamSettings.entryDesc"]], ["Name, league, logo, Dedicated Fans, roster order", "Название, лига, логотип, Dedicated Fans, порядок в составе"]);
+  assert.deepEqual([en["teamSettings.entryDesc"], ru["teamSettings.entryDesc"]], ["Name, league, logo, Dedicated Fans, roster order", "Название, лига, логотип, преданные фанаты, порядок в составе"]);
   assert.deepEqual([en["teamSettings.backLabel"], ru["teamSettings.backLabel"]], ["Back to the team page", "Назад на страницу «Команда»"]);
   assert.equal(en["teamSettings.favoured"], "Favoured of…");
   assert.equal(ru["teamSettings.favoured"], "Favoured of…");
@@ -1309,7 +1309,7 @@ test("every key in both dictionaries, with the same placeholders; Russian words"
     assert.equal(fragment.querySelector("#team-settings-title").textContent, "Настройки команды");
     assert.equal(rowText("name", fragment), "Название · Ashgrove Wardens · Изменить");
     assert.equal(rowText("order", fragment), "Порядок в составе · По номерам");
-    assert.equal(rowText("fans", fragment), "Dedicated Fans · 3 · Исправить");
+    assert.equal(rowText("fans", fragment), "Преданные фанаты · 3 · Исправить");
   } finally {
     initLocale("en");
   }
