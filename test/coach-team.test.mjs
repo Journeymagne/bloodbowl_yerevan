@@ -129,7 +129,7 @@ test("a phone's opponent page: back to the table, his name and race, the next ma
   assert.ok(rows()[1].querySelector(".g-num__captain"), "the captain's mark");
   assert.ok(rows().every((row) => row.getAttribute("class").includes("g-rtable__player--still")), "rows to read: none opens a player");
   assert.equal(view.querySelector(".g-opp__squad [data-row-key]"), null);
-  assert.equal(view.querySelector(".g-opp__squad .g-sort"), null, "no sort: the order is the page's");
+  assert.equal(view.querySelector(".g-opp__squad button.g-sort") === null, true, "no sort: the order is the page's");
   assert.equal(words(view.querySelector(".g-opp__squadtitle")), "Roster players: 3");
   assert.equal(view.querySelector(".g-opp__readonly").textContent, t("opponent.readOnly"));
   // OppTeam.html's order.

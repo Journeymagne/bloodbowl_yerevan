@@ -115,7 +115,7 @@ function renderHeadCell(column, place, index, sort, headTailHtml, quiet) {
   const name = column.name ? ` aria-label="${escapeHtml(column.name)}"` : "";
   const control = sortable
     ? `<button type="button" class="g-sort"${dataAttributes({ sortKey: column.key })}${name}>${escapeHtml(column.label)}${arrow}</button>`
-    : escapeHtml(column.label);
+    : `<span class="g-sort g-sort--label">${escapeHtml(column.label)}</span>`;
   const direction = sorted ? ` aria-sort="${ARIA_SORT[sort.dir]}"` : "";
   const cellName = sortable ? "" : name;
   return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${direction}${cellName}>${control}${first ? headTailHtml : ""}</th>`;

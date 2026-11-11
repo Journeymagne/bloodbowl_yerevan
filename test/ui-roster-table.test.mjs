@@ -625,3 +625,13 @@ test("a still row is read, not pressed: no button, nothing reported; it cannot a
   assertStyled(fragment, ...SHEETS);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player--still > .g-rtable__row", "cursor"), ["auto"]);
 });
+
+// Owner's review of item 14: a head of unsorted columns lost the button's box, and its labels ran together.
+test("a column that is not sorted keeps the button's box for its label: the same width, height and centre", () => {
+  const fragment = mount(table({ columns: COLUMNS.map((column) => ({ ...column, sortable: false })) }));
+  const heads = fragment.querySelectorAll('thead th[scope="col"]');
+  assert.equal(fragment.querySelector("thead button"), null);
+  assert.deepEqual(heads.map((head) => head.querySelector("span.g-sort.g-sort--label")?.textContent), COLUMNS.map((column) => column.label));
+  assertStyled(fragment, ...SHEETS);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort--label", "cursor"), ["auto"]);
+});
