@@ -27,7 +27,7 @@ import { listFilter, listScroll, refQuery, setListFilter, setListScroll } from "
 import { normalizeText } from "./search.mjs";
 import { badgeMarkup, skillDetailMarkup, tagsOf } from "./skill.mjs";
 
-/** The lists whose rows are a letter, a name and a type, and which keep a panel beside them. */
+/** The lists whose rows are a letter and a name, and which keep a panel beside them. */
 const SPLIT_SECTIONS = new Set(["skills", "traits"]);
 
 /** How much of an inducement's rule its row quotes. */
@@ -65,13 +65,12 @@ export function listRows(data, section, { query = "", category = "all" } = {}) {
 function referenceRow(page, selectedSlug) {
   const href = pageUrl(page);
   assertLinkHref(href);
-  const { category, type } = tagsOf(page);
-  const meta = type ? `<span class="g-ref-row__meta${type === "Passive" ? " g-ref-row__meta--passive" : ""}">${escapeHtml(type)}</span>` : "";
+  const { category } = tagsOf(page);
   const current = page.slug === selectedSlug ? ' aria-current="page"' : "";
   return `<a class="g-ref-row" href="${escapeHtml(href)}"${current}>`
     + badgeMarkup(category)
     + `<span class="g-sr-only">${escapeHtml(category)}</span>`
-    + `<span class="g-ref-row__name">${escapeHtml(page.title)}</span>${meta}</a>`;
+    + `<span class="g-ref-row__name">${escapeHtml(page.title)}</span></a>`;
 }
 
 /** The line under a team's name: its tier, and whether it is one of the core teams. */

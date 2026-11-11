@@ -169,16 +169,15 @@
 .g-ref-list__subtitle:first-child { margin-top: 0; }
 
 /*
- * A skill or a trait: its letter on the category's colour, its name, and whether it is used or always there.
- * The row is positioned so that the category it says to a screen reader (an absolutely placed span) stays in
- * the row: left to the page, from 901px it would sit where the row scrolled to, outside the box that clips the
- * rows, and widen what the page can be scrolled by.
+ * A skill or a trait: its letter on the category's colour and its name; whether it is Active or Passive is the
+ * panel's (the owner, 2026-11-12). The row is positioned so that the category it says to a screen reader (an
+ * absolutely placed span) stays in the row, and does not widen what the page can be scrolled by.
  */
 .g-ref-row {
   position: relative;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-10);
   min-height: 48px;
@@ -201,15 +200,6 @@
   letter-spacing: 0;
   text-transform: none;
 }
-
-/* Passive is the word and the colour: the colour alone would say nothing to everyone who cannot tell it. */
-.g-ref-row__meta {
-  color: var(--muted);
-  font: 700 11px/1.2 var(--font-body);
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.g-ref-row__meta--passive { color: var(--danger); }
 
 .g-ref-badge {
   box-sizing: border-box;

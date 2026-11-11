@@ -30,15 +30,16 @@ beforeEach(() => {
   setRefQuery("");
 });
 
-test("skills: every one, a letter for its category, its type, and a link to its page", () => {
+test("skills: every one, a letter for its category and a link to its page; Active or Passive is the panel's", () => {
   renderRefSection("skills");
   const rows = view.querySelectorAll("a.g-ref-row");
   assert.equal(rows.length, 82);
   assert.equal(view.querySelector(".g-ref-list__title").textContent, "Skills");
   assert.equal(view.querySelector(".g-ref-list__count").textContent, "82 of 82");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
-  assert.deepEqual([block.querySelector(".g-ref-badge").textContent, block.querySelector(".g-ref-row__meta").textContent], ["G", "Active"]);
-  assert.equal(view.querySelector('a.g-ref-row[href="#/skills/thick-skull"] .g-ref-row__meta').textContent, "Passive");
+  assert.deepEqual([block.querySelector(".g-ref-badge").textContent, block.querySelector(".g-ref-row__name").textContent], ["G", "Block"]);
+  assert.equal(block.textContent.includes("Active"), false, "the row says no type");
+  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail__caption").textContent, "Passing · Active", "the open skill's panel says it");
 });
 
 test("a category chip narrows the skills to it and says how many of how many; All brings them back", () => {
@@ -117,21 +118,17 @@ test("no link a list draws is sent on by the router, and every key is in both di
 
 // What the brief leaves to the screen.
 
-test("a skill names its category for a screen reader and wears its colour; a trait wears a dot, and only a passive one says so", () => {
+test("a skill names its category for a screen reader and wears its colour; a trait wears a dot", () => {
   renderRefSection("skills");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
   assert.equal(block.querySelector(".g-sr-only").textContent, "General");
   assert.ok(block.querySelector(".g-ref-badge.g-ref-badge--general"));
   assert.equal(block.querySelector(".g-ref-badge").getAttribute("aria-hidden"), "true");
-  assert.ok(view.querySelector('a.g-ref-row[href="#/skills/thick-skull"] .g-ref-row__meta--passive'), "the word Passive is also marked for the colour");
-  assert.equal(view.querySelector('a.g-ref-row[href="#/skills/block"] .g-ref-row__meta--passive'), null);
   renderRefSection("traits");
   const trait = view.querySelector('a.g-ref-row[href="#/traits/always-hungry"]');
   assert.equal(trait.querySelector(".g-ref-badge").textContent, "•");
   assert.ok(trait.querySelector(".g-ref-badge--trait"));
   assert.equal(trait.querySelector(".g-sr-only").textContent, "Trait");
-  assert.equal(trait.querySelector(".g-ref-row__meta"), null, "a trait with no Active or Passive tag has no type to show");
-  assert.equal(view.querySelector('a.g-ref-row[href="#/traits/throw-team-mate"] .g-ref-row__meta').textContent, "Passive");
   assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
 });
 
@@ -373,14 +370,12 @@ test("the 2.x list screen and its filters are gone, and the router draws the new
 
 const SHEET = "src/screens/ref/ref.css";
 
-test("a row is 48px: a 28px badge, the name, the type; the name 500 15px, the type 700 11px in capitals", () => {
+test("a row is 48px: a 28px badge and the name, 500 15px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "grid-template-columns"), ["28px minmax(0, 1fr) auto"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "grid-template-columns"), ["28px minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "min-height"), ["48px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row__name", "font"), ["500 15px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta", "font"), ["700 11px/1.2 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta", "text-transform"), ["uppercase"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta--passive", "color"), ["var(--danger)"]);
+  assert.equal(read(SHEET).includes("g-ref-row__meta"), false, "the type's styles went with it");
 });
 
 test("the badge is a 28px square, white on its category's colour", () => {
@@ -471,8 +466,6 @@ test("the list's title, count, names, types and hint are readable in every palet
   assertReadable(SHEET, ".g-ref-list__subtitle", "color", ["--page", "--surface"], 4.5);
   // The row that is open sits on the accent tint.
   assertReadable(SHEET, ".g-ref-row", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
-  assertReadable(SHEET, ".g-ref-row__meta", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
-  assertReadable(SHEET, ".g-ref-row__meta--passive", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
   assertReadable(SHEET, ".g-ref-pick", "color", ["--page", "--surface"], 4.5);
 });
 
