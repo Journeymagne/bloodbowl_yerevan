@@ -183,7 +183,7 @@
   min-width: 0;
   padding: var(--space-16);
   border: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-2xl);
   background: var(--surface);
   box-shadow: var(--ring);
   color: var(--ink);

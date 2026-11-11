@@ -53,9 +53,9 @@
   gap: var(--space-10);
   min-width: 0;
   margin: 0;
-  padding: var(--space-12) var(--space-14);
+  padding: var(--space-14) var(--space-16);
   border: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-2xl);
   background: var(--surface);
   box-shadow: var(--ring);
   list-style: none;
@@ -127,11 +127,14 @@
   font-weight: 700;
 }
 
-/* A rule is its name over the page's text, set off by a line at its side; the text is prose, the name is not a section of one. */
+/* A rule is a card of its own, its name over the page's text; the text is prose, the name is not a section of one. */
 .g-ref-rule {
   box-sizing: border-box;
-  padding-left: var(--space-14);
-  border-left: 3px solid var(--line-strong);
+  padding: var(--space-14) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
 }
 
 .g-ref-rule h3 {

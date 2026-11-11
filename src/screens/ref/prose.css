@@ -83,8 +83,9 @@
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
-  border-radius: var(--radius-lg);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  /* A border, not the ring: an inset shadow lies under the cells, and the header's fill would hide it. */
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2xl);
   background: var(--surface);
   scrollbar-color: var(--faint) transparent;
   scrollbar-width: thin;
