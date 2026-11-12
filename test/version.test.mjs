@@ -9,7 +9,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 // The release this branch ships. The changelog's date is set when it merges
 // into main, so the top entry may still say «unreleased».
-const RELEASE = "3.0.2";
+const RELEASE = "3.0.3";
 
 test("the release is in package.json, its lock and the changelog's top entry", () => {
   const pkg = JSON.parse(read("package.json"));
