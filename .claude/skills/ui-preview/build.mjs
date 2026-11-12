@@ -101,7 +101,10 @@ for (const section of spec.sections) {
 
 // A screenshot pair is cut to where the two differ (the box screens:diff finds), with a margin, so the big same parts
 // go. Pairs of different sizes differ everywhere: their cut is the spec's `area` and `boxes`.
-const shots = (spec.shots?.items ?? []).map((shot) => ({ id: `shot-${shot.file.replace(/\.png$/, "")}`, ...shot }));
+// An item is a pair, or a page (`parts`): under its title, each part's changes, one line each, then that part's pair.
+const shotId = (file) => `shot-${file.replace(/\.png$/, "")}`;
+const shots = (spec.shots?.items ?? []).map((shot) => ({ id: shot.id ?? shotId(shot.file ?? shot.parts[0].file), ...shot }));
+const pairs = shots.flatMap((shot) => shot.parts ?? [shot]);
 const { comparePngs, decodePng } = await import(pathToFileURL(path.join(repo, "scripts", "screenshots", "png.mjs")).href);
 const MARGIN = 48;
 // Two full-page shots of different heights: the box where they differ inside the part both have, top-aligned.
@@ -121,7 +124,7 @@ function sharedBox(first, second) {
   }
   return maxX < 0 ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
-for (const shot of shots) {
+for (const shot of pairs) {
   const sources = Object.fromEntries(["before", "after"].map((side) => [side, path.join(spec.shots.dir, side, shot.file)]));
   for (const side of ["before", "after"]) fs.copyFileSync(sources[side], path.join(out, "shots", `${side}-${shot.file}`));
   const [first, second] = ["before", "after"].map((side) => decodePng(fs.readFileSync(sources[side])));
@@ -157,8 +160,12 @@ const pane = (section, side) => `<figure class="pane"><figcaption><span class="t
   + `<div class="scroller"><iframe class="frame frame--${section.width}" src="frames/${section.id}-${side}.html" title="${esc(section.title)}: ${esc(labels[side])}" loading="lazy"></iframe></div></figure>`;
 // Where to look: said in words for every section, and outlined in the frames (`mark`) or boxed on a screenshot.
 const lookHtml = (text) => (text ? `<p class="look"><span class="look__tag">Look at</span> ${esc(text)}</p>` : "");
+// `what` is a sentence, or a list of changes: each a string or `{ text, items }`, its items the sides' words for it.
+const whatItem = (item) => (typeof item === "string" ? `<li>${esc(item)}</li>`
+  : `<li><strong>${esc(item.text)}</strong>${item.items?.length ? `<ul>${item.items.map(whatItem).join("")}</ul>` : ""}</li>`);
+const whatHtml = (what) => (Array.isArray(what) ? `<ul class="change__list">${what.map(whatItem).join("")}</ul>` : `<p class="change__what">${esc(what)}</p>`);
 const sectionHtml = (section) => `<section class="change" id="${esc(section.id)}"><header class="change__head"><h3>${esc(section.title)}</h3>`
-  + `<span class="width">${widthLabel(section.width)}</span></header><p class="change__what">${esc(section.what)}</p>${lookHtml(section.look)}`
+  + `<span class="width">${widthLabel(section.width)}</span></header>${whatHtml(section.what)}${lookHtml(section.look)}`
   + `<div class="pair pair--${section.width}">${pane(section, "before")}${pane(section, "after")}</div></section>`;
 
 const pct = (part, whole) => `${((part / whole) * 100).toFixed(3)}%`;
@@ -175,7 +182,14 @@ const cropHtml = (shot, side) => {
   // Not lazy: placed far up and left inside its box, a lazy picture is taken for off-screen and never loads.
   return `<div class="crop" style="aspect-ratio:${crop.width} / ${crop.height};max-width:${crop.width}px"><img src="shots/${side}-${esc(shot.file)}" alt="${alt}" style="${image}">${hits}</div>`;
 };
+const pairHtml = (shot) => `<div class="pair pair--${shot.crop ? "crop" : shot.phone ? "phone" : "shot"}">`
+  + ["before", "after"].map((side) => `<figure class="pane"><figcaption><span class="tag tag--${side}">${esc(labels[side])}</span></figcaption>${cropHtml(shot, side)}</figure>`).join("")
+  + "</div>";
+const partHtml = (part) => `<div class="part"><p class="part__width">${part.phone ? "Phone" : "Desk"}</p>${whatHtml(part.what)}${pairHtml(part)}</div>`;
+const pageHtml = (page) => `<section class="change" id="${esc(page.id)}"><header class="change__head"><h3>${esc(page.title)}</h3></header>`
+  + `${page.parts.map(partHtml).join("")}</section>`;
 const shotHtml = (shot) => {
+  if (shot.parts) return pageHtml(shot);
   const { before, after } = shot.sizes;
   const narrower = shot.narrower ? ` ${esc(labels.before)}'s picture is ${after.width - before.width}px narrower, so its layout sits slightly to the left.` : "";
   const taller = before.height !== after.height ? ` The page is ${after.height - before.height > 0 ? "taller" : "shorter"} by ${Math.abs(after.height - before.height)}px: below a change, the rest moves.` : "";
@@ -184,7 +198,7 @@ const shotHtml = (shot) => {
     ? `${cut}: ${shot.crop.width}×${shot.crop.height}px of the ${after.width}×${after.height}px screen, the changes boxed.${narrower}${taller}`
     : "Shown whole: the two pictures are the same.";
   return `<section class="change" id="${esc(shot.id)}"><header class="change__head"><h3>${esc(shot.title)}</h3>`
-    + `<span class="width">${shot.phone ? "Phone" : "Desk"} · screenshot</span></header><p class="change__what">${esc(shot.what)}</p>${lookHtml(shot.look)}`
+    + `<span class="width">${shot.phone ? "Phone" : "Desk"} · screenshot</span></header>${whatHtml(shot.what)}${lookHtml(shot.look)}`
     + `<p class="change__what">${where}</p><div class="pair pair--${shot.crop ? "crop" : shot.phone ? "phone" : "shot"}">`
     + ["before", "after"].map((side) => `<figure class="pane"><figcaption><span class="tag tag--${side}">${esc(labels[side])}</span></figcaption>${cropHtml(shot, side)}</figure>`).join("")
     + "</div></section>";
@@ -253,6 +267,13 @@ a { color: var(--accent); }
 .change__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .width { color: var(--muted); font: 500 13px/1 var(--font-body); }
 .change__what { max-width: 75ch; color: var(--muted); }
+.change__list { max-width: 75ch; margin: 0; padding-left: 20px; color: var(--muted); }
+.change__list > li + li { margin-top: 6px; }
+.change__list strong { color: var(--ink); font-weight: 600; }
+.change__list ul { margin: 2px 0 0; padding-left: 18px; }
+.part { display: flex; flex-direction: column; gap: 10px; }
+.part + .part { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line); }
+.part__width { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .pair { display: grid; gap: 16px; }
 .pair--phone { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 420px)); }
 .pair--phone .scroller { width: max-content; max-width: 100%; }
