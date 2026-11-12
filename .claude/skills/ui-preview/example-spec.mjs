@@ -8,7 +8,7 @@ import { createShotKit } from "./spec-kit.mjs";
 
 const [dir, specOut] = process.argv.slice(2);
 const { shot, merge, writePlan } = createShotKit(dir);
-const DESK = { width: 1440 };
+const DESK = { width: 1728 };
 
 const items = [
   shot("coach-desk", { ...DESK, height: 1300, group: "Major", title: "Another coach's team: the Roster's table (desk)",

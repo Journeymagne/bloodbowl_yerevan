@@ -352,3 +352,18 @@ Say plainly when a group has nothing.
 
 Last, **Refactor suggestions**: a numbered list, each with what it would change, why, and its size (small / medium /
 large). Ask which, if any, to apply — and which findings to fix — and do not apply them unasked.
+
+## 14. Changelog, once the fixes are in
+
+The owner asks for it: after the review's fixes, the branch writes what it changes into `CHANGELOG.md` as a release
+of its own, a patch over its parent's (UI v2 polish: p1 3.0.1, p2 3.0.2, p3 3.0.3): `## [x.y.z] — unreleased` at
+the top, the date set when it merges into `main`. The version goes in `package.json`, both of `package-lock.json`'s
+root lines, `README.md`'s «Current release» and `test/version.test.mjs`'s `RELEASE`. Keep a Changelog's groups as the file has them (`### Added`, `### Changed`, `### Fixed`,
+`### Removed`), each item a **bold lead** naming the area, then what a coach or an operator now sees, in the file's
+plain words: UI words in «guillemets», EN with RU where a name changed, no class names, files or review rounds.
+
+- Go through the branch's commits (`log --oneline <base>..HEAD`) and give every change a coach can see a line;
+  internal refactors and tests get none.
+- A stacked branch keeps its parent's release entry as it came in the back-merge and puts its own above it; on a
+  conflict in those files, the branch's version wins and the parent's entry stays whole.
+- Commit it with the fixes, or as `docs(changelog): …` on its own, and show it to the user with the fixes' diff.

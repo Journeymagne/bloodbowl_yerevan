@@ -182,12 +182,18 @@ const cropHtml = (shot, side) => {
   // Not lazy: placed far up and left inside its box, a lazy picture is taken for off-screen and never loads.
   return `<div class="crop" style="aspect-ratio:${crop.width} / ${crop.height};max-width:${crop.width}px"><img src="shots/${side}-${esc(shot.file)}" alt="${alt}" style="${image}">${hits}</div>`;
 };
-const pairHtml = (shot) => `<div class="pair pair--${shot.crop ? "crop" : shot.phone ? "phone" : "shot"}">`
-  + ["before", "after"].map((side) => `<figure class="pane"><figcaption><span class="tag tag--${side}">${esc(labels[side])}</span></figcaption>${cropHtml(shot, side)}</figure>`).join("")
-  + "</div>";
-const partHtml = (part) => `<div class="part"><p class="part__width">${part.phone ? "Phone" : "Desk"}</p>${whatHtml(part.what)}${pairHtml(part)}</div>`;
+// The owner's own review drew a pair this way: one small card, its title over «Before» and «After» side by side, each
+// cut the same size, so the eye goes across rather than down. A pane opens the whole screenshot.
+const SIDE_WORD = { before: "Before", after: "After" };
+// A card is as wide as its two cuts at their own size (with its padding and gap): a small cut is never shrunk, and a
+// cut of most of a desk's screen takes the page's whole width.
+const cmpWidth = (shot) => 2 * (shot.crop?.width ?? shot.sizes.after.width) + 34;
+const compareHtml = (shot, title) => `<figure class="cmp" style="max-width:${cmpWidth(shot)}px"><figcaption class="cmp__title">${esc(title)}</figcaption>`
+  + `<div class="cmp__panes">${["before", "after"].map((side) => `<a class="cmp__pane" href="shots/${side}-${esc(shot.file)}" target="_blank" rel="noopener">`
+    + `<span class="cmp__label cmp__label--${side}">${SIDE_WORD[side]} · ${esc(labels[side])}</span>${cropHtml(shot, side)}</a>`).join("")}</div></figure>`;
+const partHtml = (page) => (part) => `<div class="part">${whatHtml(part.what)}${compareHtml(part, `${page.title} · ${part.phone ? "phone" : "desk"}`)}</div>`;
 const pageHtml = (page) => `<section class="change" id="${esc(page.id)}"><header class="change__head"><h3>${esc(page.title)}</h3></header>`
-  + `${page.parts.map(partHtml).join("")}</section>`;
+  + `${page.parts.map(partHtml(page)).join("")}</section>`;
 const shotHtml = (shot) => {
   if (shot.parts) return pageHtml(shot);
   const { before, after } = shot.sizes;
@@ -298,6 +304,16 @@ a { color: var(--accent); }
 .pair--crop { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .crop { position: relative; overflow: hidden; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .crop img { position: absolute; max-width: none; height: auto; }
+.cmp { box-sizing: border-box; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.cmp__title { margin: 0 0 8px; font: 600 13px/1.3 var(--font-body); }
+.cmp__panes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.cmp__pane { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: inherit; text-decoration: none; }
+.cmp__pane:hover .crop { border-color: var(--accent); }
+.cmp__label { font: 600 11px/1.3 var(--font-body); color: var(--muted); }
+.cmp__label--before { color: var(--before); }
+.cmp__label--after { color: var(--after); }
+.cmp .crop { border-radius: 8px; }
+.cmp .crop__hit { border-width: 2px; }
 .crop__hit { position: absolute; box-sizing: border-box; border: 3px solid ${MARK}; border-radius: 6px; pointer-events: none; }
 table { border-collapse: collapse; min-width: 640px; font-size: 14px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -308,7 +324,7 @@ th { color: var(--muted); font-weight: 600; }
   <header class="intro">
     <h1>${esc(spec.title)}</h1>
     ${(spec.intro ?? []).map((line) => `<p>${line}</p>`).join("\n    ")}
-    <p class="muted">The frames show the app's light or dark mode, switched below; scripts don't run in them, so nothing opens on a press. Desk pairs are scaled to fit side by side. What changed is outlined in pink, and each section says where to look.</p>
+    ${spec.sections?.length ? `<p class="muted">The frames show the app's light or dark mode, switched below; scripts don't run in them, so nothing opens on a press. Desk pairs are scaled to fit side by side. What changed is outlined in pink, and each section says where to look.</p>` : `<p class="muted">What changed is outlined in pink.</p>`}
   </header>
   <nav class="bar" aria-label="Preview controls">
     <span class="seg" role="group" aria-label="App mode in the frames">

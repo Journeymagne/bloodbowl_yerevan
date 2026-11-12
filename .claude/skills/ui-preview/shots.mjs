@@ -3,7 +3,8 @@
 //   node .claude/skills/ui-preview/shots.mjs <app url> <states.mjs> <out dir> <before|after>
 //
 // <states.mjs> exports STATES: [{ id, hash, width, height, locale?, guest?, click?, align?, alignY?, marks? }]
-// - `click`: a selector pressed after the hash is opened (a chip that opens a sheet, a row that fills the panel).
+// - `click`: a selector, or a list pressed in turn, after the hash is opened (a chip that opens a sheet, a row that
+//   fills the panel, the steps of an advancement); `?selector` is pressed only where it exists.
 // - `align`: { sel } or { before, after } — the page is scrolled so that element stands `alignY` (200) from the top on
 //   both sides: a box is drawn at the same place on both pictures, so a change below rows that moved needs it.
 // - `marks`: [{ name, sel } or { name, before, after }] — selector lists per side; each mark's box is the union of what
@@ -37,10 +38,15 @@ try {
     // A hash change fires no load event: it is set, then waited for.
     await page.evaluate(`location.hash = ${JSON.stringify(state.hash)}; true`);
     await sleep(2200);
-    if (state.click) {
-      const said = await page.evaluate(`(() => { const node = document.querySelector(${JSON.stringify(state.click)}); if (!node) return "missing"; node.click(); return "clicked"; })()`);
-      if (said !== "clicked") console.log(`${state.id}: click ${said}`);
-      await sleep(1200);
+    // One selector, or several pressed in turn; each presses the first match that is shown (a page draws some twice,
+    // one per width). A selector `?`-prefixed is pressed when there is one: a press only one side has.
+    for (const step of [state.click ?? []].flat()) {
+      const optional = step.startsWith("?");
+      const selector = optional ? step.slice(1) : step;
+      const said = await page.evaluate(`(() => { const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find((item) => item.getClientRects().length);
+        if (!node) return "missing"; node.click(); return "clicked"; })()`);
+      if (said !== "clicked" && !optional) console.log(`${state.id}: click ${selector} ${said}`);
+      await sleep(900);
     }
     if (state.align) {
       const selector = state.align[side] ?? state.align.sel;
