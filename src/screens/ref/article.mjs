@@ -5,22 +5,24 @@
  *
  * An article says where it lives (its kicker: the group and the section), what it is, and, when the
  * reference's groups name it, which article comes before it and after it. A page that is a member of
- * a list (a team, an inducement) goes back to that list. An address with no page is an
+ * a list (a team) goes back to that list. An address with no page is an
  * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
- * bodies.mjs instead of from the vault's text: Leagues and the Skill Table; a team's page is drawn by
- * team.mjs from the team's data. A skill or a trait is not an article: it is the panel beside its list
- * (list.mjs).
+ * bodies.mjs instead of from the vault's text: Leagues and the Skill Table, which opens a skill as its
+ * list does (details.mjs); a team's page is drawn by team.mjs from the team's data. A skill, a trait or an
+ * inducement is not an article: it is the card its list opens (list.mjs).
  */
 import { drawScreen, escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { REF_SECTIONS, navRouteForPage, refUrl } from "../../core/routes.mjs";
+import { REF_SECTIONS, navRouteForPage, pageUrl, refUrl, skillTableUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
+import { onActiveTeamChange } from "../../data/active-team.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
 import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
+import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
@@ -98,7 +100,7 @@ function pagerMarkup({ prev, next }) {
  * and the article itself. `kicker` and `sub` are left out when empty. `screen` is what makes it this
  * article and no other (`drawScreen`): the page's slug, so that the same article drawn again stays put.
  */
-function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "" }) {
+function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "", panelHtml = "" }) {
   const head = `<div class="g-article__head">`
     + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
@@ -109,6 +111,7 @@ function articleFrame({ screen, groups, currentKey = null, back, kicker = "", ti
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(groups, currentKey),
     mainHtml: `<article class="g-article">${backLinkMarkup(back)}${head}${bodyHtml}${pagerHtml}</article>`,
+    panelHtml,
   });
 }
 
@@ -120,9 +123,11 @@ function articleFrame({ screen, groups, currentKey = null, back, kicker = "", ti
  * @param {object} props.page the page to draw
  * @param {object[]} props.groups the table of contents, as catalog.mjs `refGroups` gives it
  * @param {object} [props.context] what the page's body needs besides the page and the vault (see `articleBody`)
+ * @param {string} [props.panelHtml] what stands beside the article on a desk (the Skill Table's skill)
  */
-export function articleMarkup({ data, page, groups, context = {} }) {
+export function articleMarkup({ data, page, groups, context = {}, panelHtml = "" }) {
   return articleFrame({
+    panelHtml,
     screen: page.slug,
     groups,
     currentKey: itemKeyOf(page),
@@ -180,12 +185,14 @@ function showLeague(league) {
  * Leagues article to scroll to (routes.mjs `leagueKey`).
  */
 export function renderReferencePage(slug, { league = "" } = {}) {
-  const page = findPage(state.data, slug);
-  if (!page) {
+  const [onTable, skillName] = slug.match(/^skill-table\/(.+)$/) ?? [];
+  const page = findPage(state.data, onTable ? "skill-table" : slug);
+  const skill = onTable ? state.data.skills?.find((item) => item.slug === `skills/${skillName}`) ?? null : null;
+  if (!page || (onTable && !skill)) {
     show(notFoundMarkup(slug));
     return;
   }
-  if (page.kind === "skill" || page.kind === "trait") {
+  if (page.kind === "skill" || page.kind === "trait" || page.kind === "inducement") {
     renderRefSection(navRouteForPage(page), { selected: page });
     return;
   }
@@ -194,10 +201,36 @@ export function renderReferencePage(slug, { league = "" } = {}) {
     renderTeamRules(page, groups);
     return;
   }
-  const markup = () => articleMarkup({ data: state.data, page, groups });
-  // The die changes the article, not the screen around it: the page is drawn again in its place and nothing is wired twice.
-  show(markup(), page.id === SKILL_TABLE_ID ? () => wireSkillTableRoller(view, () => patch(view, markup())) : null);
+  if (page.id === SKILL_TABLE_ID) {
+    renderSkillTable(page, skill, groups);
+    return;
+  }
+  show(articleMarkup({ data: state.data, page, groups }));
   if (league && page.id === LEAGUES_ID) showLeague(league);
+}
+
+/**
+ * The Skill Table, with the skill an address names (`#/skill-table/<name>`, routes.mjs `skillTableUrl`) opened beside
+ * it on a desk and over it on a phone (details.mjs), and the hint until one is. The die changes the article, not the
+ * screen around it: the page is drawn again in its place and nothing is wired twice.
+ */
+function renderSkillTable(page, skill, groups) {
+  const draw = () => {
+    const sheet = skill && isPhone() ? skill : null;
+    if (sheet) noteSheet(view, sheet, view.querySelector("[data-screen]")?.getAttribute("data-screen") === `article:${page.slug}`);
+    const panelHtml = detailPanelMarkup(sheet ? null : skill, t("ref.skill.pick"), { level: 2 });
+    drawWithDetail(view, articleMarkup({ data: state.data, page, groups, panelHtml }) + detailSheetMarkup(sheet), Boolean(sheet),
+      (slug) => `.g-article a[href="${skillTableUrl({ slug })}"]`);
+  };
+  draw();
+  const listeners = listenerGroup(view);
+  listeners.own(wireRefSearch(view, { onQuery: goSearch }));
+  listeners.own(wireSkillTableRoller(view, draw));
+  listeners.own(wireDetailSheet(view, () => pageUrl(page)));
+  listeners.own(onPhoneChange(draw));
+  listeners.own(onActiveTeamChange(draw));
+  listeners.own(() => closeDetailSheet(view));
+  onScreenLeave("ref:article", listeners.release);
 }
 
 /** An item written "Label: text" keeps its label in strong. */

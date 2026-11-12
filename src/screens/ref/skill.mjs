@@ -1,5 +1,5 @@
 /**
- * The panel of a skill or a trait (`#/skills/:slug`, `#/traits/:slug`), drawn beside its list: the
+ * The card of a skill or a trait (`#/skills/:slug`, `#/traits/:slug`), drawn beside its list or in a sheet: the
  * letter of its category on the category's colour, its name and what it is, the rule as the vault
  * has it, and — for a skill — the face of the Skill Table's D16 that rolls it and the elite combination
  * it is half of. A coach with an active team also sees which of its players have the skill, by number.
@@ -142,23 +142,44 @@ function oursMarkup(holders) {
   return `<section class="g-skill-detail__ours"><h2 class="g-skill-detail__ours-title">${escapeHtml(t("ref.skill.ours"))}</h2>${body}</section>`;
 }
 
+/** «Strength · Active»: the category the Skill Table gives a skill (a trait's tag), then whether it is used or always there. */
+export function skillCaption(data, page) {
+  const { category: tagged, type } = tagsOf(page);
+  return [categoryOf(data, page) ?? tagged, type].filter(Boolean).join(" · ");
+}
+
 /**
- * A skill or a trait for the panel.
+ * A skill or a trait for the panel, or for a sheet, whose own head says the name (`head: false`).
  *
  * @param {object} props
  * @param {object} props.data the content vault of the language
  * @param {object} props.page the skill or the trait
  * @param {object|null} [props.team] the coach's active team; without one the panel has no block for it
  * @param {object|null} [props.teamPage] the page of the team's race, whose rows say what each position has
+ * @param {boolean} [props.head] the badge, the name and the caption over the rule
+ * @param {1|2} [props.level] the name's heading: the page's h1 beside a list, an h2 beside an article that has its own
  */
-export function skillDetailMarkup({ data, page, team = null, teamPage = null }) {
-  const category = categoryOf(data, page);
-  const { category: tagged, type } = tagsOf(page);
-  const caption = [category ?? tagged, type].filter(Boolean).join(" · ");
+export function skillDetailMarkup({ data, page, team = null, teamPage = null, head = true, level = 1 }) {
   const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
-  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true, trait: isTrait(page) })}`
-    + `<div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
-    + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`
+  const header = head
+    ? `<header class="g-skill-detail__head">${badgeMarkup(categoryOf(data, page), { large: true, trait: isTrait(page) })}`
+      + `<div class="g-skill-detail__title"><h${level} class="g-skill-detail__name">${escapeHtml(page.title)}</h${level}>`
+      + `<p class="g-skill-detail__caption">${escapeHtml(skillCaption(data, page))}</p></div></header>`
+    : "";
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">${header}`
     + `${proseMarkup(rule)}${factsMarkup(data, page)}`
     + `${team ? oursMarkup(skillHolders({ team, teamPage, title: page.title })) : ""}</article>`;
+}
+
+/** What an inducement's head says under its name, as a skill's says its category: what it is. */
+export const inducementCaption = () => t("ref.inducement.caption");
+
+/** An inducement for the panel or a sheet: its page's own text under its name (the owner, 2026-11-12: nothing more). */
+export function inducementDetailMarkup({ page, head = true }) {
+  const header = head
+    ? `<header class="g-skill-detail__head"><div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
+      + `<p class="g-skill-detail__caption">${escapeHtml(inducementCaption())}</p></div></header>`
+    : "";
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">${header}`
+    + `${proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`)}</article>`;
 }

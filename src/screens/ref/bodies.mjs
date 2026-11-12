@@ -8,7 +8,7 @@
  */
 import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { leagueKey, pageUrl } from "../../core/routes.mjs";
+import { leagueKey, pageUrl, skillTableUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
 import { leagueAccessNames } from "../../domain/league-rules.mjs";
 import { canonicalLeagueName, splitRuleAccessParts, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
@@ -115,6 +115,15 @@ export function skillLink(data, skill) {
   return page ? link(pageUrl(page), skill) : escapeHtml(skill);
 }
 
+/** A skill of the Skill Table as a link that opens it there, beside the table or over it. */
+function tableSkillLink(data, skill) {
+  const page = pageForName(data, skill);
+  return page ? link(skillTableUrl(page), skill) : escapeHtml(skill);
+}
+
+/** The vault's table, whose skills are links the build wrote to their own pages, with each opening on the Skill Table instead. */
+const onTheTable = (html) => String(html ?? "").replaceAll('href="#/skills/', 'href="#/skill-table/');
+
 function rollerMarkup(data, group, rolled) {
   const chips = renderFilterChips({
     label: t("skillRoll.groupLabel"),
@@ -122,7 +131,7 @@ function rollerMarkup(data, group, rolled) {
     selected: group.category,
     data: { chipGroup: ROLLER_GROUP },
   });
-  const result = rolled ? skillLink(data, rolled.skill) : `<span class="g-ref-roller__hint">${escapeHtml(t("ref.roll.hint"))}</span>`;
+  const result = rolled ? tableSkillLink(data, rolled.skill) : `<span class="g-ref-roller__hint">${escapeHtml(t("ref.roll.hint"))}</span>`;
   const roll = renderButton({ label: t("skillRoll.rollButton"), kind: "primary", data: { rollSkill: "" } });
   return `<section class="g-ref-roller" aria-label="${escapeHtml(t("skills.randomizerRegion"))}">${chips}`
     + `<div class="g-ref-roller__throw">${renderDie({ type: SKILL_DIE, value: rolled?.face ?? null })}`
@@ -132,7 +141,7 @@ function rollerMarkup(data, group, rolled) {
 /** The table for a phone: a list for each category, a skill to a line, numbered by its face. */
 function listsMarkup(data, groups) {
   const lists = groups.map(({ category, skills }) => `<div class="g-ref-skilltable__group"><h2>${escapeHtml(category)}</h2>`
-    + `<ol>${skills.map((skill) => `<li>${skillLink(data, skill)}</li>`).join("")}</ol></div>`);
+    + `<ol>${skills.map((skill) => `<li>${tableSkillLink(data, skill)}</li>`).join("")}</ol></div>`);
   return `<section class="g-ref-skilltable" aria-label="${escapeHtml(t("skills.tableByCategoryRegion"))}">${lists.join("")}</section>`;
 }
 
@@ -150,7 +159,7 @@ export function skillTableBody(data, page, roller) {
   const rolled = roller.category === group.category && roller.face !== null && group.skills[roller.face - 1] === roller.skill ? roller : null;
   return rollerMarkup(data, group, rolled)
     + listsMarkup(data, data.skillGroups)
-    + `<div class="g-prose g-ref-skilltable__desk">${page.html}</div>`;
+    + `<div class="g-prose g-ref-skilltable__desk">${onTheTable(page.html)}</div>`;
 }
 
 /**

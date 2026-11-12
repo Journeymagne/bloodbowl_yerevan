@@ -66,7 +66,7 @@ test("an article of a group pages to its neighbours, and lights itself in the ta
 
 test("the way back from a list member is its list; from an article, the reference", () => {
   const back = (slug) => { renderReferencePage(slug); const link = view.querySelector(".g-ref-back"); return [link.getAttribute("href"), link.textContent.trim()]; };
-  assert.deepEqual(back("inducements/bribe"), ["#/ref/inducements", "Inducements"]);
+  assert.deepEqual(back("teams/amazon"), ["#/ref/teams", "Team's Rules"]);
   assert.deepEqual(back("weather"), ["#/ref", "Reference"]);
 });
 
@@ -286,9 +286,9 @@ test("an article opened from a list, the index, a search result or the pager sta
       scrollPage(700);
       scrolls.length = 0;
     };
-    from(() => renderRefSection("inducements"));
-    renderReferencePage("inducements/assistant-coaches");
-    assert.equal(view.querySelector("h1").textContent, "Assistant Coaches");
+    from(() => renderRefSection("teams"));
+    renderReferencePage("teams/amazon");
+    assert.equal(view.querySelector("h1").textContent, "Amazon");
     assert.deepEqual(scrolls, [[0, 0]], "a row of a list");
     from(() => renderRef());
     renderReferencePage("weather");

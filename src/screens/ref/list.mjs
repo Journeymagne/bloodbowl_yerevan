@@ -5,16 +5,16 @@
  * A list says how many of how many it shows, and most have a search of their own that narrows it by
  * name as it is typed; the skills have a chip for each category too. What a list is narrowed to is the
  * reference's memory (`memory.mjs`, one filter per list), so going into an article and back finds it as
- * it was left. Skills and traits are drawn as a split page: the list, and beside it (on a phone, instead
- * of it, once something is chosen) the panel of the chosen one.
+ * it was left. Skills, traits and inducements are drawn as a split page: the list, and the card of the chosen one
+ * beside it on a desk, in a sheet over it on a phone (details.mjs).
  */
-import { delegate, drawScreen, escapeHtml } from "../../core/dom.mjs";
+import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { activeTeam, onActiveTeamChange } from "../../data/active-team.mjs";
+import { onActiveTeamChange } from "../../data/active-team.mjs";
 import { onMyTeamsChange } from "../../data/teams.mjs";
 import { renderFilterChips, wireFilterChips } from "../../ui/filter-chips.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
@@ -22,19 +22,20 @@ import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mjs";
+import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
-import { listFilter, listScroll, refQuery, setListFilter, setListScroll } from "./memory.mjs";
+import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
-import { badgeMarkup, isTrait, skillDetailMarkup, tagsOf } from "./skill.mjs";
+import { badgeMarkup, isTrait, tagsOf } from "./skill.mjs";
 
-/** The lists whose rows are a letter and a name, and which keep a panel beside them. */
-const SPLIT_SECTIONS = new Set(["skills", "traits"]);
+/** The lists whose rows open their item beside the list (a desk) or in a sheet over it (a phone), not a page of their own. */
+const SPLIT_SECTIONS = new Set(["skills", "traits", "inducements"]);
 
-/** How much of an inducement's rule its row quotes. */
+/** Of those, the lists whose rows are a letter and a name; an inducement's row says its rule under its name. */
+const LETTER_SECTIONS = new Set(["skills", "traits"]);
+
+/** How much of an inducement's rule its row quotes when the rule has no «count, name (price):» opening. */
 const INDUCEMENT_PREVIEW = 90;
-
-/** The width up to which a split page shows its list or its panel, not both (ref.css). */
-const PHONE = "(max-width: 900px)";
 
 /** The chip row is one of its screen's rows by name, for the reason `wireFilterChips` gives. */
 const CHIP_GROUP = "category";
@@ -83,8 +84,15 @@ function starLine(page) {
   return [page.starPlayer?.cost, page.starPlayer?.availability].filter(Boolean).join(" · ");
 }
 
+/**
+ * An inducement's row says how many a team may take, the name and the price: its rule's opening, up to the colon
+ * («0-6 Additional Training (85k)»); the rule itself is its card's (the owner, 2026-11-12). A rule that opens with no
+ * colon is quoted in its first characters.
+ */
 function inducementLine(page) {
   const text = String(page.text ?? "");
+  const at = text.indexOf(":");
+  if (at > 0) return text.slice(0, at).trim();
   return text.length > INDUCEMENT_PREVIEW ? `${text.slice(0, INDUCEMENT_PREVIEW).trimEnd()}…` : text;
 }
 
@@ -102,8 +110,10 @@ function rulesMarkup(pages, cards) {
 function rowsMarkup(section, pages, cards, selectedSlug) {
   if (!pages.length && !cards.length) return `<p class="g-ref-empty">${escapeHtml(t("section.emptyState"))}</p>`;
   if (section === "rules") return rulesMarkup(pages, cards);
-  if (SPLIT_SECTIONS.has(section)) return pages.map((page) => referenceRow(page, selectedSlug)).join("");
-  return pages.map((page) => renderNavRow({ href: pageUrl(page), title: page.title, desc: DESCRIBE[section]?.(page) ?? "" })).join("");
+  if (LETTER_SECTIONS.has(section)) return pages.map((page) => referenceRow(page, selectedSlug)).join("");
+  // A row that opens its card beside the list, as a skill's does, has no chevron: it leads to no page of its own.
+  const chevron = SPLIT_SECTIONS.has(section) ? null : undefined;
+  return pages.map((page) => renderNavRow({ href: pageUrl(page), title: page.title, desc: DESCRIBE[section]?.(page) ?? "", current: page.slug === selectedSlug, chevron })).join("");
 }
 
 /** What a list's search is for, by section; the lists with no search (the rules, the cheatsheets) have no entry. */
@@ -131,23 +141,24 @@ function categoryChips(data, categories, selected) {
  * @param {string} props.section one of the lists (`REF_SECTIONS`)
  * @param {{query: string, category: string}} props.filter what the list is narrowed to; a category the vault does not have is All
  * @param {object[]} [props.overviewCards] the league overview's cards, which the rules list shows ahead of its pages
- * @param {string|null} [props.selectedSlug] the page open beside the list: its row is the current one, and the list's title is no longer a heading
+ * @param {string|null} [props.selectedSlug] the page that is open: its row is the current one
+ * @param {boolean} [props.heading] the list's title is the page's h1; not when the card open beside it has the h1
  */
-export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null }) {
+export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug }) {
   const categories = section === "skills" ? skillCategories(data) : [];
   const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
   const pages = listRows(data, section, { query: filter.query, category });
   const cards = section === "rules" ? overviewCards : [];
   const count = t("ref.count", { shown: pages.length + cards.length, total: sectionPages(data, section).length + cards.length });
   const title = escapeHtml(sectionTitle(section));
-  const heading = selectedSlug ? `<p class="g-ref-list__title">${title}</p>` : `<h1 class="g-ref-list__title">${title}</h1>`;
+  const titleHtml = heading ? `<h1 class="g-ref-list__title">${title}</h1>` : `<p class="g-ref-list__title">${title}</p>`;
   const label = searchLabel(section);
   const search = label ? renderSearchField({ id: "ref-list-query", label, placeholder: label, value: filter.query, data: { listSearch: section } }) : "";
   const chips = section === "skills" ? categoryChips(data, categories, category) : "";
-  const shape = SPLIT_SECTIONS.has(section) ? "" : " g-ref-list--nav";
-  // Keyed, so that the redraw which opens a skill beside the list (its way up is no longer in front of it) keeps the list's node, and the focus in its search.
+  const shape = LETTER_SECTIONS.has(section) ? "" : " g-ref-list--nav";
+  // Keyed, so that the redraw which opens an item beside the list keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
-    + `<div class="g-ref-list__top">${heading}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
+    + `<div class="g-ref-list__top">${titleHtml}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
 }
 
@@ -157,62 +168,40 @@ function syncField(selector, value) {
   if (field && field.value !== value) field.value = value;
 }
 
-/**
- * The panel of a split page: what is said until a skill or a trait is chosen, then the chosen one's
- * card, with the coach's active team beside it. On a phone the panel is the whole screen, so it carries
- * the way back to the list (a link the sheet shows only there).
- */
-function panelMarkup(section, selected) {
-  if (!selected) return `<p class="g-ref-pick">${escapeHtml({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick") }[section])}</p>`;
-  const team = activeTeam();
-  const teamPage = team ? (state.data.teams ?? []).find((page) => page.slug === team.baseTeamSlug) ?? null : null;
-  return backLinkMarkup({ href: refUrl(section), label: sectionTitle(section) })
-    + skillDetailMarkup({ data: state.data, page: selected, team, teamPage });
-}
+/** What a split page's panel says until an item is chosen. */
+const pickOf = (section) => ({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick"), inducements: t("ref.inducement.pick") })[section];
 
 /**
- * What `drawScreen` takes a list for. A list is one screen with or without an item chosen: on a wide
- * screen the panel sits beside the list, so going from one skill to the next leaves the page where it
- * is. On a phone the panel takes the list's place, a screen of its own that starts at its top; the same
- * panel drawn again (a keystroke, a language switch) is still that screen.
+ * A list is one screen with or without an item open, so choosing one leaves the page where it was read to: on a desk
+ * the item's card is the panel beside the list, on a phone a sheet over it, whose close puts the focus back on its row.
  */
-function screenOfList(section, selected, phone) {
-  return phone && selected ? `list:${section}:${selected.slug}` : `list:${section}`;
-}
-
 function draw(section, selected) {
   const overviewCards = activeOverviewCards();
   const filter = listFilter(section);
   const split = SPLIT_SECTIONS.has(section);
-  const phone = Boolean(globalThis.matchMedia?.(PHONE).matches);
-  const sameList = view.querySelector(".g-ref-list")?.getAttribute("data-section") === section;
-  // The page the panel is showing now, before the redraw: a different one is a new screen on a phone.
-  const shown = view.querySelector(".g-skill-detail")?.getAttribute("data-page") ?? null;
-  // A phone swaps the list for the panel, and the panel's screen starts at its top. Where the list was
-  // read to is kept for the way back (below); a panel opened from anywhere but that list leaves the list at its top.
-  if (phone && selected && !(sameList && shown !== null)) setListScroll(section, sameList ? (globalThis.scrollY ?? 0) : 0);
-  drawScreen(view, refPageMarkup({
+  const sheet = split && selected && isPhone() ? selected : null;
+  if (sheet) noteSheet(view, sheet, view.querySelector(".g-ref-list")?.getAttribute("data-section") === section);
+  const panel = sheet ? null : selected;
+  const markup = refPageMarkup({
     layout: split ? "split" : "list",
-    screen: screenOfList(section, selected, phone),
-    open: Boolean(selected),
+    screen: `list:${section}`,
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
-    // With something chosen the list is hidden on a phone, and the panel brings the way back.
-    mainHtml: (selected ? "" : backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }))
-      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null }),
-    panelHtml: split ? panelMarkup(section, selected) : "",
-  }));
+    mainHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") })
+      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel }),
+    panelHtml: split ? detailPanelMarkup(panel, pickOf(section)) : "",
+  });
+  drawWithDetail(view, markup + detailSheetMarkup(sheet), Boolean(sheet), (slug) => `.g-ref-list a[href="#/${slug}"]`);
   syncField("#ref-list-query", filter.query);
   syncField("#ref-query", refQuery());
-  // The way back from a phone's panel is the list as it was left, not its top.
-  if (!selected && phone && shown !== null) globalThis.scrollTo?.(0, listScroll(section));
 }
 
 /**
- * Draw a list. `selected` is the skill or trait open beside it, when an address names one.
+ * Draw a list. `selected` is the item an address names: its row is marked, and its card is the panel (a desk) or a
+ * sheet over the list (a phone).
  *
  * @param {string} section one of the lists (`REF_SECTIONS`)
- * @param {{selected?: object|null}} [options] `selected`: the page whose row is marked and whose panel is shown
+ * @param {{selected?: object|null}} [options] `selected`: the page whose row is marked and whose card is shown
  */
 export function renderRefSection(section, { selected = null } = {}) {
   const redraw = () => draw(section, selected);
@@ -229,7 +218,11 @@ export function renderRefSection(section, { selected = null } = {}) {
     }, { group: CHIP_GROUP }),
     wireRefSearch(view, { onQuery: goSearch }),
   ];
-  // The panel's "In your team" is the active team's: it follows a switch of team and a list that comes in late.
-  if (SPLIT_SECTIONS.has(section)) release.push(onActiveTeamChange(redraw), onMyTeamsChange(redraw));
+  // The card's "In your team" is the active team's: it follows a switch of team and a list that comes in late. A width
+  // that crosses 900px moves an open item between the panel and the sheet.
+  if (SPLIT_SECTIONS.has(section)) {
+    release.push(onActiveTeamChange(redraw), onMyTeamsChange(redraw), onPhoneChange(redraw), wireDetailSheet(view, () => refUrl(section)),
+      () => closeDetailSheet(view));
+  }
   onScreenLeave("ref:list", () => release.forEach((stop) => stop()));
 }

@@ -100,8 +100,18 @@ const screens = {
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
 
-/** The name of the route drawn last: another one starts at the top of the page (`renderRoute`). */
+/** The place drawn last (`placeOf`): another one starts at the top of the page (`renderRoute`). */
 let shownRoute = "";
+
+/**
+ * What the router compares to know another place: the route's name, except that an item of a split list (a skill, a
+ * trait, an inducement: `page` by its address) is its list's place, `refSection`. Opening one opens its card beside
+ * the list or a sheet over it, and closing it goes back to the list: neither may start the page over (the owner,
+ * 2026-11-12: on a phone the list jumped to its top, and the header that folds as it scrolls unfolded).
+ */
+function placeOf(name, params) {
+  return name === "page" && /^(skills|traits|inducements)\/[^/]+$/.test(params.slug) ? "refSection" : name;
+}
 
 /** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */
 function reloadTeams() {
@@ -160,8 +170,9 @@ export function renderRoute() {
   }
   releaseCurrentScreen();
   const { name, params } = matchRoute(route);
-  if (name !== shownRoute) globalThis.scrollTo?.(0, 0);
-  shownRoute = name;
+  const place = placeOf(name, params);
+  if (place !== shownRoute) globalThis.scrollTo?.(0, 0);
+  shownRoute = place;
   refreshShell({ name, params });
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so

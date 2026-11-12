@@ -402,3 +402,15 @@ test("the area's sizes are the prototypes': 64px of content on a phone, 60 on a 
   assert.deepEqual(valuesOf(FILE, ".g-field__help", "color"), ["var(--muted)"]);
   assert.deepEqual(valuesOf(FILE, ".g-field__help", "font"), ["400 12px/1.4 var(--font-body)"]);
 });
+
+test("a navigation row whose page is open beside its list says so; any other says nothing", () => {
+  const current = mount(renderNavRow({ href: "#/inducements/bribes", title: "Bribes", current: true })).querySelector("a.g-list-row");
+  assert.equal(current.getAttribute("aria-current"), "page");
+  assert.equal(mount(renderNavRow({ href: "#/inducements/bribes", title: "Bribes" })).querySelector("a.g-list-row").getAttribute("aria-current"), null);
+});
+
+test("a navigation row may end with no chevron, for a row that opens no page of its own; any other glyph is refused", () => {
+  assert.equal(mount(renderNavRow({ href: "#/inducements/bribe", title: "Bribe", chevron: null })).querySelector(".g-icon"), null);
+  assert.ok(mount(renderNavRow({ href: "#/inducements/bribe", title: "Bribe" })).querySelector(".g-icon"), "the long chevron by default");
+  assert.throws(() => renderNavRow({ href: "#/x", title: "X", chevron: "arrow" }), /chevron or nothing/);
+});

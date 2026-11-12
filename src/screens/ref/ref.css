@@ -245,17 +245,14 @@
 }
 
 /*
- * A split page is two screens on a phone: the list, or (once something is chosen, which the page says
- * with g-ref--open) the panel of the chosen one, whose way back is the link at its top.
+ * A phone has no panel: what a split page opens is a sheet over its list (details.mjs).
  *
  * The head on a phone is the index's (Ref.html): the title 32 over the league's line, the search 20 under
  * it, and the page's gap under that. Any other reference screen has none, not even for a screen reader:
  * its h1 is the article's or the list's, and the head's search field would be a stop nobody sees.
  */
 @media (max-width: 900px) {
-  .g-ref--split .g-ref__panel { display: none; }
-  .g-ref--split.g-ref--open .g-ref__main { display: none; }
-  .g-ref--split.g-ref--open .g-ref__panel { display: block; }
+  .g-ref__panel { display: none; }
 
   .g-ref > .g-pagehead { margin-bottom: 0; }
   .g-ref--index .g-pagehead__title {
@@ -357,7 +354,7 @@
   .g-ref-results .g-list-row:last-child { border-bottom: 0; }
 
   /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
-  .g-ref--split .g-ref__panel {
+  .g-ref__panel {
     position: sticky;
     top: 24px;
     max-height: calc(100vh - 48px);
@@ -401,6 +398,13 @@
   .g-ref-list--nav .g-ref-list__body .g-list-row {
     border-top: 1px solid var(--line);
     border-bottom: 0;
+  }
+  /* An inducement open beside the list is marked as an open skill's row is. */
+  .g-ref-list--nav .g-ref-list__body .g-list-row[aria-current="page"] {
+    border-top-color: transparent;
+    border-radius: var(--radius-md);
+    background: var(--accent-tint-soft);
+    box-shadow: var(--ring-selected);
   }
   .g-ref-list__body .g-list-row { padding-inline: var(--space-10); }
   .g-ref-list__subtitle,

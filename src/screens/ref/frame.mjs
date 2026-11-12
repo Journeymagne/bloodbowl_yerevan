@@ -79,10 +79,8 @@ export function backLinkMarkup({ href, label }) {
 /**
  * A reference page: the head, then the table of contents, the content and, on a screen that has one,
  * the panel beside it. `layout` names what the page is — the index, a list, an article, a list with
- * the card of its chosen item — and is a class the stylesheet lays the parts out by.
- *
- * `open` says an item of a split page is chosen: a phone shows the list or the panel, not both, and
- * shows the panel then (`g-ref--open`).
+ * the card of its chosen item — and is a class the stylesheet lays the parts out by. A phone has no panel: a split
+ * page's chosen item is a sheet over it (details.mjs).
  *
  * `screen` is the page's identity (`data-screen`), which `drawScreen` compares to know a new screen from
  * the same one drawn again.
@@ -90,11 +88,11 @@ export function backLinkMarkup({ href, label }) {
  * `headHtml`, `tocHtml`, `mainHtml` and `panelHtml` are markup from the render…() functions above and
  * the screens'.
  */
-export function refPageMarkup({ layout, screen, open = false, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
+export function refPageMarkup({ layout, screen, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
   if (!LAYOUTS.has(layout)) throw new Error(`a reference page is one of ${[...LAYOUTS].join(", ")}, not ${JSON.stringify(layout)}`);
   if (!screen) throw new Error("a reference page names the screen it is");
   const panel = panelHtml ? `<aside class="g-ref__panel">${panelHtml}</aside>` : "";
-  return `<div class="g-ref g-ref--${layout}${open ? " g-ref--open" : ""}" data-screen="${escapeHtml(screen)}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
+  return `<div class="g-ref g-ref--${layout}" data-screen="${escapeHtml(screen)}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
 }
 
 /**

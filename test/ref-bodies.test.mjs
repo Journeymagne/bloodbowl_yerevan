@@ -6,7 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { leaguesBody, rollSkill, skillTableBody, starsForLeague, teamsForLeague, wireSkillTableRoller } = await import("../src/screens/ref/bodies.mjs");
@@ -153,7 +153,7 @@ test("the roller shows a D16 and the face it rolled, and links the skill it land
   setRoller({ category: "Strength", face: 8, skill: "Mighty Blow" });
   renderReferencePage("skill-table");
   assert.equal(view.querySelector(".g-ref-roller .g-die").getAttribute("aria-label"), t("ui.die.rolled", { type: "D16", value: 8 }));
-  assert.equal(view.querySelector(".g-ref-roller a").getAttribute("href"), "#/skills/mighty-blow");
+  assert.equal(view.querySelector(".g-ref-roller a").getAttribute("href"), "#/skill-table/mighty-blow", "it opens on the table");
   fireEvent(view.querySelector('[data-chip-value="Agility"]'), "click");
   assert.equal(view.querySelector(".g-ref-roller .g-die .g-die__value").textContent, "?");
 });
@@ -196,7 +196,40 @@ test("the throw is remembered while the page lives: another article and back fin
   renderReferencePage("skill-table");
   assert.equal(view.querySelector('.g-ref-roller .g-chip[aria-checked="true"]').getAttribute("data-chip-value"), "Mutation");
   assert.equal(view.querySelector(".g-ref-roller .g-die__value").textContent, "1");
-  assert.equal(view.querySelector(".g-ref-roller a").getAttribute("href"), "#/skills/big-hand");
+  assert.equal(view.querySelector(".g-ref-roller a").getAttribute("href"), "#/skill-table/big-hand");
+});
+
+test("a skill opens on the Skill Table: beside it on a desk, under the table's own h1, with the hint until one is chosen", () => {
+  renderReferencePage("skill-table");
+  assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a skill to read its rule");
+  for (const link of view.querySelectorAll(".g-ref-skilltable__desk a")) assert.match(link.getAttribute("href"), /^#\/skill-table\/[\w-]+$/, link.textContent);
+  renderReferencePage("skill-table/dodge");
+  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail").getAttribute("data-page"), "skills/dodge");
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Skill Table"], "the page is the table: one h1");
+  assert.equal(view.querySelector(".g-ref__panel h2.g-skill-detail__name").textContent, "Dodge", "the card's name is a heading under it");
+  assert.ok(view.querySelector(".g-ref.g-ref--article"));
+  assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/skill-table");
+  renderReferencePage("skill-table/no-such-skill");
+  assert.equal(view.querySelector("h1").textContent, "Page not found.");
+});
+
+test("on a phone a skill of the Skill Table opens in a sheet over it, whose close goes back to the table", () => {
+  withWindow({ phone: true }, () => {
+    const asked = [];
+    const before = globalThis.location;
+    globalThis.location = { hash: "", replace: (hash) => asked.push(hash) };
+    try {
+      renderReferencePage("skill-table/dodge");
+      const sheet = view.querySelector("dialog#ref-detail");
+      assert.ok(sheet.matches(":modal"));
+      assert.equal(sheet.querySelector(".g-sheet__title").textContent, "Dodge");
+      assert.ok(view.querySelector(".g-ref__panel .g-skill-detail") === null, "the panel a phone hides holds no second card");
+      fireEvent(sheet.querySelector("[data-sheet-close]"), "click");
+      assert.deepEqual(asked, ["#/skill-table"], "opened by its address, the table's address takes its place");
+    } finally {
+      globalThis.location = before;
+    }
+  });
 });
 
 test("a remembered category the vault does not have is the first column, and a throw is then that column's", () => {
@@ -248,7 +281,7 @@ test("on a phone the Skill Table is a numbered list per category; on a desktop i
   assert.ok(view.querySelector(".g-ref-skilltable__desk table"));
 });
 
-test("a phone's lists are the table's columns, face by face, each skill a link to its page; the roller comes first", () => {
+test("a phone's lists are the table's columns, face by face, each skill a link that opens it on the table; the roller comes first", () => {
   for (const locale of ["en", "ru"]) {
     useLocale(locale);
     renderReferencePage("skill-table");
@@ -258,7 +291,7 @@ test("a phone's lists are the table's columns, face by face, each skill a link t
     const lists = section.querySelectorAll("ol");
     state.data.skillGroups.forEach(({ skills }, at) => {
       assert.deepEqual(lists[at].querySelectorAll("li").map((li) => li.textContent), skills, `${locale}: ${at}`);
-      for (const link of lists[at].querySelectorAll("li a")) assert.match(link.getAttribute("href"), /^#\/skills\/[\w-]+$/, `${locale}: ${link.textContent}`);
+      for (const link of lists[at].querySelectorAll("li a")) assert.match(link.getAttribute("href"), /^#\/skill-table\/[\w-]+$/, `${locale}: ${link.textContent}`);
       assert.equal(lists[at].querySelectorAll("li a").length, skills.length, `${locale}: every skill is a link`);
     });
     assert.deepEqual(view.querySelector(".g-article").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")).slice(2, 5),

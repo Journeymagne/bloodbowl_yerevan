@@ -6,7 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { renderRefSection, refListMarkup, skillCategories, listRows } = await import("../src/screens/ref/list.mjs");
@@ -195,23 +195,59 @@ test("a skill that is open is marked in the list, which keeps its filter; the li
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"], "the open skill's panel owns the h1");
   assert.equal(view.querySelector("p.g-ref-list__title").textContent, "Skills");
-  assert.ok(view.querySelector(".g-ref.g-ref--split.g-ref--open"));
+  assert.ok(view.querySelector(".g-ref.g-ref--split"));
   assert.ok(view.querySelector(".g-ref__panel .g-skill-detail"), "the panel stands where the hint did");
   assert.equal(view.querySelector(".g-ref-pick"), null);
   renderRefSection("skills");
-  assert.equal(view.querySelector(".g-ref--open"), null, "nothing chosen: the list is the whole screen on a phone");
-  assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "and no row is marked");
+  assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "nothing chosen: no row is marked");
   assert.ok(view.querySelector("h1"), "the list has its heading back");
 });
 
-test("traits get the trait hint; the lists that are not split have no panel and are never open", () => {
+test("traits and inducements get their hints; the lists that are not split have no panel", () => {
   renderRefSection("traits");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a trait to read its rule");
-  for (const section of ["teams", "star-players", "inducements", "rules", "cheatsheets"]) {
+  renderRefSection("inducements");
+  assert.ok(view.querySelector(".g-ref.g-ref--split"));
+  assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose an inducement to read its rule");
+  for (const section of ["teams", "star-players", "rules", "cheatsheets"]) {
     renderRefSection(section);
     assert.ok(view.querySelector(".g-ref.g-ref--list"), section);
     assert.equal(view.querySelector(".g-ref__panel"), null, section);
   }
+});
+
+test("an inducement's address opens it beside its list on a desk: the row marked, the page's text under its name, the one h1", async () => {
+  const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
+  renderReferencePage("inducements/biased-referee");
+  assert.ok(view.querySelector(".g-ref.g-ref--split .g-ref-list--nav"), "the list keeps its two-line rows");
+  assert.deepEqual(view.querySelectorAll('a.g-list-row[aria-current="page"]').map((row) => row.getAttribute("href")), ["#/inducements/biased-referee"]);
+  const card = view.querySelector(".g-ref__panel .g-skill-detail");
+  assert.equal(card.getAttribute("data-page"), "inducements/biased-referee");
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Biased Referee"]);
+  assert.equal(card.querySelector(".g-ref-badge"), null, "an inducement has no letter");
+  assert.equal(card.querySelector(".g-skill-detail__caption").textContent, "Inducement", "what it is, under its name, as a skill's category");
+  assert.ok(card.querySelector(".g-prose p"));
+  assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/inducements");
+  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "page-head.css", "list-row.css", "search-field.css");
+});
+
+test("on a phone an inducement opens in a sheet over its list, named by it, with no letter", async () => {
+  const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
+  withWindow({ phone: true }, () => {
+    renderReferencePage("inducements/biased-referee");
+    const sheet = view.querySelector("dialog#ref-detail");
+    assert.ok(sheet.matches(":modal"));
+    assert.equal(sheet.querySelector(".g-sheet__title").textContent, "Biased Referee");
+    assert.equal(sheet.querySelector(".g-sheet__sub").textContent, "Inducement");
+    useLocale("ru");
+    renderReferencePage("inducements/biased-referee");
+    assert.equal(view.querySelector("dialog#ref-detail .g-sheet__sub").textContent, "Inducement", "the glossary keeps the reference's inducement words English");
+    useLocale("en");
+    renderReferencePage("inducements/biased-referee");
+    assert.equal(sheet.querySelector(".g-ref-badge"), null);
+    assert.ok(sheet.querySelector(".g-skill-detail .g-prose"));
+    assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Inducements"]);
+  });
 });
 
 test("a phone gets the way back up to the reference; the table of contents and the band are the page's own", () => {
@@ -253,17 +289,25 @@ test("a team narrows by name, and the list of teams, stars and inducements all a
   assert.equal(view.querySelector("a.g-list-row .g-list-row__title").textContent, "Additional Training");
 });
 
-test("an inducement says its rule in the first ninety characters", () => {
-  const data = referenceData("en");
-  renderRefSection("inducements");
-  const rows = view.querySelectorAll("a.g-list-row");
-  assert.equal(rows.length, 24);
-  for (const row of rows) {
-    const page = data.inducements.find((item) => `#/${item.slug}` === row.getAttribute("href"));
-    const text = row.querySelector(".g-list-row__desc").textContent;
-    assert.equal(text, page.text.length > 90 ? `${page.text.slice(0, 90).trimEnd()}…` : page.text, page.title);
+test("an inducement's row says how many, the name and the price — its rule's opening up to the colon — and has no chevron, as a skill's", () => {
+  for (const locale of ["en", "ru"]) {
+    useLocale(locale);
+    const data = referenceData(locale);
+    renderRefSection("inducements");
+    const rows = view.querySelectorAll("a.g-list-row");
+    assert.equal(rows.length, 24, locale);
+    for (const row of rows) {
+      const page = data.inducements.find((item) => `#/${item.slug}` === row.getAttribute("href"));
+      assert.equal(row.querySelector(".g-list-row__desc").textContent, page.text.slice(0, page.text.indexOf(":")).trim(), `${locale}: ${page.title}`);
+      assert.equal(row.querySelector(".g-icon"), null, `${locale}: ${page.title}`);
+    }
   }
-  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/additional-training"] .g-list-row__desc').textContent, "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.");
+  useLocale("en");
+  renderRefSection("inducements");
+  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/additional-training"] .g-list-row__desc').textContent, "0-6 Additional Training (85k)");
+  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/biased-referee"] .g-list-row__desc').textContent, "0-1 Biased Referee (100k, or 60k for Bribery and Corruption)");
+  renderRefSection("star-players");
+  assert.ok(view.querySelector("a.g-list-row .g-icon"), "a row that leads to a page of its own keeps its chevron");
 });
 
 test("a league rule is described by its sentence in the dictionary, in both languages, for every page of both vaults", () => {
@@ -378,14 +422,10 @@ test("the badge is a 28px square, white on its category's colour", () => {
   }
 });
 
-test("on a phone a split page is two screens: the list, or — with something chosen — its panel", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "display"), ["none"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__main", "display"), ["none"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__panel", "display"), ["block"]);
-  const phone = mediaText(SHEET, "max-width: 900px");
-  for (const selector of [".g-ref--split .g-ref__panel", ".g-ref--split.g-ref--open .g-ref__main", ".g-ref--split.g-ref--open .g-ref__panel"]) {
-    assert.ok(phone.includes(selector), `${selector} is a phone rule`);
-  }
+test("a phone has no panel: what a split page opens is a sheet over its list, which is never hidden", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "display"), ["none"]);
+  assert.ok(mediaText(SHEET, "max-width: 900px").includes(".g-ref__panel"), "a phone rule");
+  assert.equal(read(SHEET).includes("g-ref--open"), false, "no state shows the panel instead of the list");
 });
 
 test("from 901px every page is the Skills page's grid: the contents, the main column, the panel's column, empty where there is no panel", () => {
@@ -413,8 +453,8 @@ test("from 901px every page is the Skills page's grid: the contents, the main co
   assert.deepEqual(columns(1920), [220, 964, 400]);
   assert.ok(columns(1024)[1] >= 300, `the main column at 1024: ${columns(1024)}`);
   assert.ok(columns(901)[1] >= 220, `the main column at 901: ${columns(901)}`);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "position"), ["sticky"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "top"), ["24px"]);
 });
 
 test("from 901px the rows are a grid of 220px columns in a framed card, and the page scrolls, not the rows", () => {

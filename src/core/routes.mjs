@@ -45,6 +45,11 @@ export function pageUrl(page) {
   return `#/${page.slug}`;
 }
 
+/** A skill opened on the Skill Table (`#/skill-table/block`): the table with the skill's card beside it, or in a sheet. */
+export function skillTableUrl(page) {
+  return `#/skill-table/${page.slug.slice(page.slug.indexOf("/") + 1)}`;
+}
+
 /** A team's screen: `""` is its overview, the others are its tabs. */
 export function teamUrl(teamOrId, section = "") {
   if (!TEAM_SECTIONS.has(section)) throw new Error(`Unknown team section: ${section}`);

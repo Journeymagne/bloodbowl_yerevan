@@ -623,6 +623,8 @@
   "ref.rules.full": "Полный текст",
   "ref.skill.pick": "Выберите навык, чтобы прочитать правило",
   "ref.trait.pick": "Выберите черту, чтобы прочитать правило",
+  "ref.inducement.pick": "Выберите inducement, чтобы прочитать правило",
+  "ref.inducement.caption": "Inducement",
   "ref.kicker": "{group} · справочник лиги",
   "ref.pager": "Другие статьи",
   "ref.roll.hint": "Выберите категорию и бросьте D16",

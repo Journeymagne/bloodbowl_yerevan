@@ -110,7 +110,8 @@ test("on a wide screen the list stays beside the article, the open skill marked 
   assert.equal(view.querySelector('a.g-ref-row[aria-current="page"]').getAttribute("href"), "#/skills/dodge");
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"]);
-  assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/skills");
+  assert.deepEqual(view.querySelectorAll("a.g-ref-back").map((link) => link.getAttribute("href")), ["#/ref"], "the list's own way up (a phone's), and none in the panel");
+  assert.equal(view.querySelector("dialog"), null, "a desk has the panel, not a sheet");
   setListFilter("skills", { category: "all" });
   assertDictionaryCovers("src/screens/ref/skill.mjs");
 });
@@ -211,7 +212,6 @@ test("a trait has a T for a letter, its tags for a caption and no roll", () => {
   assert.equal(panel.querySelector(".g-kv"), null);
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/traits");
   assert.equal(view.querySelector('a.g-ref-row[aria-current="page"]').getAttribute("href"), "#/traits/throw-team-mate");
-  assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/traits");
   renderReferencePage("traits/always-hungry");
   assert.equal(view.querySelector(".g-skill-detail__caption").textContent, "Trait");
 });
@@ -244,43 +244,93 @@ test("the panel and the list agree: a skill's letter is the same in its row and 
   assert.deepEqual([row.textContent, row.getAttribute("class").includes("g-ref-badge--agility")], [card.textContent, card.getAttribute("class").includes("g-ref-badge--agility")]);
 });
 
-test("a phone gets the way back from the panel to the list, not to the reference; with nothing chosen it is the other way", () => {
-  renderReferencePage("skills/dodge");
-  const back = view.querySelectorAll("a.g-ref-back");
-  assert.deepEqual(back.map((link) => [link.getAttribute("href"), link.textContent]), [["#/ref/skills", "Skills"]]);
-  assert.ok(view.querySelector(".g-ref__panel a.g-ref-back"), "the panel carries it: the list is hidden when the panel shows");
-  assert.ok(view.querySelector(".g-ref.g-ref--split.g-ref--open"));
-  useLocale("ru");
-  renderReferencePage("traits/bonehead");
-  assert.deepEqual(view.querySelectorAll("a.g-ref-back").map((link) => [link.getAttribute("href"), link.textContent]), [["#/ref/traits", "Traits"]], "the glossary keeps the section's name in English");
-});
-
 /** Another screen is on the page, as when the coach comes to the reference from the roster. */
 const elsewhere = () => { view.innerHTML = "<p>elsewhere</p>"; };
 
-test("a phone starts a panel at its top, wherever the list or the panel before it was read to; the same panel redrawn stays where it is", () => {
+/** The page's history and address for the length of `run`: what Back and a replaced address were asked for. */
+function withHistory(run) {
+  const asked = [];
+  const before = { history: globalThis.history, location: globalThis.location };
+  globalThis.history = { back: () => asked.push("back") };
+  globalThis.location = { hash: "", replace: (hash) => asked.push(hash) };
+  try {
+    run(asked);
+  } finally {
+    Object.assign(globalThis, before);
+  }
+}
+
+const sheet = () => view.querySelector("dialog#ref-detail");
+const closeSheet = () => fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
+
+test("a phone opens a skill in a sheet over its list: the list stays, with its h1, its way up and the row marked; the sheet is named by the skill", () => {
+  withWindow({ phone: true }, () => {
+    renderReferencePage("skills/dodge");
+    assert.ok(sheet().matches(":modal"));
+    assert.equal(sheet().querySelector(".g-sheet__title").textContent, "Dodge");
+    assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Agility · Active");
+    assert.ok(sheet().querySelector(".g-ref-badge") === null, "the Roster's skill sheet's head: no room for the letter on a phone");
+    assert.equal(sheet().querySelector(".g-skill-detail h1"), null, "the sheet's head is the name: the card has none of its own");
+    assert.ok(sheet().querySelector(".g-skill-detail .g-prose"));
+    assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Skills"], "the list is the page");
+    assert.equal(view.querySelector('a.g-ref-row[aria-current="page"]').getAttribute("href"), "#/skills/dodge");
+    assert.deepEqual(view.querySelectorAll("a.g-ref-back").map((link) => link.getAttribute("href")), ["#/ref"]);
+    assert.equal(view.querySelector(".g-ref__panel .g-skill-detail"), null, "the panel a phone hides holds no second card");
+    useLocale("ru");
+    renderReferencePage("traits/bonehead");
+    assert.equal(sheet().querySelector(".g-sheet__title").textContent, state.data.traits.find((page) => page.slug === "traits/bonehead").title, "the Russian vault's trait");
+  });
+});
+
+test("the sheet's close is Back when it was opened from its list, and the list's address otherwise; the focus goes back to the row", () => {
+  withWindow({ phone: true }, () => withHistory((asked) => {
+    elsewhere();
+    renderRefSection("skills");
+    renderReferencePage("skills/dodge");
+    closeSheet();
+    assert.deepEqual(asked, ["back"], "one step back is the list: Back closes it, and Back after it leaves the reference as it came");
+    renderRefSection("skills");
+    assert.equal(sheet(), null);
+    assert.equal(document.activeElement, view.querySelector('a.g-ref-row[href="#/skills/dodge"]'), "the focus is on the row it was opened from");
+    asked.length = 0;
+    elsewhere();
+    renderReferencePage("skills/dodge");
+    closeSheet();
+    assert.deepEqual(asked, ["#/ref/skills"], "opened by a link from elsewhere: Back would leave, so the list's address takes its place");
+    asked.length = 0;
+    renderRefSection("skills");
+    renderReferencePage("skills/dodge");
+    renderReferencePage("skills/block");
+    closeSheet();
+    assert.deepEqual(asked, ["#/ref/skills"], "gone on to another skill through a link of the rule: Back would open the first again");
+  }));
+});
+
+test("a phone keeps the list under the sheet where it was read to: opening, going on and closing move nothing; another screen starts at its top", () => {
   withWindow({ phone: true }, ({ scrolls, scrollPage }) => {
     elsewhere();
     renderRefSection("skills");
-    scrollPage(500);
+    scrollPage(640);
     scrolls.length = 0;
     renderReferencePage("skills/dodge");
-    assert.deepEqual(scrolls, [[0, 0]], "a phone swaps the list for the panel");
-    scrollPage(300);
-    scrolls.length = 0;
-    const field = view.querySelector("#ref-list-query");
-    field.value = "d";
-    fireEvent(field, "input");
-    assert.ok(view.querySelector(".g-ref--open"), "the panel stays up while the list is searched");
-    renderReferencePage("skills/dodge");
-    assert.deepEqual(scrolls, [], "neither the redraw nor the same address again starts it over");
     renderReferencePage("skills/block");
-    assert.deepEqual(scrolls, [[0, 0]], "a link in a rule to another skill is another screen, and starts at its top");
+    renderRefSection("skills");
+    assert.deepEqual(scrolls, [], "the list, a sheet over it, another sheet, the list again: one page");
+    assert.equal(globalThis.scrollY, 640);
     elsewhere();
-    scrollPage(800);
+    scrollPage(900);
     scrolls.length = 0;
-    renderReferencePage("skills/block");
-    assert.deepEqual(scrolls, [[0, 0]], "so is a skill opened from another screen");
+    renderReferencePage("skills/dodge");
+    assert.deepEqual(scrolls, [[0, 0]], "a skill opened from another screen: its list starts at the top, under the sheet");
+  });
+});
+
+test("leaving the list with its sheet open closes the sheet: no modal is left over the next screen", () => {
+  withWindow({ phone: true }, () => {
+    renderReferencePage("skills/dodge");
+    const dialog = sheet();
+    releaseCurrentScreen();
+    assert.equal(dialog.open, false);
   });
 });
 
@@ -303,36 +353,7 @@ test("a wide screen shows the panel beside the list: going from one skill to the
   });
 });
 
-test("a phone going back from a panel finds the list where it was read to; a list reached any other way starts at its top", () => {
-  withWindow({ phone: true }, ({ scrolls, scrollPage }) => {
-    elsewhere();
-    renderRefSection("skills");
-    scrollPage(640);
-    renderReferencePage("skills/dodge");
-    assert.equal(globalThis.scrollY, 0, "the panel starts at its top");
-    renderReferencePage("skills/block");
-    assert.equal(globalThis.scrollY, 0, "so does the next one");
-    renderRefSection("skills");
-    assert.equal(globalThis.scrollY, 640, "the way back is the list as it was left, not the offset of the panels read since");
-    scrollPage(100);
-    scrolls.length = 0;
-    const field = view.querySelector("#ref-list-query");
-    field.value = "a";
-    fireEvent(field, "input");
-    assert.deepEqual(scrolls, [], "a search typed in the list is not a way back");
-    elsewhere();
-    scrollPage(900);
-    renderReferencePage("skills/dodge");
-    renderRefSection("skills");
-    assert.equal(globalThis.scrollY, 0, "a panel opened from another screen leaves the list at its top, not at the offset of that screen");
-    elsewhere();
-    renderRefSection("skills");
-    scrollPage(700);
-    renderReferencePage("skills/dodge");
-    renderReferencePage("traits/bonehead");
-    renderRefSection("traits");
-    assert.equal(globalThis.scrollY, 0, "a trait reached by a link from a skill: the traits were never read, and the skills' place is not theirs");
-  });
+test("a wide screen never takes the list away: only the first draw starts the page", () => {
   withWindow({ phone: false }, ({ scrolls, scrollPage }) => {
     elsewhere();
     renderRefSection("skills");
@@ -433,16 +454,16 @@ test("from 901px the split page's columns never wrap, and its panel stays in vie
   assert.deepEqual(valuesOf(REF, ".g-ref__body", "display"), ["flex", "grid"]);
   assert.deepEqual(valuesOf(REF, ".g-ref__body", "flex-flow"), []);
   assert.ok(split(REF).wide.includes(".g-ref__body"), "the columns are the desktop's");
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
+  assert.deepEqual(valuesOf(REF, ".g-ref__panel", "position"), ["sticky"]);
   // Sticking needs the frame's box not to be one that scrolls: the frame clips sideways for every screen (stage 13), so no rule of the reference's own does it.
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "overflow-x"), ["clip"]);
   assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), []);
 });
 
 test("a panel taller than the window scrolls in itself, so that its foot (who in the team has the skill) is not out of reach while it is stuck", () => {
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "max-height"), ["calc(100vh - 48px)"], "the window less 24px above and below, as the panel's `top`");
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "overflow-y"), ["auto"]);
-  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
+  assert.deepEqual(valuesOf(REF, ".g-ref__panel", "max-height"), ["calc(100vh - 48px)"], "the window less 24px above and below, as the panel's `top`");
+  assert.deepEqual(valuesOf(REF, ".g-ref__panel", "overflow-y"), ["auto"]);
+  assert.deepEqual(valuesOf(REF, ".g-ref__panel", "top"), ["24px"]);
   assert.ok(split(REF).wide.includes("max-height: calc(100vh - 48px)"), "only from 901px, where the panel is a column and sticks");
 });
 
