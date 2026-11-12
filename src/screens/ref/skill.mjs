@@ -44,10 +44,6 @@ export function badgeMarkup(category, { large = false, trait = false } = {}) {
   return `<span class="g-ref-badge g-ref-badge--${known ? tone : "trait"}${large ? " g-ref-badge--lg" : ""}" aria-hidden="true">${escapeHtml(letter)}</span>`;
 }
 
-export function isTrait(page) {
-  return String(page?.slug ?? "").startsWith("traits/");
-}
-
 /**
  * Where a skill stands on the Skill Table: its column, and the face of the D16 that rolls it (a column
  * fills faces 1 to N, as bodies.mjs has it). A skill with a parameter is found under its name
@@ -153,7 +149,7 @@ export function skillCaption(data, page) {
  * @param {object|null} [props.teamPage] the page of the team's race, whose rows say what each position has
  */
 export function skillDetailMarkup({ data, page, team = null, teamPage = null, head = true, level = 1 }) {
-  const badge = badgeMarkup(categoryOf(data, page), { large: true, trait: isTrait(page) });
+  const badge = badgeMarkup(categoryOf(data, page), { large: true, trait: page.kind === "trait" });
   return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">`
     + `${head ? detailHead({ badge, title: page.title, caption: skillCaption(data, page), level }) : ""}`
     + `${proseMarkup(ruleOf(page))}${factsMarkup(data, page)}`

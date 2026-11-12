@@ -11,7 +11,7 @@
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
+import { SPLIT_SECTIONS, TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { escapeHtml } from "./dom.mjs";
@@ -105,7 +105,8 @@ let shownRoute = "";
 
 // An item of a split list counts as its list's place: opening or closing its card must not scroll the list to the top.
 function placeOf(name, params) {
-  return name === "page" && /^(skills|traits|inducements)\/[^/]+$/.test(params.slug) ? "refSection" : name;
+  const [section, item, ...rest] = name === "page" ? String(params.slug).split("/") : [];
+  return SPLIT_SECTIONS.has(section) && item && !rest.length ? "refSection" : name;
 }
 
 /** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */

@@ -10,7 +10,7 @@
  */
 import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl, refUrl } from "../../core/routes.mjs";
+import { SPLIT_SECTIONS, pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -24,9 +24,7 @@ import { drawDetailPage, wireDetailPage } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
-import { badgeMarkup, isTrait, tagsOf } from "./skill.mjs";
-
-const SPLIT_SECTIONS = new Set(["skills", "traits", "inducements"]);
+import { badgeMarkup, tagsOf } from "./skill.mjs";
 
 const LETTER_SECTIONS = new Set(["skills", "traits"]);
 
@@ -65,7 +63,7 @@ function referenceRow(page, selectedSlug) {
   const { category } = tagsOf(page);
   const current = page.slug === selectedSlug ? ' aria-current="page"' : "";
   return `<a class="g-ref-row" href="${escapeHtml(href)}"${current}>`
-    + badgeMarkup(category, { trait: isTrait(page) })
+    + badgeMarkup(category, { trait: page.kind === "trait" })
     + `<span class="g-sr-only">${escapeHtml(category)}</span>`
     + `<span class="g-ref-row__name">${escapeHtml(page.title)}</span></a>`;
 }
@@ -133,9 +131,8 @@ function categoryChips(data, categories, selected) {
  * @param {object[]} [props.overviewCards] the league overview's cards, which the rules list shows ahead of its pages
  * @param {string|null} [props.selectedSlug] the page that is open: its row is the current one
  * @param {boolean} [props.heading] whether the list's title is the page's h1: not while the panel's card has it
- * @param {string} [props.backHtml] the way up, which only a phone shows
  */
-export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug, backHtml = "" }) {
+export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug }) {
   const categories = section === "skills" ? skillCategories(data) : [];
   const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
   const pages = listRows(data, section, { query: filter.query, category });
@@ -149,7 +146,7 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const shape = LETTER_SECTIONS.has(section) ? "" : " g-ref-list--nav";
   // Keyed, so that the redraw which opens an item beside the list keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
-    + `<div class="g-ref-list__top">${backHtml}<div class="g-ref-list__titles">${titleHtml}<p class="g-ref-place">${escapeHtml(sectionKicker(section))}</p></div><p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
+    + `<div class="g-ref-list__top">${backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") })}<div class="g-ref-list__titles">${titleHtml}<p class="g-ref-place">${escapeHtml(sectionKicker(section))}</p></div><p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
 }
 
@@ -176,8 +173,7 @@ function draw(section, selected) {
       screen,
       headHtml: refHeadMarkup({ query: refQuery() }),
       tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
-      mainHtml: refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel,
-        backHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }) }),
+      mainHtml: refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel }),
       panelHtml: split ? panelHtml : "",
     }),
   });
