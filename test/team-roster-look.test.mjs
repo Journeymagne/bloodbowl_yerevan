@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { assertCspSafe, assertDictionaryCovers, assertStyled } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -181,7 +181,7 @@ test("under the tables a line on how to read them: a desk's columns and click; a
   coach();
   await renderTeamRoster("t1");
   assert.equal(view.querySelector(".g-roster__main .g-roster__caption").textContent,
-    "SPP: «Total» — earned in the career, «Avail.» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right." + reorderHint);
+    "SPP: «Total» — earned in the career, «Avail» — available to advance. In green — skills gained and characteristics raised. A click on a row opens the player on the right." + reorderHint);
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
@@ -248,6 +248,18 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   assert.deepEqual(valuesOf(frame, ".g-roster__conflict .g-btn--primary", "min-height"), ["var(--size-touch)", "40px"], "a thumb on a phone, 40px on a desk (D2)");
   // The status is a dot and its words, no capsule.
   assert.deepEqual([valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "background"), valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "padding")], [["transparent"], ["0"]]);
+  // A desk's «Active roster» is a screen reader's: pinned at the band's start, not left at its end, where its pixel
+  // stuck out of the tables' sideways scroll and gave it a scrollbar with nothing to scroll at 1440.
+  const heading = ".g-roster__section--active .g-roster__heading";
+  assert.deepEqual([valuesOf(frame, heading, "position"), valuesOf(frame, heading, "left"), valuesOf(frame, heading, "top")], [["absolute"], ["0"], ["0"]]);
+  assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__section--active > .g-roster__bar", "justify-content"), ["flex-end"], "the band the status keeps at its end");
+  // The owner, 2026-11-11: «Missing the match» and «Fallen» bands split the card themselves: no gap before them, no line over them.
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections", "gap"), ["0"]);
+  assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster__count", "margin-left"), ["var(--space-4)"], "the number set off from its heading");
+  // The coach's team page's heading is a flex row: its 8px gap is that room already, with no margin on top of it.
+  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp__squadtitle", "gap"), ["0 var(--space-8)"]);
+  assert.deepEqual(valuesOf("src/screens/coaches/team.css", ".g-opp__count", "margin-left"), []);
+  assert.deepEqual(inMedia(frame, "min-width: 901px", ".g-roster__sections .g-rtable__player:last-of-type > tr > *", "border-bottom"), ["0"]);
 });
 
 // Fix round 1 of the fidelity pass.

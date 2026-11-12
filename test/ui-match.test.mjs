@@ -144,6 +144,12 @@ test("a tile may lead somewhere: a link with the same face (06 → 08: the treas
   assertCspSafe(mount(renderKpiTile({ label: "Treasury", value: "1", href: "#/t/t1/team" })));
 });
 
+test("a tile may carry a key, so a redraw that adds or drops tiles keeps its node", () => {
+  const keyed = mount(renderKpiGrid([{ key: "tile-place", label: "Place", value: "2" }, { key: HOSTILE, label: "Treasury", value: "1", href: "#/t/t1/team" }]));
+  assert.deepEqual(keyed.querySelectorAll(".g-kpi").map((tile) => tile.getAttribute("data-key")), ["tile-place", HOSTILE]);
+  assert.equal(mount(renderKpiTile({ label: "TV", value: "1" })).querySelector(".g-kpi").hasAttribute("data-key"), false, "no key, no attribute");
+});
+
 test("a link tile has no underline and shows a hover in every palette: a shade of the ink, not --surface-3 (K13)", () => {
   const sheet = "src/ui/kpi-tile.css";
   assert.deepEqual(valuesOf(sheet, "a.g-kpi--link", "text-decoration"), ["none"]);

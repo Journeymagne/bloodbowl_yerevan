@@ -11,7 +11,10 @@ functions (fed the same fixtures), and each side wears that checkout's own `dist
 changes; everything goes to `output/previews/<name>/` (git-ignored) and the scratchpad.
 
 Scripts beside this file: `render.mjs` (fragments of one checkout), `build.mjs` (the page), `example-recipes.mjs`
-(the recipes of the first preview, to copy from).
+(the recipes of the first preview, to copy from); for screenshots of the running app (§4a) `shots.mjs` (one side's
+pictures, and where each change stands on them), `spec-kit.mjs` (spec entries boxed from those places, several cuts
+of one page merged), `stitch.ps1` (draws the merged pictures), `example-states.mjs` and `example-spec.mjs` (the part 2
+preview's, to copy from).
 
 ## 1. What changed, and how to show it
 
@@ -27,10 +30,10 @@ description groups them (Major / Normal / …). For each, pick how it is drawn:
 - **Something only one side has**: the other side shows a `g-preview-none` note saying where it lives on that side.
 - **A wording change**: a row in `renames` (EN · RU per side). When the word shows inside a component (a chip's
   source line, a sheet's title), the component's frame shows it too, from each side's dictionary.
-- **What needs a running app** (the overview with its live reads, a sheet after some clicks, a live match's panel):
-  a screenshot pair — from `output/screens/<name>/{before,after}/` if a run already holds it, or from a small states
-  file of your own taken with `--only` on both sides (a minute; see §4). Never start the whole run for a preview
-  without asking — 950 shots a side take ~35 minutes.
+- **What needs a running app** (the overview with its live reads, a sheet after some clicks, a live match's panel,
+  another coach's page): a screenshot pair from a small states file of your own, taken on both sides with
+  `shots.mjs` (§4a; a minute a side). Never start the whole `npm run screens` run for a preview without asking — 950
+  shots a side take ~35 minutes.
 
 Pick the width per section: `desk` (laid out at 1100px, ≥ 901px rules) or `phone` (390px).
 
@@ -42,13 +45,16 @@ silently; Minor items may be.
 - **A sheet** (an advancement's step, a skill's rule): render it with `renderSheet` and open it in the recipe
   (`html.replace("<dialog", "<dialog open")`); the frame draws an open sheet where it stands, at its whole height, with
   no backdrop. Show the sheet around a change made inside one — the change alone loses its place.
-- **Screenshots go stale.** A screenshot taken before a later code change shows the old branch: retake the states the
-  page uses on both sides after the last change (`npm run screens -- <states> --out … --only <id,id>`, a minute), never
-  reuse older ones.
+- **Screenshots go stale.** A screenshot taken before a later code change shows the old branch: rebuild, restart the
+  branch's mock, and retake both sides with `shots.mjs` after the last change (a minute a side), never reuse older
+  ones — a page published with a fix's old pictures says the fix is not there.
 
 ## 2. Two checkouts
 
-The branch is the repo itself. `main` is a clean worktree in the scratchpad (as the review skill's baseline):
+The branch is the repo itself. The base is a clean worktree in the scratchpad (as the review skill's baseline):
+`origin/main`, or, for a PR that builds on another one not merged yet, that branch's tip (part 2 stood on part 1's
+`f097c4b1`). Then the left side is that branch, not `main`: label it so (`"labels": {"before": "p1 (base)"}`) and say
+it in the intro.
 
 ```powershell
 $g = (Get-Command git -ErrorAction SilentlyContinue).Source; if (-not $g) { $g = (Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Select-Object -Last 1).FullName }
@@ -135,15 +141,33 @@ dictionary (`t()` in the recipe), never typed into the recipe, so a renamed word
 **Cut screenshots to the change.** A screenshot pair of the same size is cut automatically to where the two differ
 (the `screens:diff` box, plus a 48px margin), the changed box outlined. A cut narrower than 60% of the screen takes
 the screen's whole width, so it keeps its place; a cut is never shown larger than its own pixels.
-When the sizes differ the whole layout moves and every pixel differs (`main`'s desk shots were 15px narrower while it
-kept a scrollbar gutter), so give the cut yourself, in the branch picture's pixels: `area` `{x, y, width, height}`
-and `boxes` (a list of the same shape) for what changed inside it. Read the branch's PNG to pick them. A box is drawn
-at the same place on both sides, so where `main`'s layout sits further left, widen it leftwards until it holds the
-change on both, or it cuts through `main`'s text. `whole: true` shows a pair uncut.
+That cut is the whole of what differs, so on a screen where several things changed it is the whole screen. Give the
+cut yourself instead, `area` `{x, y, width, height}` and `boxes` (a list of the same shape), from the elements' own
+places (§4a), never picked by eye from the PNG: the first part 2 preview did that and boxed whole pages, the modal's
+page behind a sheet, and a left column its words never named. A box is drawn at the same place on both sides, so it
+must hold the change on both. `whole: true` shows a pair uncut.
 A shot with `group` (one of `groups`, or the build stops) stands in that group after its sections, linked from the
-contents bar, not in the «Screenshots» block at the end: use it when a change is best seen in the running app (a
-sheet's state after clicks, a live match's panel, a 1px line). Write a small states file for those states (as
-`npm run screens` takes, its `run` steps clicking through) and take it on both sides with `--only <id>`.
+contents bar, not in the «Screenshots» block at the end. `"phone": true` labels it a phone's (without it, «Desk»).
+Every text field but `intro` is escaped by the build: write `<league>`, not `&lt;league&gt;`.
+
+### 4a. Screenshots of the running app
+
+1. **States.** Copy `example-states.mjs` to the scratchpad: a state is a screen (`hash`, `width`, `height`, `locale`,
+   `guest`, a `click` that opens a sheet) and its `marks` — the changed elements, as CSS selectors per side where the
+   markup differs (`before` / `after`), or `sel` for both.
+2. **Both sides.** Serve each side's build with its own mock (`MOCK_PORT=5197 node scripts/mock-api.mjs` in the base
+   worktree, `5185` in the repo, both after `npm run build`), then
+   `node .claude/skills/ui-preview/shots.mjs http://localhost:5197 <states> output/screens/<name>/before before` and the
+   same for `after`. Each writes the PNGs and `rects.json`, where every mark stands; it prints a mark found on no side,
+   and a selector that is wrong there is a box missing on the page.
+3. **Line the sides up.** Where rows above a change grew or shrank on one side, a box at one place fits only one of
+   them. Give the state `align` (the element to line up) and `alignY`: both pages are scrolled so it stands at that
+   height. Near a page's end the scroll stops short (the script says so): raise `alignY`. A change deep in a long page
+   gets a short screen of its own (`height` 600–700) rather than a box on a 1700px screen.
+4. **Entries.** Copy `example-spec.mjs`: `shot(id, …)` boxes each mark (both sides' places together) and cuts the pair
+   to those boxes with room around them; `merge(file, [shot, …], …)` stacks several cuts of **one page** into one entry,
+   one picture per side — the owner's rule: one entry per page, its `what` going through the parts top to bottom, its
+   `look` naming each box. Run it, then `stitch.ps1 -PlanFile <scratchpad>\stitch-plan.json` when it merged any.
 
 ```powershell
 node .claude/skills/ui-preview/build.mjs <scratchpad>\preview-spec.json
@@ -164,17 +188,21 @@ Take one look before publishing: a headless Chrome shot of the local `index.html
 (`--headless=new --user-data-dir=<scratchpad>\chrome-look --allow-file-access-from-files --window-size=1500,<height>
 --virtual-time-budget=9000 --screenshot=…`; Chrome is at `C:\Program Files\Google\Chrome\Application\chrome.exe`;
 start it with `Start-Process -Wait`). The window must be as tall as the whole page — a short one never reaches the
-screenshot pairs at the end, where a picture that does not load hides (it happened). Cut the tall shot into slices
-of about 2500px (System.Drawing) and read each, the last one first. Fix what it shows, once, then publish.
+screenshot pairs at the end, where a picture that does not load hides (it happened) — and not much taller: past the
+page's end the shot starts the page over, which reads as a page drawn twice. Cut the tall shot into slices of about
+2500px (System.Drawing) and read each, the last one first. Check every box sits on its change on both sides. Fix what
+it shows, once, then publish.
 
 Publish with the Artifact tool (its quickstart first, as the tool asks for a new page): `file_path` the `index.html`,
 `root` the out folder, `files` the list in `files.json`, an `icon`, a one-line `description`. The page is private:
 tell the user that the reviewer cannot open it until it is shared from the page's Share menu, and that the same
 folder can be zipped instead (open its `index.html`). To update it later, rebuild and publish the same `file_path`
-(only the changed supporting files need sending).
+(only the changed supporting files need sending, as a `files` map). Files left out stay on the page's server: a
+shot renamed, split or merged needs its old `shots/before-…` and `shots/after-…` sent as `null`.
 
-Then clean up, or say what is left running: the `preview-base` worktree (`& $g worktree remove --force $base`), and
-any mock server started for screenshots.
+A rebuild copies the base's built stylesheet, so keep the `preview-base` worktree until the page is published as it
+will stay. Then clean up, or say what is left running: the worktree (`& $g worktree remove --force $base`), and the
+mock servers started for screenshots.
 
 ## Limits to say in the hand-over
 

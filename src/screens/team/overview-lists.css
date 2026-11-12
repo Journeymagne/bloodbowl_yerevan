@@ -150,24 +150,6 @@
   padding: 0;
 }
 
-.g-overview__all {
-  box-sizing: border-box;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent-text);
-  font: 600 14px/normal var(--font-body);
-  letter-spacing: 0;
-  text-decoration: none;
-  text-transform: none;
-}
-.g-overview__all:hover { text-decoration: underline; }
-
 .g-overview__list {
   min-width: 0;
   margin: 0;
@@ -447,7 +429,6 @@ a.g-overview__opponent {
     box-shadow: var(--ring);
   }
   .g-overview__bar { padding: var(--space-14) 0 var(--space-6); }
-  .g-overview__all { min-height: 24px; }
 
   /*
    * A row (DeskOverview.html): the pill 30, the round, the opponent, the casualties 90, the score 70, 14 apart, at least

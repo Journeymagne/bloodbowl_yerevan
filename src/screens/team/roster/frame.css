@@ -187,6 +187,7 @@
    */
   .g-roster__sections {
     position: relative;
+    gap: 0;
     overflow-x: auto;
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-2xl);
@@ -202,6 +203,8 @@
     gap: 0;
     margin-top: 0;
   }
+  /* A section's last player has no line under him: the next band, or the card's edge, is the line. */
+  .g-roster__sections .g-rtable__player:last-of-type > tr > * { border-bottom: 0; }
   /* A search's words name the query as typed: a long one wraps. */
   .g-roster__sections .g-roster__empty {
     padding: var(--space-16);
@@ -233,8 +236,11 @@
     background: none;
   }
   .g-roster__sections .g-roster__section--active > .g-roster__bar:has(.g-status) { padding: var(--space-10) var(--space-16) 0; }
+  /* At the start: left to its place at the band's end, the pixel it is would stick out of the table's sideways scroll. */
   .g-roster__section--active .g-roster__heading {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     margin: -1px;

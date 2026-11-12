@@ -139,17 +139,8 @@
 }
 
 .g-guest__more {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
   align-self: flex-start;
-  min-height: var(--size-touch);
   padding-top: var(--space-4);
-  color: var(--accent-text);
-  font: 700 14px/1.2 var(--font-body);
-  letter-spacing: 0;
-  text-decoration: none;
-  text-transform: none;
 }
 
 .g-guest__tiles {

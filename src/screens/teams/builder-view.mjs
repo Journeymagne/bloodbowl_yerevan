@@ -53,17 +53,9 @@ const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
 /** The staff the build sells as a switch, not a count: a medic is bought once. */
 const isMedic = (key) => medicalStaffDefinitions.some((staff) => staff.key === key);
 
-/** What a staff is called: the dictionary's word for the counted ones, the rule table's title for a medic. */
-function staffTitle(key) {
-  switch (key) {
-    case "startingRerolls": return t("savedRoster.startingRerolls");
-    case "dedicatedFans": return t("savedRoster.dedicatedFans");
-    case "assistantCoaches": return t("savedRoster.assistantCoaches");
-    case "cheerleaders": return t("savedRoster.cheerleaders");
-    case "bribes": return t("savedRoster.bribes");
-    default: return medicalStaffDefinitions.find((staff) => staff.key === key)?.title ?? key;
-  }
-}
+const STAFF_KEYS = new Set(["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes", ...medicalStaffDefinitions.map(({ key }) => key)]);
+
+const staffTitle = (key) => (STAFF_KEYS.has(key) ? t(`savedRoster.${key}`) : key);
 
 /**
  * A refusal of the build, `{ code, params }`, in words. The staff codes carry
@@ -145,11 +137,13 @@ function choiceRow(kind, label, value, options) {
 
 function logoRow(logoData) {
   const picture = LOGO_DATA_URL.test(logoData) ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("image", 18);
-  const remove = LOGO_DATA_URL.test(logoData) ? renderButton({ label: t("savedRoster.removeLogo"), data: { newTeamLogoRemove: true } }) : "";
+  const remove = LOGO_DATA_URL.test(logoData)
+    ? `<button type="button" class="g-btn g-build__icon" data-new-team-logo-remove aria-label="${escapeHtml(t("savedRoster.removeLogo"))}">${icon("trash", 18)}</button>`
+    : "";
   return `<div class="g-build__row g-build__row--logo"><span class="g-build__logo-line"><span class="g-build__logo">${picture}</span>`
     + `<span class="g-build__logo-text"><span class="g-build__logo-name">${escapeHtml(t("newTeam.logo"))}</span><span class="g-build__hint">${escapeHtml(t("newTeam.logoNote"))}</span></span></span>`
     + `<span class="g-build__logo-actions"><input class="g-sr-only g-build__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg">`
-    + `<label class="g-btn g-build__upload" for="${LOGO_ID}">${icon("upload", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>${remove}</span></div>`;
+    + `<label class="g-btn g-build__icon" for="${LOGO_ID}">${icon("upload", 18)}<span class="g-sr-only">${escapeHtml(t("newTeam.upload"))}</span></label>${remove}</span></div>`;
 }
 
 function teamMarkup(race, draft) {

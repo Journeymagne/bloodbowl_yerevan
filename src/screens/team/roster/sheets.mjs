@@ -90,30 +90,38 @@ export function skillPageOf(data, name) {
 /** A skill page's rule as the vault's prose: the build escapes a page's html (scripts/build-data.mjs); a page without it has its text. */
 export const skillRuleMarkup = (page) => proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`);
 
+function fromWords(line, skill) {
+  const source = skillSourceOf(line, skill, { short: true });
+  const at = skill.advancement ?? null;
+  if (at === null || !line.advancements[at]) return t("teamRoster.skill.from", { player: line.name, source });
+  return t("teamRoster.skill.fromAdvancement", { player: line.name, level: at + 1, source });
+}
+
 /**
- * The rule of a skill a player has, in a sheet; between the rule and whose skill it is, how an advancement gave it
- * (stage 07d, decision 19: roll-view.mjs's `rollBlockMarkup`). Whose skill it is says how he came by it as the panel's card
- * does (`skillSourceOf`, short): a gained skill's advancement, on the accent's tint; any other skill 07a's words, on grey.
+ * The rule of a skill a player has, in a sheet, and under it a tag of whose skill it is (`fromWords`) — with, for a skill an
+ * advancement gave, how it was rolled and what the site's dice showed as small lines in it (roll-view.mjs's
+ * `rollNotesMarkup`, stage 07d's decision 19).
  *
  * @param {object} props
  * @param {object} props.data the reference of the page's language (state.data)
  * @param {import("./model.mjs").PlayerLine} props.line the player whose chip was pressed
  * @param {string} props.name the skill as the roster writes it
- * @param {string} [props.advancementHtml] markup of `rollBlockMarkup()`, "" for none
+ * @param {string} [props.notesHtml] markup of `rollNotesMarkup()`, "" for none
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-skill")` opens it
  */
-export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
+export function skillSheetMarkup({ data, line, name, notesHtml = "" }) {
   const page = skillPageOf(data, name);
   const skill = line.skills.find((item) => item.name === name);
   const rule = page ? skillRuleMarkup(page) : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
-  // The box is coloured as the chip that opened it (skill-chip.css): a gained skill's green, naming the advancement as the
-  // panel does (StatsSkill.html, fidelity F8); the captain's gold; any other white in the ring, in 07a's words.
+  // The box is coloured as the chip that opened it (skill-chip.css): a gained skill's green (StatsSkill.html, fidelity
+  // F8); the captain's gold; any other white in the ring.
   const captain = skill?.source === "captain";
   const from = skill
-    ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained", captain && "g-roster__from--captain")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
+    ? `<div class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained", captain && "g-roster__from--captain")}">`
+      + `<span class="g-roster__fromline">${escapeHtml(fromWords(line, skill))}</span>${notesHtml}</div>`
     : "";
   const origin = skill?.origin ? gettingEvenDetails({ ...skill.origin, attacker: { ...skill.origin.attacker, keywords: [skill.origin.keyword] } }) : '';
-  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}${origin}` });
+  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${from}${origin}` });
 }
 
 /** The injury the sheet's choice makes, or null while it is not whole: none chosen, a lasting one without its characteristic. */

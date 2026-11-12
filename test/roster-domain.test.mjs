@@ -344,8 +344,8 @@ test("nine re-rolls are refused on every write, eight are not", async () => {
   assert.equal(VALIDATION_CODES.REROLLS_MAX, "REROLLS_MAX");
   const en = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "en.json"), "utf8"));
   const ru = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "ru.json"), "utf8"));
-  assert.equal(en["validation.REROLLS_MAX"], "Starting and Team Re-rolls together: at most {max}, the team has {count}.");
-  assert.equal(ru["validation.REROLLS_MAX"], "Start и Team Re-rolls вместе — не больше {max}, у команды {count}.");
+  assert.equal(en["validation.REROLLS_MAX"], "Starting and Team Rerolls together: at most {max}, the team has {count}.");
+  assert.equal(ru["validation.REROLLS_MAX"], "Стартовые и командные рероллы вместе — не больше {max}, у команды {count}.");
 });
 
 // ---------------------------------------------------------------------------

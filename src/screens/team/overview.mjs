@@ -16,11 +16,9 @@
  * One form for each width (stage 07d, decision 47): the model is told whether
  * the screen is a phone's (`isPhone`, as the roster asks it) each time it is
  * drawn, and the screen is drawn again when the width crosses 900px. The figures
- * are the prototypes' (decision 48): a desk's five cards (DeskOverview.html) —
- * the place and the points, each with a quieter second part, the value, the
- * treasury and the TD and CAS difference, in the accent when it is good news —
- * and a phone's four tiles (Team.html): the value, the treasury, the record and
- * the difference, the place being the phone's header's. A desk's head has the
+ * are one set in one order on both widths: the place, the points, the TD and CAS
+ * difference, the value and the treasury — five cards on a desk, four tiles on
+ * a phone, whose header says the place. A desk's head has the
  * reference's search at its right (decision 49), which hands what is typed to
  * the reference as the reference's own heads do; a phone's head is a screen
  * reader's, and has none. A desk's board is DeskOverview.html's (decision 54):
@@ -88,7 +86,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { delegate, drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl, playerTeamUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { pageUrl, playerTeamUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -161,28 +159,27 @@ const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : "0");
 const ahead = ({ touchdowns, casualties }) => touchdowns >= 0 && casualties >= 0 && (touchdowns > 0 || casualties > 0);
 
 /**
- * The figures (decision 48). Outside the table, the value and the treasury on both widths. In it, a desk's five
- * (DeskOverview.html): the place «2» with «/ 10», the points «13» with «· 4/1/1», the value, the treasury and «+6 / +4»,
- * in the accent when it is good news; a phone's four (Team.html): the value, the treasury, «4 · 1 · 1» and «+6 / +4» in
- * the ink. The record and the difference are the season's league matches with a confirmed score (`seasonRecord`,
- * `seasonDifference`); `games` is null while they are not read, and then the points stand alone and both are a dash.
+ * The figures, one label each on both widths. Outside the table, the value and the treasury. In it: the place «2» with
+ * «/ 10» (a desk's only: a phone's header says it), the points «13» with «· 4/1/1», «+6 / +4» in the accent when it is
+ * good news, the value and the treasury. The record and the difference are the season's league matches with a
+ * confirmed score (`seasonRecord`, `seasonDifference`); `games` is null while they are not read, and then the points
+ * stand alone and the difference is a dash. Each leads where it is read in full: the place and the points to the table
+ * (a desk's is the team's season, a phone's the league's tab), the difference to the team's matches.
  * @param {{teamId: string, standing: object|null, games: object[]|null, seasonId: string|null, own: object[], phone: boolean}} input
  */
 function tilesOf({ teamId, standing, games, seasonId, own, phone }) {
   if (!standing) return own;
   const record = games && seasonRecord(games, teamId, seasonId);
   const difference = games && seasonDifference(games, teamId, seasonId);
-  const both = difference ? `${signed(difference.touchdowns)} / ${signed(difference.casualties)}` : UNREAD;
-  if (phone) {
-    return [...own,
-      { label: t("teamOverview.tile.record"), value: record ? `${record.wins} · ${record.draws} · ${record.losses}` : UNREAD },
-      { label: t("teamOverview.tile.diff"), value: both }];
-  }
+  const matches = teamUrl(teamId, "matches");
+  const table = phone ? seasonTabUrl() : matches;
+  const place = { key: "tile-place", label: t("teamOverview.tile.place"), value: String(standing.rank), rest: `/ ${standing.of}`, href: table };
   return [
-    { label: t("teamOverview.tile.place"), value: String(standing.rank), rest: `/ ${standing.of}` },
-    { label: t("teamOverview.tile.points"), value: String(standing.points), rest: record ? `· ${record.wins}/${record.draws}/${record.losses}` : "" },
+    ...(phone ? [] : [place]),
+    { key: "tile-points", label: t("teamOverview.tile.points"), value: String(standing.points), rest: record ? `· ${record.wins}/${record.draws}/${record.losses}` : "", href: table },
+    { key: "tile-diff", label: t("teamOverview.tile.diff"), value: difference ? `${signed(difference.touchdowns)} / ${signed(difference.casualties)}` : UNREAD,
+      accent: Boolean(difference) && ahead(difference), href: matches },
     ...own,
-    { label: t("teamOverview.tile.diffDesk"), value: both, accent: Boolean(difference) && ahead(difference) },
   ];
 }
 
@@ -228,8 +225,8 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   const worth = teamValue(team, raceTeam);
   const draft = normalizeDraft(team.roster ?? {});
   const own = [
-    { label: t("teamOverview.tile.value"), value: formatMoney(worth) },
-    { label: t("roster.treasuryTitle"), value: formatMoney(draft.treasury), href: teamUrl(team.id, "team") },
+    { key: "tile-value", label: t("teamOverview.tile.value"), value: formatMoney(worth), href: teamUrl(team.id, "roster") },
+    { key: "tile-treasury", label: t("roster.treasuryTitle"), value: formatMoney(draft.treasury), href: teamUrl(team.id, "team") },
   ];
   return {
     teamId: team.id,

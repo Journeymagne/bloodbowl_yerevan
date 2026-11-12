@@ -80,6 +80,7 @@
 
 /* The number beside a heading: the body's face, quiet (Stats.html: 15px at 500). */
 .g-roster__count {
+  margin-left: var(--space-4);
   color: var(--muted);
   font: 500 15px var(--font-body);
   letter-spacing: 0;

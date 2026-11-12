@@ -22,7 +22,7 @@ const COLUMNS = [
   { key: "touchdowns", label: "TD", name: "touchdowns", group: "career", desk: true },
   { key: "casualties", label: "CAS", name: "casualties", group: "career", desk: true },
   { key: "earned", label: "Total", group: "spp", desk: true },
-  { key: "available", label: "Avail.", group: "spp", desk: true },
+  { key: "available", label: "Avail", group: "spp", desk: true },
 ];
 const GROUPS = [{ label: "Characteristics", span: 5 }, { label: "Career", span: 2 }, { label: "SPP", span: 2 }];
 
@@ -367,14 +367,20 @@ test("the columns' widths are on the <col>s, because a fixed table takes them fr
   assert.deepEqual(declared(narrow, ".g-rtable__col--stats"), ["36px"], "a phone: the characteristics' 36px, the player's column takes the rest");
   assert.deepEqual(declared(narrow, ".g-rtable__col--who"), [], "a phone gives the player's column no width of its own");
   // DeskRoster.html: the player takes what the numbers leave (minmax(180px, 1fr)): 32px a characteristic, 36px a count of the
-  // career, 44px «Total» and 52px «Avail.», a 12px gap before each group after the first, 16px at the row's end.
+  // career, 44px «Total» and 52px «Avail», a 20px gap before each group after the first (the owner, 2026-11-11: the
+  // prototype's 12 ran the groups together), 16px at the row's end.
   assert.deepEqual(
     [".g-rtable__col--who", ".g-rtable__col--stats", ".g-rtable__col--career", ".g-rtable__col--career.g-rtable__col--lead",
       ".g-rtable__col--spp.g-rtable__col--lead", ".g-rtable__col--spp.g-rtable__col--last"].map((selector) => declared(wide, selector)),
-    [["auto"], ["32px"], ["36px"], ["48px"], ["56px"], ["68px"]],
+    [["auto"], ["32px"], ["36px"], ["56px"], ["64px"], ["68px"]],
   );
-  // The player's 180px at the least: the table is never narrower than them and the numbers (180 + 160 + 228 + 56 + 68).
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"]);
+  // The player's 180px at the least: the table is never narrower than them and the numbers (180 + 160 + 236 + 64 + 68).
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "708px"]);
+  // The gap is the same on the cells, the headers, the foot and the over-heads' rules.
+  for (const selector of [".g-rtable__c--lead", "th.g-rtable__h.g-rtable__c--lead", ".g-rtable__foot > .g-rtable__h.g-rtable__c--lead"]) {
+    assert.deepEqual(valuesOf(SHEET, selector, "padding-left"), ["var(--space-20)"], selector);
+  }
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__g--lead .g-rtable__glabel", "margin-left"), ["var(--space-20)"]);
   assert.match(narrow, /\.g-rtable__col--desk[^{]*\{[^}]*display:\s*none/, "a column that is hidden is gone from the grid, its <col> too");
 });
 
@@ -422,14 +428,14 @@ test("every number stands centred under its label, on a phone and on a desk, the
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__h", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "justify-content"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-sort__arrow", "position"), ["absolute"]);
-  // The SPP pair: «Total» leads its group (the gap is its left padding, on the header and the cells alike), «Avail.»
+  // The SPP pair: «Total» leads its group (the gap is its left padding, on the header and the cells alike), «Avail»
   // ends the row (its 16px end on the header, the cells and the foot alike): both centred in what is left.
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "text-align"), ["center"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
   assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
-  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--lead", "padding-left"), ["var(--space-20)"]);
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--lead", "padding-left"), ["var(--space-20)"]);
   assert.ok(!/justify-content:\s*flex-(end|start)/.test(wide.replace(/\.g-rtable__h--who \.g-sort\s*\{[^}]*\}/g, "")), "no column but the player's is pushed to an edge");
   assert.ok(!/text-align:\s*(right|left)/.test(narrow + wide), "no number column is aligned to an edge at either width");
 });
@@ -503,7 +509,7 @@ test("the sheet sets what the 2.x globals for table, th, td and button would oth
   ]) {
     assert.ok(valuesOf(SHEET, selector, property).length, `${selector} sets its ${property}`);
   }
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"], "none on a phone; a desk's numbers and 180px for the player");
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "708px"], "none on a phone; a desk's numbers and 180px for the player");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "width"), ["100%"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "border-collapse"), ["collapse"]);
 });
@@ -517,7 +523,7 @@ test("the colours of the table are readable in every palette", () => {
   const grounds = ["--page", "--surface", "--surface-2"];
   assertReadable(SHEET, ".g-sort", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__sub", "color", grounds, 4.5);
-  assertReadable(SHEET, ".g-rtable__sub--alert", "color", grounds, 4.5);
+  assertReadable(SHEET, ".g-rtable__alert", "color", grounds, 4.5);
   assertReadable(SHEET, "[aria-sort] .g-sort", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__c--up", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__c--down", "color", grounds, 4.5);
@@ -543,6 +549,13 @@ test("the colours of the table are readable in every palette", () => {
     assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", property), valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), `captain's ${property}`);
   }
   assert.deepEqual(valuesOf(BOX, ".g-roster__from", "box-shadow"), valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), "a starting skill's box in the chip's ring");
+  // The owner, 2026-11-11: the filled gold read bigger than the ringed chips beside it; the captain's chip, card and box
+  // have the gold's darker ring, inset as every chip's, so no size changes.
+  const goldRing = ["inset 0 0 0 1px var(--crest-gold-ring)"];
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--captain", "box-shadow"), goldRing);
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--card.g-skill--captain", "box-shadow"), goldRing);
+  assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", "box-shadow"), goldRing);
+  assert.match(read("src/styles/tokens.css"), /--crest-gold-ring: #[0-9A-F]{6};/);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), []);
   // SPP that buy nothing yet: quiet, and readable; the chosen row's tint under the row's words.
   assertReadable(SHEET, ".g-rtable__c--quiet", "color", grounds, 4.5);
@@ -596,4 +609,41 @@ test("a table that would draw wrong refuses", () => {
   const empty = mount(table({ rows: [] }));
   assert.equal(empty.querySelectorAll("tbody").length, 0);
   assert.ok(empty.querySelector("thead"));
+});
+
+// The owner, 2026-11-11: another coach's team draws the same table, to read only.
+test("a still row is read, not pressed: no button, nothing reported; it cannot also open, choose or move", () => {
+  const fragment = mount(table({ rows: [row("p1", { still: true }), row("p2", { name: "Brug" })] }));
+  const [still, live] = fragment.querySelectorAll("tbody.g-rtable__player");
+  assert.ok(still.classList.contains("g-rtable__player--still"));
+  assert.equal(still.querySelector("th .g-rtable__toggle").tagName, "SPAN", "the name is text; his skill chips stay buttons, they open the skill");
+  assert.equal(still.querySelector("[data-row-key]") === null, true);
+  assert.equal(spaced(still.querySelector("th .g-rtable__name").textContent), "Grak");
+  assert.ok(live.querySelector("th button.g-rtable__toggle"));
+  const toggled = [];
+  const off = wireRosterTable(fragment, { onToggle: (key) => toggled.push(key) });
+  fireEvent(still.querySelector(".g-rtable__c"), "click");
+  fireEvent(live.querySelector(".g-rtable__c"), "click");
+  off();
+  assert.deepEqual(toggled, ["p2"]);
+  for (const extra of [{ controls: "aside" }, { expanded: true }, { selected: true }, { reorderIndex: 0 }]) {
+    assert.throws(() => table({ rows: [row("p1", { still: true, ...extra })] }), /still/, JSON.stringify(extra));
+  }
+  assertStyled(fragment, ...SHEETS);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player--still > .g-rtable__row", "cursor"), ["auto"]);
+});
+
+// The owner, 2026-11-11: a head of unsorted columns lost the button's box, and its labels ran together.
+test("a column that is not sorted keeps the button's box for its label: the same width, height and centre", () => {
+  const fragment = mount(table({ columns: COLUMNS.map((column) => ({ ...column, sortable: false })) }));
+  const heads = fragment.querySelectorAll('thead th[scope="col"]');
+  assert.equal(fragment.querySelector("thead button"), null);
+  assert.deepEqual(heads.map((head) => head.querySelector("span.g-sort.g-sort--label")?.textContent), COLUMNS.map((column) => column.label));
+  assertStyled(fragment, ...SHEETS);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort--label", "cursor"), ["auto"]);
+  // The box is `.g-sort`'s, for a button and a label alike: no rule of it may be a button's alone.
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "width"), ["100%"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)", "40px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "justify-content"), ["center"]);
+  assert.doesNotMatch(read(SHEET), /button\.g-sort/);
 });

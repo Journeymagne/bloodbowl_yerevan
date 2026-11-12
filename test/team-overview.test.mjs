@@ -164,59 +164,60 @@ function crossingWindow(phone = false) {
   return { listeners, cross: (next) => { media.matches = next; listeners.forEach((listener) => listener()); } };
 }
 
-test("a desk's tiles are DeskOverview's five: the place «2» with «/ 4», the points «3» with «· 1/0/1», the value, the treasury leading to the team page, «TD ± / CAS ±» «−1 / −1»", () => {
+test("a desk's tiles are five: the place «2» with «/ 4», the points «3» with «· 1/0/1», «TD ± / CAS ±» «−1 / −1», the value, the treasury leading to the team page", () => {
   const model = overviewModel(input("t1"));
   assert.equal(model.phone, false, "a desk unless the screen says otherwise");
-  const worth = model.tiles[2].value;
+  const worth = model.tiles[3].value;
   assert.match(worth, /^\d[\d,]*k$/);
   // ga 2–1 and CAS 1–0 at home, gb 0–2 and CAS 0–2 away: one win, one loss, a touchdown and a casualty behind; the friendly is not the season's.
   assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]), [
-    ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
-  assert.equal(model.tiles[3].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
-  assert.deepEqual(model.tiles.map((tile) => Boolean(tile.href)), [false, false, false, true, false]);
+    ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.deepEqual(model.tiles.map(({ href }) => href), ["#/t/t1/matches", "#/t/t1/matches", "#/t/t1/matches", "#/t/t1/roster", "#/t/t1/team"],
+    "the place and the points to the season's table, the difference to the matches, the value to the roster, the treasury to the team page");
   assert.deepEqual(model.tiles.map((tile) => Boolean(tile.accent)), [false, false, false, false, false], "a difference below zero is no good news");
   const fragment = mount(overviewMarkup(model));
   assert.ok(fragment.querySelector(".g-kpis.g-kpis--row"));
   assert.deepEqual(tilesOf(fragment), [
-    ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
+    ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
   assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
-  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
+  assert.equal(fragment.querySelectorAll("a.g-kpi.g-kpi--link").length, 5, "every tile is a link");
   assert.equal(fragment.querySelector(".g-kpi--accent"), null);
-  assert.deepEqual([...model.tiles[4].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
+  assert.deepEqual([...model.tiles[2].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
   assert.equal(fragment.querySelector(".g-pagehead__sub").textContent, "Mock Season · round 3");
   assert.equal(fragment.querySelector(".g-overview__stage"), null, "an active team has no stage to say");
   initLocale("ru");
   try {
-    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1"))))).map(([label]) => label), ["Место в лиге", "Очки · В/Н/П", "Стоимость команды", "Казна", "TD ± / CAS ±"]);
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1"))))).map(([label]) => label), ["Место в лиге", "Очки · В/Н/П", "TD ± / CAS ±", "Стоимость команды", "Казна"]);
   } finally {
     initLocale("en");
   }
 });
 
-test("a phone's tiles are Team.html's four: the value, the treasury, «W · D · L» «1 · 0 · 1», «TD / CAS difference» «−1 / −1»", () => {
+test("a phone's tiles are the desk's but the place, which the phone's header says: the same labels, the same order", () => {
   const model = overviewModel(input("t1", { phone: true }));
   assert.equal(model.phone, true);
-  const worth = model.tiles[0].value;
-  assert.deepEqual(model.tiles.map(({ label, value }) => [label, value]), [["Team value", worth], ["Treasury", "120k"], ["W · D · L", "1 · 0 · 1"], ["TD / CAS difference", "−1 / −1"]]);
-  assert.equal(model.tiles[1].href, "#/t/t1/team");
+  const worth = model.tiles[2].value;
+  assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]),
+    [["Points · W/D/L", "3", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.deepEqual(model.tiles.map(({ href }) => href), ["#/season", "#/t/t1/matches", "#/t/t1/roster", "#/t/t1/team"], "a phone's table is the league's tab");
   const fragment = mount(overviewMarkup(model));
-  assert.deepEqual(tilesOf(fragment), [["Team value", worth, ""], ["Treasury", "120k", ""], ["W · D · L", "1 · 0 · 1", ""], ["TD / CAS difference", "−1 / −1", ""]],
-    "no second parts: the place is in the phone's header (Team.html)");
-  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t1/team");
-  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
+  assert.deepEqual(tilesOf(fragment), [["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["TD ± / CAS ±", "−1 / −1", ""], ["Team value", worth, ""], ["Treasury", "120k", ""]]);
+  assert.equal(fragment.querySelectorAll("a.g-kpi.g-kpi--link").length, 4);
+  const desk = overviewModel(input("t1"));
+  assert.deepEqual(model.tiles.map(({ href, ...tile }) => tile), desk.tiles.slice(1).map(({ href, ...tile }) => tile), "one set of figures: the desk's without its place");
   initLocale("ru");
   try {
-    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Стоимость команды", "Казна", "В · Н · П", "TD / CAS разница"]);
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Очки · В/Н/П", "TD ± / CAS ±", "Стоимость команды", "Казна"]);
   } finally {
     initLocale("en");
   }
   const words = { en: dictionary("en"), ru: dictionary("ru") };
-  assert.deepEqual(["record", "diff", "diffDesk"].map((key) => [words.en[`teamOverview.tile.${key}`], words.ru[`teamOverview.tile.${key}`]]),
-    [["W · D · L", "В · Н · П"], ["TD / CAS difference", "TD / CAS разница"], ["TD ± / CAS ±", "TD ± / CAS ±"]]);
+  assert.deepEqual([words.en["teamOverview.tile.diff"], words.ru["teamOverview.tile.diff"]], ["TD ± / CAS ±", "TD ± / CAS ±"]);
+  assert.equal(words.en["teamOverview.tile.diffDesk"], undefined, "one label for both widths");
 });
 
-test("the difference is in the accent on a desk only when neither is below zero and one is above; never on a phone", () => {
+test("the difference is in the accent on both widths only when neither is below zero and one is above", () => {
   const cases = [
     { games: [played("ga", 1, [2, 1], [0, 0])], value: "+1 / 0", good: true },
     { games: [played("ga", 1, [1, 1], [2, 0])], value: "0 / +2", good: true },
@@ -226,29 +227,28 @@ test("the difference is in the accent on a desk only when neither is below zero 
     { games: GAMES, value: "−1 / −1", good: false },
   ];
   for (const { games, value, good } of cases) {
-    const desk = overviewModel(input("t1", { games }));
-    assert.deepEqual([desk.tiles[4].value, Boolean(desk.tiles[4].accent)], [value, good], value);
-    assert.equal(Boolean(mount(overviewMarkup(desk)).querySelector(".g-kpi--accent")), good, `${value} on a desk`);
-    const phone = overviewModel(input("t1", { games, phone: true }));
-    assert.deepEqual([phone.tiles[3].value, Boolean(phone.tiles[3].accent)], [value, false], `${value} on a phone`);
-    assert.equal(mount(overviewMarkup(phone)).querySelector(".g-kpi--accent"), null, `${value} is the ink on a phone (Team.html)`);
+    for (const [phone, at] of [[false, 2], [true, 1]]) {
+      const model = overviewModel(input("t1", { games, phone }));
+      assert.deepEqual([model.tiles[at].value, Boolean(model.tiles[at].accent)], [value, good], `${value} on a ${phone ? "phone" : "desk"}`);
+      assert.equal(Boolean(mount(overviewMarkup(model)).querySelector(".g-kpi--accent")), good, `${value} on a ${phone ? "phone" : "desk"}`);
+    }
   }
   // Only the difference ever is: the place, the points, the value and the treasury never.
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: cases[0].games }))));
-  assert.deepEqual(fragment.querySelectorAll(".g-kpi").map((tile) => tile.classList.contains("g-kpi--accent")), [false, false, false, false, true]);
+  assert.deepEqual(fragment.querySelectorAll(".g-kpi").map((tile) => tile.classList.contains("g-kpi--accent")), [false, false, true, false, false]);
 });
 
-test("before the games are read the record and the difference say «–»; outside the season two tiles on both widths", () => {
+test("before the games are read the points stand alone and the difference says «–»; outside the season two tiles on both widths", () => {
   for (const games of [null, []]) {
     const gamesError = games ? "No connection" : "";
     const desk = overviewModel(input("t1", { games, gamesError }));
-    assert.deepEqual(desk.tiles.map(({ value, rest = "", accent = false }) => [value, rest, accent]).filter((_, index) => index !== 2),
-      [["2", "/ 4", false], ["3", "", false], ["120k", "", false], ["–", "", false]], `${gamesError || "not read"}: the points alone, the difference a dash`);
+    assert.deepEqual(desk.tiles.map(({ value, rest = "", accent = false }) => [value, rest, accent]).filter((_, index) => index !== 3),
+      [["2", "/ 4", false], ["3", "", false], ["–", "", false], ["120k", "", false]], `${gamesError || "not read"}: the points alone, the difference a dash`);
     assert.deepEqual(tilesOf(mount(overviewMarkup(desk)))[1], ["Points · W/D/L", "3", ""], "no «·» left hanging after the points");
     const phone = overviewModel(input("t1", { games, gamesError, phone: true }));
-    assert.deepEqual(phone.tiles.slice(2).map(({ label, value }) => [label, value]), [["W · D · L", "–"], ["TD / CAS difference", "–"]], `${gamesError || "not read"} on a phone`);
+    assert.deepEqual(phone.tiles.slice(0, 2).map(({ label, value, rest = "" }) => [label, value, rest]), [["Points · W/D/L", "3", ""], ["TD ± / CAS ±", "–", ""]], `${gamesError || "not read"} on a phone`);
   }
-  assert.equal(overviewModel(input("t1", { games: null })).tiles[4].value.codePointAt(0), 0x2013, "the dash is an en dash (U+2013), not a hyphen or a minus");
+  assert.equal(overviewModel(input("t1", { games: null })).tiles[2].value.codePointAt(0), 0x2013, "the dash is an en dash (U+2013), not a hyphen or a minus");
   // Outside the table — a team not entered, a table not read or that failed — the value and the treasury alone, on both widths.
   const outside = [input("t4"), input("t1", { seasonData: null }), input("t1", { seasonData: null, seasonError: "No connection" }), input("t1", { seasonData: null, games: null })];
   for (const over of outside) {
@@ -307,11 +307,11 @@ test("a desk's head has the reference's search at its right; typing takes the co
   setRefQuery("");
 });
 
-test("the overview follows the width: a desk turned phone draws Team.html's tiles, and back", async () => {
+test("the overview follows the width: a desk turned phone draws the phone's tiles, and back", async () => {
   const { listeners, cross } = crossingWindow(false);
   const labels = () => view.querySelectorAll(".g-kpi__k").map((label) => label.textContent);
-  const DESK = ["Place in the league", "Points · W/D/L", "Team value", "Treasury", "TD ± / CAS ±"];
-  const PHONE = ["Team value", "Treasury", "W · D · L", "TD / CAS difference"];
+  const DESK = ["Place in the league", "Points · W/D/L", "TD ± / CAS ±", "Team value", "Treasury"];
+  const PHONE = ["Points · W/D/L", "TD ± / CAS ±", "Team value", "Treasury"];
   try {
     coach();
     await renderTeamOverview("t1");
@@ -323,12 +323,12 @@ test("the overview follows the width: a desk turned phone draws Team.html's tile
     assert.deepEqual(labels(), PHONE);
     assert.equal(view.querySelector("#overview-query"), null);
     assert.ok(document.activeElement === view.querySelector("h1"), "the page's title, a place the keyboard goes on from");
-    // The treasury the coach is on is another tile on a desk: the title again.
-    view.querySelector("a.g-kpi").focus();
+    // The treasury the coach is on is the last tile on both widths: the focus stays on it.
+    view.querySelector('a.g-kpi[href="#/t/t1/team"]').focus();
     cross(false);
     assert.deepEqual(labels(), DESK);
     assert.ok(view.querySelector("#overview-query"), "the field is back");
-    assert.ok(document.activeElement === view.querySelector("h1"));
+    assert.ok(document.activeElement === view.querySelector('a.g-kpi[href="#/t/t1/team"]'));
     // A focus on a node the redraw keeps but the width's stylesheet hides is lost as well (fix round 1, I1): the desk's
     // «Advance» stays in the page on a phone, hidden (overview.css), and a browser would drop the focus to the body.
     const advance = view.querySelector("a.g-overview__advance");
@@ -578,7 +578,7 @@ test("a team outside the season: two tiles, and a way to enter it instead of a b
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Draft");
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.deepEqual(fragment.querySelectorAll(".g-kpi__k").map((label) => label.textContent), ["Team value", "Treasury"]);
-  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t4/team");
+  assert.deepEqual(fragment.querySelectorAll("a.g-kpi").map((tile) => tile.getAttribute("href")), ["#/t/t4/roster", "#/t/t4/team"]);
 });
 
 test("a team in its build says so on a phone too: the chip is the page's first line there, and the desk's head has it (R4)", () => {
@@ -598,7 +598,7 @@ test("a team in its build says so on a phone too: the chip is the page's first l
 
 test("an unknown race leaves a dash, not a crash", () => {
   const model = overviewModel({ ...input("t1"), raceTeam: null });
-  assert.equal(model.tiles[2].value, "—");
+  assert.equal(model.tiles[3].value, "—");
   assert.deepEqual(model.leaders, []);
   assert.doesNotThrow(() => overviewMarkup(model));
   assert.equal(model.board.own.sub, "", "no race, no line of race, place and value to leave a stray dot in front");
@@ -786,7 +786,7 @@ test("a desk's right column has the table's top six, the team's row marked, and 
     ["1", "Rival Team", "0", "6", false], ["2", "Ashgrove Wardens", "+2", "3", true], ["3", "Rival Raiders", "0", "3", false],
     ["4", "Rival Wardens", "0", "3", false], ["5", "Fourth Wall", "−2", "1", false], ["6", "Fifth Column", "0", "1", false]]);
   assert.equal(table.querySelector("h2").textContent, "Season standings");
-  assert.equal(table.querySelector("a.g-minitable__all").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
+  assert.equal(table.querySelector("a.g-seeall").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
   assert.equal(table.querySelector(".g-minitable__row--mine a").getAttribute("href"), "#/t/t1", "the coach's own row leads to its overview");
   assert.equal(table.querySelectorAll(".g-minitable__row a")[0].getAttribute("href"), "#/coaches/u-r1/teams/r1", "another's to the opponent's page");
   // The screen gives the model the coach who looks.
@@ -931,7 +931,7 @@ test("on a desk the results are a card with its head inside: «Recent matches»,
   const title = section.querySelector(".g-overview__bar h2.g-overview__title");
   assert.equal(title.textContent, "Recent matches");
   assert.equal(section.getAttribute("aria-labelledby"), title.getAttribute("id"));
-  assert.equal(section.querySelector('.g-overview__bar a.g-overview__all[href="#/t/t1/matches"]').textContent, "Whole season →");
+  assert.equal(section.querySelector('.g-overview__bar a.g-seeall[href="#/t/t1/matches"]').textContent, "Whole season →");
   // DeskOverview.html: the section is the card, 16 round, white in the ring, 8 24 12 in; its head 14 0 6, the title and the link at its two ends.
   const desk = deskOf(LISTS_CSS);
   assert.match(ruleOf(desk, ".g-overview__results"), /^(?=[^]*padding: var\(--space-8\) var\(--space-24\) var\(--space-12\);)(?=[^]*border-radius: var\(--radius-2xl\);)(?=[^]*background: var\(--surface\);)(?=[^]*box-shadow: var\(--ring\);)(?=[^]*gap: 0;)/);
@@ -991,7 +991,7 @@ test("games that failed to load leave the figures and say so where the board was
   assert.match(fragment.querySelector(".g-overview__failed").textContent, /^The matches did not load/);
   assert.equal(fragment.querySelectorAll(".g-kpi").length, 5, "the table still gives the place and the points");
   assert.equal(fragment.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
-  assert.equal(fragment.querySelectorAll(".g-kpi__v")[4].textContent, "–", "nor a difference");
+  assert.equal(fragment.querySelectorAll(".g-kpi__v")[2].textContent, "–", "nor a difference");
 });
 
 test("a table that failed to load says so where the board would stand; the team's own figures stay", () => {
@@ -1043,7 +1043,7 @@ test("before the table and the games are read nothing is said that they may cont
 
 test("a treasury an administrator stored as text is the treasury (T2)", () => {
   const team = { ...TEAMS[0], roster: { ...TEAMS[0].roster, treasury: "120" } };
-  assert.equal(overviewModel({ ...input("t1"), team }).tiles[3].value, "120k");
+  assert.equal(overviewModel({ ...input("t1"), team }).tiles[4].value, "120k");
 });
 
 test("names from other coaches are text: the opponent, the opponent's race, the MVP, the leader's name and the position", () => {
@@ -1423,12 +1423,12 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const [key, words] of Object.entries(RESULT_WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css", "button.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
   assertCspSafe(phone);
-  assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", "see-all.css");
 });
 
 test("the leaders and the columns as DeskOverview.html and Team.html draw them: styled; readable; D2; wrapping", () => {
@@ -1441,7 +1441,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.ok(Math.min(at("screens/team/overview.css"), at("ui/match-board.css")) >= 0);
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
-      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height where the prototypes give none.
   for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline", ".g-overview__leadertag", ".g-overview__leadername", ".g-overview__leaderpos", ".g-overview__leadervalue"]) {
@@ -1715,7 +1715,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
 
 test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
-  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
   for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
@@ -1841,16 +1841,16 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
     const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone }))));
     assertCspSafe(fragment);
     assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css",
-      "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
+      "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS, "see-all.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).
-  const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line",
+  const texts = [".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line",
     ".g-overview__cas", ".g-overview__score"];
   for (const selector of texts) {
     for (const property of ["font", "letter-spacing", "text-transform", "color"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
     for (const font of own(selector, "font")) assert.match(font, /\/normal /, `${selector} keeps the font's own line height`);
   }
-  for (const selector of [".g-overview__results", ".g-overview__result", ".g-overview__row", ".g-overview__all"]) {
+  for (const selector of [".g-overview__results", ".g-overview__result", ".g-overview__row"]) {
     for (const property of ["border", "background"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
   }
   // DeskOverview.html: the round 13px, the opponent 16/500, under it the race and the MVP 12px 6 apart, the casualties 13px; the greys --muted.
@@ -1863,8 +1863,6 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   assert.deepEqual(own(".g-overview__cas", "font"), ["400 13px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__line", "font"), ["400 13px/normal var(--font-body)"], "Team.html's line under the opponent");
   assert.deepEqual(own(".g-overview__text", "gap"), [], "the two lines touch, as in both prototypes");
-  assert.deepEqual(own(".g-overview__all", "font"), ["600 14px/normal var(--font-body)"]);
-  assert.deepEqual(own(".g-overview__all", "color"), ["var(--accent-text)"]);
   assert.deepEqual(own(".g-overview__score", "text-align"), ["right"]);
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas"]) assert.deepEqual(own(selector, "color"), ["var(--muted)"], selector);
   // The desk's grid (DeskOverview.html): 30, the round, the opponent, 90, 70, 14 apart, a row at least 52 with its rule under it.
@@ -1882,8 +1880,8 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   }
   assert.match(ruleOf(deskOf(LISTS_CSS), ".g-overview__list"), /display: grid;/);
   assert.deepEqual(own(".g-overview__round", "overflow-wrap"), [], "a round's word keeps whole");
-  // D2: up to 900px «Whole season →» and a row are 44 or more; from 901px «Whole season →» 24, a row 53.
-  assert.deepEqual(own(".g-overview__all", "min-height"), ["var(--size-touch)", "24px"]);
+  // D2: up to 900px a row is 44 or more, from 901px 53 («Whole season →» is the kit's see-all link, see-all.test.mjs).
+  assert.equal(mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES })))).querySelector(".g-overview__bar .g-seeall").textContent, "Whole season →");
   for (const value of own(".g-overview__result", "min-height")) assert.ok(parseInt(value, 10) >= 44, value);
   // Wrapping: the opponent, the race and the MVP wrap; nothing is cut with «…» or held on one line.
   for (const selector of [".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
@@ -1892,7 +1890,6 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   // Readable in every palette: a desk's greys on its white card, a phone's on its page, the link on both.
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp", ".g-overview__cas"]) assertReadable(LISTS_CSS, selector, "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
-  assertReadable(LISTS_CSS, ".g-overview__all", "color", ["--page", "--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__opponent", "color", ["--page", "--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__score", "color", ["--page", "--surface"], 4.5);
 });

@@ -77,6 +77,15 @@ export function refUrl(section = "") {
   return section && section !== "pages" ? `#/ref/${encodeURIComponent(section)}` : "#/ref";
 }
 
+/** A league's name as an address segment and an element id: «Worlds Edge Superleague» → `worlds-edge-superleague`. */
+export function leagueKey(name) {
+  return String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+export function leagueUrl(name) {
+  return `#/leagues/${encodeURIComponent(leagueKey(name))}`;
+}
+
 /** A coach's public profile (2.x called coaches players). */
 export function playerUrl(userOrId) {
   return `#/coaches/${segment(userOrId)}`;
@@ -192,6 +201,7 @@ const ID_ROUTES = [
   [/^t\/([^/]+)\/roster\/([^/]+)$/, "teamPlayer", "teamId", "playerId"],
   [/^t\/([^/]+)\/matches$/, "teamMatches", "teamId"],
   [/^t\/([^/]+)\/challenges(?:\/([^/]+))?$/, "teamChallenges", "teamId", "userId"],
+  [/^leagues\/([^/]+)$/, "league", "league"],
   [/^coaches\/([^/]+)$/, "coach", "userId"],
   [/^coaches\/([^/]+)\/teams\/([^/]+)$/, "coachTeam", "userId", "teamId"],
   [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],

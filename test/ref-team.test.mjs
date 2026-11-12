@@ -233,7 +233,7 @@ test("in Russian: the lines, the headings and the place are in Russian; the rule
   renderReferencePage("teams/human");
   assert.deepEqual(view.querySelectorAll(".g-kv__label").map((label) => label.textContent), ["Уровень", "Рероллы", "Апотекарий", "Доступ к лигам"]);
   assert.deepEqual(view.querySelectorAll(".g-ref-team h2").map((h2) => h2.textContent), ["Состав", "Особые правила", "В лиге играют"]);
-  assert.deepEqual(view.querySelectorAll(".g-ref-roster th").map((th) => th.textContent), ["Позиция", "Кол-во", "Стоимость", "MA", "ST", "AG", "PA", "AR", "Навыки", "Кат."], "every column, as in English: the five characteristics from stats.ma to stats.ar too");
+  assert.deepEqual(view.querySelectorAll(".g-ref-roster th").map((th) => th.textContent), ["Позиция", "Кол-во", "Стоимость", "MA", "ST", "AG", "PA", "AR", "Навыки", "Кат"], "every column, as in English: the five characteristics from stats.ma to stats.ar too");
   assert.match(view.querySelector(".g-ref-position__caption").textContent, /^0-16 · навыки G \/ A S D$/);
   assert.equal(view.querySelector(".g-ranked__caption").textContent, "1-е место · очков: 8");
 });

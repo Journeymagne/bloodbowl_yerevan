@@ -27,6 +27,7 @@
  * by its dot. A withdrawn entry keeps its place in the table and is no place of the zone. The overview's few rows are
  * zoned by each team's place in the whole table (`zonePlace`), not by the row of the window (pre-flight L16).
  */
+import { renderSeeAll } from "../../ui/see-all.mjs";
 import { renderTeamLogo } from "../../ui/team-logo.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -263,7 +264,7 @@ export function miniTableMarkup({ rows, viewerId, teamId = "", href, playoffPlac
   const head = MINI_COLUMNS.map((key) => `<span role="columnheader">${escapeHtml(t(`league.colName.${key}`))}</span>`).join("");
   return `<section class="g-minitable" aria-labelledby="overview-table"><div class="g-minitable__head">`
     + `<h2 class="g-minitable__title" id="overview-table">${escapeHtml(t("season.standings"))}</h2>`
-    + `<a class="g-minitable__all" href="${escapeHtml(href)}">${escapeHtml(t("teamOverview.tableAll"))}</a></div>`
+    + `${renderSeeAll({ label: t("teamOverview.tableAll"), href })}</div>`
     + `<div class="g-minitable__rows" role="table" aria-labelledby="overview-table">`
     + `<div class="g-sr-only" role="rowgroup"><div role="row">${head}</div></div>`
     + `<div role="rowgroup">${rows.map((row, at) => miniRowMarkup(row, viewerId, teamId, zone[at])).join("")}</div></div></section>`;

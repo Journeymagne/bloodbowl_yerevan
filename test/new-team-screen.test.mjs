@@ -1265,7 +1265,7 @@ test("a file that cannot be read, or is no picture, leaves the logo as it was an
       await settle();
       assert.equal(logo(), "data:image/png;base64,AAAA", `${file.name}: the old logo stays`);
       assert.equal(toasts().at(-1), unreadable, `${file.name}: and the coach is told`);
-      assert.equal(view.querySelector("[data-new-team-logo-remove]").textContent.trim(), "Remove logo");
+      assert.equal(view.querySelector("[data-new-team-logo-remove]").getAttribute("aria-label"), "Remove logo");
     }
     api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
     click(save());

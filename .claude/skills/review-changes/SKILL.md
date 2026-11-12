@@ -31,6 +31,10 @@ Reading and running read-only checks is fine; so is `npm run build`, though it r
     checked out (usually `HEAD`). Otherwise review it with `diff A B` and `show <commit>` per commit, read files with
     `show B:<path>`, and skip the checks — they would run on the checked-out code, not on `B`; say so in the report.
   - `uncommitted`: the work not committed yet; the base is `HEAD`.
+  - **a branch stacked on another PR's branch** not merged yet (`imp/UIv2-update-p2` on `…-p1`): the merge-base with
+    `main` would bring the parent's commits in, which have their own PR. The base is the parent's tip
+    (`origin/<parent>`); check it has not moved past what this branch stands on
+    (`rev-list --count HEAD..origin/<parent>`), and name the base in the report.
 - For a branch, check that it still stands on the latest `main` and that the remote has what is reviewed
   (`fetch` reads, it changes nothing local):
 
@@ -267,6 +271,10 @@ lines with `/*`, ` *` or `//`) and judge each one:
 - **Edited: moderate.** An existing comment usually stays, but shorten it to its reason when it can be.
 - **A trimmed comment is judged again.** Shortening is not enough: if what is left only restates the code, it goes.
 - The file's dense prose style, or a «(the owner, date)» provenance note, is no reason on its own to keep one.
+- **A pointer a reader cannot follow is no provenance.** «item 14 of PR 1», «review round 4», «Fresh-eye review of
+  PR 2» name local plan docs (`docs/next-prs/` is never committed) or a review that leaves no trace in the repo. Keep
+  the reason, drop the pointer, or write «(the owner, date)». Tests too: their comments and assertion messages are
+  read the same way.
 
 ## 11. Build gotchas
 
@@ -281,11 +289,28 @@ Each candidate finding is a claim to check, not a result. Before it goes in the 
 really happens. Drop what does not hold; mark what could not be confirmed as "unconfirmed" rather than stating it as
 a bug.
 
+**A finding that goes against pinned behaviour is a question, not a fix.** When the change a finding asks for
+contradicts a test that pins the current behaviour, or another screen that does the opposite on purpose, report both
+sides and ask the owner which holds before anything changes. In part 2 a round hid another coach's written absence
+reason on one page while «Before the match» showed it (and its test pinned that); the owner chose to show it, and
+the hiding had to be undone.
+
+## 12a. More rounds with a fresh eye
+
+When asked for another round "with a fresh eye", hand it to a subagent that has none of this session: it reads
+nothing but what it is told. Brief it with: read this SKILL.md and CLAUDE.md and follow §0–13; the scope (the base
+and why); the git line of §0; which checks to run or which already passed (with their counts); the mock to start if
+it needs the running app; where to put its files (the scratchpad, nothing in the repo); review only, no edits; what
+earlier rounds fixed, and what was **decided on purpose** and not to be reported again unless actually wrong; what to
+look at hardest (what the latest fixes could break); the report's shape and length. Then verify each of its findings
+yourself (§12) before fixing it — its report is a claim, like any finding.
+
 ## 13. Report
 
 Start with what was reviewed (range, number of files), then the checks as a short table: each command and its result
 — passed, failed (with the message), new test failures against the baseline (named), or not run and why (with the
-command) — and, for a branch, whether it stands on the latest `main` and matches its remote (§0). Then one line:
+command) — and, for a branch, whether it stands on the latest `main` (or its parent branch, for a stacked one) and
+matches its remote (§0). Then one line:
 the number of must-fix findings and what blocks a merge (or "nothing blocks a merge"). Then the manual-pass
 checklist, when the change is visual.
 

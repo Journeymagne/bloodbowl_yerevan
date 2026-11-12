@@ -104,7 +104,9 @@ content task:
   not as part of a named inducement) → "апотекарий", consistent with the
   structural-label translation. Named inducements built on these words
   (`Wandering Apothecary`, `Mortuary Assistant`, `Plague Doctor`) stay fully
-  English as inducement names.
+  English as inducement names. The roster's treasury strip shortens the two medics to
+  their own word, «Doctor» and «Assistant» (not «Plague» and «Mortuary»), English in
+  both languages like the strip's other short labels.
 - **"Inducements"** (the generic category noun, not one specific inducement's
   name) — kept in English throughout, treated as an adopted term rather than
   translated inconsistently case-by-case.
@@ -401,6 +403,10 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 
 "Where" gives the stage that brought the word and the key that holds it.
 
+**A cut word has no dot** (the owner, 2026-11-11), in both languages: a column header, a strip's label or a short
+mark is «Avail» / «Дост», «Призем», «Апот», «Кат», «Старт рер», «Ком рер», «tech» / «тех», «очк» — not «Дост.»,
+as Russian typography would have it. A new short label follows it. Sentences keep their full stops.
+
 | English | Russian | Where |
 |---|---|---|
 | Reference | Справочник | 05 · `shell.tab.ref` (the tab and the SideNav item) |
@@ -421,7 +427,7 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Edit outside the match | Правка вне матча | 07a · `teamRoster.match.outside` |
 | manual edit | ручная правка | 07a · `teamRoster.sppLine`, `teamPlayer.edit.spp`; note 1 |
 | TTM | TTM | 07a · `teamRoster.counter.throws`; TD, KO, CAS, INT, MVP and COMP stay English too |
-| Landing | Призем. | 07a · `teamRoster.counter.landings` (the full word: «приземление», `teamRoster.counterName.landings`) |
+| Landing | Призем | 07a · `teamRoster.counter.landings` (the full word: «приземление», `teamRoster.counterName.landings`) |
 | Bonus | Бонус | 07a · `teamRoster.counter.bonus` |
 | Missing the match | Пропускают матч | 07b · `teamRoster.skips.heading`; "Miss the match" in `matches.before.missing`; note 2 |
 | Fallen | Погибшие | 07b · `teamRoster.fallen.heading` |
@@ -433,6 +439,7 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Cancel the purchase | Отменить покупку | 07c · `teamRoster.sell.cancelTitle` (its button: "Cancel purchase", `teamRoster.sell.cancelOpen`) |
 | Sell the player | Продать игрока | 07c · `teamRoster.sell.title` (the post-match says "Sell a player", `after.sellTitle`) |
 | Advancement | Прокачка | 07d · `teamAdvance.title`, `teamPlayer.advance` |
+| Advancement 1 · Advancements: 0 of 6 | Улучшение 1 · Улучшения: 0 из 6 | 07a · a numbered or counted advancement, not the act: `teamRoster.skill.fromAdvancement`, `teamRoster.advancements`, `teamAdvance.doneLevel` |
 | Random primary skill | Случайный основной навык | 07d · `teamAdvance.type.random` (the other types: the last item of "New-UI translation sweep" above) |
 | Rolled at the table | Бросил за столом | 07d · `teamAdvance.via.table` |
 | Skill in place of a characteristic | Навык вместо характеристики | 07d · `teamAdvance.insteadTitle`; note 3 |
@@ -451,7 +458,9 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Building the team | Набор команды | 08 · `treasury.phase.draft`; note 5 |
 | Correct by hand · Fix by hand | Исправить вручную | 08 · `treasury.fix.title` (the treasury); 07d · `teamPlayer.fix.title` (a player); note 1 |
 | Coach's Safe | Coach's Safe | 08, 09b · `treasury.safeTitle`, `after.safe`; the plain word "safe" is «сейф» (`after.toSafe`) |
-| Bribes | Bribes · Взятки | 08 · `treasury.strip.bribes` (English in both); 06, 12 · `savedRoster.bribes`, `adminTeam.staff.bribes`; note 5 |
+| Bribes | Взятки | 06, 08, 12 · `savedRoster.bribes`, `treasury.strip.bribes`; note 5 |
+| Dedicated Fans | Преданные фанаты | 06, 07d, 08, 09a, 09b, 12 · `savedRoster.dedicatedFans`, `teamSettings.fans`, `prep.fans.*`, `after.fans*`; «Fan Factor» stays English; note 5 |
+| Starting Rerolls · Team Rerolls | Стартовые рероллы · Командные рероллы | 06, 08, 09b, 12 · `savedRoster.startingRerolls`, `savedRoster.teamRerolls`; note 5 |
 | Before the match | Перед матчем | 09a · `prep.title`, `matches.before.title`, `guestHome.tile.match` |
 | Inducements | Индьюсменты | 09a · `pre.step.inducements`, `matches.inducements`, `prep.ind.title`; note 6 |
 | Journeymen | Journeymen | 09a · `prep.roster.journeymen`; note 6 |
@@ -507,12 +516,19 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
    матчам» beside it.
 5. **08.**
    - "Credit / Debit" are "Add" / "Take", and "Team draft" is "Building the team".
-   - **Bribes is written two ways.** The treasury's strip writes "Bribes" in both languages, like the
-     strip's other short English labels (as the prototype does, stage 08). The builder (06) and the
-     admin's staff (12) say «Взятки».
+   - **One name per staff item (owner's review of PR 1).** The builder (06), the team page and its
+     strip (08), the post-match (09b) and the administration (12) all take a staff item's name from
+     `savedRoster.<key>`; the strip's short label (`treasury.strip.<key>`) shortens that name and
+     never changes language. So Bribes is «Взятки» on the strip too, Dedicated Fans «Фанаты», the
+     Apothecary «Апотекарий» (`savedRoster.apothecary`). Assistant Coaches, Cheerleaders, Mortuary
+     Assistant and Plague Doctor stay English everywhere, their strip labels too («Coaches», «Cheers»,
+     «Assistant», «Doctor»).
+   - **Rerolls, not Re-rolls.** English UI copy writes "Starting Rerolls" / "Team Rerolls" (as the
+     sidebar's "Rerolls" and the rules' **Rerolls:** label); Russian «стартовые / командные рероллы»,
+     never "Start Re-rolls" / "Team Re-rolls" inside a Russian sentence.
    - The content's inducement is "Bribe" (`content/Gata/Inducements/Bribe.md`). The rule "Inducement
-     names used as UI labels elsewhere" above keeps that name English. Stage 13 does not settle this:
-     the words stay as built.
+     names used as UI labels elsewhere" above keeps that inducement's name English; the team's staff
+     counter is UI, «Взятки».
 6. **09a.**
    - **Inducements.** The match screens say «Индьюсменты» in Russian: the step, the tile, the card and
      the category switch. This is a deliberate UI exception to "Inducements" staying English, like the

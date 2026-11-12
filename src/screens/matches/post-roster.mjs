@@ -12,7 +12,7 @@ import { escapeHtml } from "../../core/dom.mjs";
 import { postGettingEvenMarkup } from "../../ui/getting-even.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../domain/league-rules.mjs";
+import { builderStaffMaximums, combinedRerollsMaximum } from "../../domain/league-rules.mjs";
 import { isLineman } from "../../domain/match/roster.mjs";
 import { sumMoney } from "../../domain/money.mjs";
 import { deadToRaise, postStaffOptions, raisesDead } from "../../domain/post-match/roster.mjs";
@@ -33,10 +33,9 @@ export const SELL_SHEET = "after-sell";
 const ROSTER_MOST = 14;
 const ROSTER_FEWEST = 7;
 
-/** A staff counter's name: Team Re-rolls «· buy more», a medic by its title, the rest as the treasury names them. */
 function staffName(key, { buy = false } = {}) {
-  if (key === "teamRerolls") return buy ? t("after.rerollsBuy") : t("savedRoster.teamRerolls");
-  return medicalStaffDefinitions.find((staff) => staff.key === key)?.title ?? t(`savedRoster.${key}`);
+  if (key === "teamRerolls" && buy) return t("after.rerollsBuy");
+  return t(`savedRoster.${key}`);
 }
 
 /** What the side's treasury holds: after the match's income, and once this step's operations are paid. */

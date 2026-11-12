@@ -174,10 +174,10 @@
     min-width: 0;
     margin: 0;
     padding: 0;
-    border: 0;
+    /* The ring as a border, not --ring's inset shadow: the rows' own backgrounds would paint over that at the sides. */
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius-2xl);
     background: var(--surface);
-    box-shadow: var(--ring);
     overflow-x: auto;
   }
   /* The card's heading, the table and its note scroll sideways together, as one block of 700 at least. */
@@ -221,4 +221,5 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
+  .g-season__aside .g-league__caltitle { font-size: 26px; }
 }

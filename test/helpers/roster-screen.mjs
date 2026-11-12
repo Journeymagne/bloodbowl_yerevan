@@ -178,5 +178,7 @@ export const recordButton = () => injurySheet().querySelector('[data-injury-step
 export const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]');
 /** The line under a player's name in the table. */
 export const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
+/** Its red part, after the position; null for none. */
+export const alertLine = (key) => bodyOf(key).querySelector(".g-rtable__alert");
 /** An injury row of the match as POST …/events answers it: Ann's. */
 export const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });

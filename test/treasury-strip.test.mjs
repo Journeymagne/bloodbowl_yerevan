@@ -36,7 +36,8 @@ const LIVE = { id: "g1", home: { team: { id: "t1" } }, away: { team: { id: "r1" 
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const toasts = () => document.querySelectorAll("output").map((node) => ({ text: node.textContent, tone: node.className }));
-const labels = (scope = document) => scope.querySelectorAll(".g-funds__k").map((node) => node.textContent);
+/** The labels as the eye reads them: a short one's visible word, not the full name said to a screen reader. */
+const labels = (scope = document) => scope.querySelectorAll(".g-funds__k").map((node) => (node.querySelector('[aria-hidden="true"]') ?? node).textContent);
 const values = (scope = document) => scope.querySelectorAll(".g-funds__v").map((node) => node.textContent);
 
 /** A coach signed in with the team given (Human `t1`, 70k, revision 3, unless said) and the games given; the toasts of the test before are gone. */
@@ -83,7 +84,7 @@ const sheetDialog = () => document.querySelector(`${SHEET_HOST} dialog#treasury-
 test("the strip says the treasury and what the team holds, as on DeskRoster", () => {
   coach();
   const fragment = mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers", "Bribes", "Apo"]);
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1", "0", "yes"]);
   const section = document.querySelector("section.g-funds");
   assert.equal(section.getAttribute("data-treasury-strip"), "t1");
@@ -113,23 +114,26 @@ test("Bribes are on the strip for every race (the owner, 2026-10-28); the medics
   assert.deepEqual([goblin.Bribes, goblin.Apo], ["2", "no"]);
   assert.equal(strips("teams/human", { bribes: 4 }).Bribes, "4", "a race without Bribery and Corruption buys them at 100k");
   const undead = strips("teams/necromantic-horror", { apothecary: 1, mortuaryAssistant: 1 });
-  assert.deepEqual([undead.Mortuary, "Apo" in undead, "Plague" in undead], ["yes", false, false]);
-  assert.equal(strips("teams/nurgle", { plagueDoctor: 0 }).Plague, "no");
+  assert.deepEqual([undead.Assistant, "Apo" in undead, "Doctor" in undead], ["yes", false, false]);
+  assert.equal(strips("teams/nurgle", { plagueDoctor: 0 }).Doctor, "no");
+  // The medic's own word, not the half of his name that reads as something else (the owner, 2026-11-11); English in both languages, as the strip's other short labels.
+  for (const key of ["plagueDoctor", "mortuaryAssistant"]) assert.equal(en[`treasury.strip.${key}`], ru[`treasury.strip.${key}`], key);
+  assert.deepEqual([en["treasury.strip.plagueDoctor"], en["treasury.strip.mortuaryAssistant"]], ["Doctor", "Assistant"]);
 });
 
 test("a team whose race has not come yet still has its treasury and counters, and nothing throws", () => {
   coach();
   state.data = null;
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers"]);
   assert.deepEqual(values(), ["70k", "2", "1", "3", "1", "1"]);
 });
 
-test("the strip reads in Russian: the labels the prototype shortens are shortened, the staff's names stay English", () => {
+test("the strip reads in Russian: the labels the prototype shortens are shortened, the staff's English names stay English", () => {
   coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
   initLocale("ru");
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Казна", "Старт. рер.", "Ком. рер.", "Фаны", "Coaches", "Cheer", "Bribes", "Апот."]);
+  assert.deepEqual(labels(), ["Казна", "Старт рер", "Ком рер", "Фанаты", "Coaches", "Cheers", "Взятки", "Апот"]);
   assert.equal(values().at(-1), "есть");
   assert.equal(document.querySelector("section.g-funds").getAttribute("aria-label"), "Казна и ресурсы");
   assert.equal(document.querySelector("a.g-funds__edit").getAttribute("aria-label"), "Команда, казна и ресурсы");
@@ -145,12 +149,14 @@ test("every counter and medic has its label, and the strip's words, in both dict
     for (const key of ["treasury.title", "treasury.strip.yes", "treasury.strip.no"]) assert.ok(dictionary[key], key);
     assert.equal(dictionary["treasury.strip.edit"], undefined, "the pencil is named for the page it leads to");
   }
+  // The owner, 2026-11-11: the strip says what the team page says, shortened («Взятки», not «Bribes»).
   assert.deepEqual(
-    ["startingRerolls", "teamRerolls", "dedicatedFans", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
-    ["Старт. рер.", "Ком. рер.", "Фаны", "Апот."],
+    ["startingRerolls", "teamRerolls", "dedicatedFans", "bribes", "apothecary"].map((key) => ru[`treasury.strip.${key}`]),
+    ["Старт рер", "Ком рер", "Фанаты", "Взятки", "Апот"],
   );
-  for (const key of ["assistantCoaches", "cheerleaders", "bribes", "mortuaryAssistant", "plagueDoctor"]) {
+  for (const key of ["assistantCoaches", "cheerleaders", "mortuaryAssistant", "plagueDoctor"]) {
     assert.equal(ru[`treasury.strip.${key}`], en[`treasury.strip.${key}`], `${key} is the staff's own name in both languages`);
+    assert.equal(ru[`savedRoster.${key}`], en[`savedRoster.${key}`], `${key}: the team page keeps it English too`);
   }
 });
 
@@ -166,7 +172,7 @@ test("a team with no treasury written has 0k, and a team id is text, not markup"
 test("a team with no roster at all draws a strip of nothing, and does not throw", () => {
   coach({ team: { ...TEAM, roster: null } });
   mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
-  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Bribes", "Apo"]);
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheers", "Bribes", "Apo"]);
   assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "0", "no"]);
 });
 
@@ -253,6 +259,19 @@ test("an entry made from the team page's card shows on the strip without the scr
   assert.equal(state.myTeams.items[0].revision, 4);
   assert.deepEqual(api.calls.find((call) => call.key === POST).body.revision, 3);
   assert.equal(sheetDialog(), null);
+});
+
+// «Coaches 2 · Assistant yes» left a reader guessing which assistant.
+test("a short label carries the item's full name: in its tooltip, and in its place for a screen reader", () => {
+  coach({ team: { ...TEAM, baseTeamSlug: "teams/goblin" } });
+  mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
+  const key = (short) => document.querySelectorAll(".g-funds__k").find((node) => labels(node.parentNode)[0] === short);
+  for (const [short, full] of [["Apo", "Apothecary"], ["Start RR", "Starting Rerolls"], ["Coaches", "Assistant Coaches"], ["Fans", "Dedicated Fans"]]) {
+    assert.equal(key(short).getAttribute("title"), full, short);
+    assert.equal(key(short).querySelector(".g-sr-only").textContent, full, short);
+  }
+  assert.equal(key("Bribes").getAttribute("title"), null, "a label that is the full name says it once");
+  assert.equal(key("Treasury").querySelector(".g-sr-only"), null);
 });
 
 test("a strip patched keeps the focus on its pencil, though the cells around it come and go", () => {

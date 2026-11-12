@@ -94,13 +94,13 @@
   overflow-wrap: anywhere;
 }
 
-/* The position, or why he misses the match. */
+/* The position, then an injury or why he misses the match. */
 .g-rtable__sub {
   color: var(--muted);
   font: 400 13px/1.2 var(--font-body);
   overflow-wrap: anywhere;
 }
-.g-rtable__sub--alert { color: var(--danger); }
+.g-rtable__alert { color: var(--danger); }
 
 /* The skills under the name: the badge and the gap are 46px, and the chips start under the name. */
 .g-rtable__skills { padding: 0 0 var(--space-6) 46px; }
@@ -109,6 +109,9 @@
 .g-rtable__row { height: var(--size-row); }
 .g-rtable__row,
 .g-rtable__skillrow { cursor: pointer; }
+.g-rtable__player--still > .g-rtable__row,
+.g-rtable__player--still > .g-rtable__skillrow,
+.g-rtable__player--still .g-rtable__toggle { cursor: auto; }
 
 .g-rtable__c {
   box-sizing: border-box;
@@ -187,6 +190,7 @@ th.g-rtable__h {
   cursor: pointer;
 }
 [aria-sort] .g-sort { color: var(--accent-text); }
+.g-sort--label { cursor: auto; }
 
 .g-sort__arrow {
   position: absolute;
@@ -304,22 +308,23 @@ tfoot .g-rtable__glabel {
 
   /*
    * The numbers' widths (DeskRoster.html): 32px a characteristic, 36px a count of the career, 44px «Total» and 52px
-   * «Avail.»; a group after the first leads with a 12px gap, and the last column ends 16px short of the edge. The
-   * player takes the rest and never less than 180px: 180 + 160 + 228 + 56 + 68.
+   * «Avail»; a group after the first leads with a 20px gap (the owner, 2026-11-11: DeskRoster.html's 12 ran the groups
+   * together), and the last column ends 16px short of the edge. The player takes the rest and never less than 180px:
+   * 180 + 160 + 236 + 64 + 68.
    */
-  .g-rtable { min-width: 692px; }
+  .g-rtable { min-width: 708px; }
   .g-rtable__col--who { width: auto; }
   .g-rtable__col--stats { width: 32px; }
   .g-rtable__col--career { width: 36px; }
-  .g-rtable__col--career.g-rtable__col--lead { width: 48px; }
-  .g-rtable__col--spp.g-rtable__col--lead { width: 56px; }
+  .g-rtable__col--career.g-rtable__col--lead { width: 56px; }
+  .g-rtable__col--spp.g-rtable__col--lead { width: 64px; }
   .g-rtable__col--spp.g-rtable__col--last { width: 68px; }
 
   .g-rtable__c { padding: var(--space-10) 0; }
   .g-rtable__c--lead,
   th.g-rtable__h.g-rtable__c--lead,
-  .g-rtable__foot > .g-rtable__h.g-rtable__c--lead { padding-left: var(--space-12); }
-  .g-rtable__g--lead .g-rtable__glabel { margin-left: var(--space-12); }
+  .g-rtable__foot > .g-rtable__h.g-rtable__c--lead { padding-left: var(--space-20); }
+  .g-rtable__g--lead .g-rtable__glabel { margin-left: var(--space-20); }
   .g-rtable__g:last-child .g-rtable__glabel { margin-right: var(--space-16); }
   /*
    * Every number stands centred under its label, the last column's too (the owner, 2026-10-19: one axis for a header

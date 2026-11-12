@@ -288,12 +288,15 @@
   gap: var(--space-8);
 }
 /* The input is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
-.g-build__file:focus-visible + .g-build__upload {
+.g-build__file:focus-visible + .g-build__icon {
   outline: 3px solid var(--accent-text);
   outline-offset: 0;
 }
-/* The upload icon in a square, as the team settings' (settings.css); its word, unseen, names the field. */
-.g-build__upload {
+/*
+ * The upload and the removal as icons in a square, as the team settings' (settings.css): the upload's word, unseen,
+ * names the field; the removal is named by its aria-label.
+ */
+.g-build__icon {
   width: var(--size-touch);
   padding: 0;
   cursor: pointer;
@@ -449,6 +452,11 @@
   .g-build__head > .g-btn { margin-left: 0; }
   .g-build__title { font-size: 28px; line-height: 1.1; }
   .g-build__sub { font-size: 14px; }
+
+  /* The rows' buttons are the team settings' (settings.css): the prototype's 36px on a desk. */
+  .g-build__change,
+  .g-build__icon { min-height: 36px; }
+  .g-build__icon { width: 36px; }
 
   /* Row gaps are margins, so the budget and the save can meet as one card. */
   .g-build__budget {

@@ -57,9 +57,8 @@ test("a row: the number on the position's colour, the captain's «C», the name,
   const agility = bodyOf("p3#0").querySelectorAll(".g-rtable__row td")[2];
   assert.ok(agility.classList.contains("g-rtable__c--up"));
   assert.equal(agility.textContent, "2+ improved");
-  const skipping = bodyOf("p4#0").querySelector(".g-rtable__sub");
-  assert.ok(skipping.classList.contains("g-rtable__sub--alert"));
-  assert.equal(skipping.textContent, "Misses the next match");
+  const skipping = bodyOf("p4#0").querySelector(".g-rtable__sub .g-rtable__alert");
+  assert.equal(skipping?.textContent, "Misses the next match", "in red, after his position");
   // The career and the SPP: a zero is quiet, what he may spend is strong.
   const cells = captain.querySelectorAll(".g-rtable__row td");
   assert.equal(cells[5].textContent, "1");
@@ -209,8 +208,9 @@ test("the sheet's box says whose skill it is: a skill an advancement gave, by th
     fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
     return said;
   };
-  assert.deepEqual(boxOf("Dodge"), ["Bors · Random primary", "g-roster__from g-roster__from--gained"]);
-  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Primary", "g-roster__from g-roster__from--gained"]);
+  // The owner, 2026-11-11: the advancement once, in the tag, with its number.
+  assert.deepEqual(boxOf("Dodge"), ["Bors · Advancement 1 · Random primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Advancement 2 · Primary", "g-roster__from g-roster__from--gained"]);
   assert.deepEqual(boxOf("Block"), ["Bors · Starting", "g-roster__from"]);
 });
 

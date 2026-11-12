@@ -50,6 +50,9 @@ function check({ label, columns, groups, rows, sort }) {
     if (!row.badgeHtml) throw new Error(`row ${JSON.stringify(row.key)} needs a badge: the markup of renderPlayerBadge`);
     if (row.controls !== undefined && !(typeof row.controls === "string" && PLAIN_ID.test(row.controls))) throw new Error(`row ${JSON.stringify(row.key)} controls ${JSON.stringify(row.controls)}: a plain id, as aria-controls reads it`);
     if (row.controls && row.expanded) throw new Error(`row ${JSON.stringify(row.key)} both opens its own panel and controls ${JSON.stringify(row.controls)}: a button does one`);
+    if (row.still && (row.controls || row.expanded || row.selected || row.reorderIndex !== undefined)) {
+      throw new Error(`row ${JSON.stringify(row.key)} is still: it has no button to open, choose or move him with`);
+    }
     if (row.cells?.length !== columns.length - 1) {
       throw new Error(`row ${JSON.stringify(row.key)} has ${row.cells?.length ?? "no"} cells for ${columns.length - 1} columns after the player's`);
     }
@@ -112,7 +115,7 @@ function renderHeadCell(column, place, index, sort, headTailHtml, quiet) {
   const name = column.name ? ` aria-label="${escapeHtml(column.name)}"` : "";
   const control = sortable
     ? `<button type="button" class="g-sort"${dataAttributes({ sortKey: column.key })}${name}>${escapeHtml(column.label)}${arrow}</button>`
-    : escapeHtml(column.label);
+    : `<span class="g-sort g-sort--label">${escapeHtml(column.label)}</span>`;
   const direction = sorted ? ` aria-sort="${ARIA_SORT[sort.dir]}"` : "";
   const cellName = sortable ? "" : name;
   return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${direction}${cellName}>${control}${first ? headTailHtml : ""}</th>`;
@@ -134,12 +137,15 @@ function renderCell(cell, place) {
  */
 function renderWho(row) {
   const skills = row.skillsHtml ? `<div class="g-rtable__skills g-rtable__skills--desk">${row.skillsHtml}</div>` : "";
-  const sub = `<span class="${classNames("g-rtable__sub", row.alert && "g-rtable__sub--alert")}">${escapeHtml(row.sub ?? "")}</span>`;
+  const alert = row.alert ? ` · <span class="g-rtable__alert">${escapeHtml(row.alert)}</span>` : "";
+  const sub = `<span class="g-rtable__sub">${escapeHtml(row.sub ?? "")}${alert}</span>`;
+  const text = `${row.badgeHtml}<span class="g-rtable__text"><span class="g-rtable__name">${escapeHtml(row.name)}</span>${sub}</span>`;
+  if (row.still) return `<th scope="row" class="g-rtable__who"><span class="g-rtable__toggle">${text}</span>${skills}</th>`;
   const relation = row.controls
     ? `aria-controls="${escapeHtml(row.controls)}"`
     : `aria-expanded="${row.expanded ? "true" : "false"}" aria-controls="rt-panel-${escapeHtml(row.key)}"`;
   return `<th scope="row" class="g-rtable__who"><button type="button" class="g-rtable__toggle" ${relation}${row.selected ? ' aria-current="true"' : ""}${dataAttributes({ rowKey: row.key })}>`
-    + `${row.badgeHtml}<span class="g-rtable__text"><span class="g-rtable__name">${escapeHtml(row.name)}</span>${sub}</span></button>${skills}</th>`;
+    + `${text}</button>${skills}</th>`;
 }
 
 /**
@@ -152,7 +158,7 @@ function renderPlayer(row, places, phoneSpan) {
   const cells = row.cells.map((cell, index) => renderCell(cell, places[index + 1])).join("");
   const skillRow = row.skillsHtml ? `<tr class="g-rtable__skillrow"><td colspan="${phoneSpan}">${row.skillsHtml}</td></tr>` : "";
   const panelRow = row.expanded ? `<tr class="g-rtable__panelrow" id="rt-panel-${escapeHtml(row.key)}"><td colspan="${phoneSpan}">${row.panelHtml ?? ""}</td></tr>` : "";
-  const className = classNames("g-rtable__player", row.expanded && "is-expanded", row.selected && "is-selected");
+  const className = classNames("g-rtable__player", row.still && "g-rtable__player--still", row.expanded && "is-expanded", row.selected && "is-selected");
   return `<tbody class="${className}"${dataAttributes({ key: row.key, reorderIndex: row.reorderIndex })}><tr class="g-rtable__row">${renderWho(row)}${cells}</tr>${skillRow}${panelRow}</tbody>`;
 }
 
@@ -188,8 +194,8 @@ function renderFoot(columns, places, groups) {
  * @property {number} [reorderIndex] editable roster slot, enables hold-and-drag within this table
  * @property {string} badgeHtml markup from renderPlayerBadge
  * @property {string} name
- * @property {string} sub the line under the name (the position, or why he misses the match)
- * @property {boolean} [alert] `sub` states an injury or a missed match: drawn in --danger
+ * @property {string} sub the line under the name: the position
+ * @property {string} [alert] after the position, an injury or why he misses the match: drawn in --danger
  * @property {{text: string, tone?: ""|"zero"|"up"|"down"|"strong"|"quiet", note?: string, delta?: number}[]} cells one per column after the first
  * @property {string} [skillsHtml] markup from renderSkillChips
  * @property {boolean} [expanded] the row's panel is open (up to 900px)
@@ -197,6 +203,7 @@ function renderFoot(columns, places, groups) {
  * @property {string} [controls] the id of the panel beside the table that the row's button chooses the player for (a desk's,
  *   R11): the button names it in `aria-controls` and says no `aria-expanded`; such a row opens no panel of its own
  * @property {string} [panelHtml] what the open row shows
+ * @property {boolean} [still] a row to read and not to press (another coach's team): no button, no panel, nothing it reports
  */
 export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headTailHtml = "", foot = true, quietHead = false }) {
   check({ label, columns, groups, rows, sort });
@@ -221,7 +228,8 @@ export function wireRosterTable(root, { onSort = () => {}, onToggle = () => {} }
     delegate(root, "click", ".g-sort[data-sort-key]", (event, button) => onSort(button.getAttribute("data-sort-key"))),
     delegate(root, "click", ".g-rtable__toggle[data-row-key]", (event, button) => onToggle(button.getAttribute("data-row-key"))),
     delegate(root, "click", ".g-rtable__row, .g-rtable__skillrow", (event, row) => {
-      const key = row.closest(".g-rtable__player")?.getAttribute("data-key");
+      const player = row.closest(".g-rtable__player");
+      const key = player?.classList.contains("g-rtable__player--still") ? null : player?.getAttribute("data-key");
       if (key && !event.target.closest(OWN_CONTROL)) onToggle(key);
     }),
   ];

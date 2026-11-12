@@ -108,7 +108,6 @@ function fansBody(form, check) {
   return renderResourceCounter({
     key: "settings:fans",
     name: t("teamSettings.fans"),
-    note: t("teamSettings.fansNote"),
     value: check.chosen,
     incBlockedReason: check.chosen >= FANS_MAX ? t("teamSettings.refusal.FANS_RANGE", { max: FANS_MAX }) : "",
   });

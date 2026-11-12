@@ -27,6 +27,7 @@ import { gameUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderResultPill } from "../../ui/result-pill.mjs";
+import { renderSeeAll } from "../../ui/see-all.mjs";
 
 /** "#3 Catcher": a player's number, when he has one, and his position. */
 const playerLine = (number, position) => [number ? `#${number}` : "", position].filter(Boolean).join(" ");
@@ -133,6 +134,6 @@ export function resultsMarkup({ results, teamId, phone }) {
   if (!results.length) return "";
   const title = `<h2 class="g-overview__title" id="overview-results-title">${escapeHtml(t("teamOverview.results"))}</h2>`;
   return `<section class="g-overview__results" aria-labelledby="overview-results-title"><div class="g-overview__bar">${title}`
-    + `<a class="g-overview__all" href="${escapeHtml(teamUrl(teamId, "matches"))}">${escapeHtml(t("teamOverview.wholeSeason"))}</a></div>`
+    + `${renderSeeAll({ label: t("teamOverview.wholeSeason"), href: teamUrl(teamId, "matches") })}</div>`
     + `<ul class="g-overview__list">${results.map((result) => resultRow(result, phone)).join("")}</ul></section>`;
 }

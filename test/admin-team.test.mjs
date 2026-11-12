@@ -256,11 +256,11 @@ test("the staff counts without money, eight re-rolls together at most", async ()
       // 4 + 4: «+» of either says the joint maximum, and sends nothing.
       const full = step("teamRerolls", 1);
       assert.equal(full.getAttribute("aria-disabled"), "true");
-      assert.equal(full.getAttribute("title"), "Starting Re-rolls + Team Re-rolls: maximum is 8.");
-      assert.equal(step("startingRerolls", 1).getAttribute("title"), "Starting Re-rolls + Team Re-rolls: maximum is 8.");
+      assert.equal(full.getAttribute("title"), "Starting Rerolls + Team Rerolls: maximum is 8.");
+      assert.equal(step("startingRerolls", 1).getAttribute("title"), "Starting Rerolls + Team Rerolls: maximum is 8.");
       fireEvent(full, "click");
       await settle();
-      assert.equal(toasts().at(-1), "Starting Re-rolls + Team Re-rolls: maximum is 8.");
+      assert.equal(toasts().at(-1), "Starting Rerolls + Team Rerolls: maximum is 8.");
       assert.equal(sent(ADMIN_PATCH).length, 1);
       // An apothecary is one at most; a step down takes nothing back into the treasury either.
       assert.equal(step("apothecary", 1).getAttribute("title"), "Apothecary: maximum is 1.");
@@ -454,7 +454,7 @@ test("names are text; no inline style; styled; every key in both dictionaries, t
   assertDictionaryCovers("src/screens/team/roster/admin-block.mjs", "src/screens/admin/team-sheets.mjs", "src/screens/team/roster/screen.mjs");
   const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
   for (const locale of ["en", "ru"]) {
-    for (const key of ADMIN_STAFF) assert.ok(dictionary(locale)[`adminTeam.staff.${key}`], `${locale} adminTeam.staff.${key}`);
+    for (const key of ADMIN_STAFF) assert.ok(dictionary(locale)[`savedRoster.${key}`], `${locale} savedRoster.${key}: the team page's names`);
   }
 });
 

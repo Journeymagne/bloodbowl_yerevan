@@ -33,7 +33,6 @@ import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { adminCoachUrl, adminUrl, postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
-import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { icon } from "../../../ui/icons.mjs";
@@ -46,13 +45,14 @@ import { renderToggle } from "../../../ui/toggle.mjs";
 import { advanceSheetMarkup } from "./advance-sheet.mjs";
 import { careerMarkup } from "./career.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
-import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./model.mjs";
+import { NO_MATCH, rosterCells, rosterColumns, rosterGroups } from "./columns.mjs";
+import { counterSlots, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
 import { fixSheetMarkup } from "./fix.mjs";
 import { editSheetMarkup, unadvanceSheetMarkup } from "./player-sheets.mjs";
-import { rollBlockMarkup } from "./roll-view.mjs";
+import { rollNotesMarkup } from "./roll-view.mjs";
 import { foundMarkup, lineMatches, queryWords, searchFieldMarkup } from "./search.mjs";
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
@@ -70,8 +70,6 @@ export const OUTSIDE_TOGGLE = "roster-outside";
 const OUTSIDE_NOTE = "roster-outside-note";
 /** The ids of the three sections' headings, which name the sections. */
 const HEADINGS = Object.freeze({ active: "roster-heading", skipping: "roster-skips-heading", fallen: "roster-fallen-heading" });
-/** No match is on for the dead: no count of theirs says what one added. */
-const NO_MATCH = Object.freeze({ kind: "plain" });
 
 /**
  * @typedef {object} RosterScreen
@@ -134,54 +132,9 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {object[]} matches the team's confirmed matches as the admin's read lists them (none on a coach's visit)
  */
 
-/** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */
-function columnsOf() {
-  return [
-    { key: "player", label: t("teamRoster.column.player") },
-    ...PLAYER_STATS.map((stat) => ({ key: stat, label: t(`stats.${stat}`), group: "stats" })),
-    ...MAIN_COUNTERS.map((counter) => ({ key: counter, label: t(`teamRoster.counter.${counter}`), name: t(`teamRoster.counterName.${counter}`), group: "career", desk: true })),
-    { key: "earned", label: t("teamRoster.column.earned"), group: "spp", desk: true },
-    { key: "available", label: t("teamRoster.column.available"), name: t("teamRoster.available"), group: "spp", desk: true },
-  ];
-}
-
-/** The over-heads from 901px: «Characteristics», «Career», «SPP». */
-function groupsOf() {
-  return [
-    { label: t("teamRoster.group.stats"), span: PLAYER_STATS.length },
-    { label: t("teamRoster.group.career"), span: MAIN_COUNTERS.length },
-    { label: t("teamRoster.group.spp"), span: 2 },
-  ];
-}
-
-/** A characteristic: as the model writes it, a change tinted and said in words. */
-function statCell({ text, change }) {
-  const note = change === "up" ? t("ui.stat.improved") : change === "down" ? t("ui.stat.lowered") : "";
-  return { text, tone: change, note };
-}
-
 /** The line under a player's name while an injury of the match on stands for him (Task 12): «Lasting Injury (AG) · round 3»; "" when none does. */
 function injuryLine(line, mode) {
   return mode.kind === "match" && line.injury ? t("teamRoster.injury.line", { injury: injuryWords(line.injury), match: matchWords(mode) }) : "";
-}
-
-/** A count: quiet at zero. */
-const countCell = (count) => ({ text: String(count), tone: count === 0 ? "zero" : "" });
-
-/**
- * A line's cells; in a match each count of the career says what the match has added to it («+1»). What he may
- * spend is green when it buys an advancement — he plays, and has the cheapest one's SPP — and quiet when it does not
- * (DeskRoster.html).
- */
-function cellsOf(line, { mode }) {
-  const added = (counter) => (mode.kind === "match" ? line.match[counter] : 0);
-  const buys = line.ready && !line.skip && !line.fallen;
-  return [
-    ...PLAYER_STATS.map((stat) => statCell(line.stats[stat])),
-    ...MAIN_COUNTERS.map((counter) => ({ ...countCell(line.career[counter] ?? 0), delta: added(counter) })),
-    { text: String(line.earned) },
-    { text: String(line.available), tone: buys ? "strong" : "quiet" },
-  ];
 }
 
 /**
@@ -195,8 +148,8 @@ function choiceOf(lines, { memory }) {
 }
 
 /**
- * A player of the roster: under his name an injury the match on has dealt him (Task 12), else why he misses the next
- * match (decision 14), else his position.
+ * A player of the roster: under his name his position, then an injury the match on has dealt him (Task 12), else why
+ * he misses the next match (decision 14).
  */
 function playerRowOf(line, screen) {
   const injury = injuryLine(line, screen.mode);
@@ -205,23 +158,23 @@ function playerRowOf(line, screen) {
     reorderIndex: !screen.lock && screen.mode.kind !== "match" ? line.index : undefined,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
     name: line.name,
-    sub: injury || (line.skip ? absenceWords(line) : line.position),
-    alert: Boolean(injury) || line.skip,
-    cells: cellsOf(line, screen),
+    sub: line.position,
+    alert: injury || (line.skip ? absenceWords(line) : ""),
+    cells: rosterCells(line, screen),
     skillsHtml: skillChipsMarkup(line),
   };
 }
 
-/** A fallen player (decision 15): his number grey, «Fallen · <cause>» in red under his name as every absence (StatsInjured.html), his numbers as they were. */
+/** A fallen player (decision 15): his number grey, his position and «Fallen · <cause>» in red under his name as every absence (StatsInjured.html), his numbers as they were. */
 function fallenRowOf(line) {
   const cause = causeOf(line);
   return {
     key: line.key,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true }),
     name: fallenName(line),
-    sub: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
-    alert: true,
-    cells: cellsOf(line, { mode: NO_MATCH }),
+    sub: line.position,
+    alert: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
+    cells: rosterCells(line, { mode: NO_MATCH }),
     skillsHtml: skillChipsMarkup(line),
   };
 }
@@ -402,7 +355,7 @@ function layoutMarkup(screen) {
   const first = active.length ? active : skipping.length ? skipping : fallen;
   // A desk shows the labels once, over the first table drawn: the others keep theirs for a screen reader (DeskRosterInjured.html).
   const table = (label, rows, headTailHtml = "") => renderRosterTable({
-    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headTailHtml,
+    label, columns: rosterColumns(), groups: rosterGroups(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headTailHtml,
     foot: rows === last, quietHead: !screen.phone && rows !== first,
   });
   const none = query ? t("teamRoster.search.none", { query }) : lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty");
@@ -477,7 +430,7 @@ export function sheetMarkup(screen) {
   if (sheet.kind === "advance") return advanceSheetMarkup({ line, screen, sheet });
   if (sheet.kind === "unadvance") return unadvanceSheetMarkup({ line, screen, sheet });
   if (sheet.kind === "fix") return fixSheetMarkup({ line, screen, sheet });
-  return skillSheetMarkup({ data: screen.data, line, name: sheet.name, advancementHtml: rollBlockMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
+  return skillSheetMarkup({ data: screen.data, line, name: sheet.name, notesHtml: rollNotesMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
 }
 
 /**

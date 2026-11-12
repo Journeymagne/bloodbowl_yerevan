@@ -171,19 +171,19 @@ test("the model: the round on, the rounds before, the pairs' statuses and scores
   assert.deepEqual(model.awaiting.map(({ id, round: number, friendly }) => [id, number, friendly]), [["r3p4", 3, false], ["r7p2", 7, false]]);
   assert.equal(model.awaiting[0].proposal.by, "teeth");
 
-  // A technical result: «2–0 · tech.», its winner and reason; one stored before stage 12 has none and is «another reason».
+  // A technical result: «2–0 · tech», its winner and reason; one stored before stage 12 has none and is «another reason».
   const technical = seasonWith([round(7, "started", [live(1, "e1", "e2", { ...played([0, 2]), resultType: "technical", technicalReason: "no_team", homePoints: 0, awayPoints: 4 }),
     live(2, "e3", "e4", { ...played([2, 0]), resultType: "technical", technicalReason: null, homePoints: 2, awayPoints: 0 })])]);
   const lines = seasonRoundsModel({ seasonData: technical }).current.lines;
-  assert.deepEqual(lines.map(({ score, technical: result }) => [score, result]), [["0–2 · tech.", { winner: "away", reason: "no_team" }], ["2–0 · tech.", { winner: "home", reason: "other" }]]);
+  assert.deepEqual(lines.map(({ score, technical: result }) => [score, result]), [["0–2 · tech", { winner: "away", reason: "no_team" }], ["2–0 · tech", { winner: "home", reason: "other" }]]);
   assert.equal(seasonRoundsModel({ seasonData: technical }).canGenerate, "", "every pair of round 7 has its points");
   // A bye the server gave points to says them; a draft round closes the generation first.
   const scoredBye = seasonWith([round(7, "started", [live(1, "e7", null, { homeTouchdowns: 2, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0, homePoints: 4, awayPoints: 0, resultStatus: "confirmed" })])]);
-  assert.equal(seasonRoundsModel({ seasonData: scoredBye }).current.lines[0].score, "tech. +4");
+  assert.equal(seasonRoundsModel({ seasonData: scoredBye }).current.lines[0].score, "tech +4");
   // The bye keeps 2.x's scoring (the owner, 2026-10-22: «как в коде пока что»): its label says only the points the server
   // holds — a bye scored 0 says «+0» — and «—» before a result is saved, never the house rules' technical win.
   const zeroBye = seasonWith([round(7, "started", [live(1, null, "e7", { homeTouchdowns: 0, awayTouchdowns: 0, homeCasualties: 0, awayCasualties: 0, homePoints: 0, awayPoints: 0, resultStatus: "confirmed" })])]);
-  assert.equal(seasonRoundsModel({ seasonData: zeroBye }).current.lines[0].score, "tech. +0", "the away side's points");
+  assert.equal(seasonRoundsModel({ seasonData: zeroBye }).current.lines[0].score, "tech +0", "the away side's points");
   const unscored = seasonWith([round(7, "started", [live(1, "e7", null, {})])]);
   assert.equal(seasonRoundsModel({ seasonData: unscored }).current.lines[0].score, "—");
   assert.doesNotMatch(readFileSync(new URL("../src/screens/admin/season-rounds.mjs", import.meta.url), "utf8"), /seasonPoints/);
@@ -416,7 +416,7 @@ it("a pair the post-match keeps leads to it; a confirmed technical one's reason 
   ])]);
   await visit({ season: kept, awaiting: [] });
   const rows = view.querySelectorAll('.g-adminseason__round [role="row"]').slice(1);
-  assert.deepEqual(rows.map((row) => row.querySelectorAll('[role="cell"]').slice(3, 5).map(words)), [["2–0 · tech.", "Confirmed"], ["—", "Post-match"]]);
+  assert.deepEqual(rows.map((row) => row.querySelectorAll('[role="cell"]').slice(3, 5).map(words)), [["2–0 · tech", "Confirmed"], ["—", "Post-match"]]);
 
   await press(resultOf("r7p2"));
   assert.equal(sheet().querySelector("a[data-result-post]").getAttribute("href"), "#/games/r7p2/post-match");

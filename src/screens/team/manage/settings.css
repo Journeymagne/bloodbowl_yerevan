@@ -101,6 +101,21 @@
 }
 .g-team-settings__shown { overflow-wrap: anywhere; }
 
+.g-team-settings__ref {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch);
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.g-team-settings__ref > svg { flex: none; }
+.g-team-settings__ref:hover { text-decoration: underline; }
+@media (min-width: 901px) {
+  .g-team-settings__ref { min-height: 24px; }
+}
+
 /* The logo: Builder's 40px frame with the picture, or the glyph of one in --muted; its name and its sizes, then its buttons. */
 .g-team-settings__logo-line {
   display: flex;

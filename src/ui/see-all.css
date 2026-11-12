@@ -1,0 +1,20 @@
+.g-seeall {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+  white-space: nowrap;
+}
+.g-seeall:hover { text-decoration: underline; }
+
+@media (min-width: 901px) {
+  .g-seeall { min-height: 24px; }
+}

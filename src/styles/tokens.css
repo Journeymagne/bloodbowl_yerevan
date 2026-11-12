@@ -68,6 +68,8 @@
   --pitch-900: #17392C;
   --header-ink: #FFFFFF;
   --crest-gold: #F2C14E;
+  /* The captain's chip's edge: the gold darkened, so the filled chip reads the size of the ringed ones beside it. */
+  --crest-gold-ring: #C99A2E;
   --on-accent: #FFFFFF;
   --live: #7FD3A2;
   /* A loss on the dark band (a past match's score and outcome, DeskSeason.html): the danger of the dark modes. */

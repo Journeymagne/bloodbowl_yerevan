@@ -89,7 +89,8 @@ function absenceReason({ retired, absence }) {
 
 /**
  * The line under the name of a player who misses the next match: why, or where nothing says why, that he misses it
- * (the words 07a drew for every skip).
+ * (the words 07a drew for every skip). Another coach reads it too, a reason written by hand included: it is the
+ * league's to know (the owner, 2026-11-12).
  *
  * @param {import("./model.mjs").PlayerLine} line
  */

@@ -33,6 +33,8 @@ const SHEETS = "src/screens/team/roster/player-sheets.css";
 const ADVANCE = "src/screens/team/roster/advance.css";
 const ROLLS = "src/screens/team/roster/rolls.css";
 const FIX = "src/screens/team/roster/fix.css";
+/** The skill sheet's tag, which holds how an advancement's roll was made (the owner, 2026-11-11). */
+const TAG = "src/screens/team/roster/sheets.css";
 const UNDO_STYLES = [...STYLES, "option-card.css", "die.css", "segmented-control.css"];
 const FIX_STYLES = [...UNDO_STYLES, "toggle.css", "text-field.css", "resource-counter.css"];
 const SAVE_FIRST = "Save or cancel the edit first";
@@ -936,7 +938,9 @@ test("an advancement without a tie: the undo names the loose god's skills and po
 test("a skill an advancement gave says how in its sheet; a site roll gave it — what the two dice showed, read once", async () => {
   const skillSheet = () => view.querySelector("dialog#roster-skill");
   const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
-  const line = () => skillSheet().querySelector(".g-roster__rollline").textContent;
+  // The owner, 2026-11-11: the advancement is said once, in the tag's own line; how it was rolled and the dice, small lines in the tag.
+  const line = () => skillSheet().querySelector(".g-roster__fromline").textContent;
+  const via = () => skillSheet().querySelector(".g-roster__rollline")?.textContent ?? "";
   const rollState = () => skillSheet().querySelector(".g-roster__rollstate");
   const said = () => skillSheet().querySelector(".g-roster__rollpair");
   const close = () => fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
@@ -950,22 +954,24 @@ test("a skill an advancement gave says how in its sheet; a site roll gave it —
       const gate = api.hold(ROLLS_READ);
       fireEvent(chip("Strip Ball"), "click");
       assert.ok(skillSheet()?.isModal);
-      assert.equal(line(), "Advancement 1 · Random primary skill · rolled on the site");
+      assert.equal(line(), "Cade · Advancement 1 · Random primary");
+      assert.equal(via(), "rolled on the site");
       assert.equal(rollState().textContent, "Reading the roll…");
       assert.equal(rollState().getAttribute("role"), "status");
       assert.ok(!said(), "nothing said of the dice before they are read");
-      // Between the rule and whose skill it is (StatsSkill.html): the rolls' block holds the line and what the dice showed.
+      // Under the rule, one tag (StatsSkill.html's box): its line, then how it was rolled and what the dice showed.
       const body = elements(skillSheet().querySelector(".g-sheet__body"));
-      assert.deepEqual(body.map((node) => node.getAttribute("class")), ["g-prose", "g-roster__rollblock", "g-roster__from g-roster__from--gained"]);
+      assert.deepEqual(body.map((node) => node.getAttribute("class")), ["g-prose", "g-roster__from g-roster__from--gained"]);
       assert.equal(callsTo(ROLLS_READ), 1);
       gate.release({ status: 200, body: { rolls: [R0, PAIR, R2] } });
       await settle();
       assert.ok(!rollState(), "read");
       assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball");
-      assert.equal(said().tagName, "P");
-      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__rollblock")).map((node) => node.getAttribute("class")), ["g-roster__rollline", "g-roster__rollpair"]);
+      assert.equal(said().tagName, "SPAN");
+      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__from")).map((node) => node.getAttribute("class")), ["g-roster__fromline", "g-roster__rollline", "g-roster__rollpair"]);
+      assert.doesNotMatch(skillSheet().textContent, /Random primary skill/, "the advancement is not said twice");
       // Only said: no list, no button, nothing to press, nothing that opens or hides; the attempts are shown nowhere.
-      assert.equal(skillSheet().querySelector(".g-roster__rollblock").querySelectorAll("button, [aria-expanded], ul, ol, li").length, 0);
+      assert.equal(skillSheet().querySelector(".g-roster__from").querySelectorAll("button, [aria-expanded], ul, ol, li").length, 0);
       assert.ok(!skillSheet().querySelector(".g-advance__attemptlist") && !skillSheet().querySelector(".g-advance__attemptscaption") && !skillSheet().querySelector(".g-advance__attempt"));
       assert.doesNotMatch(skillSheet().textContent, /Attempts|rolled again|held already/);
       assertCspSafe(view);
@@ -979,18 +985,18 @@ test("a skill an advancement gave says how in its sheet; a site roll gave it —
       close();
       // A second chip of the same visit, its roll in that list: no new read.
       fireEvent(chip("Sure Hands"), "click");
-      assert.equal(line(), "Advancement 2 · Random primary skill · rolled on the site");
+      assert.equal(line(), "Cade · Advancement 2 · Random primary");
       assert.equal(said().textContent, "Rolled: Sure Hands", "a roll of one die says its one skill");
       assert.equal(callsTo(ROLLS_READ), 1);
       close();
-      // A chosen skill: how it came, and nothing read, nothing said of dice.
+      // A chosen skill: how it came, and nothing read, nothing said of dice or of a way.
       fireEvent(chip("Diving Catch"), "click");
-      assert.equal(line(), "Advancement 3 · Primary skill");
-      assert.ok(!rollState() && !said());
+      assert.equal(line(), "Cade · Advancement 3 · Primary");
+      assert.ok(!rollState() && !said() && !via());
       close();
-      // A skill no advancement gave (written by hand, 2.x): no block.
+      // A skill no advancement gave (written by hand, 2.x): the tag's line alone.
       fireEvent(chip(HOSTILE), "click");
-      assert.ok(!skillSheet().querySelector(".g-roster__rollblock"));
+      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__from")).map((node) => node.getAttribute("class")), ["g-roster__fromline"]);
       assertCspSafe(view);
       assert.equal(callsTo(ROLLS_READ), 1);
     });
@@ -1024,7 +1030,7 @@ test("a skill an advancement gave says how in its sheet; a site roll gave it —
     api.reply(ROLLS_READ, 200, { rolls: [PAIR] });
     fireEvent(aside().querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === "Strip Ball"), "click");
     await settle();
-    assert.equal(line(), "Advancement 1 · Random primary skill · rolled on the site");
+    assert.equal(line(), "Cade · Advancement 1 · Random primary");
     assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball");
     assertStyled(view, ...UNDO_STYLES);
   });
@@ -1066,8 +1072,8 @@ test("a roll kept with one die says its one skill", async () => {
       api.reply(ROLLS_READ, 200, { rolls: [{ ...R1, result: {} }] });
       fireEvent(chip("Frenzy"), "click");
       await settle();
-      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__rollblock")).map((node) => node.getAttribute("class")), ["g-roster__rollline"]);
-      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "Advancement 1 · Random primary skill · rolled on the site");
+      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__from")).map((node) => node.getAttribute("class")), ["g-roster__fromline", "g-roster__rollline"]);
+      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "rolled on the site");
     });
   });
 });
@@ -1130,7 +1136,8 @@ test("a read of the rolls without a site roll the roster brought since is read a
       const d8 = { ...CADE, extraSkills: [{ name: "Sure Hands", access: "primary" }], advancements: [{ type: "stat", grants: { skill: "Sure Hands" }, roll: { id: "r3", via: "site" } }] };
       await openPlayer(true, { teamAnswer: withOne(d8) });
       fireEvent(chip("Sure Hands"), "click");
-      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "Advancement 1 · Characteristic improvement · rolled on the site");
+      assert.equal(skillSheet().querySelector(".g-roster__fromline").textContent, "Cade · Advancement 1 · Characteristic");
+      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "rolled on the site");
       assert.ok(!rollState());
       await settle();
       assert.ok(!rollState());
@@ -1165,11 +1172,12 @@ test("every key in both dictionaries; styled; D2", () => {
   // Every new rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform.
   const own = [[FIX, ".g-player-fix__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
     [SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [ADVANCE, "#player-advance .g-favoured__title"],
-    [ADVANCE, "#player-advance .g-favoured__line"], [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"],
-    [ROLLS, "#roster-skill .g-roster__rollpair"]];
+    [ADVANCE, "#player-advance .g-favoured__line"], [TAG, ".g-roster__from"]];
   for (const [file, selector] of own) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(file, selector, property).length >= 1, `${selector} ${property}`);
   }
+  // The tag's small lines take their size of their own, the rest of the tag's.
+  for (const selector of [".g-roster__rollline", ".g-roster__rollstate", ".g-roster__rollpair"]) assert.ok(valuesOf(TAG, selector, "font").length >= 1, selector);
   // «Undo the last» is quiet (decisions 18, 40): a line of words in the accent at the block's left, no frame, no fill — never
   // the danger's; closed, the roster's closed look (`.g-roster__closed`), its pointer too.
   assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "font"), ["600 14px/1.3 var(--font-body)"]);
@@ -1209,11 +1217,10 @@ test("every key in both dictionaries; styled; D2", () => {
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-favoured__line", "font"), ["400 13px/1.45 var(--font-body)"]);
   assertReadable(ADVANCE, "#player-advance .g-favoured__line", "color", ["--surface-2"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-favoured__title", "color", ["--surface-2"], 4.5);
-  // What the dice showed (decision 39): 13px/1.45 in --ink-2, no margin, wrapping; nothing of the attempts' rules is left.
-  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "font"), ["400 13px/1.45 var(--font-body)"]);
-  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "color"), ["var(--ink-2)"]);
-  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "margin"), ["0"]);
-  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "overflow-wrap"), ["anywhere"]);
+  // What the dice showed (decision 39): 13px/1.45 in the tag's ink, wrapping as the tag does; nothing of the attempts' rules is left.
+  assert.deepEqual(valuesOf(TAG, ".g-roster__rollpair", "font"), ["400 13px/1.45 var(--font-body)"]);
+  assert.deepEqual(valuesOf(TAG, ".g-roster__from", "overflow-wrap"), ["anywhere"]);
+  assert.doesNotMatch(text(ROLLS), /roster__roll(line|pair|state|block)/, "the tag's lines are sheets.css's, not tied to the roster's dialog");
   assert.doesNotMatch(text(ROLLS), /attempt/, "no attempts' rules in rolls.css");
   assert.doesNotMatch(text("src/screens/team/roster/roll-view.mjs"), /attemptsMarkup|attemptWords/, "no attempts' markup");
   for (const [locale, words] of [["en", JSON.parse(text("src/i18n/en.json"))], ["ru", JSON.parse(text("src/i18n/ru.json"))]]) {
@@ -1224,10 +1231,9 @@ test("every key in both dictionaries; styled; D2", () => {
   assert.equal(JSON.parse(text("src/i18n/en.json"))["teamPlayer.roll.one"], "Rolled: {skill}");
   assert.equal(JSON.parse(text("src/i18n/ru.json"))["teamPlayer.roll.pair"], "Выпало: {first} и {second}");
   assert.equal(JSON.parse(text("src/i18n/ru.json"))["teamPlayer.roll.one"], "Выпало: {skill}");
-  assertReadable(ROLLS, "#roster-skill .g-roster__rollpair", "color", ["--surface"], 4.5);
-  assertReadable(ROLLS, "#roster-skill .g-roster__rollline", "color", ["--surface"], 4.5);
-  assertReadable(ROLLS, "#roster-skill .g-roster__rollstate", "color", ["--surface"], 4.5);
-  assertReadable(ROLLS, "#roster-skill .g-roster__rollstate--bad", "color", ["--surface"], 4.5);
+  // A failed read is the one small line in a colour of its own, on the grounds of the tags an advancement's skill has (a
+  // captain's skill is no advancement's: its gold tag holds no roll).
+  assertReadable(TAG, ".g-roster__rollstate--bad", "color", ["--surface", "--accent-tint"], 4.5);
   // D2: up to 900px what is pressed is 44px or more; from 901px never under 24px.
   const bare = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
   const height = (file, query, selector) => Number(mediaText(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
@@ -1248,8 +1254,7 @@ test("every key in both dictionaries; styled; D2", () => {
 
 test("a long skill or line wraps; nothing is cut with «…»", () => {
   for (const [file, selector] of [[SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [FIX, ".g-player-fix__undo"],
-    [ADVANCE, "#player-advance .g-favoured__title"], [ADVANCE, "#player-advance .g-favoured__line"],
-    [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"], [ROLLS, "#roster-skill .g-roster__rollpair"]]) {
+    [ADVANCE, "#player-advance .g-favoured__title"], [ADVANCE, "#player-advance .g-favoured__line"], [TAG, ".g-roster__from"]]) {
     assert.deepEqual(valuesOf(file, selector, "overflow-wrap"), ["anywhere"], selector);
   }
 });

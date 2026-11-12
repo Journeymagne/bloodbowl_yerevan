@@ -14,7 +14,7 @@ import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
 import { isWriting, saveTeamRoster } from "../../../data/treasury.mjs";
-import { combinedRerollsMaximum, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
+import { combinedRerollsMaximum } from "../../../domain/league-rules.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { renderToggle, wireToggles } from "../../../ui/toggle.mjs";
 import { canStepDown, resourceRows, stepResource } from "./model.mjs";
@@ -32,10 +32,7 @@ const LOCK_TEXT = {
   unavailable: () => t("treasury.lockRace"),
 };
 
-/** A counter is named as the roster editor names it, a medic by its definition (the dictionaries keep those in English). */
-function nameOf(row) {
-  return row.kind === "medic" ? medicalStaffDefinitions.find(({ key }) => key === row.key).title : t(`savedRoster.${row.key}`);
-}
+const nameOf = (row) => t(`savedRoster.${row.key}`);
 
 /** The maximum is reached. Two re-roll counters share one limit, so it is said for both, never as the room one has left. */
 function maxText(row, name) {
