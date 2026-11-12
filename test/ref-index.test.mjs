@@ -295,6 +295,7 @@ test("the table of contents is the desktop's: 48px links, the current one on the
   assert.deepEqual(valuesOf(SHEET, '.g-ref-toc__link[aria-current="page"]', "font-weight"), [], "no bolder, wider name that could wrap");
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group", "font"), ["700 12px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group", "text-transform"), ["uppercase"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group:not(:first-child)", "border-top"), ["1px solid var(--line)"], "a line between the groups");
 });
 
 test("the way back is a 44px round button on a phone, as a team's settings' «‹», and gone on a desktop", () => {

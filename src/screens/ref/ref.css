@@ -302,7 +302,10 @@
     letter-spacing: .08em;
     text-transform: uppercase;
   }
-  .g-ref-toc__group:not(:first-child) { margin-top: var(--space-16); }
+  .g-ref-toc__group:not(:first-child) {
+    padding-top: var(--space-16);
+    border-top: 1px solid var(--line);
+  }
   .g-ref-toc__link {
     box-sizing: border-box;
     display: flex;
