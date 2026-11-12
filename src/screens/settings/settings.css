@@ -145,13 +145,6 @@
   gap: var(--space-8);
 }
 
-.g-settings__caption {
-  color: var(--muted);
-  font: 600 13px/1.35 var(--font-body);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 /* A segment is a tap target: 44px, where the control alone draws 40. */
 .g-settings__language .g-seg__item { min-height: var(--size-touch); }
 

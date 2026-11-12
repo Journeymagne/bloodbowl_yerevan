@@ -163,7 +163,6 @@
   border: 0;
   background: none;
 }
-.g-adminteam__staff .g-resource:last-child { border-bottom: 0; }
 .g-adminteam__staff .g-resource__text { overflow-wrap: anywhere; }
 
 /* «+ Add a fallen player afterwards»: as wide as its words, which wrap. */

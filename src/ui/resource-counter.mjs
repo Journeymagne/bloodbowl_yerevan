@@ -22,15 +22,16 @@ import { renderStepButton, wireStepButtons } from "./stepper.mjs";
  * @param {boolean} [props.decDisabled] the − is plainly off; defaults to a count of zero
  * @param {string} [props.incBlockedReason] why the + is refused; empty when it is not
  * @param {string} [props.lockedReason] why the whole counter is out of reach; it replaces the note and speaks for both buttons
+ * @param {string} [props.focusKey] the buttons' `data-key`, with `-dec` and `-inc` (renderStepButton's `focusKey`)
  */
-export function renderResourceCounter({ key, name, note = "", noteTone = "", value, decDisabled = value <= 0, incBlockedReason = "", lockedReason = "" }) {
+export function renderResourceCounter({ key, name, note = "", noteTone = "", value, decDisabled = value <= 0, incBlockedReason = "", lockedReason = "", focusKey = "" }) {
   if (!key) throw new Error("a resource counter needs a key: it is what wireResourceCounters reports back, and a click without one is dropped");
   if (!name) throw new Error("a resource counter needs a name: it names the row and its buttons");
   const locked = Boolean(lockedReason);
   const named = { name };
   // A locked − is explained rather than plainly disabled, even at zero: the reason is the useful part.
-  const minus = renderStepButton({ hook: "resource", delta: -1, label: t("ui.counter.decrease", named), disabled: !locked && decDisabled, blockedReason: lockedReason, className: "g-resource__btn" });
-  const plus = renderStepButton({ hook: "resource", delta: 1, label: t("ui.counter.increase", named), blockedReason: lockedReason || incBlockedReason, className: "g-resource__btn g-resource__btn--inc" });
+  const minus = renderStepButton({ hook: "resource", delta: -1, label: t("ui.counter.decrease", named), disabled: !locked && decDisabled, blockedReason: lockedReason, className: "g-resource__btn", focusKey: focusKey && `${focusKey}-dec` });
+  const plus = renderStepButton({ hook: "resource", delta: 1, label: t("ui.counter.increase", named), blockedReason: lockedReason || incBlockedReason, className: "g-resource__btn g-resource__btn--inc", focusKey: focusKey && `${focusKey}-inc` });
   const lock = locked ? `<span class="g-resource__lock" role="img" aria-label="${escapeHtml(t("ui.counter.locked"))}">${icon("lock", 13)}</span>` : "";
   const line = lockedReason || note;
   const caption = line ? `<span class="${classNames("g-resource__note", !locked && noteTone === "danger" && "g-resource__note--danger")}">${escapeHtml(line)}</span>` : "";

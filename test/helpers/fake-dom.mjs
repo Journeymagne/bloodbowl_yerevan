@@ -185,6 +185,15 @@ class FakeText extends FakeNode {
   }
 }
 
+/** An element's inline style as a script sets it: custom properties only, never laid out. */
+function styleOf() {
+  const values = new Map();
+  return {
+    setProperty: (name, value) => { values.set(name, String(value)); },
+    getPropertyValue: (name) => values.get(name) ?? "",
+  };
+}
+
 /** Input types with no text selection — reading selectionStart throws on these. */
 const UNSELECTABLE_TYPES = new Set(["number", "checkbox", "radio", "range", "color", "date", "file"]);
 
@@ -200,6 +209,7 @@ class FakeElement extends FakeNode {
     this.checked = undefined;
     // Whether showModal() opened it, which `isModal` and `:modal` read; only a <dialog> ever sets it.
     this.modalOpened = false;
+    this.style = styleOf();
     // A text field always has a caret, at 0 until something moves it. Getting
     // this wrong hides the bug patch() is meant to prevent: a rebuilt field
     // that takes focus back but drops the caret to the end.

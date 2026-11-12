@@ -529,8 +529,20 @@ test("the colours of the table are readable in every palette", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--zero", "color"), ["var(--muted)"]);
   assert.ok(!read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").includes("--faint"), "nothing in the table is faint");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded", "background"), ["var(--surface-2)"]);
-  // A plain chip is --surface-2 itself and melts into the open row, as Stats.html's do: its words name it.
-  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill", "background"), ["var(--surface-2)"]);
+  // A plain chip is white in the controls' ring: on --surface-2 it melted into the open row and a phone's (the owner, 2026-11-08).
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill", "background"), ["var(--surface)"]);
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);
+  // The captain's skill is the badge's «C»: its gold and its ink, the same pair in every palette.
+  for (const property of ["background", "color"]) {
+    assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), valuesOf("src/ui/number-badge.css", ".g-num__captain", property), property);
+  }
+  assertReadable("src/ui/skill-chip.css", ".g-skill--captain", "color", ["--crest-gold"], 4.5);
+  // The skill's sheet says whose it is in a box coloured as the chip that opened it (the owner, 2026-11-08).
+  const BOX = "src/screens/team/roster/sheets.css";
+  for (const property of ["background", "color"]) {
+    assert.deepEqual(valuesOf(BOX, ".g-roster__from--captain", property), valuesOf("src/ui/skill-chip.css", ".g-skill--captain", property), `captain's ${property}`);
+  }
+  assert.deepEqual(valuesOf(BOX, ".g-roster__from", "box-shadow"), valuesOf("src/ui/skill-chip.css", ".g-skill", "box-shadow"), "a starting skill's box in the chip's ring");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), []);
   // SPP that buy nothing yet: quiet, and readable; the chosen row's tint under the row's words.
   assertReadable(SHEET, ".g-rtable__c--quiet", "color", grounds, 4.5);

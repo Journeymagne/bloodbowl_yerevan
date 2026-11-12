@@ -373,7 +373,7 @@ test("the results: every finished match, newest first, the record in its head", 
   try {
     await visit();
     const results = view.querySelector('section[aria-labelledby="matches-results"]');
-    assert.equal(results.querySelector("h2").textContent, "Results");
+    assert.equal(results.querySelector("h2").textContent, "Played matches");
     assert.equal(results.querySelector(".g-matches__record").textContent, "W · D · L: 1 · 0 · 1");
     assert.deepEqual(words(".g-matches__opponent", results), ["Grimtusk Others", "Mirefen Rotters", "Tombway Kings"]);
     const rows = results.querySelectorAll(".g-matches__row");
@@ -483,7 +483,7 @@ test("a team not in the table: the call to enter the season, the friendlies, the
   }
   // Nothing on: the call, the friendlies, the results.
   const quiet = matchesMarkup(modelOf("t4", { games: [...GAMES, done] }));
-  assert.match(quiet, /Not entered in the season[\s\S]*g-matches__friendlies[\s\S]*Results/);
+  assert.match(quiet, /Not entered in the season[\s\S]*g-matches__friendlies[\s\S]*Played matches/);
   // A friendly settled before the season began is still one of its results (the final review, m-8): the season's cut is
   // for a team in its table.
   const before = played("g10", 0, [2, 0], [0, 0], { kind: "friendly", season: null, roundStatus: null, home: OURS.t4, away: TOMB, confirmedAt: "2026-08-20T10:00:00Z" });
@@ -803,7 +803,7 @@ test("the table is the season's: the same rows as #/season", async () => {
     await visit("t1", { phone: false });
     const table = view.querySelector(".g-season__table");
     assert.equal(table.getAttribute("aria-labelledby"), "matches-table");
-    assert.equal(table.querySelector("h2#matches-table").textContent, "Table");
+    assert.equal(table.querySelector("h2#matches-table").textContent, "Season standings");
     const own = (markup) => mountHere(markup).querySelector('[role="table"]').textContent;
     const rows = seasonTable(SEASON);
     assert.equal(table.querySelector('[role="table"]').textContent,

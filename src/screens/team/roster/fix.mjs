@@ -27,11 +27,9 @@ import {
 } from "../../../domain/roster/edits.mjs";
 import { favouredSkillNames } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS, countToNumber, rowsForTeam, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
-import { renderButton } from "../../../ui/button.mjs";
 import { dataAttributes } from "../../../ui/markup.mjs";
 import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
-import { closeSheet } from "./injury.mjs";
 import { prepResetWords } from "./panel.mjs";
 import { closedMarkup, gaveWords, undoClosed } from "./player-access.mjs";
 import { playerAt, savePlayerSheet, seededSheetOf } from "./player-save.mjs";
@@ -239,14 +237,15 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
   const said = refusal || (fix.refusal ? wordsOf(fix.refusal) : "");
   const alert = said ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(said)}</p>` : "";
+  // No «Cancel»: «‹» goes back to his edit, which opened it (player.mjs's `onSheetBack`).
   return renderSheet({
     id: FIX_SHEET,
     className: PLAYER_FRAME,
     at: 120,
     title: t("teamPlayer.fix.title"),
     sub: t("teamPlayer.fix.sub"),
+    canGoBack: true,
     bodyHtml: `${blocks.join("")}${valueMarkup(line.value, playerCurrentCost(fix.row, fix.after))}${prep}${alert}`,
-    footStartHtml: renderButton({ label: t("teamPlayer.edit.cancel"), data: { fixKeep: true } }),
     footHtml: footButton({ label: t("teamPlayer.edit.save"), kind: "primary", data: { fixSave: true }, disabled: !reason && (Boolean(fix.refusal) || !fix.changed), reason }),
   });
 }
@@ -272,8 +271,9 @@ function favouredFlipped(form, { row, stored, where }, skill) {
  * What the fix's presses do (wire.mjs): the edit's last line opens it in the edit's place — only from the edit that is
  * open, unless something closes it just now or the edit's fields are changed (said instead); a counter's step, an
  * injury's point, a favoured skill and a skill to take off change the form when the domain takes it (`fixRefusal`),
- * else the refusal is said and the form stays; the last refusal of «Save» goes with the form it was said of. «Cancel»
- * closes it, the focus back on the pencil; «Save» saves it as the edit is saved (`savePlayerSheet`: one `fixPlayer` step).
+ * else the refusal is said and the form stays; the last refusal of «Save» goes with the form it was said of. Its «‹»
+ * goes back to the edit (player.mjs's `onSheetBack`), the cross closes it; «Save» saves it as the edit is saved
+ * (`savePlayerSheet`: one `fixPlayer` step).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent the screen as it stands at the press, and the read again after a refusal
@@ -309,9 +309,6 @@ export function fixHandlers(saving, lent) {
       ? { ...form, lasting: moved(form.lasting, stat, form.lasting[stat] ? -1 : 1) } : null)),
     onFixFavoured: (skill) => change((form, player) => favouredFlipped(form, player, skill)),
     onFixDrop: (skill) => change((form) => ({ ...form, dropSkills: flipped(form.dropSkills, skill) })),
-    onFixKeep: () => {
-      if (visit.sheet?.kind === "fix") closeSheet(saving);
-    },
     onFixSave: () => savePlayerSheet(saving, lent, {
       kind: "fix",
       check: ({ where, line }, form) => fixCheck(where, line, form),

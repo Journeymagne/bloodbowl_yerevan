@@ -104,10 +104,12 @@ const calls = (key) => api.calls.filter((call) => call.key === key);
 const $ = (selector) => document.querySelector(`${HOST} ${selector}`);
 const sheetOpen = () => Boolean($("dialog#team-settings-sheet")?.matches(":modal"));
 const rowOf = (kind, root = view) => root.querySelector(`[data-settings-row="${kind}"]`);
-/** A row as one reads it: its name, its value, its buttons. */
+/** A row as one reads it: its name, its value, its buttons — an icon button by its name, as a screen reader says it. */
 const rowText = (kind, root = view) => rowOf(kind, root)
-  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__value b, .g-team-settings__btn")
-  .map((node) => node.textContent.trim()).join(" · ") ?? null;
+  ?.querySelectorAll(".g-team-settings__label, .g-team-settings__logo-name, .g-team-settings__shown, .g-team-settings__btn, .g-team-settings__icon")
+  .map((node) => node.getAttribute("aria-label") ?? node.textContent.trim()).join(" · ") ?? null;
+/** Every button of the settings: the text ones (Upload, By number) and the icons (the pencils, the trash). */
+const BUTTONS = ".g-team-settings__btn, .g-team-settings__icon";
 const press = (selector) => fireEvent(view.querySelector(selector), "click");
 const openRow = (kind) => press(`[data-settings-open="${kind}"]`);
 function type(value) {
@@ -207,7 +209,8 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   assert.equal(fragment.querySelector("#team-settings-name-label").textContent, "Name");
   const file = fragment.querySelector("input#team-settings-logo");
   assert.deepEqual([file.getAttribute("type"), file.getAttribute("accept"), file.getAttribute("class"), file.hasAttribute("disabled")], ["file", "image/png,image/jpeg", "g-sr-only g-team-settings__file", false]);
-  assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn");
+  assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn g-team-settings__icon");
+  assert.equal(file.getAttribute("aria-describedby"), "team-settings-logo-label", "the field is named «Upload» by its label, and the row's «Logo» describes it");
   assert.ok(rowOf("logo", fragment).querySelector(".g-team-settings__logo svg"), "no logo: the picture's glyph");
   assert.ok(!fragment.querySelector("[data-settings-logo-remove]"));
 
@@ -327,12 +330,12 @@ test("a sheet opened on the phone's screen works as on the page: one PATCH, the 
 // Review Focus 3, and L4 of the round's preflight: the page's quiet «games not read» goes to the screen with the settings.
 test("held on its own screen as on the page: a match on, the roster's queue, a preparation's words; «‹» still leads back (Review Focus 3)", async () => {
   const back = () => view.querySelector(".g-team-settings-screen__back").getAttribute("href");
-  const shut = (reason) => view.querySelectorAll(".g-team-settings__btn").every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === reason);
+  const shut = (reason) => view.querySelectorAll(BUTTONS).every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === reason);
   await atWidth(true, async () => {
     // A match on: said, every button shut with its reason, a press says it, and nothing goes.
     await page("t1", { settings: true, games: [liveGame("t1")] });
     assert.deepEqual(titles(screenOf()), [LIVE]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").length >= 4 && shut(LIVE));
+    assert.ok(view.querySelectorAll(BUTTONS).length >= 4 && shut(LIVE));
     assert.equal(view.querySelector("input#team-settings-logo").getAttribute("aria-disabled"), "true");
     let before = api.calls.length;
     await withoutTimers(async () => {
@@ -367,7 +370,7 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
     // A preparation: what a save resets, nothing held.
     await page("t1", { settings: true, games: [preparingGame("t1")] });
     assert.deepEqual(titles(screenOf()), [PREP_WORDS]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    assert.ok(view.querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
     assert.equal(back(), "#/t/t1/team");
 
     // The games could not be read: the page's quiet warning, said on the screen too (L4); the rows stay open.
@@ -377,7 +380,7 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
     assert.deepEqual(titles(screenOf()), [en["treasury.gamesUnknown"], PREP_WORDS], "over the rows, before what holds them");
     const blocks = screenOf().querySelector(".g-team-settings-screen__body").childNodes.filter((node) => node.nodeType === 1);
     assert.deepEqual(blocks.map((node) => node.getAttribute("class")), ["g-callout g-callout--warn", "g-team-settings"]);
-    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    assert.ok(view.querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
     await notifyGames([]);
     assert.deepEqual(titles(screenOf()), [], "a read that comes takes it away");
   });
@@ -386,29 +389,27 @@ test("held on its own screen as on the page: a match on, the roster's queue, a p
   assert.deepEqual(titles(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings", gamesUnknown: true })))), [en["treasury.gamesUnknown"]]);
 });
 
-test("on a desk the settings are a card in the right column, under the history; the resources keep the left (DeskBuilder, DeskRosterFunds)", () => {
+test("on a desk the settings are a card in the right column, over the history; the treasury and the resources keep the left (DeskBuilder, DeskRosterFunds)", () => {
   const fragment = mount(manageMarkup(model(TEAMS[0])));
-  const cols = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
-  assert.ok(cols.at(-1) === fragment.querySelector("section.g-team-settings"), "the columns' last");
-  assert.ok(cols.at(-2) === fragment.querySelector(".g-manage__history"), "after the history");
+  const [left, right] = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
+  const blocks = (column) => column.childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(blocks(right)[0] === fragment.querySelector("section.g-team-settings"), "the right column's first (the owner, 2026-11-08)");
+  assert.ok(blocks(right)[1] === fragment.querySelector(".g-manage__history"), "the history under it");
+  assert.ok(blocks(left)[0] === fragment.querySelector(".g-manage__treasury") && blocks(left)[1] === fragment.querySelector(".g-manage__resources"),
+    "the treasury over the resources in the left column");
   assert.ok(fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1).at(-1) === fragment.querySelector(".g-manage__cols"), "nothing across the page under the columns");
   assert.ok(!fragment.querySelector(".g-team-settings-entry"), "no row: the card is on the page");
   assert.equal(fragment.querySelector("h2#team-settings-title").getAttribute("tabindex"), "-1", "the address of the settings puts the focus there");
   const MANAGE = "src/screens/team/manage/manage.css";
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-rows"), ["auto auto 1fr"]);
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "the 1fr row stretches neither the history nor the card");
-  assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources", "grid-area"), ["resources"]);
-  // The card's area is the settings' own sheet's; from 901px, as the columns are.
-  const desk = mediaText(SETTINGS, "min-width: 901px");
-  assert.match(desk, /\.g-manage__cols > \.g-team-settings \{ grid-area: settings; \}/);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-manage__cols > .g-team-settings", "grid-area"), ["settings"]);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "a column is as tall as what it holds: neither is stretched by the other");
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-areas"), [], "the columns are the markup's, not areas");
+  assert.doesNotMatch(read(SETTINGS), /grid-area/, "the card needs no area of its own");
 });
 
 // DeskBuilder.html's «Команда» card: `padding: 4px 24px 20px`, a radius of 16, `inset 0 0 0 1px #DCE3DF`, which is the
-// kit's ring in --line-strong (the plan's token map, L9); its heading `padding: 18px 0 4px`, Oswald 700 22px. Builder.html
-// draws the same rows with no frame, in the screen's body.
-test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over the heading's 18, a radius of 16 in the kit's ring", () => {
+// kit's ring in --line-strong (the plan's token map, L9). Its heading is the team page's cards' (Oswald 26px, 16px from
+// the card's top), not the prototype's 22px. Builder.html draws the same rows with no frame, in the screen's body.
+test("on a desk the card is DeskBuilder's team card: 24px at its sides, a radius of 16 in the kit's ring, its heading the other cards'", () => {
   const desk = mediaText(SETTINGS, "min-width: 901px");
   const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
   const valueIn = (property) => rule.match(new RegExp(`(?:^|\\s)${property}: ([^;]+);`))?.[1];
@@ -419,9 +420,12 @@ test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over
   const token = (name) => tokens.match(new RegExp(`${name}: ([^;]+);`))[1];
   assert.deepEqual(["--space-4", "--space-24", "--space-20", "--radius-2xl"].map(token), ["4px", "24px", "20px", "16px"]);
   assert.deepEqual([token("--ring"), token("--line-strong")], ["inset 0 0 0 1px var(--line-strong)", "#DCE3DF"], "the prototype's #DCE3DF ring");
-  // The heading: 18px over it inside the card's 4px, 4px under; Oswald 22px on the font's own line. Only the desk's card draws it.
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "padding"), ["18px 0 var(--space-4)"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
+  // The heading as Treasury's, Resources' and History's: the same type, 16px from the card's top (its 4px and 12px over
+  // the heading, as their 4px and 12px margin). Only the desk's card draws it.
+  const MANAGE = "src/screens/team/manage/manage.css";
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), valuesOf(MANAGE, ".g-manage__resources-title", "font"));
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "padding"), ["var(--space-12) 0 var(--space-4)"]);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources-title", "margin"), ["var(--space-12) 0"]);
   assert.equal(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings" }))).querySelector("h2"), null, "the phone's screen: its h1 names the rows");
 });
 
@@ -552,36 +556,40 @@ test("a sheet left open across 900px gives the focus back to its row's button as
 });
 
 // T36 review m4, as the overview's fix round 1: a node the patch keeps and the width's stylesheet hides drops the focus too.
-test("the team page across 900px: a focus on what the other width's stylesheet hides goes to the page's title; from the settings, to the settings' place", async () => {
+test("the team page across 900px: a focus on what the other width draws no more goes to the page's title; from the settings, to the settings' place; on what moves, it follows", async () => {
   await atWidth(false, async ({ cross }) => {
     await page("t1");
-    // The desk's strip stays in the page on a phone, hidden (strip.css): its pencil is no place for the focus.
-    const edit = view.querySelector(".g-funds__edit");
-    edit.focus();
-    edit.getClientRects = () => [];
+    // The desk's treasury card under the safe is the desk's: across 900px the phone's card stands in its place.
+    const desk = view.querySelector('.g-manage__treasury [data-treasury-sign="1"]');
+    desk.focus();
     cross(true);
-    assert.ok(edit.isConnected && view.querySelector(".g-funds__edit") === edit, "the same button, still in the page");
+    assert.equal(view.querySelector(".g-manage__treasury"), null, "a phone draws the desk's card no more");
     assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "the page's title, a place the keyboard goes on from");
-    // And back: the phone's card's «+ Add», hidden from 901px (manage.css).
+    // And back: the phone's card's «+ Add», gone from 901px.
     const add = view.querySelector(".g-manage__in");
     add.focus();
-    add.getClientRects = () => [];
     cross(false);
-    assert.ok(add.isConnected && document.activeElement === view.querySelector(".g-manage h1"));
+    assert.equal(view.querySelector(".g-manage__card"), null);
+    assert.ok(document.activeElement === view.querySelector(".g-manage h1"));
     // From the settings the settings' place, as before: the card on a desk, the row on a phone.
     view.querySelector('[data-settings-open="fans"]').focus();
     cross(true);
     assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"));
-    // A focus the width keeps and shows stays where it is.
-    const fix = view.querySelector(".g-manage__fix");
-    fix.focus();
-    fix.getClientRects = () => [{ width: 200, height: 44 }];
+    // The correction stands under the safe on a phone and inside the desk's treasury card, and the resources under
+    // other parents too: across 900px they change places, and the focus, found by their keys, stays on them.
+    view.querySelector(".g-manage__fix").focus();
     cross(false);
-    assert.ok(document.activeElement === fix && fix.isConnected, "the correction's button is the same on both widths");
+    assert.ok(view.querySelector(".g-manage__treasury .g-manage__fix"), "the desk's correction is the treasury card's");
+    assert.ok(document.activeElement === view.querySelector(".g-manage__fix"), "the focus on the correction in its new place");
+    const plus = view.querySelector('.g-manage__resources [data-resource-step="1"]');
+    plus.focus();
+    const key = plus.getAttribute("data-key");
+    cross(true);
+    assert.ok(key && document.activeElement === view.querySelector(`[data-key="${key}"]`), "and on a resource's +");
   });
 });
 
-// T37 review m4: the money sheet's openers stay in the page on both widths, each hidden on one (strip.css, manage.css).
+// T37 review m4: the money sheet's openers are the desk's treasury card's on a desk, the phone card's on a phone.
 test("a money sheet closed after the width crossed gives the focus to a button the width shows that opens it, else the page's title, never the body", async () => {
   await atWidth(false, async ({ cross }) => {
     await page("t1");
@@ -592,24 +600,17 @@ test("a money sheet closed after the width crossed gives the focus to a button t
       assert.ok(host().querySelector("dialog#treasury-money").matches(":modal"));
     };
     const closeIt = () => fireEvent(host().querySelector("[data-sheet-close]"), "click");
-    const hide = (...buttons) => { for (const button of buttons) button.getClientRects = () => []; };
-    const show = (...buttons) => { for (const button of buttons) button.getClientRects = () => [{ width: 44, height: 44 }]; };
-    const [edit, add, take] = [".g-funds__edit", ".g-manage__in", ".g-manage__out"].map((selector) => view.querySelector(selector));
-    hide(add, take);
-    openFrom(edit);
-    hide(edit);
-    show(add, take);
+    const desk = () => view.querySelector('.g-manage__treasury [data-treasury-sign="1"]');
+    openFrom(desk());
     cross(true);
     closeIt();
-    assert.ok(document.activeElement === add, "the desk's pencil is hidden on a phone: the card's «+ Add» opens the same sheet");
-    openFrom(take);
-    hide(add, take);
-    show(edit);
+    assert.ok(document.activeElement === view.querySelector(".g-manage__in"), "the desk's card is gone on a phone: the phone card's «+ Add» opens the same sheet");
+    openFrom(view.querySelector(".g-manage__out"));
     cross(false);
     closeIt();
-    assert.ok(document.activeElement === edit, "«− Take» is hidden on a desk: the strip's pencil");
-    openFrom(edit);
-    hide(edit);
+    assert.ok(document.activeElement === desk(), "the phone's card is gone on a desk: the desk's «+ Add»");
+    openFrom(desk());
+    for (const button of view.querySelectorAll("[data-treasury-money]")) button.getClientRects = () => [];
     closeIt();
     assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "none shown: the page's title");
   });
@@ -972,7 +973,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   assert.match(callout.getAttribute("class"), /g-callout--warn/);
   const link = callout.querySelector("a");
   assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/t/t1/roster", "To the roster"]);
-  const shut = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
+  const shut = view.querySelector(".g-team-settings").querySelectorAll(BUTTONS);
   assert.ok(shut.length >= 4 && shut.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "Wait until the roster's edits are saved"));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", "Wait until the roster's edits are saved"]);
@@ -989,7 +990,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   api.reply(PATCH, 200, { team: t1With({}, { players: SQUAD.map((player, at) => (at ? player : { ...player, spp: { touchdowns: 1 } })) }) });
   assert.equal(await save.retrySaves("t1"), "saved");
   assert.ok(!view.querySelector(".g-team-settings .g-callout"));
-  assert.ok(view.querySelectorAll(".g-team-settings .g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+  assert.ok(view.querySelector(".g-team-settings").querySelectorAll(BUTTONS).every((button) => !button.hasAttribute("aria-disabled")));
   assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("aria-disabled"), false);
   openRow("name");
   assert.ok(sheetOpen());
@@ -1180,7 +1181,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   const callout = view.querySelector(".g-team-settings .g-callout");
   assert.equal(callout.querySelector(".g-callout__title").textContent, LIVE);
   assert.ok(!callout.querySelector("a"), "the page's own callout says where the match is");
-  const buttons = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
+  const buttons = view.querySelector(".g-team-settings").querySelectorAll(BUTTONS);
   assert.ok(buttons.length >= 4 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", LIVE], "in the tab order, with its reason (M-4)");
@@ -1231,13 +1232,45 @@ test("names are text", async () => {
   const team = { ...TEAMS[0], name: HOSTILE, logoData: HOSTILE };
   const fragment = mount(manageMarkup(model(team)));
   assert.ok(!fragment.querySelector(".g-team-settings img"), "a logo that is no picture is not drawn");
-  assert.equal(rowOf("name", fragment).querySelector("b").textContent, HOSTILE);
+  assert.equal(rowOf("name", fragment).querySelector(".g-team-settings__shown").textContent, HOSTILE);
   assertCspSafe(fragment);
   await page("t1", { teams: [team, ...TEAMS.slice(1)] });
   openRow("name");
   assert.equal($("#team-settings-name").value, HOSTILE);
   assert.ok(!document.querySelector(HOST).querySelector("img"));
   assertCspSafe(document.querySelector(HOST));
+});
+
+test("a row's edit and the logo's upload are a square pencil, its removal a square trash, named by their words; By number stays a word", () => {
+  const team = { ...TEAMS[0], logoData: "data:image/png;base64,AAAA" };
+  const fragment = mount(manageMarkup(model(team)));
+  const PENCIL = "M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z";
+  const iconOf = (button) => {
+    const d = button.querySelector("path")?.getAttribute("d");
+    return d === PENCIL ? "pencil" : d ? "other" : "none";
+  };
+  for (const [kind, label] of [["name", "Change"], ["fans", "Correct"]]) {
+    const button = fragment.querySelector(`[data-settings-open="${kind}"]`);
+    assert.equal(button.getAttribute("class"), "g-btn g-team-settings__btn g-team-settings__icon", kind);
+    assert.equal(button.getAttribute("aria-label"), label, kind);
+    assert.equal(button.getAttribute("aria-describedby"), `team-settings-${kind}-label`, `${kind}: the row's label says what it changes`);
+    assert.equal(iconOf(button), "pencil", kind);
+    assert.equal(button.textContent.trim(), "", `${kind}: no word drawn beside the icon`);
+  }
+  const remove = fragment.querySelector("[data-settings-logo-remove]");
+  assert.deepEqual([remove.getAttribute("class"), remove.getAttribute("aria-label"), remove.getAttribute("aria-describedby")], ["g-btn g-team-settings__btn g-team-settings__icon", "Remove", "team-settings-logo-label"]);
+  assert.equal(fragment.querySelector("#team-settings-logo-label").textContent, "Logo");
+  assert.ok(remove.querySelector("svg") && iconOf(remove) === "other", "the trash");
+  // The upload is the file field's label: the upload icon seen, its word unseen, so the field is still named «Upload».
+  const upload = fragment.querySelector('label[for="team-settings-logo"]');
+  assert.equal(upload.querySelector("path").getAttribute("d"), "M12 15V4M7 9l5-5 5 5", "the upload icon, as the builder's");
+  assert.equal(upload.querySelector(".g-sr-only").textContent, "Upload");
+  assert.equal(fragment.querySelector("[data-settings-order]").textContent, "By number", "an action, not an edit: the word stays");
+  assert.equal(fragment.querySelector("[data-settings-order]").getAttribute("class"), "g-btn g-team-settings__btn");
+  // Square: the text buttons' corners and ring, as wide as it is tall — 44px up to 900px, 36px from 901px.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__icon", "width"), ["var(--size-touch)", "36px"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__icon", "padding"), ["0"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__btn", "border-radius"), ["var(--radius-md)"]);
 });
 
 test("every key in both dictionaries, with the same placeholders; Russian words", () => {
@@ -1289,15 +1322,18 @@ test("styled: the section, its callout, and every sheet; nothing the CSP refuses
   }
 });
 
-test("readable: the labels and notes in --muted, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
+test("readable: the labels and the notes in --muted, the values bold in the ink, the violations in --danger, the buttons in --ink-2, the drops on the warning's tint", () => {
   for (const selector of [".g-team-settings__label", ".g-team-settings__note"]) assertReadable(SETTINGS, selector, "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__violation", "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__btn", "color", ["--surface"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__value", "color", ["--surface", "--page"], 4.5);
   assertReadable("src/screens/teams/new.css", ".g-races__resets", "color", ["--warn-tint"], 4.5);
+  // Builder's rows (the kit's key–value row): the label quiet, what it holds bold.
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["400 14px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "color"), ["var(--muted)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["700 15px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
+  assert.deepEqual(valuesOf("src/screens/teams/builder.css", ".g-build__value", "font"), valuesOf(SETTINGS, ".g-team-settings__value", "font"), "as the builder's");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 26px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "font"), ["400 14px/1.4 var(--font-body)"]);
   // Builder's 52px and 60px are content-box, over a 1px rule: 53px and 61px as drawn.
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row", "min-height"), ["53px"]);
@@ -1335,7 +1371,7 @@ test("a long team name wraps; nothing is cut with «…»; breakpoints only 900/
   const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/text-overflow:\s*ellipsis/.test(css));
   assert.ok(!/white-space:\s*nowrap/.test(css));
-  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value b", "overflow-wrap"), ["anywhere"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__shown", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "overflow-wrap"), ["anywhere"]);
   // At 320px with a logo the buttons wrap before «Logo» runs into them (fix round 1, M-2): the buttons may shrink and
   // wrap; the logo's side takes what they leave and never shrinks under its longest word.

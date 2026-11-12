@@ -13,6 +13,7 @@ import { escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { formatDay, formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { ledgerOf, readLedger } from "../../../data/treasury.mjs";
+import { renderFoldButton } from "../../../ui/button.mjs";
 import { lastSafeDeposit } from "./model.mjs";
 
 /** How many lines the history shows before the coach asks for the whole of it. */
@@ -74,7 +75,9 @@ const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escape
  * load comes in ahead of that row, and an unkeyed row would be taken for another), so a page drawn again keeps
  * the keyboard focus on it.
  */
-const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
+const actionMarkup = (name, label) => `<button type="button" class="g-link-btn g-more" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
+
+const foldMarkup = (expanded, label) => renderFoldButton({ label, expanded, data: { key: "ledger-all", ledgerAll: true } });
 
 /**
  * What stands in place of the list, or under it: nothing yet, nothing at all, the reason the history did not come,
@@ -91,8 +94,8 @@ function actionsMarkup({ entries, next, total, error }, expanded) {
   const retry = error ? actionMarkup("retry", t("treasury.history.retry")) : "";
   if (!entries.length) return retry;
   let toggle = "";
-  if (expanded) toggle = actionMarkup("all", t("treasury.history.less"));
-  else if (total > HISTORY_PREVIEW) toggle = actionMarkup("all", t("treasury.history.all", { count: total }));
+  if (expanded) toggle = foldMarkup(true, t("common.showLess"));
+  else if (total > HISTORY_PREVIEW) toggle = foldMarkup(false, t("common.showMore", { count: total - HISTORY_PREVIEW }));
   const more = expanded && next ? actionMarkup("more", t("treasury.history.more")) : "";
   return retry + toggle + more;
 }
@@ -168,15 +171,16 @@ export function wireHistory(root, teamId, onChange) {
  * @param {object} input
  * @param {number} input.safe thousands in the safe
  * @param {object[]} input.entries the lines of the history read so far, newest first
+ * @param {"h2"|"h3"} [input.heading] h3 inside a desk's «Treasury» card, whose h2 it stands under
  * @returns {string}
  */
-export function safeMarkup({ safe, entries }) {
+export function safeMarkup({ safe, entries, heading = "h2" }) {
   const deposit = lastSafeDeposit(entries);
   const last = deposit
     ? `<p class="g-manage__safe-last">${escapeHtml(t("treasury.safeLast", { amount: formatMoney(deposit.amount), date: formatDay(deposit.createdAt) }))}</p>`
     : "";
   return `<section class="g-manage__safe" aria-labelledby="manage-safe-title"><div class="g-manage__safe-text">`
-    + `<h2 class="g-manage__safe-title" id="manage-safe-title">${escapeHtml(t("treasury.safeTitle"))}</h2>`
+    + `<${heading} class="g-manage__safe-title" id="manage-safe-title">${escapeHtml(t("treasury.safeTitle"))}</${heading}>`
     + `<p class="g-manage__safe-rule">${escapeHtml(t("treasury.safeRule"))}</p>${last}</div>`
     + `<span class="g-manage__safe-amount">${escapeHtml(formatMoney(safe))}</span></section>`;
 }

@@ -120,7 +120,7 @@ test("a phone's table page: the season's name and the last round over, the table
     assert.equal(view.querySelectorAll('.g-table [role="columnheader"]').length, 8, "the phone's form");
     assert.ok(view.querySelector(".g-table__notes").textContent.includes(t("league.taps")));
     assert.ok(view.querySelector("#league-calendar"));
-    assert.equal(view.querySelector("h1").textContent, t("shell.tab.table"), "a screen reader is told the page");
+    assert.equal(view.querySelector("h1").textContent, t("league.title"), "a screen reader is told the page");
     api.assertAnswered();
   } finally {
     leave();
@@ -130,7 +130,7 @@ test("a phone's table page: the season's name and the last round over, the table
 test("a desk's page: «Table» with its line, the table and the calendar side by side; an admin has the way to the season's administration", async () => {
   try {
     await visit("", { phone: false });
-    assert.equal(view.querySelector("h1").textContent, "Table", "DeskSeason's title (the owner, 2026-10-21), not «Season»");
+    assert.equal(view.querySelector("h1").textContent, "Standings", "the page and its tab are «Standings» (the owner, 2026-11-08), not «Season», the SideNav's group");
     assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Mock Season · teams: 5 · after round 2");
     const row = view.querySelector(".g-season__row");
     const table = view.querySelector(".g-season__table");
@@ -138,7 +138,7 @@ test("a desk's page: «Table» with its line, the table and the calendar side by
     assert.equal(table.parentNode, row);
     assert.equal(aside.parentNode, row);
     assert.equal(row.childNodes.filter((node) => node.nodeType === 1)[0], table, "the table first, the calendar at its right");
-    assert.equal(table.querySelector("h2#league-title").textContent, t("shell.tab.table"));
+    assert.equal(table.querySelector("h2#league-title").textContent, t("season.standings"));
     assert.equal(table.querySelector(".g-season__rule").textContent, tablePointsText());
     assert.ok(tablePointsText().startsWith(t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 })));
     assert.equal(table.querySelectorAll('[role="columnheader"]').length, 11, "the desk's form");
@@ -322,7 +322,7 @@ test("crossing 900px draws the other form, the focus kept or on the title", asyn
     const { cross } = await visit("");
     view.querySelector(".g-table__racetext").closest(".g-table__row").querySelector("a.g-table__link").focus();
     cross(false);
-    assert.equal(view.querySelector("h1").textContent, "Table", "drawn again as a desk's");
+    assert.equal(view.querySelector("h1").textContent, "Standings", "drawn again as a desk's");
     assert.equal(view.querySelectorAll('.g-table [role="columnheader"]').length, 11);
     assert.ok(view.querySelector(".g-season__row"));
     view.querySelector("a.g-table__race").focus();

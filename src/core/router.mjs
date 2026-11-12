@@ -169,7 +169,15 @@ export function renderRoute() {
   // screen that sent the address on drew nothing: the heading still in the
   // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
-    if (current === ticket && location.hash === startedAt) announce(view.querySelector("h1, h2")?.textContent ?? "");
+    if (current !== ticket || location.hash !== startedAt) return;
+    const heading = view.querySelector("h1, h2")?.textContent?.trim() ?? "";
+    announce(heading);
+    titleWindow(heading);
   });
   return rendered;
+}
+
+function titleWindow(heading) {
+  if (typeof document === "undefined") return;
+  document.title = heading ? `${heading} · ${t("app.title")}` : t("app.title");
 }

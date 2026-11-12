@@ -85,7 +85,7 @@
  * roster's SPP, and the records of a match given up wait for its post-match.
  */
 import { apiRequest } from "../../core/api-client.mjs";
-import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
+import { delegate, drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, playerTeamUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
@@ -100,6 +100,7 @@ import { seasonCallFor } from "../../data/season-entry.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch } from "../../shell/current-match.mjs";
+import { renderFoldButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon as renderIcon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
@@ -216,9 +217,10 @@ function readyPlayers(draft, raceTeam) {
  * @param {string} [input.viewerId] the coach who looks: the team's row of the table is his own, marked
  * @param {object[]} [input.myTeams] the coach's teams: the call to enter the season names the one that plays it
  * @param {boolean} [input.entering] the entry into the season is on its way (the call's button is busy)
+ * @param {boolean} [input.readyAll] a desk's list shows every one who can advance, not the first READY_SHOWN
  */
 export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
-  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "", myTeams = [], entering = false }) {
+  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "", myTeams = [], entering = false, readyAll = false }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -242,6 +244,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     viewerId,
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, phone, band, matchEvents, data }) : null,
     ready: readyPlayers(draft, raceTeam),
+    readyAll,
     leaders: teamLeaders(team, raceTeam, events),
     results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
@@ -295,12 +298,20 @@ function readyRow({ id, number, name, position, kind, available }, teamId) {
     + `<a class="g-overview__advance" href="${escapeHtml(teamPlayerUrl(teamId, id))}" aria-label="${escapeHtml(t("teamOverview.ready.advanceLabel", { name }))}">${escapeHtml(t("teamOverview.ready.advance"))}</a></li>`;
 }
 
-/** A desk's list (DeskOverview.html): every player who can advance, with how many they are in its head. */
-function readyListMarkup(ready, teamId) {
+export const READY_SHOWN = 5;
+
+function readyToggle(count, all) {
+  if (count <= READY_SHOWN) return "";
+  const label = all ? t("common.showLess") : t("common.showMore", { count: count - READY_SHOWN });
+  return renderFoldButton({ label, expanded: all, data: { readyToggle: true } });
+}
+
+function readyListMarkup(ready, teamId, all) {
   if (!ready.length) return "";
+  const shown = all ? ready : ready.slice(0, READY_SHOWN);
   return `<section class="g-overview__readylist"><div class="g-overview__readybar"><h2 class="g-overview__readyheading">${escapeHtml(t("teamOverview.ready.title"))}</h2>`
     + `<span class="g-overview__readycount">${escapeHtml(t("teamOverview.ready.count", { count: ready.length }))}</span></div>`
-    + `<ul class="g-overview__readyrows">${ready.map((player) => readyRow(player, teamId)).join("")}</ul></section>`;
+    + `<ul class="g-overview__readyrows">${shown.map((player) => readyRow(player, teamId)).join("")}</ul>${readyToggle(ready.length, all)}</section>`;
 }
 
 /**
@@ -320,7 +331,7 @@ const column = (className, markup) => (markup ? `<div class="${className}">${mar
 function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
-  const aside = readyListMarkup(model.ready, teamId)
+  const aside = readyListMarkup(model.ready, teamId, model.readyAll)
     + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches"), playoffPlaces: model.playoffPlaces });
   return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
@@ -373,8 +384,9 @@ const pastList = (records, team) => Boolean(records) && Number.isInteger(team?.r
  * @param {{games: boolean, season: boolean}} held
  * @param {{events: object[], revision: number}|null} records as the visit last read them
  * @param {{key: string|null, opponent: object|null}} band the board's part of the visit
+ * @param {{all: boolean}} readyList whether the visit shows every one who can advance
  */
-function markupOf(teamId, held, records, band, entry) {
+function markupOf(teamId, held, records, band, entry, readyList) {
   const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
@@ -394,6 +406,7 @@ function markupOf(teamId, held, records, band, entry) {
     viewerId: state.auth.currentUser?.id ?? "",
     myTeams: state.myTeams.items,
     entering: entry.busy,
+    readyAll: readyList.all,
   }));
 }
 
@@ -416,9 +429,10 @@ export async function renderTeamOverview(teamId) {
   let here = true;
   const held = { games: Boolean(state.games.error), season: Boolean(state.season.error) };
   const records = { last: null, reading: false, again: false, armed: false };
+  const readyList = { all: false };
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held, records.last, band, entry);
+    const markup = markupOf(teamId, held, records.last, band, entry, readyList);
     if (markup) patch(view, markup);
   };
   // «Enter the season» on the call (stage 12): one question, one entry on its way.
@@ -460,6 +474,10 @@ export async function renderTeamOverview(teamId) {
     // round 1): a focus left on nothing goes to the title.
     onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireRefSearch(view, { onQuery: goSearch }),
+    delegate(view, "click", "[data-ready-toggle]", () => {
+      readyList.all = !readyList.all;
+      draw();
+    }),
     () => band.release(),
     entry.off,
   ];
@@ -468,7 +486,7 @@ export async function renderTeamOverview(teamId) {
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
-  const first = markupOf(teamId, held, records.last, band, entry);
+  const first = markupOf(teamId, held, records.last, band, entry, readyList);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();

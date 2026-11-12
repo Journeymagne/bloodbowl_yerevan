@@ -121,8 +121,8 @@ test("«Advancement» opens the types, each with its price by the rank and what 
       assert.equal(group.getAttribute("aria-label"), "Type of advancement");
       assert.deepEqual(types().map(cardWords), [
         ["Random primary skill", "General · +20k", "3 SPP"],
-        ["Chosen primary skill", "General · +20k", "6 SPP"],
-        ["Chosen secondary skill", "Agility, Strength, Devious · +40k", "10 SPP"],
+        ["Primary skill", "General · +20k", "6 SPP"],
+        ["Secondary skill", "Agility, Strength, Devious · +40k", "10 SPP"],
         ["Characteristic improvement", "D8 roll · +10–50k", "14 SPP"],
       ]);
       assert.deepEqual(types().map((card) => card.getAttribute("aria-checked")), ["false", "false", "false", "false"], "none chosen yet");
@@ -144,7 +144,7 @@ test("«Advancement» opens the types, each with its price by the rank and what 
     // A desk lists the same types in its first column, named short as DeskRosterAdv.html's ADV does (fidelity F3).
     await openAdvance(false, { id: "p1", teamAnswer: withOne(ANN) });
     assert.deepEqual(types().map(cardWords).map(([name, , price]) => [name, price]), [
-      ["Random primary", "3 SPP"], ["Chosen primary", "6 SPP"], ["Chosen secondary", "10 SPP"], ["Characteristic", "14 SPP"],
+      ["Random primary", "3 SPP"], ["Primary", "6 SPP"], ["Secondary", "10 SPP"], ["Characteristic", "14 SPP"],
     ]);
     assertStyled(view, ...ADVANCE_STYLES);
   });
@@ -156,8 +156,8 @@ test("a type he cannot pay for is grey and says how much is missing; pressed, it
       await withWindow({ phone }, async () => {
         // 5 SPP: an MVP.
         await openAdvance(phone, { id: "p1", teamAnswer: withOne({ ...PLAYERS[0], spp: { mvps: 1 } }) });
-        const names = phone ? ["Random primary skill", "Chosen primary skill", "Chosen secondary skill", "Characteristic improvement"]
-          : ["Random primary", "Chosen primary", "Chosen secondary", "Characteristic"];
+        const names = phone ? ["Random primary skill", "Primary skill", "Secondary skill", "Characteristic improvement"]
+          : ["Random primary", "Primary", "Secondary", "Characteristic"];
         assert.deepEqual(types().map(cardWords), [
           [names[0], "General · +20k", "3 SPP"],
           [names[1], "1 SPP short", "6 SPP"],
@@ -193,7 +193,7 @@ test("the categories of the type, with how many of their skills he lacks; a cate
       choose(typeCard("primary"));
       fireEvent(next(), "click");
       assert.equal(title(), "Skill category");
-      assert.equal(sub(), "Chosen primary skill · 6 SPP");
+      assert.equal(sub(), "Primary skill · 6 SPP");
       assert.equal(dots(), "Step 2 of 3");
       assert.ok(back(), "a way back to the type");
       const group = sheet().querySelector(".g-advance__cats");
@@ -315,7 +315,7 @@ test("taken: one PATCH of the whole roster, the done step at once — what he go
       assert.equal(sub(), "Cade");
       assert.equal(back(), null);
       assert.equal(done().querySelector(".g-advance__donetitle").textContent, "Diving Catch");
-      assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary skill · Agility");
+      assert.equal(done().querySelector(".g-advance__how").textContent, "Primary skill · Agility");
       assert.deepEqual(tiles(), [["SPP", "−8"], ["Value", "+20k"], ["Advancements", "2 / 6"]]);
       assert.ok(!done().querySelector(".g-advance__elite"));
       const status = done().querySelector(".g-advance__status");
@@ -468,7 +468,7 @@ test("Back walks the steps back; the step dots follow", async () => {
       fireEvent(next(), "click");
       assert.deepEqual(categories().map(catWords).map(([name]) => name), ["Passing", "Strength", "Devious"]);
       assert.ok(!sheet().querySelector('.g-advance__cats [aria-checked="true"]'));
-      assert.equal(sub(), "Chosen secondary skill · 10 SPP");
+      assert.equal(sub(), "Secondary skill · 10 SPP");
       // «Close» closes from any step, the focus back on «Advancement»; nothing was sent.
       fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
       assert.ok(!sheet());
@@ -511,14 +511,14 @@ test("on a desk the same advancement in three columns: the type, the category, t
     choose(typeCard("primary"));
     assert.deepEqual(categories().map(catWords), [["Agility", "12 of 14 available"], ["General", "15 of 16 available"]], "Frenzy is his");
     assert.deepEqual(empty(), ["", "", "Choose a category"]);
-    assert.equal(summary(), "Chosen primary — 8 SPP", "the type short, as DeskRosterAdv's summary (fidelity F3)");
+    assert.equal(summary(), "Primary — 8 SPP", "the type short, as DeskRosterAdv's summary (fidelity F3)");
     assert.ok(!sheet().querySelector(".g-advance__hint"), "a desk's columns say it without the phone's line");
     choose(category("Agility"));
     assert.deepEqual(empty(), ["", "", ""]);
-    assert.equal(summary(), "Chosen primary · Agility — 8 SPP");
+    assert.equal(summary(), "Primary · Agility — 8 SPP");
     assert.ok(skill("Catch").getAttribute("aria-disabled") === "true");
     choose(skill("Diving Catch"));
-    assert.equal(summary(), "Chosen primary · Agility · Diving Catch — 8 SPP", "DeskRosterAdv.html's initialAdv");
+    assert.equal(summary(), "Primary · Agility · Diving Catch — 8 SPP", "DeskRosterAdv.html's initialAdv");
     assert.equal(take().textContent, "Take Diving Catch");
     assertCspSafe(view);
     assertStyled(view, ...ADVANCE_STYLES);
@@ -535,7 +535,7 @@ test("on a desk the same advancement in three columns: the type, the category, t
     api.reply(PATCH, 200, { team: withOne(advancedWith("primary", "Diving Catch"), { revision: 5 }) });
     fireEvent(take(), "click");
     assert.equal(done().querySelector(".g-advance__donetitle").textContent, "Cade gets Diving Catch");
-    assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary · Agility · −8 SPP · value +20k", "DeskRosterAdv's done line, the type short");
+    assert.equal(done().querySelector(".g-advance__how").textContent, "Primary · Agility · −8 SPP · value +20k", "DeskRosterAdv's done line, the type short");
     assert.ok(!done().querySelector(".g-advance__tiles"), "DeskRosterAdv.html's line, not a phone's tiles");
     assert.equal(sub(), "19 SPP available · advancement 2 of 6 · Catcher", "the advancement taken, as advDone says it");
     assert.equal(summary(), "Saving…");
@@ -552,6 +552,52 @@ test("on a desk the same advancement in three columns: the type, the category, t
     fireEvent(doneButton(), "click");
     assert.ok(!sheet());
     assert.ok(document.activeElement === aside().querySelector("[data-player-advance]"));
+  });
+});
+
+// The owner, 2026-11-08: the chosen skill's rule, folded under the skills, read without another window.
+test("the chosen skill's rule folds under the skills: «About …» opens it, another skill keeps it open, a press folds it", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false, { teamAnswer: withOne(ADVANCED) });
+    const toggle = () => sheet().querySelector("[data-advance-rule]");
+    const text = () => sheet().querySelector(".g-advance__ruletext");
+    choose(typeCard("primary"));
+    choose(category("Agility"));
+    assert.equal(toggle(), null, "no skill chosen: nothing to read");
+    choose(skill("Diving Catch"));
+    assert.ok(toggle().closest(".g-advance__col"), "in the third column, under the skills");
+    assert.equal(toggle().textContent, "About Diving Catch");
+    assert.deepEqual([toggle().getAttribute("aria-expanded"), toggle().getAttribute("aria-controls")], ["false", "advance-rule"]);
+    assert.ok(text().hasAttribute("hidden"), "folded at first");
+    assert.equal(text().getAttribute("id"), "advance-rule");
+    fireEvent(toggle(), "click");
+    assert.ok(sheet()?.isModal, "the sheet stays open");
+    assert.equal(toggle().getAttribute("aria-expanded"), "true");
+    assert.ok(!text().hasAttribute("hidden"));
+    assert.ok(text().querySelector(".g-prose")?.textContent.trim(), "the rule, as the skill's sheet draws it");
+    const first = text().textContent;
+    // Another skill of the column he does not have yet.
+    const other = sheet().querySelectorAll("[data-advance-skill]").map((item) => item.getAttribute("data-advance-skill"))
+      .find((name) => name !== "Diving Catch" && skill(name).getAttribute("aria-disabled") !== "true");
+    choose(skill(other));
+    assert.equal(toggle().textContent, `About ${other}`);
+    assert.equal(toggle().getAttribute("aria-expanded"), "true", "another skill chosen keeps it open");
+    assert.notEqual(text().textContent, first, "its own rule");
+    fireEvent(toggle(), "click");
+    assert.ok(text().hasAttribute("hidden"));
+    assertStyled(view, ...ADVANCE_STYLES);
+  });
+  // A phone's step of the skills has it too.
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openAdvance(true);
+      choose(typeCard("primary"));
+      fireEvent(next(), "click");
+      choose(category("Agility"));
+      fireEvent(next(), "click");
+      choose(skill("Diving Catch"));
+      assert.equal(sheet().querySelector("[data-advance-rule]").textContent, "About Diving Catch");
+    });
   });
 });
 
@@ -668,6 +714,9 @@ test("a refusal of the take is said in the sheet, which stays", async () => {
         await settle();
         assert.equal(patches().length, 0);
         assertStyled(view, ...ADVANCE_STYLES);
+        // Reading the skill's rule changes no choice: the refusal stays said.
+        fireEvent(sheet().querySelector("[data-advance-rule]"), "click");
+        assert.equal(refusal()?.textContent, OTHER_TAB);
         // Choosing again: the refusal was the last press's.
         choose(skill("Leap"));
         assert.equal(refusal(), null);
@@ -702,7 +751,7 @@ test("offers not known yet (no Skill Table): the types plain, with no price and 
       fireEvent(advance(), "click");
       assert.ok(sheet()?.isModal);
       assert.deepEqual(types().map(cardWords), [
-        ["Random primary skill", null, null], ["Chosen primary skill", null, null], ["Chosen secondary skill", null, null], ["Characteristic improvement", null, null],
+        ["Random primary skill", null, null], ["Primary skill", null, null], ["Secondary skill", null, null], ["Characteristic improvement", null, null],
       ]);
       assert.ok(!types().some((card) => card.hasAttribute("aria-disabled")), "nothing refused for a table nobody has read");
       assert.ok(!sheet().textContent.includes("every skill"));
@@ -759,7 +808,7 @@ test("the SPP the sheet says are the roster's it spends, not the career with row
 // Review M1 and M2: the offers are the draft's as drawn, and the take is the domain's to judge on the draft at the press.
 test("a type chosen and then refused — his SPP gone down — closes «Next» and «Take», saying why; a press sends nothing", async () => {
   await withoutTimers(async () => {
-    // Exactly 10 SPP (two touchdowns, two casualties): «Chosen secondary skill» and no more.
+    // Exactly 10 SPP (two touchdowns, two casualties): «Secondary skill» and no more.
     const tenSpp = withOne({ ...PLAYERS[2], spp: { touchdowns: 2, casualties: 2 } });
     await openAdvance(false, { teamAnswer: tenSpp });
     choose(typeCard("secondary"));
@@ -770,7 +819,7 @@ test("a type chosen and then refused — his SPP gone down — closes «Next» a
     // A step of the queue lowers his SPP on the draft (its PATCH in the air): 7 SPP.
     const inTheAir = api.hold(PATCH);
     assert.equal(save.stepSpp("t1", "p3", "touchdowns", -1).ok, true);
-    assert.deepEqual(cardWords(typeCard("secondary")), ["Chosen secondary", "3 SPP short", "10 SPP"]);
+    assert.deepEqual(cardWords(typeCard("secondary")), ["Secondary", "3 SPP short", "10 SPP"]);
     assert.equal(typeCard("secondary").getAttribute("aria-checked"), "true", "still the choice, now refused");
     assert.equal(take().textContent, "Take Guard");
     assert.equal(take().getAttribute("aria-disabled"), "true", "«Take» closed (M1)");
@@ -816,7 +865,7 @@ test("the player's name and a skill are text", async () => {
 test("every key in both dictionaries; styled; readable", () => {
   assertDictionaryCovers("src/screens/team/roster/advance.mjs", "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs");
   // `teamAdvance.typeShort.${type}`: a desk's names of the types, DeskRosterAdv's ADV (fidelity F3).
-  const short = { en: ["Random primary", "Chosen primary", "Chosen secondary", "Characteristic"], ru: ["Случайный основной", "Основной на выбор", "Вторичный на выбор", "Характеристика"] };
+  const short = { en: ["Random primary", "Primary", "Secondary", "Characteristic"], ru: ["Случайный основной", "Основной", "Вторичный", "Характеристика"] };
   for (const [locale, names] of Object.entries(short)) {
     const words = JSON.parse(text(`src/i18n/${locale}.json`));
     assert.deepEqual(ADVANCEMENT_TYPES.map((type) => words[`teamAdvance.typeShort.${type}`]), names, locale);

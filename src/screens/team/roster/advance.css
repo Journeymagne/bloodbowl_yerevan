@@ -159,6 +159,26 @@
 }
 #player-advance .g-advance__tag--held { color: var(--muted); }
 
+#player-advance .g-advance__rule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+#player-advance .g-advance__ruletoggle { align-self: flex-start; }
+#player-advance .g-advance__ruletext {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+#player-advance .g-advance__ruletext[hidden] { display: none; }
+#player-advance .g-advance__ruletext .g-prose { font-size: 14px; }
+#player-advance .g-advance__ruletext .g-prose > :first-child { margin-top: 0; }
+#player-advance .g-advance__ruletext .g-prose > :last-child { margin-bottom: 0; }
+#player-advance .g-advance__ruletext .g-prose :is(h2, h3, h4, h5) { font-size: 16px; }
+
 /* Done (Adv4Done.html, advDone): the tick on the accent, what he got, how. */
 #player-advance .g-advance__done {
   display: flex;
@@ -464,7 +484,8 @@
     justify-content: center;
     gap: 2px;
     min-height: 40px;
-    padding: 0 var(--space-10);
+    /* Room for an elite combination's second line («+15k · elite combination»), which otherwise touched the ring. */
+    padding: var(--space-6) var(--space-10);
     border-radius: var(--radius-md);
     box-shadow: var(--ring);
     font: 500 14px/normal var(--font-body);
@@ -481,6 +502,12 @@
   #player-advance .g-advance__tag--held,
   #player-advance .g-advance__tag--picked { display: none; }
   #player-advance .g-advance__tag--elite { font-size: 12px; }
+  /* A long rule scrolls in its box rather than stretch the three columns. */
+  #player-advance .g-advance__ruletext {
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
   #player-advance .g-advance__done {
     justify-content: center;

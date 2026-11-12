@@ -103,7 +103,7 @@ const rows = () => view.querySelectorAll(".g-opp__squad .g-opp__player");
 test("a phone's opponent page: back to the table, his name and race, the next match, the tiles, his form, his coach, his roster", async () => {
   await visit({}, { phone: true });
   assert.equal(view.querySelector("a.g-opp__back").getAttribute("href"), "#/season");
-  assert.equal(words(view.querySelector("a.g-opp__back")), "Table");
+  assert.equal(words(view.querySelector("a.g-opp__back")), "Standings");
   assert.equal(view.querySelector("h1").textContent, RIVAL.name);
   assert.ok(document.activeElement === view.querySelector("h1"), "the title takes the focus");
   assert.equal(view.querySelector(".g-opp__race").getAttribute("href"), "#/teams/dwarf");

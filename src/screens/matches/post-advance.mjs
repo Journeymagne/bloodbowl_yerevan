@@ -57,7 +57,8 @@ function lockOf(visit) {
 /**
  * The sheet's screen (07d's `Where`), as the post-match stands: the side's team, the width, the race, the roster the
  * post-match holds (`postPlayers`, those who may advance here), its lines (`rosterLines` with the Skill Table), the mode
- * («post»), why it is closed, and where its write stands (saving while one is on its way).
+ * («post»), why it is closed, where its write stands (saving while one is on its way), and the reference, for the
+ * chosen skill's rule under the skills.
  * @param {{payload: object, sideName: string, ui: object}} visit post.mjs's
  */
 export function postAdvanceWhere(visit) {
@@ -65,6 +66,7 @@ export function postAdvanceWhere(visit) {
   return {
     teamId: side.team.id, phone: isPhone(), race, draft, lines: rosterLines({ draft, race, skillGroups: state.data?.skillGroups ?? [] }),
     mode: { kind: "post" }, lock: lockOf(visit), save: { status: visit.ui.busy ? SAVE_STATUS.SAVING : SAVE_STATUS.SAVED, waiting: 0 },
+    data: state.data,
   };
 }
 

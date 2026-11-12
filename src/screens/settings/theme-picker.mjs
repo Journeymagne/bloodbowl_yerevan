@@ -69,7 +69,7 @@ function cardHtml(key, checked) {
 function rowHtml(mode, choice) {
   const caption = choice.mode !== "system" ? t("settings.palette") : mode === "light" ? t("settings.paletteLight") : t("settings.paletteDark");
   const cards = PALETTE_KEYS[mode].map((key) => cardHtml(key, key === choice[mode])).join("");
-  return `<div class="g-theme__row"><span class="g-theme__caption" aria-hidden="true">${escapeHtml(caption)}</span>`
+  return `<div class="g-theme__row"><span class="g-field__label" aria-hidden="true">${escapeHtml(caption)}</span>`
     + `<div class="g-palettes" role="radiogroup" aria-label="${escapeHtml(caption)}"${dataAttributes({ paletteMode: mode })}>${cards}</div></div>`;
 }
 

@@ -192,6 +192,7 @@
   border-bottom: 1px solid var(--line);
   background: none;
 }
+.g-overview__result:last-child { border-bottom: 0; }
 
 .g-overview__row {
   box-sizing: border-box;
@@ -341,8 +342,7 @@ a.g-overview__opponent {
 
   /* A phone shows the three newest matches: the fourth and the fifth are for a desk. Team.html's last row has no rule. */
   .g-overview__result:nth-child(n+4) { display: none; }
-  .g-overview__result:nth-child(3),
-  .g-overview__result:last-child { border-bottom: 0; }
+  .g-overview__result:nth-child(3) { border-bottom: 0; }
 }
 
 @media (min-width: 901px) {
@@ -354,35 +354,46 @@ a.g-overview__opponent {
   .g-overview__main { flex: 2 1 560px; }
   .g-overview__aside { flex: 1 1 300px; }
 
-  .g-overview__leaders { gap: var(--space-12); }
+  .g-overview__leaders {
+    gap: var(--space-12);
+    padding: var(--space-22) var(--space-24) var(--space-24);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
 
-  /* A desk's cards (DeskOverview.html): a grid that wraps by 150px, 12 apart. */
+  /*
+   * A desk's leaders: columns that wrap by 150px, a rule between them, 12 between the lines. Each column draws the rule
+   * at its left; the grid, 16 wider than the card's content on each side, hides the rule of the first on every line.
+   */
   .g-overview__leadercards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--space-12);
+    gap: var(--space-12) 0;
     min-width: 0;
+    margin: 0 calc(var(--space-16) * -1);
+    overflow: hidden;
   }
 
-  /* A card: 14 round, white in the ring, 14 16 in, the tag over the row 10 apart; the whole card is the link. */
   .g-overview__leader {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: var(--space-10);
     min-width: 0;
-    margin: 0;
-    padding: var(--space-14) var(--space-16);
+    margin: 0 0 0 -1px;
+    padding: var(--space-4) var(--space-16);
     border: 0;
-    border-radius: var(--radius-xl);
-    background: var(--surface);
-    box-shadow: var(--ring);
+    border-left: 1px solid var(--line);
+    background: none;
     color: var(--ink);
     font: 400 16px/normal var(--font-body);
     letter-spacing: 0;
     text-decoration: none;
     text-transform: none;
   }
+  /* The grid clips what lies outside it: the ring is drawn inside the column. */
+  .g-overview__leader:focus-visible { outline-offset: -3px; }
 
   .g-overview__leadertag {
     font: 600 12px/normal var(--font-body);
@@ -440,7 +451,7 @@ a.g-overview__opponent {
 
   /*
    * A row (DeskOverview.html): the pill 30, the round, the opponent, the casualties 90, the score 70, 14 apart, at least
-   * 52 high with its rule under it — the last too. The round's column is the prototype's 60 for «Round 6», and as wide as
+   * 52 high with its rule under it — but the last, as on a phone. The round's column is the prototype's 60 for «Round 6», and as wide as
    * the widest word in it when that is wider («Товарищеский» is some 90px): it is one track of the list's grid, which
    * every row and its link take as their own (subgrid), so the columns of all the rows agree. A browser with no
    * subgrid (Chrome 111–116) drops that line and keeps the list's tracks above it: each row on one line, on its own.

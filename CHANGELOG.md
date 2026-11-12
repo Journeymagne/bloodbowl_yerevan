@@ -8,6 +8,58 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [3.0.1] — 2026-11-12
+
+A polish of 3.0 from the owner's review: the team page holds its treasury in
+one card, several screens are renamed for what they show, and what is closed,
+folded or last in a list reads the same way everywhere.
+
+### Changed
+
+- **Team page on the desktop.** One «Treasury» card holds the balance with its
+  pencil («Add / Take»), the Coach's Safe and «Correct the treasury by hand»,
+  over the resources; the team's settings stand over the history. The page is
+  «Team, treasury and resources». The roster's treasury strip keeps its pencil,
+  which now leads to this page instead of opening the sheet.
+- **Team settings and the new-team builder.** A row's button is an icon: a
+  pencil to change it, an upload and a bin for the logo. A row's value is in the
+  row's weight, no longer bold.
+- **Names.** The «Table» tab is «Standings» («Турнир»), its page «Standings»
+  («Турнирная таблица»), and the cards that show it «Season standings»
+  («Таблица сезона»). The matches page's «Results» is «Played matches», and the
+  overview's desktop card «Recent matches», as on the phone. An advancement's
+  types lose «Chosen» («Primary skill», «Основной навык»), and a skill's source
+  starts with a capital («Starting», «Captain's»).
+- **Team overview on the desktop.** The team leaders are one card with a rule
+  between them; «Ready to advance» shows five players, and «Show N more» the
+  others.
+- **Lists that fold** («Ready to advance», the treasury's history) end on one
+  «Show N more» / «Show less» button.
+- **Skills.** A starting skill's chip is white in a ring, the captain's own gold
+  like the badge's «C»; a skill's sheet colours «whose skill it is» as the chip
+  that opened it.
+- **Advancement.** «About …» under the skills unfolds the chosen skill's rule,
+  with no other window.
+- **A player's fix by hand** opens from a link-style line of his edit; its «‹»
+  goes back to the edit, and it has no «Cancel».
+- **What is closed is seen.** A disabled icon or main button is darker in both
+  modes, and a closed text button is dimmed in its own colour.
+- **The browser tab** names the screen: «Roster · Gata Blood Bowl League».
+- **Field captions** (the language, a palette, a reason) are in the ink colour,
+  15px.
+
+### Fixed
+
+- The last row of a list no longer draws a rule under it, on every screen.
+- A sheet no longer shifts the page sideways as it hides the scrollbar, and one
+  without a footer keeps room under its last block.
+- A palette card's ring is whole on every side.
+- A desktop's live tiles give their buttons room, with the label set off from
+  the count.
+- An elite combination's second line in the advancement no longer touches its
+  ring.
+- Rows with a button keep 6px between it and their rules.
+
 ## [3.0.0] — 2026-10-23
 
 The redesign. Every screen is new, built from the 0.9.1 design handoff on a

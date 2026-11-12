@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
@@ -426,7 +425,7 @@ test("a press that starts inside the sheet and ends over the backdrop leaves it 
 });
 
 test("the page behind an open sheet does not scroll", () => {
-  assert.match(readFileSync(new URL("../src/ui/sheet.css", import.meta.url), "utf8"), /html:has\(dialog\.g-sheet:modal\)\s*\{\s*overflow:\s*hidden;\s*\}/);
+  assert.deepEqual(valuesOf("src/ui/sheet.css", "html:has(dialog.g-sheet:modal)", "overflow"), ["hidden"]);
 });
 
 test("a press inside the sheet spares only the click that follows it", () => {

@@ -1,6 +1,7 @@
 /*
  * A row with a count and a − / + cluster. The buttons are 44px, the touch
- * size, where the prototype draws 34px.
+ * size, where the prototype draws 34px. 6px over and under the cluster keep
+ * it off the rules.
  */
 .g-resource {
   box-sizing: border-box;
@@ -9,6 +10,7 @@
   justify-content: space-between;
   gap: var(--space-10);
   min-height: 58px;
+  padding: var(--space-6) 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
@@ -18,6 +20,7 @@
   text-transform: none;
   letter-spacing: 0;
 }
+.g-resource:last-child { border-bottom: 0; }
 
 .g-resource__text {
   display: flex;

@@ -176,14 +176,14 @@ export function tablePointsText() {
 }
 
 /**
- * A desk's card of the table (DeskSeason.html; the season's row of league.css): «Table» with the league's points at its
+ * A desk's card of the table (DeskSeason.html; the season's row of league.css): «Season standings» with the league's points at its
  * right, then what `bodyHtml` holds — the table and its note —, all of it one block that scrolls sideways in the card.
  *
  * @param {{titleId: string, bodyHtml: string}} props `bodyHtml`: markup of `leagueTableMarkup` and `tableNotesMarkup`
  */
 export function tableCardMarkup({ titleId, bodyHtml }) {
   return `<section class="g-season__table" aria-labelledby="${escapeHtml(titleId)}"><div class="g-season__inner"><div class="g-season__head">`
-    + `<h2 class="g-season__title" id="${escapeHtml(titleId)}">${escapeHtml(t("shell.tab.table"))}</h2>`
+    + `<h2 class="g-season__title" id="${escapeHtml(titleId)}">${escapeHtml(t("season.standings"))}</h2>`
     + `<span class="g-season__rule">${escapeHtml(tablePointsText())}</span></div>${bodyHtml}</div></section>`;
 }
 
@@ -248,7 +248,7 @@ function miniRowMarkup(row, viewerId, teamId, place) {
 }
 
 /**
- * The overview's «Table» (DeskOverview.html): a few rows of it (`tableWindow`), the team's own marked, the playoff zone
+ * The overview's «Season standings» (DeskOverview.html's «Table»): a few rows of it (`tableWindow`), the team's own marked, the playoff zone
  * by each team's place in the whole table — the line under the Nth only when the window shows the row after it —, and
  * the way to the whole table. The columns are named for a screen reader only, as the prototype draws none.
  *
@@ -262,7 +262,7 @@ export function miniTableMarkup({ rows, viewerId, teamId = "", href, playoffPlac
   const zone = zoneRank(rows, playoffPlaces);
   const head = MINI_COLUMNS.map((key) => `<span role="columnheader">${escapeHtml(t(`league.colName.${key}`))}</span>`).join("");
   return `<section class="g-minitable" aria-labelledby="overview-table"><div class="g-minitable__head">`
-    + `<h2 class="g-minitable__title" id="overview-table">${escapeHtml(t("shell.tab.table"))}</h2>`
+    + `<h2 class="g-minitable__title" id="overview-table">${escapeHtml(t("season.standings"))}</h2>`
     + `<a class="g-minitable__all" href="${escapeHtml(href)}">${escapeHtml(t("teamOverview.tableAll"))}</a></div>`
     + `<div class="g-minitable__rows" role="table" aria-labelledby="overview-table">`
     + `<div class="g-sr-only" role="rowgroup"><div role="row">${head}</div></div>`

@@ -10,7 +10,7 @@ import { nextChoice, themePickerMarkup, wireThemePicker } from "../src/screens/s
 
 const read = (file) => JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
 const SHEET = "src/screens/settings/theme-picker.css";
-const SHEETS = [SHEET, "segmented-control.css"];
+const SHEETS = [SHEET, "segmented-control.css", "text-field.css"];
 const LANGUAGE = '<div class="g-seg g-seg--2" role="radiogroup" aria-label="L" data-seg-group="language"><button type="button" class="g-seg__item" role="radio" aria-checked="true" tabindex="0" data-seg-value="en">EN</button><button type="button" class="g-seg__item" role="radio" aria-checked="false" tabindex="-1" data-seg-value="ru">RU</button></div>';
 
 test("a fixed mode shows its own palettes; system shows both, each named for its mode", () => {
@@ -178,7 +178,13 @@ test("the cards sit two to a row, the mood on one line, and the whole thing is s
   assert.deepEqual(valuesOf(SHEET, ".g-palettes", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palettes", "gap"), ["var(--space-10)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palette", "border-radius"), ["var(--radius-xl)"]);
-  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent), 0 0 0 2px var(--accent)"]);
+  // The ring is drawn over the card, so the miniature's fill cannot hide it at the top (the owner, 2026-11-08):
+  // the chosen card 2px in over the content and 2px out, as thick on every side.
+  assert.deepEqual(valuesOf(SHEET, ".g-palette::after", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-palette::after", "pointer-events"), ["none"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]::after', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-palette[aria-checked="true"]', "box-shadow"), ["0 0 0 2px var(--accent)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-palette", "box-shadow"), [], "no inset ring under the content");
   assert.deepEqual(valuesOf(SHEET, ".g-palette__mood", "white-space"), ["nowrap"]);
   assert.deepEqual(valuesOf(SHEET, ".g-palette__mood", "text-overflow"), ["ellipsis"]);
   assert.match(valuesOf(SHEET, ".g-palette__mood", "font").at(-1), /^400 11px\//);
@@ -203,6 +209,6 @@ test("the preview wears its own palette's header, page, surface, ink, muted, acc
 test("the name and the mood are readable on the card, in every palette", () => {
   assertContrast(valuesOf(SHEET, ".g-palette__name", "color").at(-1), ["--surface"], 4.5, { what: ".g-palette__name" });
   assertContrast(valuesOf(SHEET, ".g-palette__mood", "color").at(-1), ["--surface"], 4.5, { what: ".g-palette__mood" });
-  assertContrast(valuesOf(SHEET, ".g-theme__caption", "color").at(-1), ["--page", "--surface"], 4.5, { what: ".g-theme__caption" });
+  assertContrast(valuesOf("src/ui/text-field.css", ".g-field__label", "color").at(-1), ["--page", "--surface"], 4.5, { what: "a row's caption (.g-field__label)" });
   assertContrast(valuesOf(SHEET, ".g-theme__hint", "color").at(-1), ["--page", "--surface"], 4.5, { what: ".g-theme__hint" });
 });

@@ -154,47 +154,14 @@
 #player-fix .g-player-sheet__prep,
 #player-fix .g-player-sheet__refusal { margin-top: var(--space-14); }
 
-/* The edit's last line, which opens the fix: the words at the left, the chevron at the right, under a rule. */
-#player-edit .g-player-edit__fix {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  background: none;
-  color: var(--ink);
-  font: 600 15px/normal var(--font-body);
-  letter-spacing: 0;
-  text-align: left;
-  text-transform: none;
-  cursor: pointer;
-}
-#player-edit .g-player-edit__fixwords {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-#player-edit .g-player-edit__fix .g-icon { flex: none; }
-#player-edit .g-player-edit__fix[aria-disabled="true"] {
-  color: var(--disabled);
-  cursor: default;
-}
-
-/* Up to 900px what is pressed is 44px or more (D2), the line to the fix 52px. */
+/* Up to 900px what is pressed is 44px or more (D2). */
 @media (max-width: 900px) {
   .g-player-fix__toggle { min-height: 44px; }
   .g-player-fix__undo { min-height: 44px; }
-  #player-edit .g-player-edit__fix { min-height: 52px; }
 }
 
-/* From 901px DeskRosterEdit.html's sizes: the chips and the undo 32px (D2: 24 or more), the line to the fix 44px. */
+/* From 901px DeskRosterEdit.html's sizes: the chips and the undo 32px (D2: 24 or more). */
 @media (min-width: 901px) {
   .g-player-fix__toggle { min-height: 32px; }
   .g-player-fix__undo { min-height: 32px; }
-  #player-edit .g-player-edit__fix { min-height: 44px; }
 }

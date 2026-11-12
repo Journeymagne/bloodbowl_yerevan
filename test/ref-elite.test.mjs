@@ -104,7 +104,7 @@ test("every key in both dictionaries, with the same placeholders; in Russian the
   assert.deepEqual(eliteLine(view), ["Элитная комбинация", "—"]);
 });
 
-test("the roll and the elite line stand under one rule, each over its own, 15px with a quiet label and a 700 value (DeskRef)", () => {
+test("the roll and the elite line stand under one rule, each over its own, 15px with a quiet label and a bold value", () => {
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts", "display"), ["flex"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts", "flex-direction"), ["column"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts", "border-top"), ["1px solid var(--line)"]);
@@ -113,9 +113,12 @@ test("the roll and the elite line stand under one rule, each over its own, 15px 
   assert.deepEqual(valuesOf("src/ui/list-row.css", ".g-kv", "border-bottom"), ["1px solid var(--line)"]);
   assert.deepEqual(valuesOf("src/ui/list-row.css", ".g-kv", "min-height"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts .g-kv", "font-size"), ["15px"]);
+  // The kit's key–value row: a label, and its value heavier (ui/list-row.mjs); here the label quiet and the value bold.
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts .g-kv__label", "color"), ["var(--muted)"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__facts .g-kv__value", "font-weight"), ["700"]);
-  assertReadable(ARTICLE, ".g-skill-detail__facts .g-kv__label", "color", ["--surface", "--page"], 4.5);
+  assert.deepEqual(valuesOf("src/ui/list-row.css", ".g-kv__label", "font-weight"), []);
+  assert.deepEqual(valuesOf("src/ui/list-row.css", ".g-kv__value", "font-weight"), ["600"]);
+  assertReadable("src/ui/list-row.css", ".g-kv", "color", ["--surface", "--page"], 4.5);
   // A long value wraps rather than runs out of the panel.
   assert.ok(!read(ARTICLE).replace(/\/\*[\s\S]*?\*\//g, "").match(/\.g-skill-detail__facts[^{]*\{[^}]*text-overflow/), "no ellipsis on the lines");
 

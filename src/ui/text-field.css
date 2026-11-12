@@ -20,9 +20,10 @@
   gap: var(--space-8);
 }
 
+/* Also the caption over a control that names itself to a screen reader (a segmented control, a radio group). */
 .g-field__label {
-  color: var(--muted);
-  font: 600 13px/1.35 var(--font-body);
+  color: var(--ink);
+  font: 600 15px/1.35 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
 }

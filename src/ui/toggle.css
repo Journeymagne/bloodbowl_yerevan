@@ -21,6 +21,7 @@
   letter-spacing: 0;
   cursor: pointer;
 }
+.g-toggle:last-child { border-bottom: 0; }
 
 .g-toggle:disabled {
   cursor: default;

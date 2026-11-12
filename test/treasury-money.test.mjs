@@ -525,7 +525,7 @@ test("the sign's two segments are a finger's size, as the presets and the reason
 test("the chips and the preview are readable on their grounds, in every palette", () => {
   assertReadable(CSS, ".g-money__preset", "color", ["--surface"], 4.5);
   assertReadable(CSS, '.g-money__preset[aria-pressed="true"]', "color", ["--header"], 4.5);
-  assertReadable(CSS, ".g-money__label", "color", ["--surface"], 4.5);
+  assertReadable("src/ui/text-field.css", ".g-field__label", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-money__preview", "color", ["--surface-2"], 4.5);
   assertReadable(CSS, ".g-money__preview > :last-child", "color", ["--surface-2"], 4.5);
   assertReadable(CSS, ".g-money__preview--short > :last-child", "color", ["--surface-2"], 4.5);

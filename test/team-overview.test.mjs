@@ -785,7 +785,7 @@ test("a desk's right column has the table's top six, the team's row marked, and 
   assert.deepEqual(miniRows(aside), [
     ["1", "Rival Team", "0", "6", false], ["2", "Ashgrove Wardens", "+2", "3", true], ["3", "Rival Raiders", "0", "3", false],
     ["4", "Rival Wardens", "0", "3", false], ["5", "Fourth Wall", "−2", "1", false], ["6", "Fifth Column", "0", "1", false]]);
-  assert.equal(table.querySelector("h2").textContent, "Table");
+  assert.equal(table.querySelector("h2").textContent, "Season standings");
   assert.equal(table.querySelector("a.g-minitable__all").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
   assert.equal(table.querySelector(".g-minitable__row--mine a").getAttribute("href"), "#/t/t1", "the coach's own row leads to its overview");
   assert.equal(table.querySelectorAll(".g-minitable__row a")[0].getAttribute("href"), "#/coaches/u-r1/teams/r1", "another's to the opponent's page");
@@ -925,11 +925,11 @@ test("on a desk a row says what is known under the opponent: the MVP alone when 
   assert.equal(bare[1].querySelector(".g-overview__race svg"), null, "no book without the rules");
 });
 
-test("on a desk the results are a card with its head inside: «Results» and «Whole season →»", () => {
+test("on a desk the results are a card with its head inside: «Recent matches», as a phone's, and «Whole season →»", () => {
   const section = mount(overviewMarkup(overviewModel(input("t1")))).querySelector(".g-overview__results");
   assert.deepEqual(classesOf(section), ["g-overview__bar", "g-overview__list"]);
   const title = section.querySelector(".g-overview__bar h2.g-overview__title");
-  assert.equal(title.textContent, "Results");
+  assert.equal(title.textContent, "Recent matches");
   assert.equal(section.getAttribute("aria-labelledby"), title.getAttribute("id"));
   assert.equal(section.querySelector('.g-overview__bar a.g-overview__all[href="#/t/t1/matches"]').textContent, "Whole season →");
   // DeskOverview.html: the section is the card, 16 round, white in the ring, 8 24 12 in; its head 14 0 6, the title and the link at its two ends.
@@ -1413,7 +1413,6 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   assert.deepEqual([en["teamOverview.leadersShort"], ru["teamOverview.leadersShort"]], ["Leaders", "Лидеры"], "a phone's (Team.html)");
   // A desk's results (DeskOverview.html): the title, the round's column, the casualties' and the MVP under the opponent.
   const RESULT_WORDS = {
-    "teamOverview.resultsTitle": ["Results", "Результаты"],
     "teamOverview.round": ["Round {round}", "Тур {round}"],
     "teamOverview.friendly": ["Friendly", "Товарищеский"],
     "teamOverview.cas": ["CAS {cas}", "CAS {cas}"],
@@ -1462,14 +1461,23 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.deepEqual(own(".g-overview__title", "font"), ["700 24px/normal var(--font-display)"]);
   assert.deepEqual(own(".g-overview__title", "margin"), ["0"]);
   assert.deepEqual(own(".g-overview__leaders", "gap"), ["var(--space-6)", "var(--space-12)"], "a phone's title is 6 over its rows (Team.html), a desk's 12 over its cards");
-  assert.match(desk, /\.g-overview__leaders \{ gap: var\(--space-12\); \}/);
-  // The cards: a grid that wraps by 150px, 12 apart; a card 14 round, white in the ring, 14 16 in, a column 10 apart, a link without its line.
+  assert.match(desk, /\.g-overview__leaders \{\s*gap: var\(--space-12\);/);
+  // A desk's leaders are a card as the results: 16 round, white in the ring, the title 22 from the top, 24 in.
+  assert.deepEqual(own(".g-overview__leaders", "padding"), ["0", "var(--space-22) var(--space-24) var(--space-24)"]);
+  assert.deepEqual(own(".g-overview__leaders", "border-radius"), ["var(--radius-2xl)"]);
+  assert.deepEqual(own(".g-overview__leaders", "background"), ["none", "var(--surface)"]);
+  assert.deepEqual(own(".g-overview__leaders", "box-shadow"), ["var(--ring)"]);
+  // The columns: a grid that wraps by 150px, 12 between the lines, no box of their own in the card but a rule at the left,
+  // the first of each line's hidden by the grid, 16 wider than the card's content; a column 16 in, a link without its line.
   assert.deepEqual(own(".g-overview__leadercards", "grid-template-columns"), ["repeat(auto-fit, minmax(150px, 1fr))"]);
-  assert.deepEqual(own(".g-overview__leadercards", "gap"), ["var(--space-12)"]);
-  assert.deepEqual(own(".g-overview__leader", "border-radius"), ["var(--radius-xl)"]);
-  assert.deepEqual(own(".g-overview__leader", "background"), ["var(--surface)"]);
-  assert.deepEqual(own(".g-overview__leader", "box-shadow"), ["var(--ring)"]);
-  assert.deepEqual(own(".g-overview__leader", "padding"), ["var(--space-14) var(--space-16)"]);
+  assert.deepEqual(own(".g-overview__leadercards", "gap"), ["var(--space-12) 0"]);
+  assert.deepEqual(own(".g-overview__leadercards", "margin"), ["0 calc(var(--space-16) * -1)"]);
+  assert.deepEqual(own(".g-overview__leadercards", "overflow"), ["hidden"]);
+  assert.deepEqual(own(".g-overview__leader", "background"), ["none"]);
+  assert.deepEqual(own(".g-overview__leader", "box-shadow"), []);
+  assert.deepEqual(own(".g-overview__leader", "border-left"), ["1px solid var(--line)"]);
+  assert.deepEqual(own(".g-overview__leader", "margin"), ["0 0 0 -1px"]);
+  assert.deepEqual(own(".g-overview__leader", "padding"), ["var(--space-4) var(--space-16)"]);
   assert.deepEqual(own(".g-overview__leader", "flex-direction"), ["column"]);
   assert.deepEqual(own(".g-overview__leader", "gap"), ["var(--space-10)"]);
   assert.deepEqual(own(".g-overview__leader", "text-decoration"), ["none"]);
@@ -1574,6 +1582,40 @@ test("on a desk every one of them, with his SPP and «Advance» to his address",
   assert.ok(rows[0].querySelector(".g-num--catcher"), "the number on his position's colour");
   // Compared as booleans: a failed `assert.equal` of two DOM nodes would try to print both trees.
   assert.ok(section.parentNode === fragment.querySelector(".g-overview__cols .g-overview__aside"), "the right column (DeskOverview.html)");
+});
+
+// Seven who can advance, 21 SPP down to 3, in that order: two past the five a desk's list shows at first.
+const SEVEN = Array.from({ length: 7 }, (_, at) => ({ id: `q${at + 1}`, rowIndex: 0, number: String(at + 1), name: `Q${at + 1}`, spp: { touchdowns: 7 - at } }));
+const readyNames = (root) => root.querySelectorAll(".g-overview__readyrow .g-overview__readyname").map((name) => name.textContent);
+
+test("a desk's list shows the first five, and «Show N more» shows the others; the head counts them all", () => {
+  const five = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN.slice(0, 5)) }))));
+  assert.equal(readyNames(five).length, 5);
+  assert.equal(five.querySelector("[data-ready-toggle]"), null, "five fit: nothing more to show");
+  const folded = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) }))));
+  assert.deepEqual(readyNames(folded), ["Q1", "Q2", "Q3", "Q4", "Q5"], "the most SPP first");
+  assert.equal(folded.querySelector(".g-overview__readycount").textContent, "players: 7");
+  // The kit's «Show N more» (button.css), as the team page's history folds (the owner, 2026-11-08).
+  const more = folded.querySelector("button.g-more");
+  assert.equal(more.getAttribute("type"), "button");
+  assert.equal(more.textContent, "Show 2 more");
+  assert.equal(more.getAttribute("aria-expanded"), "false");
+  assert.equal(more.querySelector("svg").getAttribute("aria-hidden"), "true", "the chevron is decoration: the words say it");
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-more", "align-self"), ["center"]);
+  assert.deepEqual(valuesOf("src/ui/button.css", '.g-more[aria-expanded="true"] .g-icon', "transform"), ["rotate(180deg)"], "turned up once open");
+  const open = mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true }))));
+  assert.deepEqual(readyNames(open), ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]);
+  assert.equal(open.querySelector("button.g-more").textContent, "Show less");
+  assert.equal(open.querySelector("button.g-more").getAttribute("aria-expanded"), "true");
+  assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), phone: true })))).querySelector(".g-overview__ready .g-overview__readywho").textContent,
+    "Q1 · 21 SPP · and 6 more", "a phone's card is as it was");
+  initLocale("ru");
+  try {
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN) })))).querySelector(".g-more").textContent, "Показать ещё 2");
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(SEVEN), readyAll: true })))).querySelector(".g-more").textContent, "Свернуть");
+  } finally {
+    initLocale("en");
+  }
 });
 
 test("every «Advance» is named for its player, and the name starts with the word it shows", () => {
@@ -1786,8 +1828,8 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   // A phone's row is 56 as Team.html's content-box draws it, and the phone shows the three newest; a desk's row is 53, its 52 and the rule.
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__result", "min-height"), ["56px", "53px"]);
   assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(n\+4\) \{ display: none; \}/, "the fourth and fifth result wait for a desk");
-  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(3\),\s*\.g-overview__result:last-child \{ border-bottom: 0; \}/, "Team.html's last row has no rule");
-  assert.doesNotMatch(deskOf(LISTS_CSS), /:last-child \{ border-bottom: 0/, "DeskOverview.html's last row keeps its rule");
+  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(3\) \{ border-bottom: 0; \}/, "a phone's third shown row, its last, has no rule");
+  assert.match(bareOf(LISTS_CSS), /^\.g-overview__result:last-child \{ border-bottom: 0; \}/m, "nor the last row on either width: the card's edge ends the list (the owner, 2026-11-08)");
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__score", "font-variant-numeric"), ["tabular-nums", "tabular-nums"], "after each shorthand, which resets it");
   assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "34px"], "a phone's figure keeps to one line at 320px; a desk's is DeskOverview.html's 34px, its cards wrapping instead");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
@@ -2229,4 +2271,25 @@ test("«Ready to advance» stays on the roster's SPP while the leaders count the
   assert.deepEqual(model.ready, overviewModel({ ...input("t1"), team: crew(players), raceTeam: raceOf(TEAMS[0]) }).ready);
   releaseCurrentScreen();
   api.assertAnswered();
+});
+
+test("«Show N more» opens the list on the page and «Show less» folds it; a draw between keeps what the coach chose", async () => {
+  coach();
+  state.myTeams = { ...state.myTeams, items: [crew(SEVEN), ...TEAMS.slice(1)] };
+  await renderTeamOverview("t1");
+  await turns();
+  assert.equal(readyNames(view).length, 5);
+  const toggle = view.querySelector("[data-ready-toggle]");
+  fireEvent(toggle, "click");
+  assert.equal(readyNames(view).length, 7);
+  assert.equal(view.querySelector("[data-ready-toggle]").getAttribute("aria-expanded"), "true");
+  const reads = sent("GET /api/games");
+  invalidateGames();
+  await turns();
+  assert.equal(sent("GET /api/games"), reads + 1, "the games were read again, and the page drawn with them");
+  assert.equal(readyNames(view).length, 7, "a later draw does not fold it");
+  fireEvent(view.querySelector("[data-ready-toggle]"), "click");
+  assert.equal(readyNames(view).length, 5);
+  assert.equal(view.querySelector("[data-ready-toggle]").textContent, "Show 2 more");
+  releaseCurrentScreen();
 });

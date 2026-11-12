@@ -382,10 +382,10 @@ further:
   rank and type names" at the top: the RU UI names the four types the way the handoff prototypes
   do (`Adv1Type`, `DeskRosterAdv`), not with the English terms. The full names
   (`teamAdvance.type.*`: phone sheet, profile, undo sheet) are «Случайный основной навык»,
-  «Основной навык на выбор», «Вторичный навык на выбор», «Улучшение характеристики»; the desk's
+  «Основной навык», «Вторичный навык», «Улучшение характеристики»; the desk's
   short ones (`teamAdvance.typeShort.*`: desk window, its summary and «done» line, the desk panel's
-  skill source) are «Случайный основной», «Основной на выбор», «Вторичный на выбор»,
-  «Характеристика». Content keeps the English Random/Primary/Secondary terms (`content/Gata-ru`,
+  skill source) are «Случайный основной», «Основной», «Вторичный», «Характеристика». EN dropped
+  "Chosen" the same way (2026-11-08): "Primary skill", "Secondary skill"; short "Primary", "Secondary". Content keeps the English Random/Primary/Secondary terms (`content/Gata-ru`,
   including the Player Advancement table headers), so don't "fix" either side to match the other.
   Skill names and skill categories (Agility, General, Strength…) stay English in the sheet, as
   everywhere.
@@ -410,7 +410,12 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Draft (a team's stage) | Набор | 06 · `teams.stage.draft`; see «набор» (12) and note 9 |
 | My teams | Мои команды | 06 · `teams.title` |
 | Team leaders | Лидеры команды | 06 · `teamOverview.leaders` |
-| Recent matches | Последние матчи | 06 · `teamOverview.results` |
+| Recent matches | Последние матчи | 06 · `teamOverview.results` (a desk's card too) |
+| Standings (the tab) | Турнир | 05 · `shell.tab.table` |
+| Standings (the page's title) | Турнирная таблица | 10 · `league.title` |
+| Season standings | Таблица сезона | 06, 10 · `season.standings`, `guestHome.table` (the cards) |
+| Played matches | Сыгранные матчи | 09a · `matches.results` |
+| Show {count} more · Show less | Показать ещё {count} · Свернуть | 06, 08 · `common.showMore`, `common.showLess` (the folds) |
 | Active roster | Активный состав | 07a · `teamRoster.heading` |
 | Match records | Записи матча | 07a, 09a · `shell.match.records`, `teamRoster.records`, `matches.records` |
 | Edit outside the match | Правка вне матча | 07a · `teamRoster.match.outside` |
@@ -434,11 +439,14 @@ Coach's Safe. When a dictionary word changes, change its row. A new screen's own
 | Bonus skill | Бонусный навык | 07d · `teamPlayer.favoured.label` |
 | Two D16s · Roll two D16 | Два D16 · Бросить два D16 | 07d · `teamAdvance.rollResult`, `teamAdvance.rollD16`; note 3 |
 | The skills rolled | Выпавшие навыки | 07d · `teamAdvance.pairLabel`; note 3 |
+| About {skill} | Подробнее: {skill} | 07d · `teamAdvance.rule` (the chosen skill's rule, folded under the skills) |
 | Career · by match | Карьера · по матчам | 07e · `teamPlayer.career.title`, `teamPlayer.career.byMatch`; note 4 |
 | Before the site's records | До записей на сайте | 07e · `teamPlayer.career.before` |
 | waits for the post-match | ждёт итогов | 07e · `teamPlayer.career.pending` |
 | Edits outside a match | Правки вне матча | 07e · `teamPlayer.career.outside` |
-| Treasury and resources | Казна и ресурсы | 08 · `treasury.title` |
+| Team, treasury and resources | Команда, казна и ресурсы | 08 · `treasury.title` (the team page) |
+| Treasury and resources | Казна и ресурсы | 08 · `treasury.strip.title` (the roster's strip) |
+| Balance | Баланс | 08 · `treasury.balance` (the sum's row in the desk's «Treasury» card) |
 | Add · Take | Зачислить · Списать | 08 · `treasury.money.signIn`, `treasury.money.signOut`; note 5 |
 | Building the team | Набор команды | 08 · `treasury.phase.draft`; note 5 |
 | Correct by hand · Fix by hand | Исправить вручную | 08 · `treasury.fix.title` (the treasury); 07d · `teamPlayer.fix.title` (a player); note 1 |

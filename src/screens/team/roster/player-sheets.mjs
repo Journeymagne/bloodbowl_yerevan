@@ -21,7 +21,6 @@ import { editRefusal } from "../../../domain/roster/edits.mjs";
 import { undoLastAdvancement } from "../../../domain/roster/progression.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
-import { icon } from "../../../ui/icons.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
@@ -87,16 +86,16 @@ function sppMarkup(line, screen) {
 }
 
 /**
- * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and the kit's
- * long chevron, as its ListRow ends.
+ * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): a link's look, as the team
+ * page's «Correct the treasury by hand».
  * Closed (`reason`: why the edit is, or that its fields are changed and are saved or cancelled first) it stays in
  * reach, saying why as its title and, pressed, in a message (`data-roster-closed`, K7).
  * @param {import("./model.mjs").PlayerLine} line @param {string} reason
  */
 function fixLineMarkup(line, reason) {
   const closed = reason ? ` aria-disabled="true" title="${escapeHtml(reason)}"` : "";
-  return `<button type="button" class="g-player-edit__fix" aria-haspopup="dialog"${closed}${dataAttributes({ playerFix: line.key, rosterClosed: Boolean(reason) })}>`
-    + `<span class="g-player-edit__fixwords">${escapeHtml(t("teamPlayer.fix.open"))}</span>${icon("chevron", 16)}</button>`;
+  return `<button type="button" class="g-link-btn" aria-haspopup="dialog"${closed}${dataAttributes({ playerFix: line.key, rosterClosed: Boolean(reason) })}>`
+    + `${escapeHtml(t("teamPlayer.fix.open"))}</button>`;
 }
 
 /**

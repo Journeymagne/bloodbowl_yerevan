@@ -114,7 +114,7 @@ test("a closed danger button is drawn as a closed primary is: the grey fill at f
 
 // Stage 13, decision 13 and the owner's answer 3: in a dark palette the grey fill of a closed main button read as one
 // more grey button (M2: «almost no different from a plain grey one»). There it is drawn as closed: no fill, a dashed
-// ring of --line-strong, the label --muted. The mode is data-mode on <html>, or the system's dark when theme-boot.js did
+// ring of --disabled (--line-strong's was all but lost, the owner, 2026-11-08), the label --muted. The mode is data-mode on <html>, or the system's dark when theme-boot.js did
 // not run (tokens.css's own fallback); a light palette keeps the prototypes' grey fill under the white label.
 /** A selector's weight as one number (ids, then classes, attributes and pseudo-classes): `:not(x)` weighs what x does. */
 const weight = (selector) => (selector.match(/#[\w-]+/g) ?? []).length * 100
@@ -139,7 +139,15 @@ const CLOSED_WAYS = [
 
 test("a closed main button in a dark palette is an outline, not a grey fill; its label reads 4.5:1", () => {
   const css = "src/ui/button.css";
-  const closed = { background: ["transparent"], border: ["1.5px dashed var(--line-strong)"], color: ["var(--muted)"], opacity: ["1"], "box-shadow": ["none"] };
+  const closed = { background: ["transparent"], border: ["1.5px dashed var(--disabled)"], color: ["var(--muted)"], opacity: ["1"], "box-shadow": ["none"] };
+  // The ring is seen: 3:1 off every dark palette's page and surface, as a control's edge must be (WCAG 1.4.11).
+  for (const palette of Object.keys(PALETTES).filter((key) => PALETTES[key] === "dark")) {
+    const tokens = tokensOf(palette);
+    for (const ground of ["--page", "--surface"]) {
+      const ratio = contrast(colourOf("var(--disabled)", tokens), colourOf(`var(${ground})`, tokens));
+      assert.ok(ratio >= 3, `${palette}: the closed ring is ${ratio.toFixed(2)}:1 on ${ground}`);
+    }
+  }
   for (const [way, sheet, light] of CLOSED_WAYS) {
     for (const [property, value] of Object.entries(closed)) {
       assert.deepEqual(valuesOf(css, `:root[data-mode="dark"] ${way}`, property), value, `${way}, data-mode dark: ${property}`);

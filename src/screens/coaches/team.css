@@ -282,6 +282,7 @@
   padding: var(--space-10) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-opp__player:last-child { border-bottom: 0; }
 .g-opp__who {
   display: flex;
   flex-direction: column;

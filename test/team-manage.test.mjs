@@ -73,6 +73,9 @@ function model(id, { games = [], ledger = held(), expanded = false, busy = false
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const toasts = () => document.querySelectorAll("output").map((node) => ({ text: node.textContent, tone: node.className }));
 const hosts = (name) => document.querySelectorAll(`[data-sheet-host="${name}"]`).length;
+/** The desk's treasury card (the screen draws a desk here): its sum, and the pencil beside it (`money("1")`). */
+const SUM = ".g-manage__treasury-sum";
+const money = (sign) => `.g-manage__treasury [data-treasury-sign="${sign}"]`;
 /** The team t1 as a write's answer brings it: the roster changed as given, the next revision. */
 const t1With = (changes) => ({ ...structuredClone(TEAMS[0]), revision: 4, roster: { ...TEAMS[0].roster, ...changes } });
 
@@ -104,13 +107,15 @@ async function notifyGames(games) {
   await invalidateGames();
 }
 
-test("a team in the season: the head with the round, the phone's card, the desk strip, the safe, the resources and the history (TeamManage, DeskRosterFunds)", () => {
+test("a team in the season: the head with the round, the resources, the desk's treasury with the safe, and the history (TeamManage, DeskRosterFunds)", () => {
   const fragment = mount(manageMarkup(model("t1")));
-  assert.equal(fragment.querySelector("h1").textContent, "Treasury and resources");
+  assert.equal(fragment.querySelector("h1").textContent, "Team, treasury and resources", "the Team tab's page (the owner, 2026-11-08)");
   assert.equal(fragment.querySelector(".g-pagehead--phone .g-pagehead__meta .g-status").textContent, "Season on · round 7");
   assert.match(fragment.querySelector(".g-pagehead__sub").textContent, /^TV \d/);
-  assert.equal(fragment.querySelector('.g-manage__card [data-treasury-sign="1"]').getAttribute("data-treasury-money"), "t1");
-  assert.ok(fragment.querySelector('[data-treasury-strip="t1"]'));
+  assert.equal(fragment.querySelector('.g-manage__treasury [data-treasury-sign="1"]').getAttribute("data-treasury-money"), "t1");
+  // The roster's strip says what the resources and the treasury card say: the page draws it no more (the owner, 2026-11-08).
+  assert.equal(fragment.querySelector("[data-treasury-strip]"), null);
+  assert.equal(fragment.querySelector(".g-manage__card"), null, "the phone's card is the phone's");
   assert.ok(fragment.querySelector(".g-manage__safe"));
   assert.ok(fragment.querySelector('[data-resource-key="teamRerolls"]'));
   assert.ok(fragment.querySelector(".g-manage__history"));
@@ -119,10 +124,11 @@ test("a team in the season: the head with the round, the phone's card, the desk 
 });
 
 test("the phone's card: the treasury, the team's value, «+ Add» and «− Take» that open the strip's sheet; the safe and its correction", () => {
-  const page = model("t1");
+  const page = model("t1", { phone: true });
   assert.deepEqual([page.treasury, page.safe, page.teamId, page.team.id], [70, 20, "t1", "t1"]);
   assert.equal(typeof page.worth, "number");
   const fragment = mount(manageMarkup(page));
+  assert.equal(fragment.querySelector(".g-manage__treasury"), null, "the desk's treasury card is the desk's");
   const card = fragment.querySelector("section.g-manage__card");
   assert.equal(card.getAttribute("aria-labelledby"), "manage-card-title");
   assert.equal(fragment.querySelector("#manage-card-title").textContent, "Treasury");
@@ -137,21 +143,36 @@ test("the phone's card: the treasury, the team's value, «+ Add» and «− Take
   assert.deepEqual([fix.getAttribute("data-treasury-fix"), fix.textContent, fix.hasAttribute("aria-disabled")], ["t1", "Correct the treasury by hand", false]);
 });
 
-test("the DOM is in the phone's order: the head, the card, the safe and its correction, the resources, the history (decision 19)", () => {
+test("a desk's two columns (the owner, 2026-11-08): «Treasury» — the sum, the safe, the correction — over the resources, and the settings over the history", () => {
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] })));
-  const order = [".g-pagehead", ".g-callout", ".g-funds", ".g-manage__card", ".g-manage__safe", ".g-manage__fix", ".g-manage__resources", ".g-manage__history"];
-  const all = [...fragment.walk()].filter((node) => node.nodeType === 1);
-  const at = order.map((selector) => all.indexOf(fragment.querySelector(selector)));
-  assert.ok(at.every((index) => index >= 0), String(at));
-  assert.deepEqual(at, [...at].sort((a, b) => a - b), "in the order the phone shows them");
-  assert.ok(fragment.querySelector(".g-manage__side .g-manage__safe") && fragment.querySelector(".g-manage__side .g-manage__fix"));
-  assert.equal(fragment.querySelector(".g-manage__side .g-manage__history"), null, "the history follows the resources, as on a phone");
+  const columns = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(columns.every((column) => column.getAttribute("class") === "g-manage__col"));
+  assert.equal(columns.length, 2);
+  const blocks = (column) => column.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]);
+  assert.deepEqual(blocks(columns[0]), ["g-manage__treasury", "g-manage__resources"]);
+  assert.deepEqual(blocks(columns[1]), ["g-team-settings", "g-manage__history"]);
+  const treasury = columns[0].querySelector(".g-manage__treasury");
+  assert.deepEqual(blocks(treasury), ["g-manage__treasury-title", "g-resource", "g-manage__safe", "g-manage__fix"],
+    "the title, the treasury's row before the safe, the correction inside the card, last");
+  assert.equal(treasury.querySelector("h2#manage-treasury-title").textContent, "Treasury");
+  // The sum is a row of the resources' look, with one pencil beside the number: the sheet it opens has «Add» and «Take».
+  const row = treasury.querySelector(".g-resource");
+  assert.equal(row.querySelector(".g-resource__name").textContent, "Balance", "not «Treasury» a second time under the card's title");
+  assert.equal(row.querySelector(".g-resource__stepper .g-manage__treasury-sum").textContent, "70k");
+  const edit = row.querySelector("button.g-resource__btn");
+  assert.deepEqual([edit.getAttribute("data-treasury-money"), edit.getAttribute("data-treasury-sign"), edit.getAttribute("aria-label"), edit.getAttribute("aria-haspopup")],
+    ["t1", "1", "Add to or take from the treasury", "dialog"]);
+  assert.ok(edit.querySelector("svg"), "the pencil");
+  assert.equal(treasury.querySelectorAll("[data-treasury-money]").length, 1, "one button: no «+ Add» and «− Take» of its own");
+  assert.equal(treasury.querySelector(".g-manage__safe-amount").textContent, "20k");
+  assert.equal(fragment.querySelector(".g-manage__side"), null, "the phone's flow is the phone's");
 });
 
 // Stage 07d, owner's second review (decision 57): the settings are a screen of their own on a phone, and the page leads there.
 test("the phone's page keeps stage 08's order — the card, the safe, the correction, the resources, the history — and then the settings' row", () => {
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")], phone: true })));
-  const order = [".g-pagehead", ".g-callout", ".g-funds", ".g-manage__card", ".g-manage__safe", ".g-manage__fix", ".g-manage__resources", ".g-manage__history", ".g-team-settings-entry"];
+  const order = [".g-pagehead", ".g-callout", ".g-manage__card", ".g-manage__safe", ".g-manage__fix", ".g-manage__resources", ".g-manage__history", ".g-team-settings-entry"];
+  assert.equal(fragment.querySelector(".g-funds"), null, "no strip: the card says the treasury");
   const all = [...fragment.walk()].filter((node) => node.nodeType === 1);
   const at = order.map((selector) => all.indexOf(fragment.querySelector(selector)));
   assert.ok(at.every((index) => index >= 0), String(at));
@@ -204,7 +225,9 @@ test("a live match locks the treasury and the resources and says where to go", (
     assert.ok(buttons.length && buttons.every((button) => button.getAttribute("aria-disabled") === "true"), selector);
     assert.ok(buttons.every((button) => button.getAttribute("title") === "After the match's post-match"), `${selector} says why`);
   }
-  assert.equal(fragment.querySelectorAll("[data-treasury-money]").length, 3, "the strip's button and the card's two");
+  assert.equal(fragment.querySelectorAll("[data-treasury-money]").length, 1, "the desk's treasury card's pencil");
+  const phone = mount(manageMarkup(model("t1", { games: [liveGame("t1")], phone: true })));
+  assert.ok(phone.querySelectorAll(".g-manage__card [data-treasury-money]").every((button) => button.getAttribute("aria-disabled") === "true"), "and the phone's card's");
 });
 
 test("a preparation warns and locks nothing", () => {
@@ -241,7 +264,7 @@ test("the safe says the last deposit from the whole history, not the three lines
   const folded = mount(manageMarkup(model("t1")));
   assert.equal(folded.querySelectorAll(".g-ledger__row").length, 3);
   assert.match(folded.querySelector(".g-manage__safe-last").textContent, /^Last deposit: 20k/);
-  assert.equal(folded.querySelector("[data-ledger-all]").textContent, "All history · 4");
+  assert.equal(folded.querySelector("[data-ledger-all]").textContent, "Show 1 more", "as the overview's who can advance folds (the owner, 2026-11-08)");
   const unfolded = mount(manageMarkup(model("t1", { expanded: true })));
   assert.equal(unfolded.querySelectorAll(".g-ledger__row").length, 4);
   assert.equal(mount(manageMarkup(model("t1", { busy: true }))).querySelector(".g-manage__resources").getAttribute("aria-busy"), "true");
@@ -253,7 +276,9 @@ test("a team's name and a coach's comment are text", () => {
   const fragment = mount(manageMarkup(manageModel({ team, race: raceOf(team), seasonData: SEASON, games: [], ledger })));
   assert.equal(fragment.querySelector("img"), null);
   assert.equal(fragment.querySelector(".g-ledger__note").textContent, HOSTILE);
-  assert.equal(fragment.querySelector(".g-manage__in").getAttribute("data-treasury-money"), HOSTILE);
+  assert.equal(fragment.querySelector(".g-manage__treasury [data-treasury-sign]").getAttribute("data-treasury-money"), HOSTILE);
+  const phone = mount(manageMarkup(manageModel({ team, race: raceOf(team), seasonData: SEASON, games: [], ledger, phone: true })));
+  assert.equal(phone.querySelector(".g-manage__in").getAttribute("data-treasury-money"), HOSTILE);
   assert.equal(fragment.querySelector(".g-manage__fix").getAttribute("data-treasury-fix"), HOSTILE);
   assertCspSafe(fragment);
 });
@@ -262,9 +287,12 @@ test("the Russian page: the head, the chip, the card and the callout", () => {
   initLocale("ru");
   try {
     const fragment = mount(manageMarkup(model("t1", { games: [liveGame("t1")] })));
-    assert.equal(fragment.querySelector("h1").textContent, "Казна и ресурсы");
+    assert.equal(fragment.querySelector("h1").textContent, "Команда, казна и ресурсы");
     assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Сезон идёт · тур 7");
-    assert.deepEqual(fragment.querySelectorAll(".g-manage__card button").map((button) => button.textContent), ["+ Зачислить", "− Списать"]);
+    assert.equal(fragment.querySelector(".g-manage__treasury [data-treasury-money]").getAttribute("aria-label"), "Зачислить или списать");
+    assert.equal(fragment.querySelector(".g-manage__treasury .g-manage__fix").textContent, "Исправить казну вручную");
+    assert.equal(fragment.querySelector("#manage-treasury-title").textContent, "Казна");
+    assert.deepEqual(mount(manageMarkup(model("t1", { phone: true }))).querySelectorAll(".g-manage__card button").map((button) => button.textContent), ["+ Зачислить", "− Списать"]);
     assert.equal(fragment.querySelector(".g-callout__title").textContent, "Идёт матч");
     assert.equal(mount(manageMarkup(model("t4"))).querySelector(".g-pagehead__meta .g-status").textContent, "Набор команды");
     const steps = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] }))).querySelector(".g-callout__sub").textContent;
@@ -306,15 +334,14 @@ test("the page follows the team, the games and the history while it is on screen
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.deepEqual([hosts("treasury-money"), hosts("treasury-fix")], [1, 1], "one host for each sheet: the strip's wiring holds the money sheet's");
   setMyTeams(state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, roster: { ...team.roster, treasury: 95 } } : team)));
-  assert.match(view.querySelector(".g-manage__card").textContent, /95k/);
-  assert.match(view.querySelector(".g-funds__cell--money").textContent, /95k/, "the strip follows too");
+  assert.equal(view.querySelector(SUM).textContent, "95k");
   assert.equal(view.querySelector(".g-ledger__state").textContent, "No operations yet.");
   api.reply(FIRST_PAGE, 200, pageOf());
   await readLedger("t1");
   assert.equal(view.querySelectorAll(".g-ledger__row").length, 3, "a history read elsewhere is drawn");
   await notifyGames([liveGame("t1")]);
   assert.ok(view.querySelector(".g-callout"));
-  await withoutTimers(() => fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="-1"]'), "click"));
+  await withoutTimers(() => fireEvent(view.querySelector(money("1")), "click"));
   assert.equal(document.body.querySelector("dialog#treasury-money"), null, "a refused button opens nothing");
   await withoutTimers(() => fireEvent(view.querySelector("[data-treasury-fix]"), "click"));
   assert.equal(document.body.querySelector("dialog#treasury-fix"), null);
@@ -335,7 +362,7 @@ test("a history that fails to load says why and offers to read it again; the res
   assert.match(view.querySelector(".g-ledger__state").textContent, /^The history did not load: ./);
   assert.equal(view.querySelector("[data-ledger-retry]").textContent, "Try again");
   assert.equal(view.querySelector(".g-ledger"), null, "no lines are made up");
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "70k");
+  assert.equal(view.querySelector(SUM).textContent, "70k");
   assert.ok(view.querySelector('[data-resource-key="teamRerolls"]'));
   api.reply(FIRST_PAGE, 200, pageOf());
   fireEvent(view.querySelector("[data-ledger-retry]"), "click");
@@ -359,7 +386,7 @@ test("a history answer that is not a page is a failed read: the page says so, of
   assert.ok(view.querySelector('[data-screen="team-manage"] [data-ledger-retry]'));
   // The page still follows the team and the games: a match that goes live locks it.
   setMyTeams(state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, roster: { ...team.roster, treasury: 85 } } : team)));
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "85k");
+  assert.equal(view.querySelector(SUM).textContent, "85k");
   await notifyGames([liveGame("t1")]);
   assert.equal(view.querySelector("a.g-callout").getAttribute("href"), "#/games/g1/post-match");
   assert.ok(view.querySelectorAll("[data-treasury-money], [data-treasury-fix]").every((button) => button.getAttribute("aria-disabled") === "true"));
@@ -399,9 +426,9 @@ test("an entry made on the page is the treasury the overview shows next (T9 carr
   coach();
   api.reply(FIRST_PAGE, 200, pageOf([]));
   await renderTeamManage("t1");
-  fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="1"]'), "click");
+  fireEvent(view.querySelector(money("1")), "click");
   const sheet = document.querySelector('[data-sheet-host="treasury-money"]');
-  assert.ok(sheet.querySelector("dialog#treasury-money").matches(":modal"), "the card's button opens the strip's sheet");
+  assert.ok(sheet.querySelector("dialog#treasury-money").matches(":modal"), "the treasury card's button opens the strip's sheet");
   fireEvent(sheet.querySelector('[data-money-reason="sponsor"]'), "click");
   const entry = line("l5", { kind: "manual", reason: "sponsor", delta: 20, balanceAfter: 90 });
   api.reply("POST /api/teams/t1/treasury", 200, { team: t1With({ treasury: 90 }), entry });
@@ -409,7 +436,7 @@ test("an entry made on the page is the treasury the overview shows next (T9 carr
     fireEvent(sheet.querySelector("[data-money-apply]"), "click");
     await settle();
   });
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "90k");
+  assert.equal(view.querySelector(SUM).textContent, "90k");
   assert.equal(view.querySelector(".g-ledger__title").textContent, "Sponsor or prize", "the line heads the history");
   releaseCurrentScreen();
   await renderTeamOverview("t1");
@@ -431,7 +458,7 @@ test("a correction made on the page is the treasury the overview shows next (T9 
     await settle();
   });
   assert.equal(api.calls.filter((call) => call.key === "PATCH /api/teams/t1").length, 1);
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "95k");
+  assert.equal(view.querySelector(SUM).textContent, "95k");
   releaseCurrentScreen();
   await renderTeamOverview("t1");
   assert.equal(view.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__v').textContent, "95k");
@@ -445,7 +472,7 @@ test("a step of a resource on the page is drawn from the team the answer brings"
   fireEvent(view.querySelector('[data-resource-key="assistantCoaches"] [data-resource-step="1"]'), "click");
   await settle();
   assert.equal(view.querySelector('[data-resource-key="assistantCoaches"] .g-resource__value').textContent, "2");
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "60k");
+  assert.equal(view.querySelector(SUM).textContent, "60k");
 });
 
 test("entering the page reads the games again, though they were read before: a match that went live since locks it (final I-2)", async () => {
@@ -479,11 +506,11 @@ test("a games read that fails says the match state is unknown and leaves the pag
   assert.equal(view.querySelector(".g-callout"), null);
 });
 
-test("an entry whose answer was lost reads the team and the history again, once each: the card, the strip and the history agree (final I-1)", async () => {
+test("an entry whose answer was lost reads the team and the history again, once each: the treasury card and the history agree (final I-1)", async () => {
   coach({ userId: "u-lost" });
   api.reply(FIRST_PAGE, 200, pageOf([]));
   await renderTeamManage("t1");
-  fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="1"]'), "click");
+  fireEvent(view.querySelector(money("1")), "click");
   const sheet = document.querySelector('[data-sheet-host="treasury-money"]');
   fireEvent(sheet.querySelector('[data-money-reason="sponsor"]'), "click");
   const gate = api.hold("POST /api/teams/t1/treasury");
@@ -499,8 +526,7 @@ test("an entry whose answer was lost reads the team and the history again, once 
   const after = api.calls.slice(sent).map((call) => call.key);
   assert.equal(after.filter((key) => key === FIRST_PAGE).length, 1, "the history once");
   assert.equal(after.filter((key) => key === "GET /api/teams").length, 1, "the team once");
-  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "90k");
-  assert.match(view.querySelector(".g-funds__cell--money").textContent, /90k/);
+  assert.equal(view.querySelector(SUM).textContent, "90k");
   assert.equal(view.querySelector(".g-ledger__title").textContent, "Sponsor or prize");
   assert.equal(sheet.querySelector(".g-money__preview").textContent, "Treasury: 90k → 90k", "the sheet's preview too");
   assert.equal(state.myTeams.items[0].revision, 4, "the next write meets the revision the server holds");
@@ -517,7 +543,7 @@ test("a write that lands after the coach went to another team says whose it was 
     await renderTeamManage("t5");
   };
   // An entry of the money sheet, answered once the coach is on t5's page.
-  fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="1"]'), "click");
+  fireEvent(view.querySelector(money("1")), "click");
   fireEvent(document.querySelector('[data-money-reason="sponsor"]'), "click");
   api.reply("POST /api/teams/t1/treasury", 201, { team: t1With({ treasury: 90 }), entry: line("l5", { kind: "manual", reason: "sponsor", delta: 20 }) });
   const entry = api.hold("POST /api/teams/t1/treasury");
@@ -558,22 +584,23 @@ test("every word of the page is in both dictionaries, the phases too; nothing un
   assertStyled(mount(manageMarkup(model("t1", { phone: true }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css", "button.css", "list-row.css", settings);
 });
 
-test("the phone has the card and no strip, the desk the strip and two columns; the card's buttons are 44px and ringed in the header's ink", () => {
+test("the phone has the card, the desk two columns with the treasury card over the resources; the card's buttons are 44px and ringed in the header's ink", () => {
   const sheet = CSS;
   const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.ok(valuesOf(sheet, ".g-manage__card", "display").includes("none"), "from 901px the strip says the treasury");
+  assert.ok(valuesOf(sheet, ".g-manage__card", "display").includes("none"), "from 901px the treasury card over the resources says the treasury");
+  assert.deepEqual(valuesOf(sheet, ".g-manage__treasury .g-manage__safe", "border-bottom"), ["1px solid var(--line)"], "the safe a row of the treasury's card, its rule under it as the sum's");
+  assert.deepEqual(valuesOf(sheet, ".g-manage__treasury .g-manage__safe", "border"), ["0"]);
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-manage__card \{ display: none; \}/);
   // On a phone the value is in the card: the head keeps its line off a phone by its prop (stage 13, decision 9).
   assert.doesNotMatch(css, /\.g-pagehead__sub/);
   assert.ok(mount(manageMarkup(model("t1", { phone: true }))).querySelector("header.g-pagehead.g-pagehead--phone.g-pagehead--nosub-phone .g-pagehead__sub"));
-  assert.ok(valuesOf(sheet, ".g-manage__cols", "grid-template-areas").length > 0);
-  assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
-  for (const [selector, area] of [[".g-manage__resources", "resources"], [".g-manage__side", "side"], [".g-manage__history", "history"]]) {
-    assert.deepEqual(valuesOf(sheet, selector, "grid-area"), [area], selector);
-  }
-  for (const selector of [".g-manage__in", ".g-manage__out", ".g-manage__fix"]) {
+  assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-columns"), ["minmax(0, 1.1fr) minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), [], "each column a stack of its own: no areas that tie their rows");
+  assert.deepEqual(valuesOf(sheet, ".g-manage__col", "flex-direction"), ["column"]);
+  for (const selector of [".g-manage__in", ".g-manage__out"]) {
     assert.ok(valuesOf(sheet, selector, "min-height").includes("var(--size-touch)"), selector);
   }
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-height"), ["var(--size-touch)"], "the correction, the kit's link button");
   assert.ok(valuesOf(sheet, ".g-manage__card :focus-visible", "outline-color").includes("var(--header-ink)"));
   assert.ok(!read(sheet).includes("--focus-ring"));
   assertReadable(sheet, ".g-manage__card", "color", ["--header"], 4.5);
@@ -581,7 +608,7 @@ test("the phone has the card and no strip, the desk the strip and two columns; t
   assertReadable(sheet, ".g-manage__card-tv", "color", ["--header"], 4.5);
   assertReadable(sheet, ".g-manage__out", "color", ["--header"], 4.5);
   assertReadable(sheet, ".g-manage__in", "color", ["--header-ink"], 4.5);
-  assertReadable(sheet, ".g-manage__fix", "color", ["--page", "--desk"], 4.5);
+  assertReadable("src/ui/button.css", ".g-link-btn", "color", ["--page", "--desk"], 4.5);
   assertContrast("--header-ink", ["--header"], 3, { what: "«+ Add» on the card" });
   assertContrast("--header-muted", ["--header"], 3, { what: "the outline of «− Take»" });
   assert.ok(read("src/styles.css").includes('@import url("screens/team/manage/manage.css");'));

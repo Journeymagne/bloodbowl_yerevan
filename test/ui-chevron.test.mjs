@@ -114,7 +114,6 @@ const SITES = {
   "src/screens/team/overview.mjs": ["chevron 18"], // Team: «Доступна прокачка»
   "src/screens/team/roster/panel.mjs": ["chevron 14"], // Stats: «Профиль и прокачка», «Профиль игрока»
   "src/screens/team/roster/career.mjs": ["chevronShort 18"], // PlayerCareer, DeskRosterCareer: «Карьера», turned down
-  "src/screens/team/roster/player-sheets.mjs": ["chevron 16"], // the edit's «fix by hand»: no prototype, so the kit's
   // «История вызовов»: neither Challenges.html nor DeskChallenges.html draws it, so 09c's own glyph (the short one, as
   // `chevron` was then), turned down as the «Карьера» toggle is.
   "src/screens/matches/challenges-view.mjs": ["chevronShort 16"],

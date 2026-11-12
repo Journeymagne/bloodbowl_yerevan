@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test, { afterEach } from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 
@@ -110,11 +110,17 @@ test("three lines, then the whole history by its count, then more by pages", asy
   stand("t-pages");
   assert.equal(HISTORY_PREVIEW, 3);
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 25");
+  // As the overview's who can advance folds (the owner, 2026-11-08): the lines not shown, the chevron, its state.
+  assert.equal(text("[data-ledger-all]"), "Show 22 more");
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("class"), "g-link-btn g-more");
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "false");
+  assert.ok(document.querySelector("[data-ledger-all] svg"), "the chevron");
   assert.equal(document.querySelector("[data-ledger-more]"), null, "the pages are for the whole history");
 
   click("[data-ledger-all]");
   assert.equal(historyExpanded("t-pages"), true);
+  assert.equal(document.querySelector("[data-ledger-all]").getAttribute("aria-expanded"), "true");
+  assert.equal(document.querySelector("[data-ledger-more]").getAttribute("class"), "g-link-btn g-more");
   assert.equal(rows().length, 5);
   assert.deepEqual(rows().map((row) => row.querySelector(".g-ledger__amount").textContent), ["+10k", "+11k", "+12k", "+13k", "+14k"], "newest first, as the server sent them");
   assert.equal(text("[data-ledger-all]"), "Show less");
@@ -131,7 +137,7 @@ test("three lines, then the whole history by its count, then more by pages", asy
   click("[data-ledger-all]");
   assert.equal(historyExpanded("t-pages"), false);
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 25");
+  assert.equal(text("[data-ledger-all]"), "Show 22 more");
   api.assertAnswered();
 });
 
@@ -142,7 +148,7 @@ test("a team with up to three lines has nothing to unfold, and what is unfolded 
   assert.equal(document.querySelector("[data-ledger-all]"), null);
   markup(held({ entries: lines(4), total: 4 }));
   assert.equal(rows().length, 3);
-  assert.equal(text("[data-ledger-all]"), "All history · 4");
+  assert.equal(text("[data-ledger-all]"), "Show 1 more");
 
   api.reply(pageOf("t-own"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
   await readLedger("t-own");
@@ -427,6 +433,7 @@ test("Coach's Safe: the balance, the rule, the last deposit", () => {
   assert.equal(text(".g-manage__safe-amount"), "20k");
   assert.equal(text(".g-manage__safe-last"), "Last deposit: 20k · 18 Oct");
   assertCspSafe(fragment);
+  assert.ok(mount(safeMarkup({ safe: 20, entries, heading: "h3" })).querySelector("h3#manage-safe-title"), "under the desk's «Treasury» h2");
 
   mount(safeMarkup({ safe: 0, entries: [line("l2")] }));
   assert.equal(text(".g-manage__safe-amount"), "0k");
@@ -445,7 +452,7 @@ test("the page speaks Russian when the site does", () => {
   assert.match(rows()[0].querySelector(".g-ledger__when").textContent, /^18 окт.* · тур 3$/);
   assert.equal(rows()[1].querySelector(".g-ledger__title").textContent, ru["treasury.reason.fine"]);
   assert.equal(rows()[1].querySelector(".g-ledger__amount").textContent, "−5k");
-  assert.equal(text("[data-ledger-all]"), "Вся история · 25");
+  assert.equal(text("[data-ledger-all]"), "Показать ещё 22");
   assert.match(text("p.g-ledger__since"), /^История ведётся с 1 окт.* 2026/);
   mount(safeMarkup({ safe: 20, entries: [line("l1", { kind: "safe", delta: -20 })] }));
   assert.equal(text(".g-manage__safe-rule"), "До 50k из дохода после каждого матча. Тратить можно только после сезона.");
@@ -470,12 +477,17 @@ test("the cards are surfaces with their own text, a row is 60px, a button is tou
   assert.deepEqual(valuesOf(CSS, ".g-manage__history", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-manage__safe", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-ledger__row", "min-height"), ["60px"]);
-  assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-height"), ["var(--size-touch)"]);
-  assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
+  // «Try again» and «More» are the kit's link buttons, as the fold beside them.
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-link-btn", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
+  // On a phone they sit closer to the lines, keeping the target; only here, where nothing under the overlap takes a
+  // press (the advancement's fold, over the skills to choose, keeps its room).
+  assert.ok(mediaText(CSS, "max-width: 900px").includes(".g-ledger__actions .g-link-btn { margin-block: calc(-1 * var(--space-6)); }"));
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-more", "margin-block"), [], "not on every fold");
   assert.deepEqual(valuesOf(CSS, ".g-ledger__amount", "white-space"), ["nowrap"]);
   assertReadable(CSS, ".g-ledger__amount--out", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-ledger__amount--in", "color", ["--surface"], 4.5);
-  assertReadable(CSS, ".g-ledger__action", "color", ["--surface"], 4.5);
+  assertReadable("src/ui/button.css", ".g-link-btn", "color", ["--surface"], 4.5);
   for (const selector of [".g-ledger__title", ".g-ledger__note", ".g-ledger__when", ".g-ledger__since", ".g-ledger__state", ".g-manage__history-title", ".g-manage__safe-title", ".g-manage__safe-rule", ".g-manage__safe-last", ".g-manage__safe-amount"]) {
     assertReadable(CSS, selector, "color", ["--surface"], 4.5);
   }

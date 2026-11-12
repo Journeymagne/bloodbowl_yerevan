@@ -98,6 +98,31 @@ test("the question is a 3.0 window: a modal sheet, the caller's words, «Cancel�
   assert.deepEqual(prompted, [], "the browser's own prompt is not asked where a <dialog> can be built");
 });
 
+test("a sheet opened over a page pads it by the scrollbar the lock hides, and by nothing where the page does not scroll", async () => {
+  const root = document.documentElement;
+  for (const [viewport, page, gap] of [[1015, 1000, "15px"], [1000, 1000, "0px"]]) {
+    globalThis.innerWidth = viewport;
+    root.clientWidth = page;
+    opener();
+    const answer = confirmAction({ message: "Sure?" });
+    assert.equal(root.style.getPropertyValue("--scrollbar-gap"), gap, `${viewport} wide, the page ${page}`);
+    fireEvent(cancelOf(), "click");
+    await answer;
+  }
+  // A question over an open sheet finds the scrollbar gone already: the first sheet's measure stays.
+  globalThis.innerWidth = 1015;
+  root.clientWidth = 1000;
+  opener();
+  const first = confirmAction({ message: "First?" });
+  root.clientWidth = 1015;
+  const second = confirmAction({ message: "Second?" });
+  assert.equal(root.style.getPropertyValue("--scrollbar-gap"), "15px");
+  for (const button of document.querySelectorAll('[data-confirm="no"]')) fireEvent(button, "click");
+  await Promise.all([first, second]);
+  delete globalThis.innerWidth;
+  delete root.clientWidth;
+});
+
 test("an irreversible action is red; a question with no labels is «Cancel» and «Confirm»; a title given names the window", async () => {
   opener();
   const red = confirmAction({ message: "Delete the pair at table 3?", confirmLabel: t("common.delete"), destructive: true });

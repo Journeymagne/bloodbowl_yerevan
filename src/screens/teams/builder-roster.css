@@ -49,6 +49,7 @@
   padding: var(--space-6) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-roster-row:last-child { border-bottom: 0; }
 
 .g-roster-row__num {
   display: flex;

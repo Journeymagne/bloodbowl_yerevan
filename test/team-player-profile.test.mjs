@@ -339,7 +339,7 @@ test("a player's address on a phone is his profile: his head — number, name, p
     assert.ok(advance().querySelector("svg.g-icon"), "the arrow before the word");
     assert.equal(hint(), "Cheapest advancement — 4 SPP");
     assert.deepEqual(body.querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]),
-      [["Catch", "starting"], ["Dodge", "starting"], ["Frenzy", "Random primary skill · rolled on the site"]]);
+      [["Catch", "Starting"], ["Dodge", "Starting"], ["Frenzy", "Random primary skill · rolled on the site"]]);
     assert.ok(body.querySelector('.g-skill--card.g-skill--gained[data-skill="Frenzy"]'));
     assert.deepEqual(body.querySelectorAll(".g-profile__accessrow").map((row) => [row.querySelector("dt").textContent, row.querySelector("dd").textContent]),
       [["Primary", "Agility · General"], ["Secondary", "Passing · Strength · Devious"]]);
@@ -366,14 +366,14 @@ test("every way a skill came to him is named: an advancement's type, and how it 
     coach({ teamAnswer: withOne(player) });
     await playerPage("p3");
     assert.deepEqual(view.querySelectorAll(".g-skill--card").map((card) => card.querySelector(".g-skill__source").textContent),
-      ["starting", "starting", "Random primary skill · rolled on the site", "Random primary skill · rolled at the table", "Chosen primary skill"]);
+      ["Starting", "Starting", "Random primary skill · rolled on the site", "Random primary skill · rolled at the table", "Primary skill"]);
   });
-  // The desk's panel names the advancement's type too, short, as DeskRoster's cards do («Основной на выбор»; fidelity F4),
-  // not 07a's «primary»; a skill no advancement gave keeps the roster's words.
+  // The desk's panel names the advancement's type too, short, as DeskRoster's cards do («Основной»; fidelity F4),
+  // not 07a's «Primary»; a skill no advancement gave keeps the roster's words.
   coach({ teamAnswer: withOne(player), open: "p3#0" });
   await renderTeamRoster("t1");
   assert.deepEqual(aside().querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]),
-    [["Catch", "starting"], ["Dodge", "starting"], ["Frenzy", "Random primary"], ["Block", "Random primary"], ["Sure Hands", "Chosen primary"]]);
+    [["Catch", "Starting"], ["Dodge", "Starting"], ["Frenzy", "Random primary"], ["Block", "Random primary"], ["Sure Hands", "Primary"]]);
 });
 
 test("the captain wears his «C» in his head", async () => {
@@ -586,7 +586,7 @@ test("every type of advancement and every way of rolling is named in both dictio
 });
 
 // Fidelity follow-up: a fallen player's skill cards name an advancement's type as the living's do (K29) — in full with how
-// it was rolled on his page, short in the desk's panel (DeskRoster's «Основной на выбор») — not 07a's «primary».
+// it was rolled on his page, short in the desk's panel (DeskRoster's «Основной») — not 07a's «Primary».
 test("a fallen player's skill an advancement gave names its type: in full on his page, short in the desk's panel", async () => {
   const fallen = [died("f3", {
     id: "d3", rowIndex: 3, number: "8", name: "Pike", spp: { touchdowns: 10 },
@@ -598,12 +598,12 @@ test("a fallen player's skill an advancement gave names its type: in full on his
     coach({ fallen });
     await renderTeamPlayer("t1", "d3");
     assert.ok(view.querySelector(".g-fallen-page"));
-    assert.deepEqual(sources(view), [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "Chosen primary skill"], ["Dodge", "Random primary skill · rolled on the site"]]);
+    assert.deepEqual(sources(view), [["Block", "Starting"], ["Tackle", "Starting"], ["Mighty Blow", "Primary skill"], ["Dodge", "Random primary skill · rolled on the site"]]);
   });
   coach({ fallen, open: "fallen-f3" });
   await renderTeamRoster("t1");
   assert.ok(aside().querySelector(".g-fallen"), "his profile in the panel");
-  assert.deepEqual(sources(aside()), [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "Chosen primary"], ["Dodge", "Random primary"]]);
+  assert.deepEqual(sources(aside()), [["Block", "Starting"], ["Tackle", "Starting"], ["Mighty Blow", "Primary"], ["Dodge", "Random primary"]]);
 });
 
 test("a fallen player's address read as fallen draws his profile, the undo the roster's", async () => {

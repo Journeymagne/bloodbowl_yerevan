@@ -94,6 +94,7 @@
   padding: var(--space-4) 0;
   border-bottom: 1px solid var(--line);
 }
+.g-league__pair:last-child { border-bottom: 0; }
 /* The coach's pair: tinted, a little wider than the text so the tint does not end at the letters. */
 .g-league__pair--mine {
   margin: 0 calc(-1 * var(--space-8));

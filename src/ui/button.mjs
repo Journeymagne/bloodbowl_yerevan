@@ -48,6 +48,13 @@ export function renderButton({ label, kind = "outline", type = "button", href = 
   return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${busy ? ' aria-busy="true" aria-disabled="true"' : ""}${popup}${out}${dataAttributes(data)}>${content}</button>`;
 }
 
+/** `controls`: the id of the box the fold opens, when it opens one rather than the rest of a list. */
+export function renderFoldButton({ label, expanded, controls = "", className = "", data = {} }) {
+  const owns = controls ? ` aria-controls="${escapeHtml(controls)}"` : "";
+  return `<button type="button" class="${classNames("g-link-btn g-more", className)}" aria-expanded="${Boolean(expanded)}"${owns}${dataAttributes(data)}>`
+    + `${escapeHtml(label)}${renderIcon("down", 16)}</button>`;
+}
+
 /** The round close or back button of a sheet. Nothing else names it, so the label is required. */
 export function renderIconButton({ icon, label, data = {} }) {
   if (!label) throw new Error("an icon button needs a label: nothing else names it");

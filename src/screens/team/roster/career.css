@@ -147,6 +147,7 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
+.g-career__row:last-child { border-bottom: 0; }
 /* A row that waits for its post-match: the prototypes' #FFFBF2, which no token holds — the warning's tint a third over
    the page's fill (≈ #FEFAF3 in the grass palette), so it follows every palette; on both widths. */
 .g-career__row--pending { background: color-mix(in srgb, var(--warn-tint) 35%, var(--surface)); }

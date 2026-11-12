@@ -15,9 +15,6 @@
  * side-nav.css's; this sheet says where they stand and when.
  */
 
-/* A sheet locks the page's scrolling (ui/sheet.css); the scrollbar's room stays, so nothing shifts sideways. */
-html { scrollbar-gutter: stable; }
-
 .g-frame {
   box-sizing: border-box;
   min-height: 100vh;

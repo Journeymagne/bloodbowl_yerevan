@@ -176,6 +176,7 @@
   border-bottom: 1px solid var(--line);
   font: 400 15px/1.25 var(--font-body);
 }
+.g-coach__meeting:last-child { border-bottom: 0; }
 .g-coach__match {
   display: flex;
   flex-direction: column;

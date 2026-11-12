@@ -56,8 +56,8 @@ const MAINTENANCE_TOKEN = {
 };
 
 const MODE = {
-  light: { "--danger": "#A0473A", "--danger-tint": "#FBEDEA", "--on-danger-tint": "#7A2E22", "--on-danger": "#FFFFFF", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#B07A1E", "--warn-tint": "#FBF1DD", "--on-warn-tint": "#6B4A0E", "--disabled": "#A9B3AE", "--scrim": "rgba(10, 22, 16, 0.5)" },
-  dark: { "--danger": "#F2A99C", "--danger-tint": "#45201A", "--on-danger-tint": "#F2A99C", "--on-danger": "#45201A", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#E8C26A", "--warn-tint": "#3B2E14", "--on-warn-tint": "#F2D08A", "--disabled": "#4E5F56", "--scrim": "rgba(0, 0, 0, 0.6)" },
+  light: { "--danger": "#A0473A", "--danger-tint": "#FBEDEA", "--on-danger-tint": "#7A2E22", "--on-danger": "#FFFFFF", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#B07A1E", "--warn-tint": "#FBF1DD", "--on-warn-tint": "#6B4A0E", "--disabled": "#7F8A84", "--scrim": "rgba(10, 22, 16, 0.5)" },
+  dark: { "--danger": "#F2A99C", "--danger-tint": "#45201A", "--on-danger-tint": "#F2A99C", "--on-danger": "#45201A", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#E8C26A", "--warn-tint": "#3B2E14", "--on-warn-tint": "#F2D08A", "--disabled": "#6F8078", "--scrim": "rgba(0, 0, 0, 0.6)" },
 };
 
 const SCALES = {

@@ -25,7 +25,7 @@ import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { ADVANCEMENT_TYPES, playerSppTotal } from "../../../domain/roster/progression.mjs";
-import { renderButton } from "../../../ui/button.mjs";
+import { renderButton, renderFoldButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
@@ -38,7 +38,7 @@ import { radioGroupMarkup } from "./radio-group.mjs";
 import { keptWords, pairWhole, randomRollMarkup, rollButtonMarkup, rollLabel, siteRefusedWords, statRollMarkup, waitingWords } from "./roll-view.mjs";
 import { rollAsking } from "./rolls.mjs";
 import { refusalWordsOf } from "./save.mjs";
-import { ADVANCE_SHEET, PLAYER_FRAME, footButton } from "./sheets.mjs";
+import { ADVANCE_SHEET, PLAYER_FRAME, footButton, skillPageOf, skillRuleMarkup } from "./sheets.mjs";
 
 /** The Skill Table's categories with a colour of their own (`--cat-*`). */
 const COLOURED = Object.freeze(["agility", "devious", "general", "mutation", "passing", "strength"]);
@@ -111,6 +111,23 @@ function skillsMarkup(sheet, choices) {
     };
   });
   return radioGroupMarkup({ className: "g-advance__skills", label: t("teamAdvance.skillsLabel"), items, chosen: sheet.skill });
+}
+
+const RULE_ID = "advance-rule";
+
+/**
+ * The chosen skill's rule, folded under the skills, read without another window. Open or not is the sheet's
+ * (`ruleOpen`), so another skill chosen keeps it open.
+ * @param {object} sheet @param {object|null} data the reference of the page's language (state.data)
+ */
+function ruleMarkup(sheet, data) {
+  const page = sheet.skill && data ? skillPageOf(data, sheet.skill) : null;
+  if (!page) return "";
+  const open = Boolean(sheet.ruleOpen);
+  const toggle = renderFoldButton({
+    label: t("teamAdvance.rule", { skill: sheet.skill }), expanded: open, controls: RULE_ID, className: "g-advance__ruletoggle", data: { advanceRule: true },
+  });
+  return `<div class="g-advance__rule">${toggle}<div class="g-advance__ruletext" id="${RULE_ID}"${open ? "" : " hidden"}>${skillRuleMarkup(page)}</div></div>`;
 }
 
 /**
@@ -289,8 +306,9 @@ function phoneParts(line, screen, sheet, choices) {
       return [`${categoriesMarkup(sheet, choices)}<p class="g-advance__hint">${escapeHtml(hint)}</p>`, next(Boolean(sheet.category))];
     }
     case "skill": {
-      if (listed) return [`${skillsMarkup(sheet, choices)}${godMarkup(sheet, choices)}`, takeMarkup(sheet, choices)];
-      return sheet.type === "random" ? [`${randomRollMarkup({ sheet, choices })}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)] : ["", ""];
+      const rule = ruleMarkup(sheet, screen.data);
+      if (listed) return [`${skillsMarkup(sheet, choices)}${rule}${godMarkup(sheet, choices)}`, takeMarkup(sheet, choices)];
+      return sheet.type === "random" ? [`${randomRollMarkup({ sheet, choices })}${rule}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)] : ["", ""];
     }
     case "stat": return [`${statRollMarkup({ sheet, choices })}${godMarkup(sheet, choices)}`, rolledFoot(sheet, choices)];
     case "done": {
@@ -342,8 +360,8 @@ function summaryWords(sheet, choices) {
  * D8 — the way, the faces at the table, the die, «Roll D8»; the skills, a random skill's roll, or the characteristic the
  * D8 allows. A skill in place of a characteristic: its categories and skills.
  */
-function columnsMarkup(sheet, choices) {
-  const props = { sheet, choices, desk: true };
+function columnsMarkup(sheet, choices, data) {
+  const props = { sheet, choices, desk: true, data };
   const rolled = sheet.type === "stat" && !sheet.instead;
   // A skill in place of the characteristic goes back to it from the categories (fix round 1, M2): the type stays a
   // characteristic, so its card is no way back (DeskRosterAdvStat's, which makes the type a chosen one, is).
@@ -353,13 +371,13 @@ function columnsMarkup(sheet, choices) {
   return `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices, { desk: true }))}${second}${thirdColumn(props, rolled)}</div>`;
 }
 
-/** A desk's third column: the characteristic the D8 allows, a random skill's roll, or the category's skills. */
+/** A desk's third column: the characteristic the D8 allows, a random skill's roll, or the category's skills; under a skill chosen, its rule. */
 function thirdColumn(props, rolled) {
-  const { sheet, choices } = props;
+  const { sheet, choices, data } = props;
   if (rolled) return columnMarkup(t("teamAdvance.col.stat"), statRollMarkup({ ...props, part: "choice" }), t("teamAdvance.col.emptyD8"));
-  if (sheet.type === "random") return columnMarkup(t("teamAdvance.col.roll"), sheet.category ? randomRollMarkup(props) : "", t("teamAdvance.col.emptyCategory"));
+  if (sheet.type === "random") return columnMarkup(t("teamAdvance.col.roll"), sheet.category ? `${randomRollMarkup(props)}${ruleMarkup(sheet, data)}` : "", t("teamAdvance.col.emptyCategory"));
   const listed = sheet.category && (CHOSEN_TYPES.includes(sheet.type) || sheet.instead);
-  return columnMarkup(t("teamAdvance.col.skill"), listed ? skillsMarkup(sheet, choices) : "", t("teamAdvance.col.emptyCategory"));
+  return columnMarkup(t("teamAdvance.col.skill"), listed ? `${skillsMarkup(sheet, choices)}${ruleMarkup(sheet, data)}` : "", t("teamAdvance.col.emptyCategory"));
 }
 
 /**
@@ -369,7 +387,7 @@ function thirdColumn(props, rolled) {
  */
 function deskMarkup(line, screen, sheet, choices) {
   const done = sheet.step === "done";
-  const columns = done ? "" : columnsMarkup(sheet, choices);
+  const columns = done ? "" : columnsMarkup(sheet, choices, screen.data);
   const saved = done && savedWords(screen.save, { desk: true, held: takenHeld(line, sheet.taken), post: screen.mode.kind === "post" });
   const summary = done ? `<p class="g-advance__summary" role="status">${escapeHtml(saved)}</p>`
     : `<p class="g-advance__summary">${escapeHtml(summaryWords(sheet, choices))}</p>`;

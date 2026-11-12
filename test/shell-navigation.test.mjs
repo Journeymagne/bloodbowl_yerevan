@@ -255,12 +255,12 @@ test("labels and the place read in the language of the page", () => {
   initLocale("ru");
   try {
     const model = shellModel(at("teamRoster", { user: ADMIN }));
-    assert.deepEqual(model.tabs.map((tab) => tab.label), ["Обзор", "Команда", "Состав", "Матчи", "Таблица", "Справочник", "Настройки"]);
+    assert.deepEqual(model.tabs.map((tab) => tab.label), ["Обзор", "Команда", "Состав", "Матчи", "Турнир", "Справочник", "Настройки"]);
     // The administration item carries a soft hyphen: in the 200px column the word would not fit, and breaks there.
     assert.deepEqual(model.side.map((item) => item.label), ["Обзор", "Состав", "Сезон", "Справочник", "Играть онлайн · Демо", "Настройки", "Администри\u00ADрование"]);
     assert.equal(model.brand.sub, "Human · 2-е место в лиге");
     assert.equal(model.brand.sideSub, "Human");
-    assert.deepEqual(shellModel(at("home", { user: null, team: null })).tabs.map((tab) => tab.label), ["Главная", "Таблица", "Справочник", "Настройки"]);
+    assert.deepEqual(shellModel(at("home", { user: null, team: null })).tabs.map((tab) => tab.label), ["Главная", "Турнир", "Справочник", "Настройки"]);
   } finally {
     initLocale("en");
   }
