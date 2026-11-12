@@ -441,6 +441,8 @@ test("from 901px the rows are a grid of 220px columns in a framed card, and the 
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "overflow-y"), []);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list", "background"), ["none", "var(--surface)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "grid-column"), ["1 / -1"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "font"), ["700 24px/1.2 var(--font-display)"], "a group's heading is a card title, as the season page's");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "margin"), ["var(--space-24) 0 var(--space-8)"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"]', "box-shadow"), ["var(--ring-selected)"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"] .g-ref-row__name', "font-weight"), [], "the open row's name keeps its weight, so its width");
 });
