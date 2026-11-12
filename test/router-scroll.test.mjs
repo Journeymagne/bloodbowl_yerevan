@@ -85,6 +85,20 @@ test("the browser's tab names the screen it shows, then the league", async () =>
   releaseCurrentScreen();
 });
 
+test("on a phone the tab names the item the address opens in a sheet, not the list under it", async () => {
+  const before = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+  try {
+    coach();
+    await go("#/ref/skills");
+    await go("#/skills/dodge");
+    assert.equal(document.title, "Dodge · Gata Blood Bowl League");
+  } finally {
+    globalThis.matchMedia = before;
+    releaseCurrentScreen();
+  }
+});
+
 test("an address the router sends on scrolls nothing, and the route before it stays the one drawn", async () => {
   coach();
   await go("#/t/t1");

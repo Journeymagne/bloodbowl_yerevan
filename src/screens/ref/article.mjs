@@ -17,12 +17,11 @@ import { REF_SECTIONS, navRouteForPage, pageUrl, refUrl, skillTableUrl } from ".
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { onActiveTeamChange } from "../../data/active-team.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
 import { REF_GROUPS, articleNeighbours, itemKeyOf, memberKicker, placeKicker, refGroups, sectionTitle } from "./catalog.mjs";
-import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
+import { drawDetailPage, wireDetailPage } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
@@ -148,8 +147,8 @@ export function notFoundMarkup(slug = "") {
  * The reference draws the screen and hears its band's search; drawing another article in its place
  * hooks it once. An article that is another one than the page held starts at the top (`drawScreen`),
  * the pager's next article included, wherever the link was and whichever way the coach came (a tap, a
- * Back). `wireBody` is how a body that listens too (the Skill Table's die) joins the search, so that it
- * is let go with it.
+ * Back). `wireBody` is how a body that listens too (a team's rules, for the season) joins the search, so
+ * that it is let go with it.
  */
 function show(markup, wireBody = null) {
   drawScreen(view, markup);
@@ -203,21 +202,19 @@ export function renderReferencePage(slug, { league = "" } = {}) {
 }
 
 function renderSkillTable(page, skill, groups) {
-  const draw = () => {
-    const sheet = skill && isPhone() ? skill : null;
-    if (sheet) noteSheet(view, sheet, view.querySelector("[data-screen]")?.getAttribute("data-screen") === `article:${page.slug}`);
-    const panelHtml = detailPanelMarkup(sheet ? null : skill, t("ref.skill.pick"), { level: 2 });
-    drawWithDetail(view, articleMarkup({ data: state.data, page, groups, panelHtml }) + detailSheetMarkup(sheet), Boolean(sheet),
-      (slug) => `.g-article a[href="${skillTableUrl({ slug })}"]`);
-  };
+  const draw = () => drawDetailPage(view, {
+    screen: `article:${page.slug}`,
+    selected: skill,
+    pick: t("ref.skill.pick"),
+    level: 2,
+    opener: (slug) => `.g-article a[href="${skillTableUrl({ slug })}"]`,
+    markupOf: (panel, panelHtml) => articleMarkup({ data: state.data, page, groups, panelHtml }),
+  });
   draw();
   const listeners = listenerGroup(view);
   listeners.own(wireRefSearch(view, { onQuery: goSearch }));
   listeners.own(wireSkillTableRoller(view, draw));
-  listeners.own(wireDetailSheet(view, () => pageUrl(page)));
-  listeners.own(onPhoneChange(draw));
-  listeners.own(onActiveTeamChange(draw));
-  listeners.own(() => closeDetailSheet(view));
+  listeners.own(wireDetailPage(view, { draw, pageHref: () => pageUrl(page) }));
   onScreenLeave("ref:article", listeners.release);
 }
 

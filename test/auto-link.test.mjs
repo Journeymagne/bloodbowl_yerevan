@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SENTENCE, autoLinkKnownTerms } from "../scripts/lib/auto-link.mjs";
+import { SENTENCE, autoLinkKnownTerms, linkOnSkillTable } from "../scripts/lib/auto-link.mjs";
+
+test("the Skill Table's skills open on the table; a trait and every other page keep their links", () => {
+  const html = '<a href="#/skills/block">Block</a> <a href="#/traits/loner-x">Loner</a>';
+  assert.equal(linkOnSkillTable({ id: "skills-and-traits-skill-table" }, html), '<a href="#/skill-table/block">Block</a> <a href="#/traits/loner-x">Loner</a>');
+  assert.equal(linkOnSkillTable({ id: "general-information-casualties" }, html), html);
+});
 
 const pages = [
   { title: "Block", kind: "skill", slug: "skills/block" },

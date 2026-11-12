@@ -67,7 +67,10 @@ v3, исправления из `codex/fix-post-match-navigation` и прото�
 
 Маршруты v3: `#/teams`, `#/t/:id`, `#/t/:id/roster`,
 `#/coaches/:uid/teams/:tid`, `#/games/:id/pre-match`, `#/games/:id/post-match`,
-`#/leagues/:league` (статья справочника «Лиги», прокрученная к лиге; ключ — `leagueKey` в `src/core/routes.mjs`).
+`#/leagues/:league` (статья справочника «Лиги», прокрученная к лиге; ключ — `leagueKey` в `src/core/routes.mjs`),
+`#/skill-table/:skill` (таблица навыков с карточкой навыка справа, на телефоне — в шторке; `skillTableUrl`).
+Навык, черта и Inducement (`#/skills/:slug`, `#/traits/:slug`, `#/inducements/:slug`) открываются карточкой
+рядом со списком на десктопе и шторкой поверх списка на телефоне (`src/screens/ref/details.mjs`).
 Ссылки демо перенесены из удалённых модулей v2 в SideNav, список своих команд
 и публичный экран команды. API демо подключён через `server/routes/index.mjs`.
 

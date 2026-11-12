@@ -57,6 +57,9 @@ Open http://localhost:3002.
 - [ ] Teams shows 37 cards; open one, the roster table is readable on a narrow
       window.
 - [ ] Star Players, Skills, Traits, Inducements, References open.
+- [ ] A skill, a trait, an inducement and a skill on the Skill Table open a card
+      beside the page on a desk; on a phone a sheet over it, which Back closes and
+      the list under it does not scroll.
 - [ ] Global search filters the current section.
 - [ ] Theme switcher: pick each of the six themes, the choice survives a reload.
 - [ ] Language switch EN ⇄ RU: content and interface both change, the current

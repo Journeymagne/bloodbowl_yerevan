@@ -14,15 +14,13 @@ import { pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { onActiveTeamChange } from "../../data/active-team.mjs";
-import { onMyTeamsChange } from "../../data/teams.mjs";
 import { renderFilterChips, wireFilterChips } from "../../ui/filter-chips.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { overviewUrl, refGroups, sectionKicker, sectionPages, sectionTitle } from "./catalog.mjs";
-import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
+import { drawDetailPage, wireDetailPage } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
@@ -104,7 +102,7 @@ function rowsMarkup(section, pages, cards, selectedSlug) {
   if (!pages.length && !cards.length) return `<p class="g-ref-empty">${escapeHtml(t("section.emptyState"))}</p>`;
   if (section === "rules") return rulesMarkup(pages, cards);
   if (LETTER_SECTIONS.has(section)) return pages.map((page) => referenceRow(page, selectedSlug)).join("");
-  const chevron = SPLIT_SECTIONS.has(section) ? null : undefined;
+  const chevron = SPLIT_SECTIONS.has(section) ? null : "chevron";
   return pages.map((page) => renderNavRow({ href: pageUrl(page), title: page.title, desc: DESCRIBE[section]?.(page) ?? "", current: page.slug === selectedSlug, chevron })).join("");
 }
 
@@ -134,6 +132,8 @@ function categoryChips(data, categories, selected) {
  * @param {{query: string, category: string}} props.filter what the list is narrowed to; a category the vault does not have is All
  * @param {object[]} [props.overviewCards] the league overview's cards, which the rules list shows ahead of its pages
  * @param {string|null} [props.selectedSlug] the page that is open: its row is the current one
+ * @param {boolean} [props.heading] whether the list's title is the page's h1: not while the panel's card has it
+ * @param {string} [props.backHtml] the way up, which only a phone shows
  */
 export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug, backHtml = "" }) {
   const categories = section === "skills" ? skillCategories(data) : [];
@@ -159,25 +159,28 @@ function syncField(selector, value) {
   if (field && field.value !== value) field.value = value;
 }
 
-const pickOf = (section) => ({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick"), inducements: t("ref.inducement.pick") })[section];
+const pickOf = (section) => ({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick"), inducements: t("ref.inducement.pick") })[section] ?? "";
 
 function draw(section, selected) {
   const overviewCards = activeOverviewCards();
   const filter = listFilter(section);
   const split = SPLIT_SECTIONS.has(section);
-  const sheet = split && selected && isPhone() ? selected : null;
-  if (sheet) noteSheet(view, sheet, view.querySelector(".g-ref-list")?.getAttribute("data-section") === section);
-  const panel = sheet ? null : selected;
-  const markup = refPageMarkup({
-    layout: split ? "split" : "list",
-    screen: `list:${section}`,
-    headHtml: refHeadMarkup({ query: refQuery() }),
-    tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
-    mainHtml: refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel,
-      backHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }) }),
-    panelHtml: split ? detailPanelMarkup(panel, pickOf(section)) : "",
+  const screen = `list:${section}`;
+  drawDetailPage(view, {
+    screen,
+    selected: split ? selected : null,
+    pick: pickOf(section),
+    opener: (slug) => `.g-ref-list a[href="#/${slug}"]`,
+    markupOf: (panel, panelHtml) => refPageMarkup({
+      layout: split ? "split" : "list",
+      screen,
+      headHtml: refHeadMarkup({ query: refQuery() }),
+      tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
+      mainHtml: refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel,
+        backHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }) }),
+      panelHtml: split ? panelHtml : "",
+    }),
   });
-  drawWithDetail(view, markup + detailSheetMarkup(sheet), Boolean(sheet), (slug) => `.g-ref-list a[href="#/${slug}"]`);
   syncField("#ref-list-query", filter.query);
   syncField("#ref-query", refQuery());
 }
@@ -204,9 +207,6 @@ export function renderRefSection(section, { selected = null } = {}) {
     wireRefSearch(view, { onQuery: goSearch }),
   ];
   // The card's "In your team" is the active team's: it follows a switch of team and a list that comes in late.
-  if (SPLIT_SECTIONS.has(section)) {
-    release.push(onActiveTeamChange(redraw), onMyTeamsChange(redraw), onPhoneChange(redraw), wireDetailSheet(view, () => refUrl(section)),
-      () => closeDetailSheet(view));
-  }
+  if (SPLIT_SECTIONS.has(section)) release.push(wireDetailPage(view, { draw: redraw, pageHref: () => refUrl(section) }));
   onScreenLeave("ref:list", () => release.forEach((stop) => stop()));
 }

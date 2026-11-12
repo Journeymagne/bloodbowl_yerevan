@@ -5,7 +5,7 @@ import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown
 import { writeDataFile } from "./lib/write-data-file.mjs";
 import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
 import { assertDataIsUsable } from "./lib/validate-data.mjs";
-import { autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
+import { autoLinkKnownTerms, escapeHtml, linkOnSkillTable } from "./lib/auto-link.mjs";
 import { renderTable } from "./lib/render-table.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -682,12 +682,12 @@ async function buildLocaleData(resolvedFiles) {
 
     return {
       ...page,
-      html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, {
+      html: page.empty ? "" : linkOnSkillTable(page, markdownToHtml(page.body, pageByTitle, {
         preserveLineBreaks: page.kind === "inducement",
         autoLinkKnown: PROSE_LINKED_KINDS.includes(page.kind),
         prose: true,
         selfPage: page,
-      }),
+      })),
       team: page.kind === "team" ? {
         experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
         type: page.tags.includes("Experimental") ? "Experimental" : "Core",

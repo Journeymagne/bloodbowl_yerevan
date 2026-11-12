@@ -153,24 +153,25 @@ export function skillCaption(data, page) {
  * @param {object|null} [props.teamPage] the page of the team's race, whose rows say what each position has
  */
 export function skillDetailMarkup({ data, page, team = null, teamPage = null, head = true, level = 1 }) {
-  const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
-  const header = head
-    ? `<header class="g-skill-detail__head">${badgeMarkup(categoryOf(data, page), { large: true, trait: isTrait(page) })}`
-      + `<div class="g-skill-detail__title"><h${level} class="g-skill-detail__name">${escapeHtml(page.title)}</h${level}>`
-      + `<p class="g-skill-detail__caption">${escapeHtml(skillCaption(data, page))}</p></div></header>`
-    : "";
-  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">${header}`
-    + `${proseMarkup(rule)}${factsMarkup(data, page)}`
+  const badge = badgeMarkup(categoryOf(data, page), { large: true, trait: isTrait(page) });
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">`
+    + `${head ? detailHead({ badge, title: page.title, caption: skillCaption(data, page), level }) : ""}`
+    + `${proseMarkup(ruleOf(page))}${factsMarkup(data, page)}`
     + `${team ? oursMarkup(skillHolders({ team, teamPage, title: page.title })) : ""}</article>`;
 }
 
 export const inducementCaption = () => t("ref.inducement.caption");
 
-export function inducementDetailMarkup({ page, head = true }) {
-  const header = head
-    ? `<header class="g-skill-detail__head"><div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
-      + `<p class="g-skill-detail__caption">${escapeHtml(inducementCaption())}</p></div></header>`
-    : "";
-  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">${header}`
-    + `${proseMarkup(page.html || `<p>${escapeHtml(page.text ?? "")}</p>`)}</article>`;
+export function inducementDetailMarkup({ page, head = true, level = 1 }) {
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}">`
+    + `${head ? detailHead({ title: page.title, caption: inducementCaption(), level }) : ""}`
+    + `${proseMarkup(ruleOf(page))}</article>`;
+}
+
+const ruleOf = (page) => page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
+
+function detailHead({ badge = "", title, caption, level }) {
+  return `<header class="g-skill-detail__head">${badge}`
+    + `<div class="g-skill-detail__title"><h${level} class="g-skill-detail__name">${escapeHtml(title)}</h${level}>`
+    + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`;
 }

@@ -177,7 +177,9 @@ export function renderRoute() {
   // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
     if (current !== ticket || location.hash !== startedAt) return;
-    const heading = view.querySelector("h1, h2")?.textContent?.trim() ?? "";
+    // A sheet the address opened over the screen (a reference item on a phone) is what the coach is reading.
+    const named = view.querySelector("dialog[open] .g-sheet__title") ?? view.querySelector("h1, h2");
+    const heading = named?.textContent?.trim() ?? "";
     announce(heading);
     titleWindow(heading);
   });

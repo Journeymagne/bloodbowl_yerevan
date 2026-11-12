@@ -120,9 +120,6 @@ function tableSkillLink(data, skill) {
   return page ? link(skillTableUrl(page), skill) : escapeHtml(skill);
 }
 
-// The build links the table's skills to their own pages; here they open on the table instead.
-const onTheTable = (html) => String(html ?? "").replaceAll('href="#/skills/', 'href="#/skill-table/');
-
 function rollerMarkup(data, group, rolled) {
   const chips = renderFilterChips({
     label: t("skillRoll.groupLabel"),
@@ -158,7 +155,7 @@ export function skillTableBody(data, page, roller) {
   const rolled = roller.category === group.category && roller.face !== null && group.skills[roller.face - 1] === roller.skill ? roller : null;
   return rollerMarkup(data, group, rolled)
     + listsMarkup(data, data.skillGroups)
-    + `<div class="g-prose g-ref-skilltable__desk">${onTheTable(page.html)}</div>`;
+    + `<div class="g-prose g-ref-skilltable__desk">${page.html}</div>`;
 }
 
 /**

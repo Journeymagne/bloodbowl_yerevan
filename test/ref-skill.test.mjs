@@ -72,25 +72,27 @@ test("a coach sees who in the active team has the skill, captaincy and the posit
 const RIVALS = { id: "t2", name: "Rivals", baseTeamSlug: "teams/amazon", roster: { players: [{ id: "q1", rowIndex: 0, number: 11, name: "Solo" }] } };
 const holders = () => view.querySelectorAll(".g-skill-detail__who").map((who) => who.textContent);
 
-test("an open panel follows the coach's team: a switch of the active team and a list that comes in late redraw it; a screen that was left is not drawn into", () => {
+test("an open panel follows the coach's team, beside its list and beside the Skill Table: a switch of the active team and a list that comes in late redraw it; a screen that was left is not drawn into", () => {
   const backend = new Map();
   const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
   // The account already names the team switched to, so the switch writes nothing.
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t2" } };
-  state.myTeams = { items: [TEAM, RIVALS], loaded: true, loading: false, error: "" };
-  state.activeTeamId = "t1";
   try {
-    renderReferencePage("skills/evasive");
-    assert.deepEqual(holders(), ["Itzel", HOSTILE]);
-    syncActiveTeam({ routeTeamId: "t2", store });
-    assert.deepEqual(holders(), ["Solo"], "the panel left open shows the team switched to");
-    setMyTeams([]);
-    assert.equal(view.querySelector(".g-skill-detail__ours"), null, "a list that came back without the team takes the block away");
-    setMyTeams([TEAM, RIVALS]);
-    assert.deepEqual(holders(), ["Solo"], "and brings it back when it comes");
-    releaseCurrentScreen();
-    resetActiveTeam();
-    assert.deepEqual(holders(), ["Solo"], "nothing listens once the screen is left");
+    for (const address of ["skills/evasive", "skill-table/evasive"]) {
+      state.myTeams = { items: [TEAM, RIVALS], loaded: true, loading: false, error: "" };
+      state.activeTeamId = "t1";
+      renderReferencePage(address);
+      assert.deepEqual(holders(), ["Itzel", HOSTILE], address);
+      syncActiveTeam({ routeTeamId: "t2", store });
+      assert.deepEqual(holders(), ["Solo"], `${address}: the panel left open shows the team switched to`);
+      setMyTeams([]);
+      assert.equal(view.querySelector(".g-skill-detail__ours"), null, `${address}: a list that came back without the team takes the block away`);
+      setMyTeams([TEAM, RIVALS]);
+      assert.deepEqual(holders(), ["Solo"], `${address}: and brings it back when it comes`);
+      releaseCurrentScreen();
+      resetActiveTeam();
+      assert.deepEqual(holders(), ["Solo"], `${address}: nothing listens once the screen is left`);
+    }
   } finally {
     state.auth.currentUser = null;
   }
@@ -299,6 +301,7 @@ test("the sheet's close is Back when it was opened from its list, and the list's
     asked.length = 0;
     renderRefSection("skills");
     renderReferencePage("skills/dodge");
+    releaseCurrentScreen();
     renderReferencePage("skills/block");
     closeSheet();
     assert.deepEqual(asked, ["#/ref/skills"], "gone on to another skill through a link of the rule: Back would open the first again");
