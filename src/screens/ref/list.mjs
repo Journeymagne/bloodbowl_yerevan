@@ -19,9 +19,9 @@ import { renderNavRow } from "../../ui/list-row.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
-import { overviewUrl, refGroups, sectionKicker, sectionPages, sectionTitle } from "./catalog.mjs";
+import { overviewUrl, refGroups, refNeighbours, sectionKicker, sectionPages, sectionTitle } from "./catalog.mjs";
 import { drawDetailPage, wireDetailPage } from "./details.mjs";
-import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refPagerMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
 import { badgeMarkup, tagsOf } from "./skill.mjs";
@@ -144,10 +144,11 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const search = label ? renderSearchField({ id: "ref-list-query", label, placeholder: label, value: filter.query, data: { listSearch: section } }) : "";
   const chips = section === "skills" ? categoryChips(data, categories, category) : "";
   const shape = LETTER_SECTIONS.has(section) ? "" : " g-ref-list--nav";
+  const pagerHtml = refPagerMarkup(refNeighbours(data, section));
   // Keyed, so that the redraw which opens an item beside the list keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
     + `<div class="g-ref-list__top">${backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") })}<div class="g-ref-list__titles">${titleHtml}<p class="g-ref-place">${escapeHtml(sectionKicker(section))}</p></div><p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
-    + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
+    + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div>${pagerHtml ? `<div class="g-ref-list__foot">${pagerHtml}</div>` : ""}</section>`;
 }
 
 /** A field shows what the memory holds even when the screen before left something typed in it, which the markup's `value` does not replace. */

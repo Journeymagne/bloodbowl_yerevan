@@ -57,7 +57,7 @@ test("an address with no page is told so, with the way back to the reference", (
 test("an article of a group pages to its neighbours, and lights itself in the table of contents", () => {
   renderReferencePage("casualties");
   assert.equal(view.querySelector(".g-article__prev").getAttribute("href"), "#/prayers-to-nuffle");
-  assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/player-advancement");
+  assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/ref/inducements");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/casualties");
   assert.equal(view.querySelector(".g-ref-place").textContent, "Before and during a match · Reference");
   renderReferencePage("weather");
@@ -176,21 +176,34 @@ test("a team, a skill, a star player and a rule are lit in the table of contents
   assert.equal(lit("reference-sources"), null, "a page the groups do not name lights nothing");
 });
 
-test("the pager has an end for each end: the first article has only a next, the last only a previous", () => {
+test("the pager has an end for each end: the first article has only a next; the last article goes on to the list after it", () => {
   renderReferencePage("weather");
   assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/kick-off-table");
   assert.equal(view.querySelector(".g-article__next").textContent, "Kick-off Table");
+  assert.equal(view.querySelector(".g-article__prev") === null, true);
   assert.equal(view.querySelector(".g-article__pager").getAttribute("aria-label"), "More articles");
   renderReferencePage("all-gata-changes");
   assert.ok(view.querySelector(".g-article__prev"));
-  assert.equal(view.querySelector(".g-article__next"), null);
+  assert.equal(view.querySelector(".g-article__next")?.getAttribute("href"), "#/ref/rules");
   useLocale("ru");
   renderReferencePage("casualties");
   assert.equal(view.querySelector(".g-article__pager").getAttribute("aria-label"), "Другие статьи");
 });
 
-test("a page outside the groups, and every member of a list, has no pager", () => {
-  for (const slug of ["reference-sources", "gata-blood-bowl-league", "teams/human", "skills/block", "inducements/bribe", "rotten-rick-bupkeis"]) {
+test("a list pages on to the groups' items on either side, as an article does; an item opened on its list keeps the list's pager", () => {
+  renderRefSection("inducements");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__prev")?.getAttribute("href"), "#/casualties");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__next")?.getAttribute("href"), "#/player-advancement");
+  renderReferencePage("casualties");
+  assert.equal(view.querySelector(".g-article__next")?.getAttribute("href"), "#/ref/inducements", "the article before the list leads to it");
+  renderReferencePage("inducements/bribe");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__next")?.getAttribute("href"), "#/player-advancement");
+  renderRefSection("rules");
+  assert.equal(view.querySelector(".g-article__next"), null, "the last item has no next");
+});
+
+test("a page outside the groups, and every member of a list with a page of its own, has no pager", () => {
+  for (const slug of ["reference-sources", "gata-blood-bowl-league", "teams/human", "rotten-rick-bupkeis"]) {
     renderReferencePage(slug);
     assert.equal(view.querySelector(".g-article__pager"), null, slug);
   }

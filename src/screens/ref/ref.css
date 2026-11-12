@@ -394,6 +394,7 @@
     background: var(--accent-tint-soft);
     box-shadow: var(--ring-selected);
   }
+  .g-ref-list__foot { padding: 0 var(--ref-inset) var(--ref-inset); }
   .g-ref-list__body .g-list-row { padding-inline: var(--space-10); }
   .g-ref-list__subtitle,
   .g-ref-list__body .g-ref-empty { grid-column: 1 / -1; }

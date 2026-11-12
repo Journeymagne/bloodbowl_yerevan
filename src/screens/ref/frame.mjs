@@ -70,6 +70,17 @@ export function refTocMarkup(groups, currentKey = null) {
   return `<nav class="g-ref-toc" aria-label="${escapeHtml(t("ref.toc"))}">${parts.join("")}</nav>`;
 }
 
+function pagerLink(item, side) {
+  assertLinkHref(item.href);
+  return `<a class="g-article__${side}" href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a>`;
+}
+
+/** The page before and the page after in the groups' order (catalog.mjs `refNeighbours`); the arrows are the sheet's. */
+export function refPagerMarkup({ prev, next }) {
+  if (!prev && !next) return "";
+  return `<nav class="g-article__pager" aria-label="${escapeHtml(t("ref.pager"))}">${prev ? pagerLink(prev, "prev") : ""}${next ? pagerLink(next, "next") : ""}</nav>`;
+}
+
 /** The way back up, for a phone, which has no table of contents to go by. */
 export function backLinkMarkup({ href, label }) {
   assertLinkHref(href);

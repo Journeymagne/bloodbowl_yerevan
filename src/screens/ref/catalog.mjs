@@ -144,12 +144,6 @@ function pagesById(data) {
   return new Map((data.pages ?? []).map((page) => [page.id, page]));
 }
 
-/** The articles the groups name, in the groups' order; one the vault does not have is left out. */
-function articlePages(data) {
-  const byId = pagesById(data);
-  return REF_ITEMS.flatMap((entry) => byId.get(entry.page) ?? []);
-}
-
 /**
  * The index: each group with its items, a page or a section list. A page the vault does not have
  * is skipped, a section is always there. `overviewCount` is how many overview cards the league
@@ -178,15 +172,12 @@ export function itemKeyOf(page) {
   return LIST_SECTIONS.has(section) ? section : null;
 }
 
-/** The articles on either side of one, in the groups' order (lists are not articles). */
-export function articleNeighbours(data, pageId) {
-  const pages = articlePages(data);
-  const index = pages.findIndex((page) => page.id === pageId);
+/** The items on either side of one in the groups' order, articles and lists alike; `key` is a page's id or a section. */
+export function refNeighbours(data, key) {
+  const items = refGroups(data).flatMap((group) => group.items);
+  const index = items.findIndex((item) => item.key === key);
   if (index < 0) return { prev: null, next: null };
-  return {
-    prev: index > 0 ? pageItem(pages[index - 1]) : null,
-    next: index < pages.length - 1 ? pageItem(pages[index + 1]) : null,
-  };
+  return { prev: items[index - 1] ?? null, next: items[index + 1] ?? null };
 }
 
 const PARAMETER = /^(.*?)\s*\(([^()]*)\)$/;

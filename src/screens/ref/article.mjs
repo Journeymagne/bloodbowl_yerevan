@@ -17,12 +17,11 @@ import { REF_SECTIONS, navRouteForPage, pageUrl, refUrl, skillTableUrl } from ".
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
-import { REF_GROUPS, articleNeighbours, itemKeyOf, memberKicker, placeKicker, refGroups, sectionTitle } from "./catalog.mjs";
+import { REF_GROUPS, itemKeyOf, memberKicker, placeKicker, refGroups, refNeighbours, sectionTitle } from "./catalog.mjs";
 import { drawDetailPage, wireDetailPage } from "./details.mjs";
-import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refPagerMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
 import { proseMarkup } from "./prose.mjs";
@@ -77,17 +76,6 @@ export function articleBody(page, context = {}) {
   return proseMarkup(page.html || `<p>${escapeHtml(page.text)}</p>`);
 }
 
-function pagerLink(item, side) {
-  assertLinkHref(item.href);
-  return `<a class="g-article__${side}" href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a>`;
-}
-
-/** The article before and the article after, when the groups have either; the arrows are the sheet's. */
-function pagerMarkup({ prev, next }) {
-  if (!prev && !next) return "";
-  return `<nav class="g-article__pager" aria-label="${escapeHtml(t("ref.pager"))}">${prev ? pagerLink(prev, "prev") : ""}${next ? pagerLink(next, "next") : ""}</nav>`;
-}
-
 /**
  * The reference page that holds an article: the head, the table of contents with `currentKey` lit,
  * and the article itself. `kicker` and `sub` are left out when empty. `screen` is what makes it this
@@ -127,7 +115,7 @@ export function articleMarkup({ data, page, groups, context = {}, panelHtml = ""
     kicker: kickerOf(page),
     title: page.title,
     bodyHtml: articleBody(page, { data, ...context }),
-    pagerHtml: pagerMarkup(articleNeighbours(data, page.id)),
+    pagerHtml: refPagerMarkup(refNeighbours(data, page.id)),
   });
 }
 

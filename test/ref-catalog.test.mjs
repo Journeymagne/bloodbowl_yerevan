@@ -8,7 +8,7 @@ import { REF_SECTIONS } from "../src/core/routes.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
 import {
-  REF_GROUPS, SECTION_COLLECTIONS, articleNeighbours, groupTitle, itemKeyOf, overviewUrl, pageForName, refGroups, sectionDescription, sectionPages, sectionTitle,
+  REF_GROUPS, SECTION_COLLECTIONS, groupTitle, itemKeyOf, overviewUrl, pageForName, refGroups, refNeighbours, sectionDescription, sectionPages, sectionTitle,
 } from "../src/screens/ref/catalog.mjs";
 
 const data = (locale) => expandCollections(JSON.parse(readFileSync(new URL(`../public/data.${locale}.json`, import.meta.url), "utf8")));
@@ -45,12 +45,16 @@ test("a page lights its own item, a list member lights its list, and a page outs
   assert.equal(itemKeyOf(bySlug("reference-sources")), null);
 });
 
-test("the articles of the groups page through in order; the ends have no neighbour", () => {
-  const { prev, next } = articleNeighbours(en, "general-information-casualties");
-  assert.deepEqual([prev.title, next.title], ["Prayers to Nuffle", "Player Advancement"]);
-  assert.equal(articleNeighbours(en, "general-information-weather").prev, null);
-  assert.equal(articleNeighbours(en, "general-information-all-gata-changes").next, null);
-  assert.deepEqual(articleNeighbours(en, "reference-sources"), { prev: null, next: null });
+test("the groups' items page through in order, articles and lists alike; the ends have no neighbour", () => {
+  const titles = (key) => { const { prev, next } = refNeighbours(en, key); return [prev?.title ?? null, next?.title ?? null]; };
+  assert.deepEqual(titles("general-information-casualties"), ["Prayers to Nuffle", "Inducements"]);
+  assert.deepEqual(titles("inducements"), ["Casualties", "Player Advancement"]);
+  assert.deepEqual(refNeighbours(en, "inducements").next.href, "#/player-advancement");
+  assert.deepEqual(refNeighbours(en, "skills").prev.href, "#/skill-table");
+  assert.deepEqual(titles("general-information-weather"), [null, "Kick-off Table"]);
+  assert.deepEqual(titles("rules"), ["All Gata Changes", null]);
+  assert.deepEqual(refNeighbours(en, "reference-sources"), { prev: null, next: null });
+  assert.deepEqual(refNeighbours(en, "cheatsheets"), { prev: null, next: null }, "a list the groups do not name");
 });
 
 test("a name in a roster finds its page whatever the spelling", () => {
