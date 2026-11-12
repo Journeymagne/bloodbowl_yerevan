@@ -292,6 +292,7 @@
   .g-ref {
     --ref-nav: clamp(140px, 22vw - 97px, 220px);
     --ref-side: clamp(200px, 42vw - 203px, 400px);
+    --ref-inset: var(--space-24);
   }
   .g-ref__body {
     display: grid;
@@ -383,23 +384,20 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
+  /* The head as an article's: the card's inset, the title the page title's 32px (the phone's, and an article's). */
   .g-ref-list__head {
-    padding: var(--space-16) var(--space-20) var(--space-12);
+    padding: var(--ref-inset) var(--ref-inset) var(--space-16);
     border-bottom: 1px solid var(--line);
   }
-  .g-ref-list__title {
-    font: 700 28px/1.1 var(--font-display);
-    letter-spacing: 0;
-    text-transform: none;
-  }
   .g-ref-list .g-chips { flex-wrap: wrap; }
+  /* The rows' words stand on the head's edge: the body's 14 and a row's own 10 are the card's 24. */
   .g-ref-list__body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
     gap: 2px var(--space-8);
     align-content: start;
     margin-top: 0;
-    padding: var(--space-6) var(--space-8) var(--space-10);
+    padding: var(--space-8) var(--space-14) var(--space-14);
   }
   /*
    * A row that says two lines and has a chevron wants more room than a letter and a name. In columns, a line under each
@@ -440,6 +438,7 @@
   }
 
   .g-ref-pick {
+    padding: var(--ref-inset);
     border-radius: var(--radius-2xl);
     background: var(--surface);
     box-shadow: var(--ring);

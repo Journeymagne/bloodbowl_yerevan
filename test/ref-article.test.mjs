@@ -369,7 +369,9 @@ test("up to 900px an article has no frame; from 901px it is a card of the surfac
     assert.ok(!new RegExp(`\\.g-article\\s*\\{[^}]*\\b${property}\\s*:`).test(rest), `.g-article has no ${property} on a phone`);
   }
   assert.ok(!/\.g-article\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "a phone's article has no card");
-  assert.match(wide, /\.g-article\s*\{[^}]*padding:\s*32px 40px;/);
+  assert.match(wide, /\.g-article\s*\{[^}]*padding:\s*var\(--ref-inset\);/, "the reference's one inset, a list's as an article's");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref", "--ref-inset"), ["var(--space-24)"]);
+  assert.match(mediaText("src/screens/ref/ref.css", "min-width: 901px"), /\.g-ref-list__head\s*\{[^}]*padding:\s*var\(--ref-inset\) var\(--ref-inset\)/);
   assert.match(wide, /\.g-article\s*\{[^}]*border-radius:\s*var\(--radius-2xl\);/);
   assert.match(wide, /\.g-article\s*\{[^}]*background:\s*var\(--surface\);/);
   assert.match(wide, /\.g-article\s*\{[^}]*box-shadow:\s*var\(--ring\);/);
@@ -384,15 +386,15 @@ test("the ring is the strong line, and what sits on the card is readable on it i
   assertReadable(SHEET, ".g-article__next", "color", ["--surface", "--page"], 4.5);
 });
 
-test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px, 44px from 901px, in the display face and never in capitals", () => {
+test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px at every width, as a list's, in the display face and never in capitals", () => {
   // The kicker is the reference's, a list's as an article's (ref.css).
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "font"), ["700 12px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "letter-spacing"), [".08em"]);
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "text-transform"), ["uppercase"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)", "700 44px/1 var(--font-display)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none", "none"], "on the phone's rule and on the desktop's");
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "letter-spacing"), ["0", "0"]);
-  assert.ok(split(SHEET).wide.includes("700 44px/1 var(--font-display)"), "the 44px title is the desktop's");
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)"]);
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-list__title", "font"), ["700 32px/1 var(--font-display)"], "a list's title is the same");
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "letter-spacing"), ["0"]);
 });
 
 test("the pager's links are 44px tall, 600 15px in the accent; the arrows are drawn by the sheet", () => {

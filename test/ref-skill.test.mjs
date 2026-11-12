@@ -399,12 +399,12 @@ const REF = "src/screens/ref/ref.css";
 /** The part of a sheet that is for 901px and up, and the part that is not. */
 const split = (file) => ({ wide: mediaText(file, "min-width: 901px"), rest: outsideMedia(file, "min-width: 901px") });
 
-test("the panel's badge is 52px, its name 700 34px in the display face, its caption quiet; none in capitals", () => {
+test("the panel's badge is 52px, its name 700 32px in the display face as every page title, its caption quiet; none in capitals", () => {
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "width"), ["52px"]);
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "height"), ["52px"]);
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "border-radius"), ["var(--radius-xl)"]);
   assert.deepEqual(valuesOf(REF, ".g-ref-badge--lg", "font"), ["700 26px/1 var(--font-display)"]);
-  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__name", "font"), ["700 34px/1 var(--font-display)"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__name", "font"), ["700 32px/1 var(--font-display)"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__name", "text-transform"), ["none"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__caption", "font"), ["400 14px/1.4 var(--font-body)"]);
   assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__ours-title", "text-transform"), ["uppercase"]);
@@ -415,7 +415,7 @@ test("up to 900px the panel is the page itself; from 901px it is a card of the s
   const { wide, rest } = split(ARTICLE);
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\b(box-shadow|padding)\s*:/.test(rest), "a phone's panel has no frame");
   assert.ok(!/\.g-skill-detail\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "and no card");
-  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*var\(--space-24\);/);
+  assert.match(wide, /\.g-skill-detail\s*\{[^}]*padding:\s*var\(--ref-inset\);/, "the reference's one inset");
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*border-radius:\s*var\(--radius-2xl\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*background:\s*var\(--surface\);/);
   assert.match(wide, /\.g-skill-detail\s*\{[^}]*box-shadow:\s*var\(--ring\);/);
