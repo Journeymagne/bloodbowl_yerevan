@@ -446,6 +446,7 @@ as Russian typography would have it. A new short label follows it. Sentences kee
 | Bonus skill | Бонусный навык | 07d · `teamPlayer.favoured.label` |
 | Two D16s · Roll two D16 | Два D16 · Бросить два D16 | 07d · `teamAdvance.rollResult`, `teamAdvance.rollD16`; note 3 |
 | The skills rolled | Выпавшие навыки | 07d · `teamAdvance.pairLabel`; note 3 |
+| About {skill} | Подробнее: {skill} | 07d · `teamAdvance.rule` (the chosen skill's rule, folded under the skills) |
 | Career · by match | Карьера · по матчам | 07e · `teamPlayer.career.title`, `teamPlayer.career.byMatch`; note 4 |
 | Before the site's records | До записей на сайте | 07e · `teamPlayer.career.before` |
 | waits for the post-match | ждёт итогов | 07e · `teamPlayer.career.pending` |
