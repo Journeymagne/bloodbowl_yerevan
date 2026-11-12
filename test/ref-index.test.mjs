@@ -244,11 +244,13 @@ test("the reference's band is the page head: its title (h1 on the index, a parag
   assert.doesNotMatch(read(SHEET), /g-ref-head/, "the reference's own band is gone");
 });
 
-test("the way back is a link with an arrow and a name; the name is text", () => {
+test("the way back is a round «‹» named by where it leads; the name is text", () => {
   const link = draw(backLinkMarkup({ href: "#/ref/skills", label: HOSTILE })).querySelector("a.g-ref-back");
   assert.equal(link.getAttribute("href"), "#/ref/skills");
   assert.ok(link.querySelector("svg"));
-  assert.equal(link.textContent, HOSTILE);
+  assert.equal(link.textContent, "", "the glyph alone");
+  assert.equal(link.getAttribute("aria-label"), `Back to ${HOSTILE}`);
+  assertCspSafe(draw(backLinkMarkup({ href: "#/ref/skills", label: HOSTILE })));
 });
 
 test("the search field is wired by its attribute, and unwires", () => {
@@ -284,22 +286,24 @@ test("the head is the index's up to 900px, its title 32 and the search 20 under 
   assert.doesNotMatch(mediaText(SHEET, "min-width: 901px"), /g-pagehead/);
 });
 
-test("the table of contents is the desktop's: 48px links, the current one on the surface in bold", () => {
+test("the table of contents is the desktop's: 48px links, the current one on the surface at the same weight", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "display"), ["none", "flex"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "flex"), ["1 1 220px"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "max-width"), ["260px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "grid-column"), ["1"], "the grid's first column, var(--ref-nav)");
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__link", "min-height"), ["48px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__link", "border-radius"), ["var(--radius-sm)"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-toc__link[aria-current="page"]', "background"), ["var(--surface)"]);
-  assert.deepEqual(valuesOf(SHEET, '.g-ref-toc__link[aria-current="page"]', "font-weight"), ["700"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-ref-toc__link[aria-current="page"]', "font-weight"), [], "no bolder, wider name that could wrap");
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group", "font"), ["700 12px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group", "text-transform"), ["uppercase"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group:not(:first-child)", "border-top"), ["1px solid var(--line)"], "a line between the groups");
 });
 
-test("the way back is a 44px link on a phone and gone on a desktop", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "min-height"), ["44px"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "font"), ["600 14px/1.2 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "color"), ["var(--accent-text)"]);
+test("the way back is a 44px round button on a phone, as a team's settings' «‹», and gone on a desktop", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "width"), ["44px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "height"), ["44px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "border-radius"), ["22px"]);
+  assert.deepEqual(valuesOf("src/screens/team/manage/settings.css", ".g-team-settings-screen__back", "border-radius"), ["22px"], "the same circle");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "color"), ["var(--ink)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "display"), ["inline-flex", "none"]);
 });
 
@@ -325,7 +329,7 @@ test("the head, the groups and the table of contents are readable in every palet
   assertReadable(SHEET, ".g-ref-group__title", "color", ["--page", "--desk", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-found", "color", ["--page", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-empty", "color", ["--page", "--surface"], 4.5);
-  assertReadable(SHEET, ".g-ref-back", "color", ["--page", "--desk"], 4.5);
+  assertReadable(SHEET, ".g-ref-back", "color", ["--surface-2"], 3);
   assertReadable(SHEET, ".g-ref-toc__group", "color", ["--desk"], 4.5);
   assertReadable(SHEET, ".g-ref-toc__link", "color", ["--desk"], 4.5);
   assertReadable(SHEET, '.g-ref-toc__link[aria-current="page"]', "color", ["--surface"], 4.5);

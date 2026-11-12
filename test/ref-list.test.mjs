@@ -6,7 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 import { assertBreakpoints, mediaText } from "./helpers/css.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { renderRefSection, refListMarkup, skillCategories, listRows } = await import("../src/screens/ref/list.mjs");
@@ -30,15 +30,17 @@ beforeEach(() => {
   setRefQuery("");
 });
 
-test("skills: every one, a letter for its category, its type, and a link to its page", () => {
+test("skills: every one, a letter for its category and a link to its page; Active or Passive is the panel's", () => {
   renderRefSection("skills");
   const rows = view.querySelectorAll("a.g-ref-row");
   assert.equal(rows.length, 82);
   assert.equal(view.querySelector("h1").textContent, "Skills");
   assert.equal(view.querySelector(".g-ref-list__count").textContent, "82 of 82");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
-  assert.deepEqual([block.querySelector(".g-ref-badge").textContent, block.querySelector(".g-ref-row__meta").textContent], ["G", "Active"]);
-  assert.equal(view.querySelector('a.g-ref-row[href="#/skills/thick-skull"] .g-ref-row__meta').textContent, "Passive");
+  assert.deepEqual([block.querySelector(".g-ref-badge").textContent, block.querySelector(".g-ref-row__name").textContent], ["G", "Block"]);
+  assert.equal(block.textContent.includes("Active"), false, "the row says no type");
+  renderRefSection("skills", { selected: referenceData("en").skills.find((page) => page.slug === "skills/block") });
+  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail__caption").textContent, "General · Active", "the open skill's panel says it");
 });
 
 test("a category chip narrows the skills to it and says how many of how many; All brings them back", () => {
@@ -104,22 +106,18 @@ test("no link a list draws is sent on by the router, and every key is in both di
 
 // What the brief leaves to the screen.
 
-test("a skill names its category for a screen reader and wears its colour; a trait wears a dot, and only a passive one says so", () => {
+test("a skill names its category for a screen reader and wears its colour; a trait wears a T", () => {
   renderRefSection("skills");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
   assert.equal(block.querySelector(".g-sr-only").textContent, "General");
   assert.ok(block.querySelector(".g-ref-badge.g-ref-badge--general"));
   assert.equal(block.querySelector(".g-ref-badge").getAttribute("aria-hidden"), "true");
-  assert.ok(view.querySelector('a.g-ref-row[href="#/skills/thick-skull"] .g-ref-row__meta--passive'), "the word Passive is also marked for the colour");
-  assert.equal(view.querySelector('a.g-ref-row[href="#/skills/block"] .g-ref-row__meta--passive'), null);
   renderRefSection("traits");
   const trait = view.querySelector('a.g-ref-row[href="#/traits/always-hungry"]');
-  assert.equal(trait.querySelector(".g-ref-badge").textContent, "•");
+  assert.equal(trait.querySelector(".g-ref-badge").textContent, "T");
   assert.ok(trait.querySelector(".g-ref-badge--trait"));
   assert.equal(trait.querySelector(".g-sr-only").textContent, "Trait");
-  assert.equal(trait.querySelector(".g-ref-row__meta"), null, "a trait with no Active or Passive tag has no type to show");
-  assert.equal(view.querySelector('a.g-ref-row[href="#/traits/throw-team-mate"] .g-ref-row__meta').textContent, "Passive");
-  assertStyled(view, "src/screens/ref/ref.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
+  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "page-head.css", "list-row.css", "search-field.css", "filter-chips.css");
 });
 
 test("the categories are the skill groups' in their order, each with the skills that carry the tag", () => {
@@ -197,46 +195,73 @@ test("a skill that is open is marked in the list, which keeps its filter; the li
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"], "the open skill's panel owns the h1");
   assert.equal(view.querySelector("p.g-ref-list__title").textContent, "Skills");
-  assert.ok(view.querySelector(".g-ref.g-ref--split.g-ref--open"));
+  assert.ok(view.querySelector(".g-ref.g-ref--split"));
   assert.ok(view.querySelector(".g-ref__panel .g-skill-detail"), "the panel stands where the hint did");
   assert.equal(view.querySelector(".g-ref-pick"), null);
   renderRefSection("skills");
-  assert.equal(view.querySelector(".g-ref--open"), null, "nothing chosen: the list is the whole screen on a phone");
-  assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "and no row is marked");
+  assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "nothing chosen: no row is marked");
   assert.ok(view.querySelector("h1"), "the list has its heading back");
 });
 
-test("the rows box keeps its scroll while an item is opened beside it, and starts at the top for any other set of rows", () => {
-  const dodge = referenceData("en").skills.find((page) => page.slug === "skills/dodge");
-  renderRefSection("skills");
-  const body = () => view.querySelector(".g-ref-list__body");
-  body().scrollTop = 300;
-  renderRefSection("skills", { selected: dodge });
-  assert.equal(body().scrollTop, 300, "the same list with one row marked");
-  fireEvent(view.querySelector('[data-chip-value="Agility"]'), "click");
-  assert.equal(body().scrollTop, 0, "another category is another list");
-  body().scrollTop = 40;
-  type("#ref-list-query", "d");
-  assert.equal(body().scrollTop, 0, "a search too");
-  body().scrollTop = 40;
-  renderRefSection("traits");
-  assert.equal(body().scrollTop, 0, "and so is another section: the box of the screen before is reused");
-});
-
-test("traits get the trait hint; the lists that are not split have no panel and are never open", () => {
+test("traits and inducements get their hints; the lists that are not split have no panel", () => {
   renderRefSection("traits");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a trait to read its rule");
-  for (const section of ["teams", "star-players", "inducements", "rules", "cheatsheets"]) {
+  renderRefSection("inducements");
+  assert.ok(view.querySelector(".g-ref.g-ref--split"));
+  assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose an inducement to read its rule");
+  for (const section of ["teams", "star-players", "rules", "cheatsheets"]) {
     renderRefSection(section);
     assert.ok(view.querySelector(".g-ref.g-ref--list"), section);
     assert.equal(view.querySelector(".g-ref__panel"), null, section);
   }
 });
 
+test("an inducement's address opens it beside its list on a desk: the row marked, the page's text under its name, the one h1", async () => {
+  const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
+  renderReferencePage("inducements/biased-referee");
+  assert.ok(view.querySelector(".g-ref.g-ref--split .g-ref-list--nav"), "the list keeps its two-line rows");
+  assert.deepEqual(view.querySelectorAll('a.g-list-row[aria-current="page"]').map((row) => row.getAttribute("href")), ["#/inducements/biased-referee"]);
+  const card = view.querySelector(".g-ref__panel .g-skill-detail");
+  assert.equal(card.getAttribute("data-page"), "inducements/biased-referee");
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Biased Referee"]);
+  assert.equal(card.querySelector(".g-ref-badge"), null, "an inducement has no letter");
+  assert.equal(card.querySelector(".g-skill-detail__caption").textContent, "Inducement", "what it is, under its name, as a skill's category");
+  assert.ok(card.querySelector(".g-prose p"));
+  assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/inducements");
+  assertStyled(view, "src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "page-head.css", "list-row.css", "search-field.css");
+});
+
+test("on a phone an inducement opens in a sheet over its list, named by it, with no letter", async () => {
+  const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
+  withWindow({ phone: true }, () => {
+    renderReferencePage("inducements/biased-referee");
+    const sheet = view.querySelector("dialog#ref-detail");
+    assert.ok(sheet.matches(":modal"));
+    assert.equal(sheet.querySelector(".g-sheet__title").textContent, "Biased Referee");
+    assert.equal(sheet.querySelector(".g-sheet__sub").textContent, "Inducement");
+    useLocale("ru");
+    renderReferencePage("inducements/biased-referee");
+    assert.equal(view.querySelector("dialog#ref-detail .g-sheet__sub").textContent, "Inducement", "the glossary keeps the reference's inducement words English");
+    useLocale("en");
+    renderReferencePage("inducements/biased-referee");
+    assert.equal(sheet.querySelector(".g-ref-badge"), null);
+    assert.ok(sheet.querySelector(".g-skill-detail .g-prose"));
+    assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Inducements"]);
+  });
+});
+
 test("a phone gets the way back up to the reference; the table of contents and the band are the page's own", () => {
   renderRefSection("teams");
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("href"), "#/ref");
-  assert.equal(view.querySelector("a.g-ref-back").textContent, "Reference");
+  assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Back to Reference");
+  const top = view.querySelector(".g-ref-list__top").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(top, ["g-ref-back", "g-ref-list__titles", "g-ref-list__count"], "at the left of the list's titles");
+  assert.equal(view.querySelector(".g-ref-list__titles .g-ref-place").textContent, "Teams · Reference", "where the list lives, as an article says it");
+  for (const [section, kicker] of [["skills", "Players · Reference"], ["inducements", "Before and during a match · Reference"], ["rules", "League · Reference"]]) {
+    renderRefSection(section);
+    assert.equal(view.querySelector(".g-ref-place").textContent, kicker, section);
+  }
+  renderRefSection("teams");
   assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
   assert.ok(view.querySelector("nav.g-ref-toc"));
   setRefQuery("dodge");
@@ -272,17 +297,25 @@ test("a team narrows by name, and the list of teams, stars and inducements all a
   assert.equal(view.querySelector("a.g-list-row .g-list-row__title").textContent, "Additional Training");
 });
 
-test("an inducement says its rule in the first ninety characters", () => {
-  const data = referenceData("en");
-  renderRefSection("inducements");
-  const rows = view.querySelectorAll("a.g-list-row");
-  assert.equal(rows.length, 24);
-  for (const row of rows) {
-    const page = data.inducements.find((item) => `#/${item.slug}` === row.getAttribute("href"));
-    const text = row.querySelector(".g-list-row__desc").textContent;
-    assert.equal(text, page.text.length > 90 ? `${page.text.slice(0, 90).trimEnd()}…` : page.text, page.title);
+test("an inducement's row says how many, the name and the price — its rule's opening up to the colon — and has no chevron, as a skill's", () => {
+  for (const locale of ["en", "ru"]) {
+    useLocale(locale);
+    const data = referenceData(locale);
+    renderRefSection("inducements");
+    const rows = view.querySelectorAll("a.g-list-row");
+    assert.equal(rows.length, 24, locale);
+    for (const row of rows) {
+      const page = data.inducements.find((item) => `#/${item.slug}` === row.getAttribute("href"));
+      assert.equal(row.querySelector(".g-list-row__desc").textContent, page.text.slice(0, page.text.indexOf(":")).trim(), `${locale}: ${page.title}`);
+      assert.equal(row.querySelector(".g-icon"), null, `${locale}: ${page.title}`);
+    }
   }
-  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/additional-training"] .g-list-row__desc').textContent, "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.");
+  useLocale("en");
+  renderRefSection("inducements");
+  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/additional-training"] .g-list-row__desc').textContent, "0-6 Additional Training (85k)");
+  assert.equal(view.querySelector('a.g-list-row[href="#/inducements/biased-referee"] .g-list-row__desc').textContent, "0-1 Biased Referee (100k, or 60k for Bribery and Corruption)");
+  renderRefSection("star-players");
+  assert.ok(view.querySelector("a.g-list-row .g-icon"), "a row that leads to a page of its own keeps its chevron");
 });
 
 test("a league rule is described by its sentence in the dictionary, in both languages, for every page of both vaults", () => {
@@ -316,7 +349,9 @@ test("the same lists in Russian, from the Russian dictionary and the Russian vau
   assert.match(view.querySelector('a.g-list-row[href="#/teams/human"] .g-list-row__desc').textContent, /^Tier \d · Основные$/);
   renderRefSection("skills");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Выберите навык, чтобы прочитать правило");
-  assert.equal(view.querySelector("a.g-ref-back").textContent, "Справочник");
+  assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Назад в «Справочник»");
+  renderRefSection("traits");
+  assert.equal(view.querySelector('a.g-ref-row[href="#/traits/always-hungry"] .g-ref-badge').textContent, "T", "a trait's letter is the English one, as a skill's");
   renderRefSection("rules");
   assert.deepEqual(view.querySelectorAll(".g-ref-list h2").map((h) => h.textContent), ["Кратко", "Полный текст"]);
   assert.equal(view.querySelector('a.g-list-row[href="#/overview/code-of-conduct"] .g-list-row__title').textContent, "Кодекс поведения");
@@ -375,14 +410,12 @@ test("the 2.x list screen and its filters are gone, and the router draws the new
 
 const SHEET = "src/screens/ref/ref.css";
 
-test("a row is 48px: a 28px badge, the name, the type; the name 500 15px, the type 700 11px in capitals", () => {
+test("a row is 48px: a 28px badge and the name, 500 15px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "grid-template-columns"), ["28px minmax(0, 1fr) auto"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "grid-template-columns"), ["28px minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row", "min-height"), ["48px"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-row__name", "font"), ["500 15px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta", "font"), ["700 11px/1.2 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta", "text-transform"), ["uppercase"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-row__meta--passive", "color"), ["var(--danger)"]);
+  assert.equal(read(SHEET).includes("g-ref-row__meta"), false, "the type's styles went with it");
 });
 
 test("the badge is a 28px square, white on its category's colour", () => {
@@ -397,50 +430,64 @@ test("the badge is a 28px square, white on its category's colour", () => {
   }
 });
 
-test("on a phone a split page is two screens: the list, or — with something chosen — its panel", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "display"), ["none"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__main", "display"), ["none"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split.g-ref--open .g-ref__panel", "display"), ["block"]);
-  const phone = mediaText(SHEET, "max-width: 900px");
-  for (const selector of [".g-ref--split .g-ref__panel", ".g-ref--split.g-ref--open .g-ref__main", ".g-ref--split.g-ref--open .g-ref__panel"]) {
-    assert.ok(phone.includes(selector), `${selector} is a phone rule`);
-  }
+test("a phone has no panel: what a split page opens is a sheet over its list, which is never hidden", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "display"), ["none"]);
+  assert.ok(mediaText(SHEET, "max-width: 900px").includes(".g-ref__panel"), "a phone rule");
+  assert.equal(read(SHEET).includes("g-ref--open"), false, "no state shows the panel instead of the list");
 });
 
-test("from 901px a list is columns that never wrap: the contents, the list and, with a panel, the panel up to 440px", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr) clamp(200px, 42vw - 203px, 440px)"]);
-  // The columns at a window's width (the side nav 232, the page's 32 each side, two gaps of 20): DeskRef's at 1440 —
-  // contents ≈ 254–260, panel 402, the list one column of rows —, and a list of 300 and more at 1024 (fidelity N6).
+test("from 901px every page is the Skills page's grid: the contents, the main column, the panel's column, empty where there is no panel", () => {
+  const desk = mediaText(SHEET, "min-width: 901px");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "display"), ["flex", "grid"], "a phone's column, a desk's grid");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "grid-template-columns"), ["var(--ref-nav) minmax(0, 1fr) var(--ref-side)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "align-items"), ["start"], "the panel can stick");
+  assert.ok(desk.includes(".g-ref__body {"), "the grid is a desk rule");
+  for (const layout of ["list", "split", "article"]) assert.deepEqual(valuesOf(SHEET, `.g-ref--${layout} .g-ref__main`, "grid-column"), ["2"], layout);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--index .g-ref__main", "grid-column"), ["1 / -1"], "the index has no contents or panel: it takes the whole width");
+  assert.equal(read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").match(/:has\(\.g-ref-skilltable|--ref-(mid|read)/), null, "no page, the Skill Table's among them, is wider than the main column");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "grid-column"), ["3"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "grid-column"), ["1"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-results", "max-width"), [], "search results are as wide as every list");
+  // The columns at a window's width (the side nav 232, the page's 32 each side, two gaps of 20).
   const clamp = (text, width) => {
     const [, low, vw, minus, high] = text.match(/^clamp\((\d+)px, (\d+)vw - (\d+)px, (\d+)px\)$/);
     return Math.min(Number(high), Math.max(Number(low), (Number(vw) * width) / 100 - Number(minus)));
   };
-  const [contents, , panel] = valuesOf(SHEET, ".g-ref--split .g-ref__body", "grid-template-columns")[0].split(/ (?=clamp|minmax)/);
-  const columns = (width) => {
-    const [left, right] = [clamp(contents, width), clamp(panel, width)];
-    return [left, width - 232 - 64 - 40 - left - right, right].map(Math.round);
-  };
-  assert.deepEqual(columns(1440), [260, 442, 402]);
-  assert.ok(columns(1024)[1] >= 300, `the list at 1024: ${columns(1024)}`);
-  assert.ok(columns(901)[1] >= 220, `the list at 901: ${columns(901)}`);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "position"), ["sticky"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
-  for (const selector of [".g-ref--list .g-ref__body", ".g-ref--split .g-ref__body"]) {
-    assert.deepEqual(valuesOf(SHEET, selector, "flex-flow"), [], `${selector} is not a wrapping row`);
-    assert.deepEqual(valuesOf(SHEET, selector, "align-items"), ["start"], `${selector} lets the panel stick`);
-  }
+  const [nav] = valuesOf(SHEET, ".g-ref", "--ref-nav");
+  const [side] = valuesOf(SHEET, ".g-ref", "--ref-side");
+  const columns = (width) => [clamp(nav, width), width - 232 - 64 - 40 - clamp(nav, width) - clamp(side, width), clamp(side, width)].map(Math.round);
+  assert.deepEqual(columns(1440), [220, 484, 400]);
+  assert.deepEqual(columns(1920), [220, 964, 400]);
+  assert.ok(columns(1024)[1] >= 300, `the main column at 1024: ${columns(1024)}`);
+  assert.ok(columns(901)[1] >= 220, `the main column at 901: ${columns(901)}`);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "position"), ["sticky"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "top"), ["24px"]);
 });
 
-test("from 901px the rows are a grid of 220px columns in a framed card that scrolls from 720px", () => {
+test("from 901px the rows are a grid of 220px columns in a framed card, and the page scrolls, not the rows", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "grid-template-columns"), ["repeat(auto-fill, minmax(min(220px, 100%), 1fr))"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "max-height"), ["720px"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "overflow-y"), ["auto"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "max-height"), []);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-top"), ["1px solid var(--line)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-bottom"), ["0"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "margin-top"), [], "the first row's lines are not laid over the head's rule");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "clip-path"), ["inset(1px 0 0 0)"], "the first row's lines are clipped off");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row:focus-visible", "outline-offset"), ["-3px"], "a row's focus ring stays inside the clip");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "overflow-y"), []);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list", "background"), ["none", "var(--surface)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "grid-column"), ["1 / -1"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "font"), ["700 24px/1.2 var(--font-display)"], "a group's heading is a card title, as the season page's");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "margin"), ["var(--space-24) 0 var(--space-8)"]);
   assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"]', "box-shadow"), ["var(--ring-selected)"]);
+  assert.deepEqual(valuesOf(SHEET, '.g-ref-row[aria-current="page"] .g-ref-row__name', "font-weight"), [], "the open row's name keeps its weight, so its width");
+});
+
+test("on a phone the chips row scrolls with no bar under the chips; a desk keeps the bar", () => {
+  const CHIPS = "src/ui/filter-chips.css";
+  const phone = mediaText(CHIPS, "max-width: 900px");
+  assert.match(phone, /\.g-chips\s*\{[^}]*scrollbar-width:\s*none/);
+  assert.match(phone, /\.g-chips::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(read(CHIPS).replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, ""), /scrollbar-width/, "outside the phone's rule the bar is the browser's");
+  assert.deepEqual(valuesOf(CHIPS, ".g-chips", "overflow-x"), ["auto"]);
 });
 
 test("the list sheet breaks at 900/901 only, and sets the case wherever it sets a font", () => {
@@ -458,8 +505,6 @@ test("the list's title, count, names, types and hint are readable in every palet
   assertReadable(SHEET, ".g-ref-list__subtitle", "color", ["--page", "--surface"], 4.5);
   // The row that is open sits on the accent tint.
   assertReadable(SHEET, ".g-ref-row", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
-  assertReadable(SHEET, ".g-ref-row__meta", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
-  assertReadable(SHEET, ".g-ref-row__meta--passive", "color", ["--page", "--surface", "--accent-tint-soft"], 4.5);
   assertReadable(SHEET, ".g-ref-pick", "color", ["--page", "--surface"], 4.5);
 });
 

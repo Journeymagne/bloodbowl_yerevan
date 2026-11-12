@@ -1,6 +1,6 @@
 ---
 name: review-changes
-description: Review this repo's changes (the branch against main by default, or a commit range, or the uncommitted work) for bugs, performance, copy-paste leftovers, consistency with the rest of the app, the design system, i18n, accessibility, tests and docs; run the project's checks against a clean baseline; report findings by severity and list refactor ideas for the user to approve. Use when the user asks to review, check or audit changes before a commit, push or PR.
+description: Review this repo's changes (the branch against main by default, or a commit range, or the uncommitted work) for bugs, performance, copy-paste leftovers, simplifications, consistency with the rest of the app, the design system, i18n, accessibility, tests and docs; run the project's checks against a clean baseline; report findings by severity and list refactor ideas for the user to approve. Use when the user asks to review, check or audit changes before a commit, push or PR.
 ---
 
 # Review changes (Gata Blood Bowl League)
@@ -213,6 +213,26 @@ the user, each with the address to open on `http://localhost:3002` — after `np
   **both** `en.json` and `ru.json`).
 - Tests whose names or messages still describe the old behaviour after their assertions were updated.
 
+## 5a. Simplification
+
+Required in every review, not only when asked: go through the change once more asking what could be simpler with
+the same behaviour, and report each as a finding of its own group (§13), with its size.
+
+- The same logic or markup written twice: in two screens, in two widths' branches, in a screen and a test helper
+  (part 3's lists and Skill Table each drew and wired their detail card; the pager lived in two files).
+- A fact kept in two places that must agree: a list of ids, a set of sections, a selector (`SPLIT_SECTIONS` was
+  spelt out in the router and the lists).
+- Work done at draw time that the build could do once (a link rewrite of the generated HTML), or per draw that
+  could be done once per screen.
+- A parameter every caller passes the same way, a branch the app never reaches, a flag that only one caller sets,
+  a helper that wraps one call.
+- A new local helper, class or key where a shared one does it (`src/ui/`, `common.*`, a domain function).
+- More code than the change needs: state kept that can be derived, a wrapper element only one rule uses, a
+  special case the general rule already covers.
+
+Name what goes and what replaces it. A simplification that would change behaviour is not one: say what changes
+and ask.
+
 ## 6. Consistency with the rest of the app
 
 For every visual or wording change, grep for the same pattern elsewhere and say whether it should follow. Compare
@@ -322,12 +342,28 @@ failure, a broken check) or **nice to have** (consistency, polish, cleanup). Gro
 2. **Performance**
 3. **Accessibility**
 4. **Copy-paste and leftovers**
-5. **Consistency** — where else the same thing differs.
-6. **Design system** — tokens or components worth adding or reusing.
-7. **Tests and docs**
-8. **Comments** — to delete or fix.
+5. **Simplification** — what could be simpler with the same behaviour (§5a), each with its size.
+6. **Consistency** — where else the same thing differs.
+7. **Design system** — tokens or components worth adding or reusing.
+8. **Tests and docs**
+9. **Comments** — to delete or fix.
 
 Say plainly when a group has nothing.
 
 Last, **Refactor suggestions**: a numbered list, each with what it would change, why, and its size (small / medium /
 large). Ask which, if any, to apply — and which findings to fix — and do not apply them unasked.
+
+## 14. Changelog, once the fixes are in
+
+The owner asks for it: after the review's fixes, the branch writes what it changes into `CHANGELOG.md` as a release
+of its own, a patch over its parent's (UI v2 polish: p1 3.0.1, p2 3.0.2, p3 3.0.3): `## [x.y.z] — unreleased` at
+the top, the date set when it merges into `main`. The version goes in `package.json`, both of `package-lock.json`'s
+root lines, `README.md`'s «Current release» and `test/version.test.mjs`'s `RELEASE`. Keep a Changelog's groups as the file has them (`### Added`, `### Changed`, `### Fixed`,
+`### Removed`), each item a **bold lead** naming the area, then what a coach or an operator now sees, in the file's
+plain words: UI words in «guillemets», EN with RU where a name changed, no class names, files or review rounds.
+
+- Go through the branch's commits (`log --oneline <base>..HEAD`) and give every change a coach can see a line;
+  internal refactors and tests get none.
+- A stacked branch keeps its parent's release entry as it came in the back-merge and puts its own above it; on a
+  conflict in those files, the branch's version wins and the parent's entry stays whole.
+- Commit it with the fixes, or as `docs(changelog): …` on its own, and show it to the user with the fixes' diff.

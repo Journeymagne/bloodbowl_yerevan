@@ -5,23 +5,23 @@
  *
  * An article says where it lives (its kicker: the group and the section), what it is, and, when the
  * reference's groups name it, which article comes before it and after it. A page that is a member of
- * a list (a team, an inducement) goes back to that list. An address with no page is an
+ * a list (a team) goes back to that list. An address with no page is an
  * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
  * bodies.mjs instead of from the vault's text: Leagues and the Skill Table; a team's page is drawn by
- * team.mjs from the team's data. A skill or a trait is not an article: it is the panel beside its list
- * (list.mjs).
+ * team.mjs from the team's data. A skill, a trait or an inducement is not an article: it is the card its
+ * list opens (list.mjs).
  */
 import { drawScreen, escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { REF_SECTIONS, leagueKey, navRouteForPage, refUrl } from "../../core/routes.mjs";
+import { REF_SECTIONS, leagueKey, navRouteForPage, pageUrl, refUrl, skillTableUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
-import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
-import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { REF_GROUPS, itemKeyOf, memberKicker, placeKicker, refGroups, refNeighbours, sectionTitle } from "./catalog.mjs";
+import { drawDetailPage, wireDetailPage } from "./details.mjs";
+import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refPagerMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
 import { proseMarkup } from "./prose.mjs";
@@ -46,7 +46,6 @@ function sectionOf(page) {
   return REF_SECTIONS.has(section) ? section : null;
 }
 
-const groupOfSection = (section) => REF_GROUPS.find((group) => group.items.some((item) => item.section === section));
 const groupOfPage = (page) => REF_GROUPS.find((group) => group.items.some((item) => item.page === page.id));
 
 /** Where the way up from a page leads: its list, or the reference. */
@@ -57,16 +56,11 @@ export function parentOf(page) {
 
 /**
  * The line over an article's title that says where it lives: "Teams · Team's Rules" for a member of
- * a list, "Players · league reference" for an article of a group, "Reference" for any other page.
+ * a list, "Players · Reference" for an article of a group, "Reference" for any other page.
  */
 export function kickerOf(page) {
   const section = sectionOf(page);
-  if (section) {
-    const group = groupOfSection(section);
-    return group ? `${groupTitle(group.key)} · ${sectionTitle(section)}` : sectionTitle(section);
-  }
-  const group = groupOfPage(page);
-  return group ? t("ref.kicker", { group: groupTitle(group.key) }) : t("shell.tab.ref");
+  return section ? memberKicker(section) : placeKicker(groupOfPage(page)?.key ?? null);
 }
 
 /**
@@ -82,33 +76,23 @@ export function articleBody(page, context = {}) {
   return proseMarkup(page.html || `<p>${escapeHtml(page.text)}</p>`);
 }
 
-function pagerLink(item, side) {
-  assertLinkHref(item.href);
-  return `<a class="g-article__${side}" href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a>`;
-}
-
-/** The article before and the article after, when the groups have either; the arrows are the sheet's. */
-function pagerMarkup({ prev, next }) {
-  if (!prev && !next) return "";
-  return `<nav class="g-article__pager" aria-label="${escapeHtml(t("ref.pager"))}">${prev ? pagerLink(prev, "prev") : ""}${next ? pagerLink(next, "next") : ""}</nav>`;
-}
-
 /**
  * The reference page that holds an article: the head, the table of contents with `currentKey` lit,
  * and the article itself. `kicker` and `sub` are left out when empty. `screen` is what makes it this
  * article and no other (`drawScreen`): the page's slug, so that the same article drawn again stays put.
  */
-function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "" }) {
-  const head = `<div class="g-article__head">`
-    + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
+function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "", panelHtml = "" }) {
+  const head = `<div class="g-article__head">${backLinkMarkup(back)}<div class="g-article__titles">`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
-    + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div>`;
+    + `${kicker ? `<p class="g-ref-place">${escapeHtml(kicker)}</p>` : ""}`
+    + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div></div>`;
   return refPageMarkup({
     layout: "article",
     screen: `article:${screen}`,
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(groups, currentKey),
-    mainHtml: `<article class="g-article">${backLinkMarkup(back)}${head}${bodyHtml}${pagerHtml}</article>`,
+    mainHtml: `<article class="g-article">${head}${bodyHtml}${pagerHtml}</article>`,
+    panelHtml,
   });
 }
 
@@ -121,8 +105,9 @@ function articleFrame({ screen, groups, currentKey = null, back, kicker = "", ti
  * @param {object[]} props.groups the table of contents, as catalog.mjs `refGroups` gives it
  * @param {object} [props.context] what the page's body needs besides the page and the vault (see `articleBody`)
  */
-export function articleMarkup({ data, page, groups, context = {} }) {
+export function articleMarkup({ data, page, groups, context = {}, panelHtml = "" }) {
   return articleFrame({
+    panelHtml,
     screen: page.slug,
     groups,
     currentKey: itemKeyOf(page),
@@ -130,7 +115,7 @@ export function articleMarkup({ data, page, groups, context = {} }) {
     kicker: kickerOf(page),
     title: page.title,
     bodyHtml: articleBody(page, { data, ...context }),
-    pagerHtml: pagerMarkup(articleNeighbours(data, page.id)),
+    pagerHtml: refPagerMarkup(refNeighbours(data, page.id)),
   });
 }
 
@@ -143,15 +128,15 @@ const referenceBack = () => ({ href: refUrl(), label: t("shell.tab.ref") });
 
 /** An address with no page behind it (`slug`: what the address said, which is also what tells it from another): said in the article's own place, with the reference all round it. */
 export function notFoundMarkup(slug = "") {
-  return articleFrame({ screen: slug, groups: currentGroups(), back: referenceBack(), title: t("app.pageNotFound") });
+  return articleFrame({ screen: slug, groups: currentGroups(), back: referenceBack(), kicker: placeKicker(), title: t("app.pageNotFound") });
 }
 
 /**
  * The reference draws the screen and hears its band's search; drawing another article in its place
  * hooks it once. An article that is another one than the page held starts at the top (`drawScreen`),
  * the pager's next article included, wherever the link was and whichever way the coach came (a tap, a
- * Back). `wireBody` is how a body that listens too (the Skill Table's die) joins the search, so that it
- * is let go with it.
+ * Back). `wireBody` is how a body that listens too (a team's rules, for the season) joins the search, so
+ * that it is let go with it.
  */
 function show(markup, wireBody = null) {
   drawScreen(view, markup);
@@ -180,12 +165,14 @@ function showLeague(league) {
  * Leagues article to scroll to (routes.mjs `leagueKey`).
  */
 export function renderReferencePage(slug, { league = "" } = {}) {
-  const page = findPage(state.data, slug);
-  if (!page) {
+  const [onTable, skillName] = slug.match(/^skill-table\/(.+)$/) ?? [];
+  const page = findPage(state.data, onTable ? "skill-table" : slug);
+  const skill = onTable ? state.data.skills?.find((item) => item.slug === `skills/${skillName}`) ?? null : null;
+  if (!page || (onTable && !skill)) {
     show(notFoundMarkup(slug));
     return;
   }
-  if (page.kind === "skill" || page.kind === "trait") {
+  if (page.kind === "skill" || page.kind === "trait" || page.kind === "inducement") {
     renderRefSection(navRouteForPage(page), { selected: page });
     return;
   }
@@ -194,10 +181,29 @@ export function renderReferencePage(slug, { league = "" } = {}) {
     renderTeamRules(page, groups);
     return;
   }
-  const markup = () => articleMarkup({ data: state.data, page, groups });
-  // The die changes the article, not the screen around it: the page is drawn again in its place and nothing is wired twice.
-  show(markup(), page.id === SKILL_TABLE_ID ? () => wireSkillTableRoller(view, () => patch(view, markup())) : null);
+  if (page.id === SKILL_TABLE_ID) {
+    renderSkillTable(page, skill, groups);
+    return;
+  }
+  show(articleMarkup({ data: state.data, page, groups }));
   if (league && page.id === LEAGUES_ID) showLeague(league);
+}
+
+function renderSkillTable(page, skill, groups) {
+  const draw = () => drawDetailPage(view, {
+    screen: `article:${page.slug}`,
+    selected: skill,
+    pick: t("ref.skill.pick"),
+    level: 2,
+    opener: (slug) => `.g-article a[href="${skillTableUrl({ slug })}"]`,
+    markupOf: (panel, panelHtml) => articleMarkup({ data: state.data, page, groups, panelHtml }),
+  });
+  draw();
+  const listeners = listenerGroup(view);
+  listeners.own(wireRefSearch(view, { onQuery: goSearch }));
+  listeners.own(wireSkillTableRoller(view, draw));
+  listeners.own(wireDetailPage(view, { draw, pageHref: () => pageUrl(page) }));
+  onScreenLeave("ref:article", listeners.release);
 }
 
 /** An item written "Label: text" keeps its label in strong. */
@@ -224,7 +230,7 @@ export function renderOverviewArticle(slug) {
     groups: currentGroups(),
     currentKey: "rules",
     back: { href: refUrl("rules"), label: sectionTitle("rules") },
-    kicker: sectionTitle("rules"),
+    kicker: memberKicker("rules"),
     title: card.title,
     bodyHtml: proseMarkup((card.sections ?? []).map(overviewSection).join("")),
   }));
@@ -237,6 +243,7 @@ export function renderLegal() {
     screen: "legal",
     groups: currentGroups(),
     back: referenceBack(),
+    kicker: placeKicker(),
     title: t("legal.title"),
     sub: t("legal.subtitle"),
     bodyHtml: proseMarkup(paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")),

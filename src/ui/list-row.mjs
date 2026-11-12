@@ -23,18 +23,19 @@ const ROW_CHEVRONS = ["chevron", "chevronShort"];
  * @param {string} props.title
  * @param {string} [props.desc] the quiet line under the title
  * @param {string|number} [props.count] how many records are behind the link, in the accent colour
- * @param {"chevron"|"chevronShort"} [props.chevron] the long one of the kit's ListRow (Ref, DeskRef), or the short one
+ * @param {"chevron"|"chevronShort"|null} [props.chevron] the long one of the kit's ListRow (Ref, DeskRef), or the short one
  *   where the row's prototype draws it (Settings' «Администрирование»)
+ * @param {boolean} [props.current]
  */
-export function renderNavRow({ href, title, desc = "", count = "", chevron = "chevron" }) {
+export function renderNavRow({ href, title, desc = "", count = "", chevron = "chevron", current = false }) {
   if (!href) throw new Error("a navigation row needs an href: it is a link");
   assertLinkHref(href);
   if (!title) throw new Error("a navigation row needs a title");
-  if (!ROW_CHEVRONS.includes(chevron)) throw new Error(`a navigation row ends with a chevron, not ${JSON.stringify(chevron)}`);
+  if (chevron !== null && !ROW_CHEVRONS.includes(chevron)) throw new Error(`a navigation row ends with a chevron or nothing, not ${JSON.stringify(chevron)}`);
   const line = desc ? `<span class="g-list-row__desc">${escapeHtml(desc)}</span>` : "";
   const text = `<span class="g-list-row__text"><span class="g-list-row__title">${escapeHtml(title)}</span>${line}</span>`;
   const records = isEmpty(count) ? "" : `<span class="g-list-row__count">${escapeHtml(count)}</span>`;
-  return `<a class="g-list-row" href="${escapeHtml(href)}">${text}${records}${renderIcon(chevron, 16)}</a>`;
+  return `<a class="g-list-row" href="${escapeHtml(href)}"${current ? ' aria-current="page"' : ""}>${text}${records}${chevron ? renderIcon(chevron, 16) : ""}</a>`;
 }
 
 /** A label on the left and its value, heavier, on the right: the staff a team has, a price. A missing value (`null`, `undefined`) is drawn empty. */

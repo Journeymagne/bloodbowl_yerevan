@@ -505,3 +505,7 @@ test("a press that is still down when the sheet closes is forgotten with it, how
   reopenAndClickBackdrop();
   assert.equal(closed.length, 5);
 });
+
+test("a sheet's sub stands clear of its title: the display face's descenders do not touch it", () => {
+  assert.deepEqual(valuesOf("src/ui/sheet.css", ".g-sheet__sub", "margin"), ["var(--space-4) 0 0"]);
+});

@@ -169,6 +169,19 @@ Every text field but `intro` is escaped by the build: write `<league>`, not `&lt
    one picture per side — the owner's rule: one entry per page, its `what` going through the parts top to bottom, its
    `look` naming each box. Run it, then `stitch.ps1 -PlanFile <scratchpad>\stitch-plan.json` when it merged any.
 
+   **The shape the owner reads best** (part 3 on): a page's entry is its title, then parts. Each part is
+   `shot(id, { width, height, what: ["one line per change", …] })`, and the page is
+   `{ id, group, title, parts: [shot, …] }`, so no stitching is needed. A part draws as its one-line changes
+   («Card title 32px (was 34px)»), then one comparison card: «<page> · desk» over «Before · <base>» and
+   «After · <branch>» side by side, each cut at the same size, and a pane opens the whole screenshot. A card is as
+   wide as its two cuts at their own size, so a small cut is never shrunk and a cut of most of a desk takes the
+   page's whole width. Write no paragraphs and no per-side sub-bullets. The owner's own PR review drew its
+   comparisons like this: side by side, easy to match.
+
+   Desk states are 1728px wide (90% of a 1920 screen, so the app lays out as it does for most readers); phone ones
+   390px. A screen laid out anew (blocks moved, not restyled) gets no boxes: drop them from its part
+   (`{ ...shot(…), boxes: [] }`), since one box at one place would point at different blocks on each side.
+
 ```powershell
 node .claude/skills/ui-preview/build.mjs <scratchpad>\preview-spec.json
 ```

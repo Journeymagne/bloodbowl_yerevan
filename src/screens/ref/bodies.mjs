@@ -8,7 +8,7 @@
  */
 import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { leagueKey, pageUrl } from "../../core/routes.mjs";
+import { leagueKey, pageUrl, skillTableUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
 import { leagueAccessNames } from "../../domain/league-rules.mjs";
 import { canonicalLeagueName, splitRuleAccessParts, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
@@ -115,6 +115,11 @@ export function skillLink(data, skill) {
   return page ? link(pageUrl(page), skill) : escapeHtml(skill);
 }
 
+function tableSkillLink(data, skill) {
+  const page = pageForName(data, skill);
+  return page ? link(skillTableUrl(page), skill) : escapeHtml(skill);
+}
+
 function rollerMarkup(data, group, rolled) {
   const chips = renderFilterChips({
     label: t("skillRoll.groupLabel"),
@@ -122,7 +127,7 @@ function rollerMarkup(data, group, rolled) {
     selected: group.category,
     data: { chipGroup: ROLLER_GROUP },
   });
-  const result = rolled ? skillLink(data, rolled.skill) : `<span class="g-ref-roller__hint">${escapeHtml(t("ref.roll.hint"))}</span>`;
+  const result = rolled ? tableSkillLink(data, rolled.skill) : `<span class="g-ref-roller__hint">${escapeHtml(t("ref.roll.hint"))}</span>`;
   const roll = renderButton({ label: t("skillRoll.rollButton"), kind: "primary", data: { rollSkill: "" } });
   return `<section class="g-ref-roller" aria-label="${escapeHtml(t("skills.randomizerRegion"))}">${chips}`
     + `<div class="g-ref-roller__throw">${renderDie({ type: SKILL_DIE, value: rolled?.face ?? null })}`
@@ -132,7 +137,7 @@ function rollerMarkup(data, group, rolled) {
 /** The table for a phone: a list for each category, a skill to a line, numbered by its face. */
 function listsMarkup(data, groups) {
   const lists = groups.map(({ category, skills }) => `<div class="g-ref-skilltable__group"><h2>${escapeHtml(category)}</h2>`
-    + `<ol>${skills.map((skill) => `<li>${skillLink(data, skill)}</li>`).join("")}</ol></div>`);
+    + `<ol>${skills.map((skill) => `<li>${tableSkillLink(data, skill)}</li>`).join("")}</ol></div>`);
   return `<section class="g-ref-skilltable" aria-label="${escapeHtml(t("skills.tableByCategoryRegion"))}">${lists.join("")}</section>`;
 }
 

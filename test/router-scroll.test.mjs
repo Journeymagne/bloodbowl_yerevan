@@ -85,6 +85,20 @@ test("the browser's tab names the screen it shows, then the league", async () =>
   releaseCurrentScreen();
 });
 
+test("on a phone the tab names the item the address opens in a sheet, not the list under it", async () => {
+  const before = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+  try {
+    coach();
+    await go("#/ref/skills");
+    await go("#/skills/dodge");
+    assert.equal(document.title, "Dodge · Gata Blood Bowl League");
+  } finally {
+    globalThis.matchMedia = before;
+    releaseCurrentScreen();
+  }
+});
+
 test("an address the router sends on scrolls nothing, and the route before it stays the one drawn", async () => {
   coach();
   await go("#/t/t1");
@@ -93,5 +107,19 @@ test("an address the router sends on scrolls nothing, and the route before it st
   assert.deepEqual(replaced, ["#/t/t1"]);
   assert.deepEqual(await go("#/t/t1"), [], "and the address it is sent to is the team's page that was drawn: its place is kept");
   assert.deepEqual(await go("#/t/t1/matches"), [[0, 0]], "a route after it is another one");
+  releaseCurrentScreen();
+});
+
+test("an item of a list is the list's place: opening and closing it leave the page where it was read to", async () => {
+  coach();
+  await go("#/ref/skills");
+  assert.deepEqual(await go("#/skills/dodge"), [], "a skill opened from its list: its card beside it, or a sheet over it");
+  assert.deepEqual(await go("#/skills/block"), [], "another skill, through a link of the rule");
+  assert.deepEqual(await go("#/ref/skills"), [], "and closed back to the list");
+  assert.deepEqual(await go("#/inducements/biased-referee"), [[0, 0]], "another list's item: the router keeps the place, the list starts over, once");
+  assert.deepEqual(await go("#/inducements/bribe"), [], "and its next item keeps it");
+  const toTop = (own) => own.length > 0 && own.every(([x, y]) => x === 0 && y === 0);
+  assert.ok(toTop(await go("#/teams/amazon")), "a team's page is an article, another place");
+  assert.ok(toTop(await go("#/traits/bonehead")), "and a trait reached from it is its list's place, another one");
   releaseCurrentScreen();
 });

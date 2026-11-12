@@ -70,10 +70,21 @@ export function refTocMarkup(groups, currentKey = null) {
   return `<nav class="g-ref-toc" aria-label="${escapeHtml(t("ref.toc"))}">${parts.join("")}</nav>`;
 }
 
+function pagerLink(item, side) {
+  assertLinkHref(item.href);
+  return `<a class="g-article__${side}" href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a>`;
+}
+
+/** The page before and the page after in the groups' order (catalog.mjs `refNeighbours`); the arrows are the sheet's. */
+export function refPagerMarkup({ prev, next }) {
+  if (!prev && !next) return "";
+  return `<nav class="g-article__pager" aria-label="${escapeHtml(t("ref.pager"))}">${prev ? pagerLink(prev, "prev") : ""}${next ? pagerLink(next, "next") : ""}</nav>`;
+}
+
 /** The way back up, for a phone, which has no table of contents to go by. */
 export function backLinkMarkup({ href, label }) {
   assertLinkHref(href);
-  return `<a class="g-ref-back" href="${escapeHtml(href)}">${icon("back", 18)}<span>${escapeHtml(label)}</span></a>`;
+  return `<a class="g-ref-back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("ref.backTo", { page: label }))}">${icon("backShort", 18)}</a>`;
 }
 
 /**
@@ -81,20 +92,17 @@ export function backLinkMarkup({ href, label }) {
  * the panel beside it. `layout` names what the page is — the index, a list, an article, a list with
  * the card of its chosen item — and is a class the stylesheet lays the parts out by.
  *
- * `open` says an item of a split page is chosen: a phone shows the list or the panel, not both, and
- * shows the panel then (`g-ref--open`).
- *
  * `screen` is the page's identity (`data-screen`), which `drawScreen` compares to know a new screen from
  * the same one drawn again.
  *
  * `headHtml`, `tocHtml`, `mainHtml` and `panelHtml` are markup from the render…() functions above and
  * the screens'.
  */
-export function refPageMarkup({ layout, screen, open = false, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
+export function refPageMarkup({ layout, screen, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
   if (!LAYOUTS.has(layout)) throw new Error(`a reference page is one of ${[...LAYOUTS].join(", ")}, not ${JSON.stringify(layout)}`);
   if (!screen) throw new Error("a reference page names the screen it is");
   const panel = panelHtml ? `<aside class="g-ref__panel">${panelHtml}</aside>` : "";
-  return `<div class="g-ref g-ref--${layout}${open ? " g-ref--open" : ""}" data-screen="${escapeHtml(screen)}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
+  return `<div class="g-ref g-ref--${layout}" data-screen="${escapeHtml(screen)}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
 }
 
 /**

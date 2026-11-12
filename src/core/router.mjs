@@ -11,7 +11,7 @@
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
+import { SPLIT_SECTIONS, TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { escapeHtml } from "./dom.mjs";
@@ -100,8 +100,14 @@ const screens = {
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
 
-/** The name of the route drawn last: another one starts at the top of the page (`renderRoute`). */
+/** The place drawn last: another one starts at the top of the page (`renderRoute`). */
 let shownRoute = "";
+
+// An item of a split list counts as its list's place: opening or closing its card must not scroll the list to the top.
+function placeOf(name, params) {
+  const [section, item, ...rest] = name === "page" ? String(params.slug).split("/") : [];
+  return SPLIT_SECTIONS.has(section) && item && !rest.length ? "refSection" : name;
+}
 
 /** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */
 function reloadTeams() {
@@ -160,8 +166,9 @@ export function renderRoute() {
   }
   releaseCurrentScreen();
   const { name, params } = matchRoute(route);
-  if (name !== shownRoute) globalThis.scrollTo?.(0, 0);
-  shownRoute = name;
+  const place = placeOf(name, params);
+  if (place !== shownRoute) globalThis.scrollTo?.(0, 0);
+  shownRoute = place;
   refreshShell({ name, params });
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
@@ -171,7 +178,9 @@ export function renderRoute() {
   // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
     if (current !== ticket || location.hash !== startedAt) return;
-    const heading = view.querySelector("h1, h2")?.textContent?.trim() ?? "";
+    // A sheet the address opened over the screen (a reference item on a phone) is what the coach is reading.
+    const named = view.querySelector("dialog[open] .g-sheet__title") ?? view.querySelector("h1, h2");
+    const heading = named?.textContent?.trim() ?? "";
     announce(heading);
     titleWindow(heading);
   });

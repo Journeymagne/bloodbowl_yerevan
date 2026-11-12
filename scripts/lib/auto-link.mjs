@@ -83,3 +83,10 @@ export function autoLinkKnownTerms(html, pageByTitle, { prose = false, selfPage 
     })
     .join("");
 }
+
+const SKILL_TABLE_PAGE = "skills-and-traits-skill-table";
+
+/** The Skill Table's skills open their card beside the table (`#/skill-table/<skill>`), not their own page. */
+export function linkOnSkillTable(page, html) {
+  return page.id === SKILL_TABLE_PAGE ? html.replaceAll('href="#/skills/', 'href="#/skill-table/') : html;
+}

@@ -204,7 +204,7 @@ test("the league's block is a heading over its rows, and only the races' own tea
 
 test("the article is the page's own: its title, its kicker and the way up, the vault's roster table is not drawn twice", () => {
   renderReferencePage("teams/human");
-  assert.equal(view.querySelector(".g-article__kicker").textContent, "Teams · Team's Rules");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Teams · Team's Rules");
   assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/teams");
   assert.equal(view.querySelectorAll("table").length, 1, "the roster table, once");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/teams");
@@ -304,12 +304,11 @@ test("the markup a team draws is styled by its own sheet, the article's (the ski
   assertStyled(guest, SHEET, "src/screens/ref/article.css", "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
 });
 
-test("a phone has the cards and a desktop the table; the table is not cut to the prose's width", () => {
+test("a phone has the cards and a desktop the table", () => {
   const wide = mediaText(SHEET, "min-width: 901px");
   const narrow = mediaText(SHEET, "max-width: 900px");
   assert.match(narrow, /\.g-ref-roster\s*\{[^}]*display:\s*none;/);
   assert.match(wide, /\.g-ref-positions\s*\{[^}]*display:\s*none;/);
-  assert.match(wide, /\.g-article \.g-ref-roster\s*\{[^}]*max-width:\s*none;/);
   const outside = outsideMedia(SHEET, "max-width: 900px");
   assert.ok(!/\.g-ref-roster\s*[,{][^}]*display:/.test(outside), "nothing outside the phone's rule hides the table");
 });
@@ -329,4 +328,19 @@ test("a card sets its own font, border and case, and nothing in it is below the 
   assert.deepEqual(valuesOf(SHEET, ".g-ref-position", "box-shadow"), ["var(--ring)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-position", "list-style"), ["none"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-team h2", "text-transform"), ["none"]);
+});
+
+test("the team's boxes are the kit's cards: a position, a special rule, the roster's table — the same corners, ring and surface", () => {
+  const PROSE = "src/screens/ref/prose.css";
+  for (const [sheet, selector] of [[SHEET, ".g-ref-position"], [SHEET, ".g-ref-rule"], ["src/screens/ref/article.css", ".g-ref-roller"]]) {
+    assert.deepEqual(valuesOf(sheet, selector, "border-radius"), ["var(--radius-2xl)"], selector);
+    assert.deepEqual(valuesOf(sheet, selector, "box-shadow"), ["var(--ring)"], selector);
+    assert.deepEqual(valuesOf(sheet, selector, "background"), ["var(--surface)"], selector);
+  }
+  assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "border-radius"), ["var(--radius-2xl)"]);
+  assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "border"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "box-shadow"), []);
+  assert.deepEqual(valuesOf("src/ui/roster-table.css", ".g-rtable-frame", "border"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-rule", "border-left"), [], "no bar at the side: the card is the frame");
+  assert.deepEqual(valuesOf(PROSE, ".g-prose th", "background"), ["var(--surface-2)"], "the header keeps its fill, which sets it off from the rows (the owner, 2026-11-12)");
 });

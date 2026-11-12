@@ -8,6 +8,51 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [3.0.3] — 2026-11-12
+
+A polish of the reference: every page stands on one grid, a skill, a trait or
+an inducement opens beside its list on the desktop and in a sheet on a phone,
+and every card, title and table of it has one look.
+
+### Added
+
+- **Previous and next on every reference page**, the lists included, in the
+  contents' order.
+- **The Skill Table opens a skill beside it** at its own address
+  (`#/skill-table/<skill>`), instead of leaving for the Skills list.
+
+### Changed
+
+- **One grid on the desktop.** Every reference page has the contents, the main
+  column and the panel's column; lists, articles, the Skill Table and search
+  results are one width. The index takes the whole width. Article text and
+  tables take the card's width, and the page scrolls, not a list's rows.
+- **An item opens beside its page, or in a sheet.** Inducements is a split page
+  like Skills and Traits. On a phone a skill, a trait, an inducement or a Skill
+  Table skill opens in a bottom sheet over the page, which stays where it was
+  read; Back closes it, and the tab names the item.
+- **Skills and Traits rows** are the letter and the name: no «Active» /
+  «Passive» in them (the panel says it), and the open row keeps its weight. A
+  trait's letter is «T».
+- **Phone header.** The way up is a round «‹» beside the title (was «‹
+  Reference» over it), and the line under the title says where the page lives
+  («Players · Reference»).
+- **One look for the reference's cards.** Every card is 24px in, every title
+  32px; tables, a team's positions, special rules and the Skill Table's die are
+  the kit's cards, and a special rule is a card. Tables have a filled head and
+  gentle stripes.
+- **League Rules.** «In brief» and «Full text» are card titles.
+- **Contents on the desktop.** A line between the groups.
+
+### Fixed
+
+- With nothing chosen, the panel says «Choose a skill» again (the first skill's
+  name had become the page's title).
+- A list's first rows no longer draw a line over the head's rule.
+- The Roster on a phone has 8px between a player's position and his skills.
+- A sheet's title and its sub line keep 4px apart.
+- No scroll bar under the chips on a phone.
+
 ## [3.0.2] — 2026-11-12
 
 A second polish from the owner's review: another coach's roster reads as one's

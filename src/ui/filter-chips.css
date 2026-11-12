@@ -11,6 +11,12 @@
   overflow-x: auto;
 }
 
+/* A phone draws the scroll bar right under the chips; a desk keeps it as the mouse's way to scroll the row. */
+@media (max-width: 900px) {
+  .g-chips { scrollbar-width: none; }
+  .g-chips::-webkit-scrollbar { display: none; }
+}
+
 /* 44px is the touch target of spec §0, over the 36px of the design system's README. */
 .g-chip {
   box-sizing: border-box;

@@ -57,17 +57,19 @@ test("an address with no page is told so, with the way back to the reference", (
 test("an article of a group pages to its neighbours, and lights itself in the table of contents", () => {
   renderReferencePage("casualties");
   assert.equal(view.querySelector(".g-article__prev").getAttribute("href"), "#/prayers-to-nuffle");
-  assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/player-advancement");
+  assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/ref/inducements");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/casualties");
-  assert.equal(view.querySelector(".g-article__kicker").textContent, "Before and during a match · league reference");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Before and during a match · Reference");
   renderReferencePage("weather");
   assert.equal(view.querySelector(".g-article__prev"), null);
 });
 
 test("the way back from a list member is its list; from an article, the reference", () => {
-  const back = (slug) => { renderReferencePage(slug); const link = view.querySelector(".g-ref-back"); return [link.getAttribute("href"), link.textContent.trim()]; };
-  assert.deepEqual(back("inducements/bribe"), ["#/ref/inducements", "Inducements"]);
-  assert.deepEqual(back("weather"), ["#/ref", "Reference"]);
+  const back = (slug) => { renderReferencePage(slug); const link = view.querySelector(".g-article__head .g-ref-back"); return [link.getAttribute("href"), link.getAttribute("aria-label")]; };
+  assert.deepEqual(back("teams/amazon"), ["#/ref/teams", "Back to Team's Rules"]);
+  assert.deepEqual(back("weather"), ["#/ref", "Back to Reference"]);
+  const head = view.querySelector(".g-article__head").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(head, ["g-ref-back", "g-article__titles"], "at the left of the title and its sub-line");
 });
 
 test("the build's table classes reach the page inside the prose frame", () => {
@@ -125,7 +127,7 @@ test("not found keeps the reference around it: the head, the table of contents, 
   assert.ok(view.querySelector(".g-ref--article header.g-pagehead"));
   assert.equal(view.querySelectorAll(".g-ref-toc__link").length, refGroups(referenceData("en")).flatMap((group) => group.items).length);
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]'), null);
-  assert.equal(view.querySelector(".g-article__kicker"), null, "there is no group to name");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Reference", "no group to name: the reference, as every page says where it lives");
   assert.equal(view.querySelector(".g-article__pager"), null);
   assert.equal(draw(notFoundMarkup()).querySelectorAll("h1").length, 1);
 });
@@ -146,14 +148,14 @@ test("the kicker names the group and the section; a list member, a group page an
   assert.equal(kicker("inducements/bribe"), "Before and during a match · Inducements");
   assert.equal(kicker("rotten-rick-bupkeis"), "Teams · Star Players");
   assert.equal(kicker(pages.find((page) => page.kind === "rules").slug), "League · League Rules");
-  assert.equal(kicker("weather"), "Before and during a match · league reference");
-  assert.equal(kicker("skill-table"), "Players · league reference");
-  assert.equal(kicker("all-gata-changes"), "League · league reference");
+  assert.equal(kicker("weather"), "Before and during a match · Reference");
+  assert.equal(kicker("skill-table"), "Players · Reference");
+  assert.equal(kicker("all-gata-changes"), "League · Reference");
   assert.equal(kicker("reference-sources"), "Reference", "a page the groups do not name has no group to say");
   assert.equal(kickerOf({ kind: "cheatsheet", id: "x" }), "Cheatsheets", "a section no group names is only itself");
   useLocale("ru");
   assert.equal(kickerOf(referenceData("ru").pages.find((page) => page.slug === "teams/human")), "Команды · Правила команд");
-  assert.equal(kickerOf(referenceData("ru").pages.find((page) => page.slug === "weather")), "Перед матчем и в игре · справочник лиги");
+  assert.equal(kickerOf(referenceData("ru").pages.find((page) => page.slug === "weather")), "Перед матчем и в игре · Справочник");
 });
 
 test("the way up from a page is the list it is a member of, or the reference", () => {
@@ -174,21 +176,34 @@ test("a team, a skill, a star player and a rule are lit in the table of contents
   assert.equal(lit("reference-sources"), null, "a page the groups do not name lights nothing");
 });
 
-test("the pager has an end for each end: the first article has only a next, the last only a previous", () => {
+test("the pager has an end for each end: the first article has only a next; the last article goes on to the list after it", () => {
   renderReferencePage("weather");
   assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/kick-off-table");
   assert.equal(view.querySelector(".g-article__next").textContent, "Kick-off Table");
+  assert.equal(view.querySelector(".g-article__prev") === null, true);
   assert.equal(view.querySelector(".g-article__pager").getAttribute("aria-label"), "More articles");
   renderReferencePage("all-gata-changes");
   assert.ok(view.querySelector(".g-article__prev"));
-  assert.equal(view.querySelector(".g-article__next"), null);
+  assert.equal(view.querySelector(".g-article__next")?.getAttribute("href"), "#/ref/rules");
   useLocale("ru");
   renderReferencePage("casualties");
   assert.equal(view.querySelector(".g-article__pager").getAttribute("aria-label"), "Другие статьи");
 });
 
-test("a page outside the groups, and every member of a list, has no pager", () => {
-  for (const slug of ["reference-sources", "gata-blood-bowl-league", "teams/human", "skills/block", "inducements/bribe", "rotten-rick-bupkeis"]) {
+test("a list pages on to the groups' items on either side, as an article does; an item opened on its list keeps the list's pager", () => {
+  renderRefSection("inducements");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__prev")?.getAttribute("href"), "#/casualties");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__next")?.getAttribute("href"), "#/player-advancement");
+  renderReferencePage("casualties");
+  assert.equal(view.querySelector(".g-article__next")?.getAttribute("href"), "#/ref/inducements", "the article before the list leads to it");
+  renderReferencePage("inducements/bribe");
+  assert.equal(view.querySelector(".g-ref-list__foot .g-article__next")?.getAttribute("href"), "#/player-advancement");
+  renderRefSection("rules");
+  assert.equal(view.querySelector(".g-article__next"), null, "the last item has no next");
+});
+
+test("a page outside the groups, and every member of a list with a page of its own, has no pager", () => {
+  for (const slug of ["reference-sources", "gata-blood-bowl-league", "teams/human", "rotten-rick-bupkeis"]) {
     renderReferencePage(slug);
     assert.equal(view.querySelector(".g-article__pager"), null, slug);
   }
@@ -220,7 +235,7 @@ test("an overview card is a heading and a list for each of its sections; an item
   assert.equal(sections[0].querySelectorAll("h2").length, 1);
   assert.equal(view.querySelectorAll(".g-prose section ul li").length, 7);
   assert.equal(view.querySelector(".g-prose li strong"), null, "a sentence with no label is only text");
-  assert.equal(view.querySelector(".g-article__kicker").textContent, "League Rules");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "League · League Rules", "a member of the League Rules, as a team is of the Team's Rules");
   assert.equal(view.querySelectorAll("h1").length, 1);
   assertCspSafe(view);
   renderOverviewArticle("general-rules");
@@ -286,9 +301,9 @@ test("an article opened from a list, the index, a search result or the pager sta
       scrollPage(700);
       scrolls.length = 0;
     };
-    from(() => renderRefSection("inducements"));
-    renderReferencePage("inducements/assistant-coaches");
-    assert.equal(view.querySelector("h1").textContent, "Assistant Coaches");
+    from(() => renderRefSection("teams"));
+    renderReferencePage("teams/amazon");
+    assert.equal(view.querySelector("h1").textContent, "Amazon");
     assert.deepEqual(scrolls, [[0, 0]], "a row of a list");
     from(() => renderRef());
     renderReferencePage("weather");
@@ -318,10 +333,10 @@ test("an article opened from a list, the index, a search result or the pager sta
 });
 
 test("the dictionary has the kicker and the pager's name in both languages", () => {
-  assert.equal(t("ref.kicker", { group: "Players" }), "Players · league reference");
+  assert.equal(t("ref.kicker", { group: "Players" }), "Players · Reference");
   assert.equal(t("ref.pager"), "More articles");
   useLocale("ru");
-  assert.equal(t("ref.kicker", { group: "Игроки" }), "Игроки · справочник лиги");
+  assert.equal(t("ref.kicker", { group: "Игроки" }), "Игроки · Справочник");
   assert.equal(t("ref.pager"), "Другие статьи");
 });
 
@@ -367,7 +382,9 @@ test("up to 900px an article has no frame; from 901px it is a card of the surfac
     assert.ok(!new RegExp(`\\.g-article\\s*\\{[^}]*\\b${property}\\s*:`).test(rest), `.g-article has no ${property} on a phone`);
   }
   assert.ok(!/\.g-article\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "a phone's article has no card");
-  assert.match(wide, /\.g-article\s*\{[^}]*padding:\s*32px 40px;/);
+  assert.match(wide, /\.g-article\s*\{[^}]*padding:\s*var\(--ref-inset\);/, "the reference's one inset, a list's as an article's");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref", "--ref-inset"), ["var(--space-24)"]);
+  assert.match(mediaText("src/screens/ref/ref.css", "min-width: 901px"), /\.g-ref-list__head\s*\{[^}]*padding:\s*var\(--ref-inset\) var\(--ref-inset\)/);
   assert.match(wide, /\.g-article\s*\{[^}]*border-radius:\s*var\(--radius-2xl\);/);
   assert.match(wide, /\.g-article\s*\{[^}]*background:\s*var\(--surface\);/);
   assert.match(wide, /\.g-article\s*\{[^}]*box-shadow:\s*var\(--ring\);/);
@@ -375,21 +392,26 @@ test("up to 900px an article has no frame; from 901px it is a card of the surfac
 
 test("the ring is the strong line, and what sits on the card is readable on it in every palette", () => {
   assert.equal(read("src/styles/tokens.css").match(/--ring:\s*([^;]+);/)[1], "inset 0 0 0 1px var(--line-strong)");
-  assertReadable(SHEET, ".g-article__kicker", "color", ["--surface", "--page"], 4.5);
+  assertReadable("src/screens/ref/ref.css", ".g-ref-place", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__title", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__sub", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__prev", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__next", "color", ["--surface", "--page"], 4.5);
 });
 
-test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px, 44px from 901px, in the display face and never in capitals", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-article__kicker", "font"), ["700 12px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__kicker", "letter-spacing"), [".08em"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__kicker", "text-transform"), ["uppercase"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)", "700 44px/1 var(--font-display)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none", "none"], "on the phone's rule and on the desktop's");
-  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "letter-spacing"), ["0", "0"]);
-  assert.ok(split(SHEET).wide.includes("700 44px/1 var(--font-display)"), "the 44px title is the desktop's");
+test("where a page lives is a sub-line under its title, as the page head's; the title 700 32px at every width, as a list's, in the display face and never in capitals", () => {
+  for (const property of ["font", "color", "letter-spacing", "text-transform"]) {
+    assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-place", property), valuesOf("src/ui/page-head.css", ".g-pagehead__sub", property), property);
+  }
+  renderReferencePage("weather");
+  const titles = view.querySelector(".g-article__titles").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(titles, ["g-article__title", "g-ref-place"], "under the title");
+  assert.ok(valuesOf("src/screens/ref/ref.css", ".g-ref-place", "display").includes("none"), "a desk has the table of contents to say it: no sub-line");
+  assert.match(mediaText("src/screens/ref/ref.css", "min-width: 901px"), /\.g-ref-place\s*\{\s*display:\s*none/, "hidden on a desk only");
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)"]);
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-list__title", "font"), ["700 32px/1 var(--font-display)"], "a list's title is the same");
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-article__title", "letter-spacing"), ["0"]);
 });
 
 test("the pager's links are 44px tall, 600 15px in the accent; the arrows are drawn by the sheet", () => {
@@ -403,18 +425,16 @@ test("the pager's links are 44px tall, 600 15px in the accent; the arrows are dr
   assert.ok(valuesOf(SHEET, ".g-article__next::after", "content").length >= 1);
 });
 
-test("from 901px the content stands at most 820px wide inside the card", () => {
+test("from 901px the content takes the card's whole width: the head, the text, the tables and the pager", () => {
   const { wide } = split(SHEET);
-  assert.match(wide, /max-width:\s*820px/);
+  assert.doesNotMatch(wide, /max-width:\s*820px/);
+  for (const selector of [".g-article__head", ".g-article .g-prose", ".g-article__pager"]) assert.deepEqual(valuesOf(SHEET, selector, "max-width"), [], selector);
 });
 
-test("from 901px an article is columns that never wrap: the contents as wide as a list's, the card the rest", () => {
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--list .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"], "a list's contents column, which the article keeps");
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "display"), ["grid"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), ["clamp(140px, 27vw - 129px, 260px) minmax(0, 1fr)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "align-items"), ["start"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "flex-flow"), [], "not a wrapping row");
-  assert.ok(split(SHEET).wide.includes(".g-ref--article .g-ref__body"), "the columns are the desktop's");
+test("from 901px an article stands in the reference's one grid, as wide as the Skills list; a wider table scrolls in its card", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--article .g-ref__body", "grid-template-columns"), [], "no grid of its own: the one of every reference page");
+  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref--article .g-ref__main", "grid-column"), ["2"], "the main column, as every list's");
+  assert.deepEqual(valuesOf("src/screens/ref/prose.css", ".g-prose .table-scroll", "overflow-x"), ["auto"]);
 });
 
 test("the prose does not open with a margin of its own, and no .g-prose is inside a .content-panel", () => {

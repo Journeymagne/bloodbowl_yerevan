@@ -112,6 +112,7 @@ const SITES = {
   "src/screens/admin/coaches.mjs": ["chevronShort 16"], // AdminMobile: the coaches
   "src/screens/matches/card.mjs": ["chevron 16", "chevron 16"], // Matches: «Записи матча»; «Подготовка к матчу», «Итоги матча»
   "src/screens/team/overview.mjs": ["chevron 18"], // Team: «Доступна прокачка»
+  "src/screens/ref/list.mjs": ["chevron"], // Ref, DeskRef: a list's rows; none where the row opens a card beside it
   "src/screens/team/roster/panel.mjs": ["chevron 14"], // Stats: «Профиль и прокачка», «Профиль игрока»
   "src/screens/team/roster/career.mjs": ["chevronShort 18"], // PlayerCareer, DeskRosterCareer: «Карьера», turned down
   // «История вызовов»: neither Challenges.html nor DeskChallenges.html draws it, so 09c's own glyph (the short one, as
@@ -143,7 +144,7 @@ const BACK_SHORT = "M15 6l-6 6 6 6";
 const BACK_SITES = {
   "src/ui/match-board.mjs": ["back"], // DeskOverview, DeskSeason: the board's «previous» (14, inside its arrow())
   "src/ui/sheet.mjs": ["back"], // Adv*: a sheet's step back
-  "src/screens/ref/frame.mjs": ["back 18"], // Ref*, DeskRef*: «‹ Справочник»
+  "src/screens/ref/frame.mjs": ["backShort 18"], // a phone's reference page: the round «‹» of a team's settings (the owner, 2026-11-12)
   "src/screens/coaches/team.mjs": ["back 14"], // OppTeam, DeskOppTeam: «‹ Таблица»
   "src/screens/matches/game.mjs": ["back 14"], // the match page: no prototype, so the kit's
   "src/screens/team/roster/profile.mjs": ["back 16"], // Player*: «‹ Состав»

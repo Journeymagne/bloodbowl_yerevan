@@ -101,7 +101,10 @@ for (const section of spec.sections) {
 
 // A screenshot pair is cut to where the two differ (the box screens:diff finds), with a margin, so the big same parts
 // go. Pairs of different sizes differ everywhere: their cut is the spec's `area` and `boxes`.
-const shots = (spec.shots?.items ?? []).map((shot) => ({ id: `shot-${shot.file.replace(/\.png$/, "")}`, ...shot }));
+// An item is a pair, or a page (`parts`): under its title, each part's changes, one line each, then that part's pair.
+const shotId = (file) => `shot-${file.replace(/\.png$/, "")}`;
+const shots = (spec.shots?.items ?? []).map((shot) => ({ id: shot.id ?? shotId(shot.file ?? shot.parts[0].file), ...shot }));
+const pairs = shots.flatMap((shot) => shot.parts ?? [shot]);
 const { comparePngs, decodePng } = await import(pathToFileURL(path.join(repo, "scripts", "screenshots", "png.mjs")).href);
 const MARGIN = 48;
 // Two full-page shots of different heights: the box where they differ inside the part both have, top-aligned.
@@ -121,7 +124,7 @@ function sharedBox(first, second) {
   }
   return maxX < 0 ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
-for (const shot of shots) {
+for (const shot of pairs) {
   const sources = Object.fromEntries(["before", "after"].map((side) => [side, path.join(spec.shots.dir, side, shot.file)]));
   for (const side of ["before", "after"]) fs.copyFileSync(sources[side], path.join(out, "shots", `${side}-${shot.file}`));
   const [first, second] = ["before", "after"].map((side) => decodePng(fs.readFileSync(sources[side])));
@@ -157,8 +160,12 @@ const pane = (section, side) => `<figure class="pane"><figcaption><span class="t
   + `<div class="scroller"><iframe class="frame frame--${section.width}" src="frames/${section.id}-${side}.html" title="${esc(section.title)}: ${esc(labels[side])}" loading="lazy"></iframe></div></figure>`;
 // Where to look: said in words for every section, and outlined in the frames (`mark`) or boxed on a screenshot.
 const lookHtml = (text) => (text ? `<p class="look"><span class="look__tag">Look at</span> ${esc(text)}</p>` : "");
+// `what` is a sentence, or a list of changes: each a string or `{ text, items }`, its items the sides' words for it.
+const whatItem = (item) => (typeof item === "string" ? `<li>${esc(item)}</li>`
+  : `<li><strong>${esc(item.text)}</strong>${item.items?.length ? `<ul>${item.items.map(whatItem).join("")}</ul>` : ""}</li>`);
+const whatHtml = (what) => (Array.isArray(what) ? `<ul class="change__list">${what.map(whatItem).join("")}</ul>` : `<p class="change__what">${esc(what)}</p>`);
 const sectionHtml = (section) => `<section class="change" id="${esc(section.id)}"><header class="change__head"><h3>${esc(section.title)}</h3>`
-  + `<span class="width">${widthLabel(section.width)}</span></header><p class="change__what">${esc(section.what)}</p>${lookHtml(section.look)}`
+  + `<span class="width">${widthLabel(section.width)}</span></header>${whatHtml(section.what)}${lookHtml(section.look)}`
   + `<div class="pair pair--${section.width}">${pane(section, "before")}${pane(section, "after")}</div></section>`;
 
 const pct = (part, whole) => `${((part / whole) * 100).toFixed(3)}%`;
@@ -175,7 +182,20 @@ const cropHtml = (shot, side) => {
   // Not lazy: placed far up and left inside its box, a lazy picture is taken for off-screen and never loads.
   return `<div class="crop" style="aspect-ratio:${crop.width} / ${crop.height};max-width:${crop.width}px"><img src="shots/${side}-${esc(shot.file)}" alt="${alt}" style="${image}">${hits}</div>`;
 };
+// The owner's own review drew a pair this way: one small card, its title over «Before» and «After» side by side, each
+// cut the same size, so the eye goes across rather than down. A pane opens the whole screenshot.
+const SIDE_WORD = { before: "Before", after: "After" };
+// A card is as wide as its two cuts at their own size (with its padding and gap): a small cut is never shrunk, and a
+// cut of most of a desk's screen takes the page's whole width.
+const cmpWidth = (shot) => 2 * (shot.crop?.width ?? shot.sizes.after.width) + 34;
+const compareHtml = (shot, title) => `<figure class="cmp" style="max-width:${cmpWidth(shot)}px"><figcaption class="cmp__title">${esc(title)}</figcaption>`
+  + `<div class="cmp__panes">${["before", "after"].map((side) => `<a class="cmp__pane" href="shots/${side}-${esc(shot.file)}" target="_blank" rel="noopener">`
+    + `<span class="cmp__label cmp__label--${side}">${SIDE_WORD[side]} · ${esc(labels[side])}</span>${cropHtml(shot, side)}</a>`).join("")}</div></figure>`;
+const partHtml = (page) => (part) => `<div class="part">${whatHtml(part.what)}${compareHtml(part, `${page.title} · ${part.phone ? "phone" : "desk"}`)}</div>`;
+const pageHtml = (page) => `<section class="change" id="${esc(page.id)}"><header class="change__head"><h3>${esc(page.title)}</h3></header>`
+  + `${page.parts.map(partHtml(page)).join("")}</section>`;
 const shotHtml = (shot) => {
+  if (shot.parts) return pageHtml(shot);
   const { before, after } = shot.sizes;
   const narrower = shot.narrower ? ` ${esc(labels.before)}'s picture is ${after.width - before.width}px narrower, so its layout sits slightly to the left.` : "";
   const taller = before.height !== after.height ? ` The page is ${after.height - before.height > 0 ? "taller" : "shorter"} by ${Math.abs(after.height - before.height)}px: below a change, the rest moves.` : "";
@@ -184,7 +204,7 @@ const shotHtml = (shot) => {
     ? `${cut}: ${shot.crop.width}×${shot.crop.height}px of the ${after.width}×${after.height}px screen, the changes boxed.${narrower}${taller}`
     : "Shown whole: the two pictures are the same.";
   return `<section class="change" id="${esc(shot.id)}"><header class="change__head"><h3>${esc(shot.title)}</h3>`
-    + `<span class="width">${shot.phone ? "Phone" : "Desk"} · screenshot</span></header><p class="change__what">${esc(shot.what)}</p>${lookHtml(shot.look)}`
+    + `<span class="width">${shot.phone ? "Phone" : "Desk"} · screenshot</span></header>${whatHtml(shot.what)}${lookHtml(shot.look)}`
     + `<p class="change__what">${where}</p><div class="pair pair--${shot.crop ? "crop" : shot.phone ? "phone" : "shot"}">`
     + ["before", "after"].map((side) => `<figure class="pane"><figcaption><span class="tag tag--${side}">${esc(labels[side])}</span></figcaption>${cropHtml(shot, side)}</figure>`).join("")
     + "</div></section>";
@@ -253,6 +273,13 @@ a { color: var(--accent); }
 .change__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .width { color: var(--muted); font: 500 13px/1 var(--font-body); }
 .change__what { max-width: 75ch; color: var(--muted); }
+.change__list { max-width: 75ch; margin: 0; padding-left: 20px; color: var(--muted); }
+.change__list > li + li { margin-top: 6px; }
+.change__list strong { color: var(--ink); font-weight: 600; }
+.change__list ul { margin: 2px 0 0; padding-left: 18px; }
+.part { display: flex; flex-direction: column; gap: 10px; }
+.part + .part { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line); }
+.part__width { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .pair { display: grid; gap: 16px; }
 .pair--phone { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 420px)); }
 .pair--phone .scroller { width: max-content; max-width: 100%; }
@@ -277,6 +304,16 @@ a { color: var(--accent); }
 .pair--crop { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .crop { position: relative; overflow: hidden; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .crop img { position: absolute; max-width: none; height: auto; }
+.cmp { box-sizing: border-box; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.cmp__title { margin: 0 0 8px; font: 600 13px/1.3 var(--font-body); }
+.cmp__panes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.cmp__pane { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: inherit; text-decoration: none; }
+.cmp__pane:hover .crop { border-color: var(--accent); }
+.cmp__label { font: 600 11px/1.3 var(--font-body); color: var(--muted); }
+.cmp__label--before { color: var(--before); }
+.cmp__label--after { color: var(--after); }
+.cmp .crop { border-radius: 8px; }
+.cmp .crop__hit { border-width: 2px; }
 .crop__hit { position: absolute; box-sizing: border-box; border: 3px solid ${MARK}; border-radius: 6px; pointer-events: none; }
 table { border-collapse: collapse; min-width: 640px; font-size: 14px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -287,7 +324,7 @@ th { color: var(--muted); font-weight: 600; }
   <header class="intro">
     <h1>${esc(spec.title)}</h1>
     ${(spec.intro ?? []).map((line) => `<p>${line}</p>`).join("\n    ")}
-    <p class="muted">The frames show the app's light or dark mode, switched below; scripts don't run in them, so nothing opens on a press. Desk pairs are scaled to fit side by side. What changed is outlined in pink, and each section says where to look.</p>
+    ${spec.sections?.length ? `<p class="muted">The frames show the app's light or dark mode, switched below; scripts don't run in them, so nothing opens on a press. Desk pairs are scaled to fit side by side. What changed is outlined in pink, and each section says where to look.</p>` : `<p class="muted">What changed is outlined in pink.</p>`}
   </header>
   <nav class="bar" aria-label="Preview controls">
     <span class="seg" role="group" aria-label="App mode in the frames">

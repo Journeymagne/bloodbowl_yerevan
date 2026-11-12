@@ -21,6 +21,9 @@
 /** The reference lists under `#/ref/<section>`; each is also the collection it lists. */
 export const REF_SECTIONS = new Set(["teams", "skills", "traits", "rules", "cheatsheets", "inducements", "star-players"]);
 
+/** The lists whose item (`#/<section>/<slug>`) opens as a card on its list, not as a page of its own. */
+export const SPLIT_SECTIONS = new Set(["skills", "traits", "inducements"]);
+
 /** The screens of one of the coach's own teams, `#/t/:teamId[/…]`. */
 export const TEAM_ROUTES = new Set(["team", "teamManage", "teamSettings", "teamRoster", "teamPlayer", "teamMatches", "teamChallenges"]);
 
@@ -43,6 +46,10 @@ function segment(entityOrId) {
 
 export function pageUrl(page) {
   return `#/${page.slug}`;
+}
+
+export function skillTableUrl(page) {
+  return `#/skill-table/${page.slug.slice(page.slug.indexOf("/") + 1)}`;
 }
 
 /** A team's screen: `""` is its overview, the others are its tabs. */

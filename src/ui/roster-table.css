@@ -259,7 +259,8 @@ tfoot .g-rtable__glabel {
   .g-rtable__who,
   .g-rtable__c { border-bottom: 0; }
   .g-rtable__player { border-bottom: 1px solid var(--line); }
-  .g-rtable__skillrow > td { padding-left: 46px; }
+  /* With the name cell's 4px under it, the chips stand 8px under the position (the owner, 2026-11-12). */
+  .g-rtable__skillrow > td { padding: var(--space-4) 0 var(--space-10) 46px; }
 
   /*
    * The labels stay under the folded header (91px, shell/frame.css) while the players scroll, until their table ends:

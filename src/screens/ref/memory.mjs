@@ -1,7 +1,6 @@
 /**
- * What the reference screens remember while the page lives: the queries, each list's filter, the
- * skill die and, on a phone, how far each list was scrolled when a panel took its place; never written to
- * the address or to storage (plan stage 11, decision 4).
+ * What the reference screens remember while the page lives: the queries, each list's filter and the
+ * skill die; never written to the address or to storage (plan stage 11, decision 4).
  *
  * Plain module state, no DOM: a screen reads its pieces when it is drawn and hands them back when
  * the coach changes them, so going from a list into an article and back finds the list as it was
@@ -17,7 +16,6 @@ let query = "";
 let searchFocusAsked = false;
 let roller = { ...FRESH_ROLLER };
 const filters = new Map();
-const listScrolls = new Map();
 
 /** The text in the reference's search box. */
 export function refQuery() {
@@ -35,15 +33,6 @@ export function listFilter(section) {
 
 export function setListFilter(section, patch) {
   filters.set(section, { ...listFilter(section), ...patch });
-}
-
-/** How far the page was scrolled when a list's panel took the list's place on a phone; 0 for a list that was not left that way. */
-export function listScroll(section) {
-  return listScrolls.get(section) ?? 0;
-}
-
-export function setListScroll(section, offset) {
-  listScrolls.set(section, offset);
 }
 
 /** A screen that wants the search box focused when it is drawn says so; the next draw takes the flag. */
