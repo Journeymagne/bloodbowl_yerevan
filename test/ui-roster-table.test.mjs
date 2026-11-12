@@ -649,6 +649,7 @@ test("a column that is not sorted keeps the button's box for its label: the same
 });
 
 test("on a phone the row of chips stands 8px under the position; a desk's chips under the name keep their 4px", () => {
-  assert.match(mediaText(SHEET, "max-width: 900px"), /\.g-rtable__skillrow > td\s*\{\s*padding:\s*var\(--space-8\) 0 var\(--space-10\) 46px;/);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__who", "padding")[0], "var(--space-4) var(--space-8) var(--space-4) 0", "the name cell's 4px under the position");
+  assert.match(mediaText(SHEET, "max-width: 900px"), /\.g-rtable__skillrow > td\s*\{\s*padding:\s*var\(--space-4\) 0 var\(--space-10\) 46px;/, "and 4px more over the chips");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__skills", "padding"), ["0 0 var(--space-6) 46px", "var(--space-4) 0 0 48px"]);
 });
