@@ -1,7 +1,7 @@
 /**
  * Where the team page's sheets stand, and the plumbing each of them shares.
  *
- * A sheet is opened from a button that is not its own (the treasury strip, the phone's treasury card, a row of
+ * A sheet is opened from a button that is not its own (the desk's or the phone's treasury card, a row of
  * the resources), and it must outlive the redraws of the screen around it: a screen that patches its markup
  * would close a dialog standing in it. So a sheet stands in a host of its own at the end of `<body>`, which
  * whoever opens it mounts and takes away again with the screen.

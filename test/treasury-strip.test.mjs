@@ -64,7 +64,7 @@ afterEach(() => {
   initLocale("en");
 });
 
-/** The desk team page's treasury card of t1 (70k), its «+ Add» and «− Take» shut when `live`: what opens the sheet. */
+/** The desk team page's treasury card of t1 (70k), its pencil shut when `live`: what opens the sheet. */
 const block = (live = false) => treasuryBlockMarkup({ teamId: "t1", treasury: 70 }, live);
 
 function stand(extra = block()) {
@@ -229,28 +229,7 @@ test("after leaving the strip hears nothing: the teams change and it stays as it
   assert.equal(sheetHost(), null);
 });
 
-test("the openers wired twice on one root have one host and open one dialog; the first release leaves them working, the last takes everything away", () => {
-  coach();
-  stand();
-  const first = wireMoneyOpeners(root);
-  const second = wireMoneyOpeners(root);
-  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "the second wiring mounts nothing");
-  fireEvent(add(), "click");
-  assert.equal(document.querySelectorAll("dialog#treasury-money").length, 1, "one press, one sheet");
-  first();
-  first();
-  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a release is spent once: the other holder keeps the wiring");
-  fireEvent(sheetDialog().querySelector("[data-sheet-close]"), "click");
-  fireEvent(add(), "click");
-  assert.ok(sheetDialog().matches(":modal"), "and the wiring still answers a press");
-  second();
-  unwire();
-  assert.equal(sheetHost(), null, "the last release takes the host and the sheet away");
-  unwire = wireMoneyOpeners(root);
-  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a root left can be wired again, afresh");
-});
-
-test("an entry made from the strip shows on the strip without the screen drawing it again, and the write is announced with the new revision", async () => {
+test("an entry made from the team page's card shows on the strip without the screen drawing it again, and the write is announced with the new revision", async () => {
   coach();
   stand();
   const section = root.querySelector("[data-treasury-strip]");
@@ -298,7 +277,7 @@ test("a team gone from the list leaves its strip as it was, and a strip of anoth
   assert.equal(second.querySelector(".g-funds__cell--money .g-funds__v").textContent, "5k", "t2 is not on the list: its strip stays");
 });
 
-test("a shut button that carries no reason of its own (the phone's treasury card) says the one the strip knows", async () => {
+test("a shut button that carries no reason of its own (the phone's treasury card) says the match's", async () => {
   coach();
   stand(`<button type="button" id="card" data-treasury-money="t1" data-treasury-sign="1" aria-disabled="true">Treasury</button>`);
   await withoutTimers(async () => {
@@ -309,7 +288,7 @@ test("a shut button that carries no reason of its own (the phone's treasury card
   assert.equal(document.querySelector("dialog"), null);
 });
 
-test("a live match: a shut «+ Add» is refused with its reason, no sheet opens; the pencil still leads to the team page", async () => {
+test("a live match: the card's shut pencil is refused with its reason, no sheet opens; the pencil still leads to the team page", async () => {
   coach({ games: [LIVE] });
   stand(block(true));
   assert.equal(edit().getAttribute("href"), "#/t/t1/team", "the team page says what the match closes there");

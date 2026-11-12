@@ -128,47 +128,20 @@ function press(host, button) {
   openMoneySheet(host, { teamId: button.getAttribute("data-treasury-money"), sign: Number(button.getAttribute("data-treasury-sign")) || 1, opener: button });
 }
 
-/** root → what its wiring holds: how many hold it, and how to take it away. */
-const wired = new WeakMap();
-
-/** A holder's release, spent once: the wiring goes with the last one. */
-function releaseOf(root, entry) {
-  let spent = false;
-  return () => {
-    if (spent) return;
-    spent = true;
-    entry.holders -= 1;
-    if (entry.holders > 0) return;
-    wired.delete(root);
-    entry.release();
-  };
-}
-
 /**
  * The team page's openers of «Add / Take» under `root` (`[data-treasury-money]`): a press opens the sheet in a host of
- * its own on the body. A root is wired once: wiring it again shares the first wiring (one host, one dialog, one
- * listener) and returns a release of its own, and everything goes when the last release is called.
+ * its own on the body.
  *
  * @param {Element} root the screen's element
  * @returns {() => void} removes the listeners, closes the sheet and takes its host away
  */
 export function wireMoneyOpeners(root) {
-  const held = wired.get(root);
-  if (held) {
-    held.holders += 1;
-    return releaseOf(root, held);
-  }
   const host = mountSheetHost("treasury-money");
   const group = listenerGroup(root);
   group.own(wireMoneySheet(host));
   group.on("click", "[data-treasury-money]", (event, button) => press(host, button));
-  const entry = {
-    holders: 1,
-    release() {
-      group.release();
-      unmountSheetHost(host);
-    },
+  return () => {
+    group.release();
+    unmountSheetHost(host);
   };
-  wired.set(root, entry);
-  return releaseOf(root, entry);
 }
