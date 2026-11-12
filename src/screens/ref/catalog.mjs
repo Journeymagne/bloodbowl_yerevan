@@ -86,6 +86,27 @@ export function sectionTitle(section) {
   }[section] ?? section;
 }
 
+const groupOfSection = (section) => REF_GROUPS.find((group) => group.items.some((item) => item.section === section));
+
+/**
+ * The line over a page's title that says where it lives, which every reference page but the index has (the owner,
+ * 2026-11-12): «Players · Reference» for a list or an article of a group (`groupKey`), «Reference» for a page of none.
+ */
+export function placeKicker(groupKey = null) {
+  return groupKey ? t("ref.kicker", { group: groupTitle(groupKey) }) : t("shell.tab.ref");
+}
+
+/** A list's own line: its group, in the reference («Players · Reference»). */
+export function sectionKicker(section) {
+  return placeKicker(groupOfSection(section)?.key ?? null);
+}
+
+/** The line of a page that is a member of a list: the list's group and the list («Teams · Team's Rules»). */
+export function memberKicker(section) {
+  const group = groupOfSection(section);
+  return group ? `${groupTitle(group.key)} · ${sectionTitle(section)}` : sectionTitle(section);
+}
+
 export function sectionDescription(section) {
   return {
     teams: t("section.teamsDescription"),

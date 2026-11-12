@@ -128,14 +128,26 @@
   gap: var(--space-12);
 }
 
-/* The way up, the title, the count: one row, the title taking what the others leave. */
+/* Where a page lives, over its title: a list's and an article's alike. */
+.g-ref-kicker {
+  margin: 0;
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* The way up, the kicker over the title, the count: one row, the titles taking what the others leave. */
 .g-ref-list__top {
   display: flex;
   align-items: center;
   gap: var(--space-12);
 }
-.g-ref-list__top > .g-ref-list__title {
+.g-ref-list__titles {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-6);
   min-width: 0;
 }
 

@@ -21,7 +21,7 @@ import { onActiveTeamChange } from "../../data/active-team.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
-import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
+import { REF_GROUPS, articleNeighbours, itemKeyOf, memberKicker, placeKicker, refGroups, sectionTitle } from "./catalog.mjs";
 import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
@@ -48,7 +48,6 @@ function sectionOf(page) {
   return REF_SECTIONS.has(section) ? section : null;
 }
 
-const groupOfSection = (section) => REF_GROUPS.find((group) => group.items.some((item) => item.section === section));
 const groupOfPage = (page) => REF_GROUPS.find((group) => group.items.some((item) => item.page === page.id));
 
 /** Where the way up from a page leads: its list, or the reference. */
@@ -59,16 +58,11 @@ export function parentOf(page) {
 
 /**
  * The line over an article's title that says where it lives: "Teams · Team's Rules" for a member of
- * a list, "Players · league reference" for an article of a group, "Reference" for any other page.
+ * a list, "Players · Reference" for an article of a group, "Reference" for any other page.
  */
 export function kickerOf(page) {
   const section = sectionOf(page);
-  if (section) {
-    const group = groupOfSection(section);
-    return group ? `${groupTitle(group.key)} · ${sectionTitle(section)}` : sectionTitle(section);
-  }
-  const group = groupOfPage(page);
-  return group ? t("ref.kicker", { group: groupTitle(group.key) }) : t("shell.tab.ref");
+  return section ? memberKicker(section) : placeKicker(groupOfPage(page)?.key ?? null);
 }
 
 /**
@@ -102,7 +96,7 @@ function pagerMarkup({ prev, next }) {
  */
 function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "", panelHtml = "" }) {
   const head = `<div class="g-article__head">${backLinkMarkup(back)}<div class="g-article__titles">`
-    + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
+    + `${kicker ? `<p class="g-ref-kicker">${escapeHtml(kicker)}</p>` : ""}`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
     + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div></div>`;
   return refPageMarkup({
@@ -148,7 +142,7 @@ const referenceBack = () => ({ href: refUrl(), label: t("shell.tab.ref") });
 
 /** An address with no page behind it (`slug`: what the address said, which is also what tells it from another): said in the article's own place, with the reference all round it. */
 export function notFoundMarkup(slug = "") {
-  return articleFrame({ screen: slug, groups: currentGroups(), back: referenceBack(), title: t("app.pageNotFound") });
+  return articleFrame({ screen: slug, groups: currentGroups(), back: referenceBack(), kicker: placeKicker(), title: t("app.pageNotFound") });
 }
 
 /**
@@ -257,7 +251,7 @@ export function renderOverviewArticle(slug) {
     groups: currentGroups(),
     currentKey: "rules",
     back: { href: refUrl("rules"), label: sectionTitle("rules") },
-    kicker: sectionTitle("rules"),
+    kicker: memberKicker("rules"),
     title: card.title,
     bodyHtml: proseMarkup((card.sections ?? []).map(overviewSection).join("")),
   }));
@@ -270,6 +264,7 @@ export function renderLegal() {
     screen: "legal",
     groups: currentGroups(),
     back: referenceBack(),
+    kicker: placeKicker(),
     title: t("legal.title"),
     sub: t("legal.subtitle"),
     bodyHtml: proseMarkup(paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")),

@@ -21,7 +21,7 @@ import { renderNavRow } from "../../ui/list-row.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
-import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mjs";
+import { overviewUrl, refGroups, sectionKicker, sectionPages, sectionTitle } from "./catalog.mjs";
 import { closeDetailSheet, detailPanelMarkup, detailSheetMarkup, drawWithDetail, isPhone, noteSheet, onPhoneChange, wireDetailSheet } from "./details.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, refQuery, setListFilter } from "./memory.mjs";
@@ -159,7 +159,7 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const shape = LETTER_SECTIONS.has(section) ? "" : " g-ref-list--nav";
   // Keyed, so that the redraw which opens an item beside the list keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
-    + `<div class="g-ref-list__top">${backHtml}${titleHtml}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
+    + `<div class="g-ref-list__top">${backHtml}<div class="g-ref-list__titles"><p class="g-ref-kicker">${escapeHtml(sectionKicker(section))}</p>${titleHtml}</div><p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
 }
 

@@ -255,7 +255,13 @@ test("a phone gets the way back up to the reference; the table of contents and t
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("href"), "#/ref");
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Back to Reference");
   const top = view.querySelector(".g-ref-list__top").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
-  assert.deepEqual(top, ["g-ref-back", "g-ref-list__title", "g-ref-list__count"], "at the left of the list's title");
+  assert.deepEqual(top, ["g-ref-back", "g-ref-list__titles", "g-ref-list__count"], "at the left of the list's titles");
+  assert.equal(view.querySelector(".g-ref-list__titles .g-ref-kicker").textContent, "Teams · Reference", "where the list lives, as an article says it");
+  for (const [section, kicker] of [["skills", "Players · Reference"], ["inducements", "Before and during a match · Reference"], ["rules", "League · Reference"]]) {
+    renderRefSection(section);
+    assert.equal(view.querySelector(".g-ref-kicker").textContent, kicker, section);
+  }
+  renderRefSection("teams");
   assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
   assert.ok(view.querySelector("nav.g-ref-toc"));
   setRefQuery("dodge");
