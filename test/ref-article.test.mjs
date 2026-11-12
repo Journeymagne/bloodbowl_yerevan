@@ -59,7 +59,7 @@ test("an article of a group pages to its neighbours, and lights itself in the ta
   assert.equal(view.querySelector(".g-article__prev").getAttribute("href"), "#/prayers-to-nuffle");
   assert.equal(view.querySelector(".g-article__next").getAttribute("href"), "#/player-advancement");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/casualties");
-  assert.equal(view.querySelector(".g-ref-kicker").textContent, "Before and during a match · Reference");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Before and during a match · Reference");
   renderReferencePage("weather");
   assert.equal(view.querySelector(".g-article__prev"), null);
 });
@@ -69,7 +69,7 @@ test("the way back from a list member is its list; from an article, the referenc
   assert.deepEqual(back("teams/amazon"), ["#/ref/teams", "Back to Team's Rules"]);
   assert.deepEqual(back("weather"), ["#/ref", "Back to Reference"]);
   const head = view.querySelector(".g-article__head").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
-  assert.deepEqual(head, ["g-ref-back", "g-article__titles"], "at the left of the kicker and the title");
+  assert.deepEqual(head, ["g-ref-back", "g-article__titles"], "at the left of the title and its sub-line");
 });
 
 test("the build's table classes reach the page inside the prose frame", () => {
@@ -127,7 +127,7 @@ test("not found keeps the reference around it: the head, the table of contents, 
   assert.ok(view.querySelector(".g-ref--article header.g-pagehead"));
   assert.equal(view.querySelectorAll(".g-ref-toc__link").length, refGroups(referenceData("en")).flatMap((group) => group.items).length);
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]'), null);
-  assert.equal(view.querySelector(".g-ref-kicker").textContent, "Reference", "no group to name: the reference, as every page says where it lives");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Reference", "no group to name: the reference, as every page says where it lives");
   assert.equal(view.querySelector(".g-article__pager"), null);
   assert.equal(draw(notFoundMarkup()).querySelectorAll("h1").length, 1);
 });
@@ -222,7 +222,7 @@ test("an overview card is a heading and a list for each of its sections; an item
   assert.equal(sections[0].querySelectorAll("h2").length, 1);
   assert.equal(view.querySelectorAll(".g-prose section ul li").length, 7);
   assert.equal(view.querySelector(".g-prose li strong"), null, "a sentence with no label is only text");
-  assert.equal(view.querySelector(".g-ref-kicker").textContent, "League · League Rules", "a member of the League Rules, as a team is of the Team's Rules");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "League · League Rules", "a member of the League Rules, as a team is of the Team's Rules");
   assert.equal(view.querySelectorAll("h1").length, 1);
   assertCspSafe(view);
   renderOverviewArticle("general-rules");
@@ -379,17 +379,22 @@ test("up to 900px an article has no frame; from 901px it is a card of the surfac
 
 test("the ring is the strong line, and what sits on the card is readable on it in every palette", () => {
   assert.equal(read("src/styles/tokens.css").match(/--ring:\s*([^;]+);/)[1], "inset 0 0 0 1px var(--line-strong)");
-  assertReadable("src/screens/ref/ref.css", ".g-ref-kicker", "color", ["--surface", "--page"], 4.5);
+  assertReadable("src/screens/ref/ref.css", ".g-ref-place", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__title", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__sub", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__prev", "color", ["--surface", "--page"], 4.5);
   assertReadable(SHEET, ".g-article__next", "color", ["--surface", "--page"], 4.5);
 });
 
-test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px at every width, as a list's, in the display face and never in capitals", () => {
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "font"), ["700 12px/1.3 var(--font-body)"]);
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "letter-spacing"), [".08em"]);
-  assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "text-transform"), ["uppercase"]);
+test("where a page lives is a sub-line under its title, as the page head's; the title 700 32px at every width, as a list's, in the display face and never in capitals", () => {
+  for (const property of ["font", "color", "letter-spacing", "text-transform"]) {
+    assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-place", property), valuesOf("src/ui/page-head.css", ".g-pagehead__sub", property), property);
+  }
+  renderReferencePage("weather");
+  const titles = view.querySelector(".g-article__titles").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(titles, ["g-article__title", "g-ref-place"], "under the title");
+  assert.ok(valuesOf("src/screens/ref/ref.css", ".g-ref-place", "display").includes("none"), "a desk has the table of contents to say it: no sub-line");
+  assert.match(mediaText("src/screens/ref/ref.css", "min-width: 901px"), /\.g-ref-place\s*\{\s*display:\s*none/, "hidden on a desk only");
   assert.deepEqual(valuesOf(SHEET, ".g-article__title", "font"), ["700 32px/1 var(--font-display)"]);
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-list__title", "font"), ["700 32px/1 var(--font-display)"], "a list's title is the same");
   assert.deepEqual(valuesOf(SHEET, ".g-article__title", "text-transform"), ["none"]);

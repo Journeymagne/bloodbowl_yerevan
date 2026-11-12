@@ -96,8 +96,8 @@ function pagerMarkup({ prev, next }) {
  */
 function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "", panelHtml = "" }) {
   const head = `<div class="g-article__head">${backLinkMarkup(back)}<div class="g-article__titles">`
-    + `${kicker ? `<p class="g-ref-kicker">${escapeHtml(kicker)}</p>` : ""}`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
+    + `${kicker ? `<p class="g-ref-place">${escapeHtml(kicker)}</p>` : ""}`
     + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div></div>`;
   return refPageMarkup({
     layout: "article",

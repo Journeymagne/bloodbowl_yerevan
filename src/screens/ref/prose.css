@@ -149,6 +149,10 @@
   vertical-align: top;
 }
 
+.g-prose tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface-2) 35%, var(--surface));
+}
+
 /* Column classes from scripts/lib/render-table.mjs. */
 .g-prose .fit-cell {
   width: 1%;

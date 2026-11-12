@@ -24,6 +24,13 @@ test("cells draw their own background and lines, one rule each", () => {
   }
 });
 
+test("every second body row is striped, fainter than the head's fill, and its text still reads", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-prose tbody tr:nth-child(even) td", "background"), ["color-mix(in srgb, var(--surface-2) 35%, var(--surface))"]);
+  for (const selector of [".g-prose td", ".g-prose a", ".g-prose .numbered-table td:first-child"]) {
+    assertReadable(SHEET, selector, "color", ["--surface-2"], 4.5);
+  }
+});
+
 // What season.css and responsive.css gave the build's tables, kept here when they went (stage 13, Task 23: not a pixel
 // moved): a head cell's text at its top, the Skill Table's 48px number column centred, a scroll box that never scrolls
 // up and down and keeps a sideways swipe to itself, and the 8px bar of an engine that styles only the webkit scrollbar,

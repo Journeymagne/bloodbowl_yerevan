@@ -256,10 +256,10 @@ test("a phone gets the way back up to the reference; the table of contents and t
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Back to Reference");
   const top = view.querySelector(".g-ref-list__top").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
   assert.deepEqual(top, ["g-ref-back", "g-ref-list__titles", "g-ref-list__count"], "at the left of the list's titles");
-  assert.equal(view.querySelector(".g-ref-list__titles .g-ref-kicker").textContent, "Teams · Reference", "where the list lives, as an article says it");
+  assert.equal(view.querySelector(".g-ref-list__titles .g-ref-place").textContent, "Teams · Reference", "where the list lives, as an article says it");
   for (const [section, kicker] of [["skills", "Players · Reference"], ["inducements", "Before and during a match · Reference"], ["rules", "League · Reference"]]) {
     renderRefSection(section);
-    assert.equal(view.querySelector(".g-ref-kicker").textContent, kicker, section);
+    assert.equal(view.querySelector(".g-ref-place").textContent, kicker, section);
   }
   renderRefSection("teams");
   assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
@@ -443,7 +443,7 @@ test("from 901px every page is the Skills page's grid: the contents, the main co
   assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "align-items"), ["start"], "the panel can stick");
   assert.ok(desk.includes(".g-ref__body {"), "the grid is a desk rule");
   for (const layout of ["list", "split", "article"]) assert.deepEqual(valuesOf(SHEET, `.g-ref--${layout} .g-ref__main`, "grid-column"), ["2"], layout);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref--index .g-ref__main", "grid-column"), ["1 / 3"], "the index has no contents: it starts at the left, ends where every page ends");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref--index .g-ref__main", "grid-column"), ["1 / -1"], "the index has no contents or panel: it takes the whole width");
   assert.equal(read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").match(/:has\(\.g-ref-skilltable|--ref-(mid|read)/), null, "no page, the Skill Table's among them, is wider than the main column");
   assert.deepEqual(valuesOf(SHEET, ".g-ref__panel", "grid-column"), ["3"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc", "grid-column"), ["1"]);
@@ -469,7 +469,9 @@ test("from 901px the rows are a grid of 220px columns in a framed card, and the 
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "max-height"), []);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-top"), ["1px solid var(--line)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-bottom"), ["0"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "margin-top"), ["-1px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "margin-top"), [], "the first row's lines are not laid over the head's rule");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "clip-path"), ["inset(1px 0 0 0)"], "the first row's lines are clipped off");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row:focus-visible", "outline-offset"), ["-3px"], "a row's focus ring stays inside the clip");
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "overflow-y"), []);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list", "background"), ["none", "var(--surface)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__subtitle", "grid-column"), ["1 / -1"]);

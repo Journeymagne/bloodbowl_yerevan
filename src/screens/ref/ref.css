@@ -124,12 +124,12 @@
   gap: var(--space-12);
 }
 
-.g-ref-kicker {
+.g-ref-place {
   margin: 0;
   color: var(--muted);
-  font: 700 12px/1.3 var(--font-body);
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .g-ref-list__top {
@@ -141,7 +141,7 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -285,7 +285,7 @@
   .g-ref--split .g-ref__main,
   .g-ref--article .g-ref__main { grid-column: 2; }
   .g-ref__panel { grid-column: 3; }
-  .g-ref--index .g-ref__main { grid-column: 1 / 3; }
+  .g-ref--index .g-ref__main { grid-column: 1 / -1; }
 
   .g-ref-toc {
     display: flex;
@@ -331,7 +331,8 @@
     text-transform: none;
   }
 
-  .g-ref-back { display: none; }
+  .g-ref-back,
+  .g-ref-place { display: none; }
 
   /* Two columns of groups, each a card; the rows keep their own dividers except the last. */
   .g-ref-groups {
@@ -376,16 +377,17 @@
     margin-top: 0;
     padding: var(--space-8) var(--space-14) var(--space-14);
   }
-  /* Lines over each row, the first on the head's rule: a line under each would stay under the last line's rows. */
+  /* Lines over each row, the first row's clipped off under the head's rule: a line under each would stay under the last line's rows. */
   .g-ref-list--nav .g-ref-list__body {
     grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-    margin-top: -1px;
     padding-top: 0;
+    clip-path: inset(1px 0 0 0);
   }
   .g-ref-list--nav .g-ref-list__body .g-list-row {
     border-top: 1px solid var(--line);
     border-bottom: 0;
   }
+  .g-ref-list--nav .g-ref-list__body .g-list-row:focus-visible { outline-offset: -3px; }
   .g-ref-list--nav .g-ref-list__body .g-list-row[aria-current="page"] {
     border-top-color: transparent;
     border-radius: var(--radius-md);

@@ -204,7 +204,7 @@ test("the league's block is a heading over its rows, and only the races' own tea
 
 test("the article is the page's own: its title, its kicker and the way up, the vault's roster table is not drawn twice", () => {
   renderReferencePage("teams/human");
-  assert.equal(view.querySelector(".g-ref-kicker").textContent, "Teams · Team's Rules");
+  assert.equal(view.querySelector(".g-ref-place").textContent, "Teams · Team's Rules");
   assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/teams");
   assert.equal(view.querySelectorAll("table").length, 1, "the roster table, once");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/teams");
