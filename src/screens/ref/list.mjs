@@ -123,13 +123,6 @@ function categoryChips(data, categories, selected) {
   return renderFilterChips({ label: t("sidebar.category"), items, selected, data: { chipGroup: CHIP_GROUP } });
 }
 
-/** What a list shows for its filter: its categories, the one chosen (one the vault does not have is All), and the rows. */
-function shownRows(data, section, filter) {
-  const categories = section === "skills" ? skillCategories(data) : [];
-  const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
-  return { categories, category, pages: listRows(data, section, { query: filter.query, category }) };
-}
-
 /**
  * A list: its title and count, its search and (for the skills) its categories, then the rows.
  *
@@ -141,7 +134,9 @@ function shownRows(data, section, filter) {
  * @param {string|null} [props.selectedSlug] the page open beside the list: its row is the current one, and the list's title is no longer a heading
  */
 export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null }) {
-  const { categories, category, pages } = shownRows(data, section, filter);
+  const categories = section === "skills" ? skillCategories(data) : [];
+  const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
+  const pages = listRows(data, section, { query: filter.query, category });
   const cards = section === "rules" ? overviewCards : [];
   const count = t("ref.count", { shown: pages.length + cards.length, total: sectionPages(data, section).length + cards.length });
   const title = escapeHtml(sectionTitle(section));
@@ -196,8 +191,6 @@ function draw(section, selected) {
   // A phone swaps the list for the panel, and the panel's screen starts at its top. Where the list was
   // read to is kept for the way back (below); a panel opened from anywhere but that list leaves the list at its top.
   if (phone && selected && !(sameList && shown !== null)) setListScroll(section, sameList ? (globalThis.scrollY ?? 0) : 0);
-  // A desk's panel is never an empty card (the owner, 2026-11-12): with nothing chosen it shows the first row the list shows.
-  const open = selected ?? (split && !phone ? shownRows(state.data, section, filter).pages[0] ?? null : null);
   drawScreen(view, refPageMarkup({
     layout: split ? "split" : "list",
     screen: screenOfList(section, selected, phone),
@@ -206,8 +199,8 @@ function draw(section, selected) {
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
     // With something chosen the list is hidden on a phone, and the panel brings the way back.
     mainHtml: (selected ? "" : backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }))
-      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: open?.slug ?? null }),
-    panelHtml: split ? panelMarkup(section, open) : "",
+      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null }),
+    panelHtml: split ? panelMarkup(section, selected) : "",
   }));
   syncField("#ref-list-query", filter.query);
   syncField("#ref-query", refQuery());

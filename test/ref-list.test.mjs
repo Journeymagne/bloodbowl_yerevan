@@ -34,12 +34,13 @@ test("skills: every one, a letter for its category and a link to its page; Activ
   renderRefSection("skills");
   const rows = view.querySelectorAll("a.g-ref-row");
   assert.equal(rows.length, 82);
-  assert.equal(view.querySelector(".g-ref-list__title").textContent, "Skills");
+  assert.equal(view.querySelector("h1").textContent, "Skills");
   assert.equal(view.querySelector(".g-ref-list__count").textContent, "82 of 82");
   const block = view.querySelector('a.g-ref-row[href="#/skills/block"]');
   assert.deepEqual([block.querySelector(".g-ref-badge").textContent, block.querySelector(".g-ref-row__name").textContent], ["G", "Block"]);
   assert.equal(block.textContent.includes("Active"), false, "the row says no type");
-  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail__caption").textContent, "Passing · Active", "the open skill's panel says it");
+  renderRefSection("skills", { selected: referenceData("en").skills.find((page) => page.slug === "skills/block") });
+  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail__caption").textContent, "General · Active", "the open skill's panel says it");
 });
 
 test("a category chip narrows the skills to it and says how many of how many; All brings them back", () => {
@@ -90,21 +91,8 @@ test("an empty list says so; a wide screen gets the table of contents with the l
   assert.ok(view.querySelector(".g-ref-empty"));
   renderRefSection("skills");
   assert.equal(view.querySelector('.g-ref-toc [aria-current="page"]').getAttribute("href"), "#/ref/skills");
-});
-
-test("on a desk nothing chosen opens the first row the list shows, never an empty panel; a filter with no rows gets the hint", () => {
-  renderRefSection("skills");
-  assert.equal(view.querySelector(".g-ref-pick"), null);
-  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail").getAttribute("data-page"), "skills/accurate");
-  assert.deepEqual(view.querySelectorAll('a.g-ref-row[aria-current="page"]').map((row) => row.getAttribute("href")), ["#/skills/accurate"]);
-  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Accurate"], "the open skill's panel owns the h1, as at its own address");
-  assert.equal(view.querySelector(".g-ref--open"), null, "nothing was chosen: a phone would still show the list");
-  fireEvent(view.querySelector('[data-chip-value="Strength"]'), "click");
-  assert.equal(view.querySelector(".g-skill-detail").getAttribute("data-page"), "skills/arm-bar", "the first row of the category");
-  type("#ref-list-query", "zzzz");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a skill to read its rule");
-  renderRefSection("traits");
-  assert.equal(view.querySelector(".g-ref__panel .g-skill-detail").getAttribute("data-page"), "traits/always-hungry", "traits open on their first trait too");
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Skills"], "no article is open: the list keeps its heading");
 });
 
 test("no link a list draws is sent on by the router, and every key is in both dictionaries", () => {
@@ -212,12 +200,12 @@ test("a skill that is open is marked in the list, which keeps its filter; the li
   assert.equal(view.querySelector(".g-ref-pick"), null);
   renderRefSection("skills");
   assert.equal(view.querySelector(".g-ref--open"), null, "nothing chosen: the list is the whole screen on a phone");
-  assert.deepEqual(view.querySelectorAll('a.g-ref-row[aria-current="page"]').map((row) => row.getAttribute("href")), ["#/skills/catch"], "a desk shows the first row of the category kept");
+  assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "and no row is marked");
+  assert.ok(view.querySelector("h1"), "the list has its heading back");
 });
 
-test("traits with no row to open get the trait hint; the lists that are not split have no panel and are never open", () => {
+test("traits get the trait hint; the lists that are not split have no panel and are never open", () => {
   renderRefSection("traits");
-  type("#ref-list-query", "zzzz");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a trait to read its rule");
   for (const section of ["teams", "star-players", "inducements", "rules", "cheatsheets"]) {
     renderRefSection(section);
@@ -308,9 +296,7 @@ test("the same lists in Russian, from the Russian dictionary and the Russian vau
   assert.equal(view.querySelector("#ref-list-query").getAttribute("placeholder"), "Найти команду");
   assert.match(view.querySelector('a.g-list-row[href="#/teams/human"] .g-list-row__desc').textContent, /^Tier \d · Основные$/);
   renderRefSection("skills");
-  type("#ref-list-query", "zzzz");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Выберите навык, чтобы прочитать правило");
-  type("#ref-list-query", "");
   assert.equal(view.querySelector("a.g-ref-back").textContent, "Справочник");
   renderRefSection("traits");
   assert.equal(view.querySelector('a.g-ref-row[href="#/traits/always-hungry"] .g-ref-badge').textContent, "T", "a trait's letter is the English one, as a skill's");
