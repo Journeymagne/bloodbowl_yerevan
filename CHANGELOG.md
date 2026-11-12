@@ -8,6 +8,53 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [3.0.2] — 2026-11-12
+
+A second polish from the owner's review: another coach's roster reads as one's
+own, the overview's figures and «see all» links lead where things are read in
+full, and every staff item has one name on every screen.
+
+### Added
+
+- **Another coach's team page** shows the roster as the Roster's table, on both
+  widths: the characteristics, career and SPP in columns, the rows to read
+  only. A player who misses the match says why, as «Before the match» does.
+- **Team settings lead to the reference:** the race to its team page, the
+  league to its part of Leagues (`#/leagues/<league>`).
+- **The overview's figures are links:** the place and the points to the table,
+  «TD ± / CAS ±» to the team's matches, the value to the roster, the treasury to
+  the team page.
+
+### Changed
+
+- **Team overview.** One set of figures on both widths: the place (on the
+  desktop; the phone's header says it), «Points · W/D/L», «TD ± / CAS ±», the
+  team value and the treasury.
+- **Staff names.** Each item has one name everywhere: «Starting Rerolls»,
+  «Team Rerolls», «Dedicated Fans», «Bribes», «Apothecary» («Стартовые
+  рероллы», «Командные рероллы», «Преданные фанаты», «Взятки», «Апотекарий»).
+  The roster's strip calls the medics «Doctor» and «Assistant» and the
+  Cheerleaders «Cheers», with the full name on a hover and for a screen reader.
+- **Shortened words** lose their dot: «Avail», «Дост», «Старт рер», «tech» /
+  «тех», «очк».
+- **«See all» links** («Whole season →», «Whole table →», «Season calendar →»,
+  the guest's table) look and behave the same.
+- **A skill's sheet** says the advancement once, in the box of whose skill it
+  is, with how it was rolled under it. The captain's gold chip has a darker
+  gold ring, so it reads the size of the chips beside it.
+- **Roster table on the desktop.** More room between the characteristics,
+  career and SPP; no sideways scrollbar when there is nothing to scroll; no gap
+  or line before the «Missing the match» and «Fallen» bands.
+- **New-team builder.** «Remove logo» is a bin icon, and the rows' buttons are
+  36px on the desktop, as in the team settings.
+- **Team settings** no longer put a note under Dedicated Fans.
+
+### Fixed
+
+- The season standings' cards keep their edges beside the table's rows.
+- The number beside a roster section's heading is set off from it.
+- An unsorted column's label keeps the sort button's box, so the heads line up.
+
 ## [3.0.1] — 2026-11-12
 
 A polish of 3.0 from the owner's review: the team page holds its treasury in

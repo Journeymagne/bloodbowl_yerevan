@@ -2,7 +2,7 @@
 
 The site of the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league. Each coach runs their teams through the season on it, from the draft of a new team to the post-match of the last game, and anyone can read the league's rules, its table and its reference.
 
-Current release: **3.0.1**. See [CHANGELOG.md](CHANGELOG.md) for what changed, and "Moving to 3.0" in [DEPLOYMENT.md](DEPLOYMENT.md) for moving a 2.x site to it.
+Current release: **3.0.2**. See [CHANGELOG.md](CHANGELOG.md) for what changed, and "Moving to 3.0" in [DEPLOYMENT.md](DEPLOYMENT.md) for moving a 2.x site to it.
 
 The site contains:
 
