@@ -625,6 +625,7 @@
   "ref.trait.pick": "Choose a trait to read its rule",
   "ref.inducement.pick": "Choose an inducement to read its rule",
   "ref.inducement.caption": "Inducement",
+  "ref.backTo": "Back to {page}",
   "ref.kicker": "{group} · league reference",
   "ref.pager": "More articles",
   "ref.roll.hint": "Pick a category and roll the D16",

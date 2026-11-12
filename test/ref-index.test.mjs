@@ -244,11 +244,13 @@ test("the reference's band is the page head: its title (h1 on the index, a parag
   assert.doesNotMatch(read(SHEET), /g-ref-head/, "the reference's own band is gone");
 });
 
-test("the way back is a link with an arrow and a name; the name is text", () => {
+test("the way back is a round «‹» named by where it leads; the name is text", () => {
   const link = draw(backLinkMarkup({ href: "#/ref/skills", label: HOSTILE })).querySelector("a.g-ref-back");
   assert.equal(link.getAttribute("href"), "#/ref/skills");
   assert.ok(link.querySelector("svg"));
-  assert.equal(link.textContent, HOSTILE);
+  assert.equal(link.textContent, "", "the glyph alone");
+  assert.equal(link.getAttribute("aria-label"), `Back to ${HOSTILE}`);
+  assertCspSafe(draw(backLinkMarkup({ href: "#/ref/skills", label: HOSTILE })));
 });
 
 test("the search field is wired by its attribute, and unwires", () => {
@@ -295,10 +297,12 @@ test("the table of contents is the desktop's: 48px links, the current one on the
   assert.deepEqual(valuesOf(SHEET, ".g-ref-toc__group", "text-transform"), ["uppercase"]);
 });
 
-test("the way back is a 44px link on a phone and gone on a desktop", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "min-height"), ["44px"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "font"), ["600 14px/1.2 var(--font-body)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "color"), ["var(--accent-text)"]);
+test("the way back is a 44px round button on a phone, as a team's settings' «‹», and gone on a desktop", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "width"), ["44px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "height"), ["44px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "border-radius"), ["22px"]);
+  assert.deepEqual(valuesOf("src/screens/team/manage/settings.css", ".g-team-settings-screen__back", "border-radius"), ["22px"], "the same circle");
+  assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "color"), ["var(--ink)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-back", "display"), ["inline-flex", "none"]);
 });
 
@@ -324,7 +328,7 @@ test("the head, the groups and the table of contents are readable in every palet
   assertReadable(SHEET, ".g-ref-group__title", "color", ["--page", "--desk", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-found", "color", ["--page", "--surface"], 4.5);
   assertReadable(SHEET, ".g-ref-empty", "color", ["--page", "--surface"], 4.5);
-  assertReadable(SHEET, ".g-ref-back", "color", ["--page", "--desk"], 4.5);
+  assertReadable(SHEET, ".g-ref-back", "color", ["--surface-2"], 3);
   assertReadable(SHEET, ".g-ref-toc__group", "color", ["--desk"], 4.5);
   assertReadable(SHEET, ".g-ref-toc__link", "color", ["--desk"], 4.5);
   assertReadable(SHEET, '.g-ref-toc__link[aria-current="page"]', "color", ["--surface"], 4.5);

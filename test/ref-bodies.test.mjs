@@ -294,7 +294,7 @@ test("a phone's lists are the table's columns, face by face, each skill a link t
       for (const link of lists[at].querySelectorAll("li a")) assert.match(link.getAttribute("href"), /^#\/skill-table\/[\w-]+$/, `${locale}: ${link.textContent}`);
       assert.equal(lists[at].querySelectorAll("li a").length, skills.length, `${locale}: every skill is a link`);
     });
-    assert.deepEqual(view.querySelector(".g-article").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")).slice(2, 5),
+    assert.deepEqual(view.querySelector(".g-article").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")).slice(1, 4),
       ["g-ref-roller", "g-ref-skilltable", "g-prose g-ref-skilltable__desk"], locale);
     assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), [state.data.pages.find((page) => page.id === "skills-and-traits-skill-table").title], locale);
     assertCspSafe(view);

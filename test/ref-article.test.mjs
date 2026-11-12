@@ -65,9 +65,11 @@ test("an article of a group pages to its neighbours, and lights itself in the ta
 });
 
 test("the way back from a list member is its list; from an article, the reference", () => {
-  const back = (slug) => { renderReferencePage(slug); const link = view.querySelector(".g-ref-back"); return [link.getAttribute("href"), link.textContent.trim()]; };
-  assert.deepEqual(back("teams/amazon"), ["#/ref/teams", "Team's Rules"]);
-  assert.deepEqual(back("weather"), ["#/ref", "Reference"]);
+  const back = (slug) => { renderReferencePage(slug); const link = view.querySelector(".g-article__head .g-ref-back"); return [link.getAttribute("href"), link.getAttribute("aria-label")]; };
+  assert.deepEqual(back("teams/amazon"), ["#/ref/teams", "Back to Team's Rules"]);
+  assert.deepEqual(back("weather"), ["#/ref", "Back to Reference"]);
+  const head = view.querySelector(".g-article__head").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(head, ["g-ref-back", "g-article__titles"], "at the left of the kicker and the title");
 });
 
 test("the build's table classes reach the page inside the prose frame", () => {

@@ -143,8 +143,9 @@ function categoryChips(data, categories, selected) {
  * @param {object[]} [props.overviewCards] the league overview's cards, which the rules list shows ahead of its pages
  * @param {string|null} [props.selectedSlug] the page that is open: its row is the current one
  * @param {boolean} [props.heading] the list's title is the page's h1; not when the card open beside it has the h1
+ * @param {string} [props.backHtml] a phone's way up, `backLinkMarkup()`'s, at the left of the title
  */
-export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug }) {
+export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug, backHtml = "" }) {
   const categories = section === "skills" ? skillCategories(data) : [];
   const category = categories.some(({ value }) => value === filter.category) ? filter.category : "all";
   const pages = listRows(data, section, { query: filter.query, category });
@@ -158,7 +159,7 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const shape = LETTER_SECTIONS.has(section) ? "" : " g-ref-list--nav";
   // Keyed, so that the redraw which opens an item beside the list keeps the list's node, and the focus in its search.
   return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
-    + `<div class="g-ref-list__top">${titleHtml}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
+    + `<div class="g-ref-list__top">${backHtml}${titleHtml}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
 }
 
@@ -187,8 +188,8 @@ function draw(section, selected) {
     screen: `list:${section}`,
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
-    mainHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") })
-      + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel }),
+    mainHtml: refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null, heading: !panel,
+      backHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }) }),
     panelHtml: split ? detailPanelMarkup(panel, pickOf(section)) : "",
   });
   drawWithDetail(view, markup + detailSheetMarkup(sheet), Boolean(sheet), (slug) => `.g-ref-list a[href="#/${slug}"]`);

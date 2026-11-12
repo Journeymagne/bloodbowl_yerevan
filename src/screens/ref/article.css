@@ -25,8 +25,17 @@
   text-transform: none;
 }
 
+/* A phone's way up at the left of the kicker and the title, which stand over each other. */
 .g-article__head {
   display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.g-article__titles {
+  display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;

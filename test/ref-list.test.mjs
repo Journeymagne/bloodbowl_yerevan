@@ -253,7 +253,9 @@ test("on a phone an inducement opens in a sheet over its list, named by it, with
 test("a phone gets the way back up to the reference; the table of contents and the band are the page's own", () => {
   renderRefSection("teams");
   assert.equal(view.querySelector("a.g-ref-back").getAttribute("href"), "#/ref");
-  assert.equal(view.querySelector("a.g-ref-back").textContent, "Reference");
+  assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Back to Reference");
+  const top = view.querySelector(".g-ref-list__top").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(top, ["g-ref-back", "g-ref-list__title", "g-ref-list__count"], "at the left of the list's title");
   assert.equal(view.querySelector("header.g-pagehead p.g-pagehead__title").textContent, "Reference");
   assert.ok(view.querySelector("nav.g-ref-toc"));
   setRefQuery("dodge");
@@ -341,7 +343,7 @@ test("the same lists in Russian, from the Russian dictionary and the Russian vau
   assert.match(view.querySelector('a.g-list-row[href="#/teams/human"] .g-list-row__desc').textContent, /^Tier \d · Основные$/);
   renderRefSection("skills");
   assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Выберите навык, чтобы прочитать правило");
-  assert.equal(view.querySelector("a.g-ref-back").textContent, "Справочник");
+  assert.equal(view.querySelector("a.g-ref-back").getAttribute("aria-label"), "Назад в «Справочник»");
   renderRefSection("traits");
   assert.equal(view.querySelector('a.g-ref-row[href="#/traits/always-hungry"] .g-ref-badge').textContent, "T", "a trait's letter is the English one, as a skill's");
   renderRefSection("rules");

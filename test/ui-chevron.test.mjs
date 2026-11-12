@@ -143,7 +143,7 @@ const BACK_SHORT = "M15 6l-6 6 6 6";
 const BACK_SITES = {
   "src/ui/match-board.mjs": ["back"], // DeskOverview, DeskSeason: the board's «previous» (14, inside its arrow())
   "src/ui/sheet.mjs": ["back"], // Adv*: a sheet's step back
-  "src/screens/ref/frame.mjs": ["back 18"], // Ref*, DeskRef*: «‹ Справочник»
+  "src/screens/ref/frame.mjs": ["backShort 18"], // a phone's reference page: the round «‹» of a team's settings (the owner, 2026-11-12)
   "src/screens/coaches/team.mjs": ["back 14"], // OppTeam, DeskOppTeam: «‹ Таблица»
   "src/screens/matches/game.mjs": ["back 14"], // the match page: no prototype, so the kit's
   "src/screens/team/roster/profile.mjs": ["back 16"], // Player*: «‹ Состав»

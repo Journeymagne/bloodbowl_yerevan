@@ -70,10 +70,13 @@ export function refTocMarkup(groups, currentKey = null) {
   return `<nav class="g-ref-toc" aria-label="${escapeHtml(t("ref.toc"))}">${parts.join("")}</nav>`;
 }
 
-/** The way back up, for a phone, which has no table of contents to go by. */
+/**
+ * The way back up, for a phone, which has no table of contents to go by: the round «‹» at the left of the page's title,
+ * as the phone's other heads have it (a team's settings), named by where it leads (`label`).
+ */
 export function backLinkMarkup({ href, label }) {
   assertLinkHref(href);
-  return `<a class="g-ref-back" href="${escapeHtml(href)}">${icon("back", 18)}<span>${escapeHtml(label)}</span></a>`;
+  return `<a class="g-ref-back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("ref.backTo", { page: label }))}">${icon("backShort", 18)}</a>`;
 }
 
 /**

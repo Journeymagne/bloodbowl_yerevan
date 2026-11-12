@@ -101,16 +101,16 @@ function pagerMarkup({ prev, next }) {
  * article and no other (`drawScreen`): the page's slug, so that the same article drawn again stays put.
  */
 function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "", panelHtml = "" }) {
-  const head = `<div class="g-article__head">`
+  const head = `<div class="g-article__head">${backLinkMarkup(back)}<div class="g-article__titles">`
     + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
-    + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div>`;
+    + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div></div>`;
   return refPageMarkup({
     layout: "article",
     screen: `article:${screen}`,
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(groups, currentKey),
-    mainHtml: `<article class="g-article">${backLinkMarkup(back)}${head}${bodyHtml}${pagerHtml}</article>`,
+    mainHtml: `<article class="g-article">${head}${bodyHtml}${pagerHtml}</article>`,
     panelHtml,
   });
 }
