@@ -127,7 +127,6 @@
   font-weight: 700;
 }
 
-/* A rule is a card of its own, its name over the page's text; the text is prose, the name is not a section of one. */
 .g-ref-rule {
   box-sizing: border-box;
   padding: var(--space-14) var(--space-16);

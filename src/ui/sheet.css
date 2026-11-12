@@ -73,7 +73,7 @@ html:has(dialog.g-sheet:modal) {
   letter-spacing: 0;
 }
 
-/* The display face sits low in its tight line, so the sub needs a gap of its own not to touch the title's descenders. */
+/* Without the gap the title's descenders touch the sub. */
 .g-sheet__sub {
   margin: var(--space-4) 0 0;
   color: var(--muted);

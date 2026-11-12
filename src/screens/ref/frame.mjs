@@ -70,10 +70,7 @@ export function refTocMarkup(groups, currentKey = null) {
   return `<nav class="g-ref-toc" aria-label="${escapeHtml(t("ref.toc"))}">${parts.join("")}</nav>`;
 }
 
-/**
- * The way back up, for a phone, which has no table of contents to go by: the round «‹» at the left of the page's title,
- * as the phone's other heads have it (a team's settings), named by where it leads (`label`).
- */
+/** The way back up, for a phone, which has no table of contents to go by. */
 export function backLinkMarkup({ href, label }) {
   assertLinkHref(href);
   return `<a class="g-ref-back" href="${escapeHtml(href)}" aria-label="${escapeHtml(t("ref.backTo", { page: label }))}">${icon("backShort", 18)}</a>`;
@@ -82,8 +79,7 @@ export function backLinkMarkup({ href, label }) {
 /**
  * A reference page: the head, then the table of contents, the content and, on a screen that has one,
  * the panel beside it. `layout` names what the page is — the index, a list, an article, a list with
- * the card of its chosen item — and is a class the stylesheet lays the parts out by. A phone has no panel: a split
- * page's chosen item is a sheet over it (details.mjs).
+ * the card of its chosen item — and is a class the stylesheet lays the parts out by.
  *
  * `screen` is the page's identity (`data-screen`), which `drawScreen` compares to know a new screen from
  * the same one drawn again.

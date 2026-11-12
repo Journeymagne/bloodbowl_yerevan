@@ -387,7 +387,6 @@ test("the ring is the strong line, and what sits on the card is readable on it i
 });
 
 test("the kicker is 700 12px in capitals spaced .08em; the title 700 32px at every width, as a list's, in the display face and never in capitals", () => {
-  // The kicker is the reference's, a list's as an article's (ref.css).
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "font"), ["700 12px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "letter-spacing"), [".08em"]);
   assert.deepEqual(valuesOf("src/screens/ref/ref.css", ".g-ref-kicker", "text-transform"), ["uppercase"]);

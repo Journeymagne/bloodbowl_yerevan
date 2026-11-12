@@ -28,13 +28,11 @@ import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
 import { badgeMarkup, isTrait, tagsOf } from "./skill.mjs";
 
-/** The lists whose rows open their item beside the list (a desk) or in a sheet over it (a phone), not a page of their own. */
 const SPLIT_SECTIONS = new Set(["skills", "traits", "inducements"]);
 
-/** Of those, the lists whose rows are a letter and a name; an inducement's row says its rule under its name. */
 const LETTER_SECTIONS = new Set(["skills", "traits"]);
 
-/** How much of an inducement's rule its row quotes when the rule has no «count, name (price):» opening. */
+/** How much of an inducement's rule its row quotes. */
 const INDUCEMENT_PREVIEW = 90;
 
 /** The chip row is one of its screen's rows by name, for the reason `wireFilterChips` gives. */
@@ -84,11 +82,6 @@ function starLine(page) {
   return [page.starPlayer?.cost, page.starPlayer?.availability].filter(Boolean).join(" · ");
 }
 
-/**
- * An inducement's row says how many a team may take, the name and the price: its rule's opening, up to the colon
- * («0-6 Additional Training (85k)»); the rule itself is its card's (the owner, 2026-11-12). A rule that opens with no
- * colon is quoted in its first characters.
- */
 function inducementLine(page) {
   const text = String(page.text ?? "");
   const at = text.indexOf(":");
@@ -111,7 +104,6 @@ function rowsMarkup(section, pages, cards, selectedSlug) {
   if (!pages.length && !cards.length) return `<p class="g-ref-empty">${escapeHtml(t("section.emptyState"))}</p>`;
   if (section === "rules") return rulesMarkup(pages, cards);
   if (LETTER_SECTIONS.has(section)) return pages.map((page) => referenceRow(page, selectedSlug)).join("");
-  // A row that opens its card beside the list, as a skill's does, has no chevron: it leads to no page of its own.
   const chevron = SPLIT_SECTIONS.has(section) ? null : undefined;
   return pages.map((page) => renderNavRow({ href: pageUrl(page), title: page.title, desc: DESCRIBE[section]?.(page) ?? "", current: page.slug === selectedSlug, chevron })).join("");
 }
@@ -142,8 +134,6 @@ function categoryChips(data, categories, selected) {
  * @param {{query: string, category: string}} props.filter what the list is narrowed to; a category the vault does not have is All
  * @param {object[]} [props.overviewCards] the league overview's cards, which the rules list shows ahead of its pages
  * @param {string|null} [props.selectedSlug] the page that is open: its row is the current one
- * @param {boolean} [props.heading] the list's title is the page's h1; not when the card open beside it has the h1
- * @param {string} [props.backHtml] a phone's way up, `backLinkMarkup()`'s, at the left of the title
  */
 export function refListMarkup({ data, section, filter, overviewCards = [], selectedSlug = null, heading = !selectedSlug, backHtml = "" }) {
   const categories = section === "skills" ? skillCategories(data) : [];
@@ -169,13 +159,8 @@ function syncField(selector, value) {
   if (field && field.value !== value) field.value = value;
 }
 
-/** What a split page's panel says until an item is chosen. */
 const pickOf = (section) => ({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick"), inducements: t("ref.inducement.pick") })[section];
 
-/**
- * A list is one screen with or without an item open, so choosing one leaves the page where it was read to: on a desk
- * the item's card is the panel beside the list, on a phone a sheet over it, whose close puts the focus back on its row.
- */
 function draw(section, selected) {
   const overviewCards = activeOverviewCards();
   const filter = listFilter(section);
@@ -198,8 +183,7 @@ function draw(section, selected) {
 }
 
 /**
- * Draw a list. `selected` is the item an address names: its row is marked, and its card is the panel (a desk) or a
- * sheet over the list (a phone).
+ * Draw a list. `selected` is the item an address names.
  *
  * @param {string} section one of the lists (`REF_SECTIONS`)
  * @param {{selected?: object|null}} [options] `selected`: the page whose row is marked and whose card is shown
@@ -219,8 +203,7 @@ export function renderRefSection(section, { selected = null } = {}) {
     }, { group: CHIP_GROUP }),
     wireRefSearch(view, { onQuery: goSearch }),
   ];
-  // The card's "In your team" is the active team's: it follows a switch of team and a list that comes in late. A width
-  // that crosses 900px moves an open item between the panel and the sheet.
+  // The card's "In your team" is the active team's: it follows a switch of team and a list that comes in late.
   if (SPLIT_SECTIONS.has(section)) {
     release.push(onActiveTeamChange(redraw), onMyTeamsChange(redraw), onPhoneChange(redraw), wireDetailSheet(view, () => refUrl(section)),
       () => closeDetailSheet(view));

@@ -100,15 +100,10 @@ const screens = {
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
 
-/** The place drawn last (`placeOf`): another one starts at the top of the page (`renderRoute`). */
+/** The place drawn last: another one starts at the top of the page (`renderRoute`). */
 let shownRoute = "";
 
-/**
- * What the router compares to know another place: the route's name, except that an item of a split list (a skill, a
- * trait, an inducement: `page` by its address) is its list's place, `refSection`. Opening one opens its card beside
- * the list or a sheet over it, and closing it goes back to the list: neither may start the page over (the owner,
- * 2026-11-12: on a phone the list jumped to its top, and the header that folds as it scrolls unfolded).
- */
+// An item of a split list counts as its list's place: opening or closing its card must not scroll the list to the top.
 function placeOf(name, params) {
   return name === "page" && /^(skills|traits|inducements)\/[^/]+$/.test(params.slug) ? "refSection" : name;
 }

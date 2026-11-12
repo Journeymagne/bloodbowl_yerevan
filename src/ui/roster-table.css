@@ -259,7 +259,6 @@ tfoot .g-rtable__glabel {
   .g-rtable__who,
   .g-rtable__c { border-bottom: 0; }
   .g-rtable__player { border-bottom: 1px solid var(--line); }
-  /* 8px under the position, so the chips do not touch its last line (the owner, 2026-11-12). */
   .g-rtable__skillrow > td { padding: var(--space-8) 0 var(--space-10) 46px; }
 
   /*

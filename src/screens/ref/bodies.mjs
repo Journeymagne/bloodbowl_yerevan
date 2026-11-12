@@ -115,13 +115,12 @@ export function skillLink(data, skill) {
   return page ? link(pageUrl(page), skill) : escapeHtml(skill);
 }
 
-/** A skill of the Skill Table as a link that opens it there, beside the table or over it. */
 function tableSkillLink(data, skill) {
   const page = pageForName(data, skill);
   return page ? link(skillTableUrl(page), skill) : escapeHtml(skill);
 }
 
-/** The vault's table, whose skills are links the build wrote to their own pages, with each opening on the Skill Table instead. */
+// The build links the table's skills to their own pages; here they open on the table instead.
 const onTheTable = (html) => String(html ?? "").replaceAll('href="#/skills/', 'href="#/skill-table/');
 
 function rollerMarkup(data, group, rolled) {

@@ -36,10 +36,7 @@ export function categoryOf(data, page) {
   return (page.tags ?? []).find((tag) => categories.has(tag)) ?? null;
 }
 
-/**
- * The letter of a category on its colour. A trait wears a «T» on the neutral colour, in both languages, as skills
- * keep their English letters (the owner, 2026-11-12); a tag with no colour of its own wears a dot on it.
- */
+/** The letter of a category on its colour; a trait wears a «T», a tag with no colour of its own a dot. */
 export function badgeMarkup(category, { large = false, trait = false } = {}) {
   const tone = String(category ?? "").toLowerCase();
   const known = !trait && TONES.has(tone);
@@ -47,7 +44,6 @@ export function badgeMarkup(category, { large = false, trait = false } = {}) {
   return `<span class="g-ref-badge g-ref-badge--${known ? tone : "trait"}${large ? " g-ref-badge--lg" : ""}" aria-hidden="true">${escapeHtml(letter)}</span>`;
 }
 
-/** Whether a page of the reference is a trait: its address, the same in both vaults. */
 export function isTrait(page) {
   return String(page?.slug ?? "").startsWith("traits/");
 }
@@ -142,22 +138,19 @@ function oursMarkup(holders) {
   return `<section class="g-skill-detail__ours"><h2 class="g-skill-detail__ours-title">${escapeHtml(t("ref.skill.ours"))}</h2>${body}</section>`;
 }
 
-/** «Strength · Active»: the category the Skill Table gives a skill (a trait's tag), then whether it is used or always there. */
 export function skillCaption(data, page) {
   const { category: tagged, type } = tagsOf(page);
   return [categoryOf(data, page) ?? tagged, type].filter(Boolean).join(" · ");
 }
 
 /**
- * A skill or a trait for the panel, or for a sheet, whose own head says the name (`head: false`).
+ * A skill or a trait for the panel or a sheet.
  *
  * @param {object} props
  * @param {object} props.data the content vault of the language
  * @param {object} props.page the skill or the trait
  * @param {object|null} [props.team] the coach's active team; without one the panel has no block for it
  * @param {object|null} [props.teamPage] the page of the team's race, whose rows say what each position has
- * @param {boolean} [props.head] the badge, the name and the caption over the rule
- * @param {1|2} [props.level] the name's heading: the page's h1 beside a list, an h2 beside an article that has its own
  */
 export function skillDetailMarkup({ data, page, team = null, teamPage = null, head = true, level = 1 }) {
   const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
@@ -171,10 +164,8 @@ export function skillDetailMarkup({ data, page, team = null, teamPage = null, he
     + `${team ? oursMarkup(skillHolders({ team, teamPage, title: page.title })) : ""}</article>`;
 }
 
-/** What an inducement's head says under its name, as a skill's says its category: what it is. */
 export const inducementCaption = () => t("ref.inducement.caption");
 
-/** An inducement for the panel or a sheet: its page's own text under its name (the owner, 2026-11-12: nothing more). */
 export function inducementDetailMarkup({ page, head = true }) {
   const header = head
     ? `<header class="g-skill-detail__head"><div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`

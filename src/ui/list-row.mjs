@@ -23,9 +23,9 @@ const ROW_CHEVRONS = ["chevron", "chevronShort"];
  * @param {string} props.title
  * @param {string} [props.desc] the quiet line under the title
  * @param {string|number} [props.count] how many records are behind the link, in the accent colour
- * @param {"chevron"|"chevronShort"|null} [props.chevron] the long one of the kit's ListRow (Ref, DeskRef), the short one
- *   where the row's prototype draws it (Settings' «Администрирование»), or none for a row that opens no page of its own
- * @param {boolean} [props.current] the row whose page is open beside its list (`aria-current="page"`)
+ * @param {"chevron"|"chevronShort"|null} [props.chevron] the long one of the kit's ListRow (Ref, DeskRef), or the short one
+ *   where the row's prototype draws it (Settings' «Администрирование»)
+ * @param {boolean} [props.current]
  */
 export function renderNavRow({ href, title, desc = "", count = "", chevron = "chevron", current = false }) {
   if (!href) throw new Error("a navigation row needs an href: it is a link");

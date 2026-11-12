@@ -25,7 +25,6 @@
   text-transform: none;
 }
 
-/* A phone's way up at the left of the kicker and the title, which stand over each other. */
 .g-article__head {
   display: flex;
   align-items: center;
@@ -469,10 +468,6 @@
 }
 
 @media (min-width: 901px) {
-  /*
-   * Every card of the reference has one inset and every page one title (the owner, 2026-11-12): an article's card is a
-   * list's, 24px in (ref.css `--ref-inset`), its title the phone's 32px, as a list's.
-   */
   .g-article {
     padding: var(--ref-inset);
     border-radius: var(--radius-2xl);
@@ -481,8 +476,7 @@
   }
 
   /*
-   * The vault's Skill Table is seven columns: snug cells, and it scrolls sideways in its card where the reference's
-   * one content width is narrower than the table (the owner, 2026-11-12). Out-specifies prose.css's first-column 48px.
+   * The vault's Skill Table is seven columns: snug cells. Out-specifies prose.css's first-column 48px.
    */
   .g-article .g-ref-skilltable__desk th,
   .g-article .g-ref-skilltable__desk td {

@@ -442,7 +442,6 @@ test("from 901px every page is the Skills page's grid: the contents, the main co
   assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "grid-template-columns"), ["var(--ref-nav) minmax(0, 1fr) var(--ref-side)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref__body", "align-items"), ["start"], "the panel can stick");
   assert.ok(desk.includes(".g-ref__body {"), "the grid is a desk rule");
-  // Every page's content is the main column: no page breaks out of it, so all of them are one width at a window's width.
   for (const layout of ["list", "split", "article"]) assert.deepEqual(valuesOf(SHEET, `.g-ref--${layout} .g-ref__main`, "grid-column"), ["2"], layout);
   assert.deepEqual(valuesOf(SHEET, ".g-ref--index .g-ref__main", "grid-column"), ["1 / 3"], "the index has no contents: it starts at the left, ends where every page ends");
   assert.equal(read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").match(/:has\(\.g-ref-skilltable|--ref-(mid|read)/), null, "no page, the Skill Table's among them, is wider than the main column");
@@ -468,7 +467,6 @@ test("from 901px every page is the Skills page's grid: the contents, the main co
 test("from 901px the rows are a grid of 220px columns in a framed card, and the page scrolls, not the rows", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "grid-template-columns"), ["repeat(auto-fill, minmax(min(220px, 100%), 1fr))"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list__body", "max-height"), []);
-  // In columns no row of the last line keeps a line under it: the line is over each row, the first lying on the head's rule.
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-top"), ["1px solid var(--line)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body .g-list-row", "border-bottom"), ["0"]);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-list--nav .g-ref-list__body", "margin-top"), ["-1px"]);

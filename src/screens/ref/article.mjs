@@ -7,9 +7,9 @@
  * reference's groups name it, which article comes before it and after it. A page that is a member of
  * a list (a team) goes back to that list. An address with no page is an
  * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
- * bodies.mjs instead of from the vault's text: Leagues and the Skill Table, which opens a skill as its
- * list does (details.mjs); a team's page is drawn by team.mjs from the team's data. A skill, a trait or an
- * inducement is not an article: it is the card its list opens (list.mjs).
+ * bodies.mjs instead of from the vault's text: Leagues and the Skill Table; a team's page is drawn by
+ * team.mjs from the team's data. A skill, a trait or an inducement is not an article: it is the card its
+ * list opens (list.mjs).
  */
 import { drawScreen, escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -117,7 +117,6 @@ function articleFrame({ screen, groups, currentKey = null, back, kicker = "", ti
  * @param {object} props.page the page to draw
  * @param {object[]} props.groups the table of contents, as catalog.mjs `refGroups` gives it
  * @param {object} [props.context] what the page's body needs besides the page and the vault (see `articleBody`)
- * @param {string} [props.panelHtml] what stands beside the article on a desk (the Skill Table's skill)
  */
 export function articleMarkup({ data, page, groups, context = {}, panelHtml = "" }) {
   return articleFrame({
@@ -203,11 +202,6 @@ export function renderReferencePage(slug, { league = "" } = {}) {
   if (league && page.id === LEAGUES_ID) showLeague(league);
 }
 
-/**
- * The Skill Table, with the skill an address names (`#/skill-table/<name>`, routes.mjs `skillTableUrl`) opened beside
- * it on a desk and over it on a phone (details.mjs), and the hint until one is. The die changes the article, not the
- * screen around it: the page is drawn again in its place and nothing is wired twice.
- */
 function renderSkillTable(page, skill, groups) {
   const draw = () => {
     const sheet = skill && isPhone() ? skill : null;

@@ -247,7 +247,6 @@ test("the panel and the list agree: a skill's letter is the same in its row and 
 /** Another screen is on the page, as when the coach comes to the reference from the roster. */
 const elsewhere = () => { view.innerHTML = "<p>elsewhere</p>"; };
 
-/** The page's history and address for the length of `run`: what Back and a replaced address were asked for. */
 function withHistory(run) {
   const asked = [];
   const before = { history: globalThis.history, location: globalThis.location };

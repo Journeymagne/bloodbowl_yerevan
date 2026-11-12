@@ -337,7 +337,6 @@ test("the team's boxes are the kit's cards: a position, a special rule, the rost
     assert.deepEqual(valuesOf(sheet, selector, "box-shadow"), ["var(--ring)"], selector);
     assert.deepEqual(valuesOf(sheet, selector, "background"), ["var(--surface)"], selector);
   }
-  // A table's frame is the ring's line as a border, as the roster table's frame: the header's fill would hide an inset ring.
   assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "border-radius"), ["var(--radius-2xl)"]);
   assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "border"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(valuesOf(PROSE, ".g-prose .table-scroll", "box-shadow"), []);
