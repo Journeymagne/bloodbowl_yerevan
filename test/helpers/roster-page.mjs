@@ -93,6 +93,8 @@ export const namesIn = (root) => root.querySelectorAll("tbody.g-rtable__player")
 export const bodyOf = (key) => view.querySelectorAll("tbody.g-rtable__player").find((body) => body.getAttribute("data-key") === key);
 export const toggle = (key) => view.querySelector(`[data-row-key="${key}"]`);
 export const subOf = (key) => bodyOf(key).querySelector(".g-rtable__sub");
+/** The red part of that line, after the position: an injury, why he misses the match, «Fallen · …»; null for none. */
+export const alertOf = (key) => bodyOf(key).querySelector(".g-rtable__alert");
 export const aside = () => view.querySelector(".g-roster__aside");
 export const openRow = () => view.querySelector(".g-rtable__panelrow");
 export const nextLine = () => aside().querySelector(".g-roster__next").textContent;

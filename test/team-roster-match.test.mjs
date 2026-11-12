@@ -10,7 +10,7 @@ import {
   callKeys, chipFor, coach, conflictOf, countOf, deltaOf, dictionary, gamesAre, injuryButton, injuryOptions, injuryRow,
   injurySheet, invalidateGames, minus, notice, onPhone, openRow, optionFor, outsideSwitch, patches, plus, posts,
   recordButton, refusalOf, refused, releaseCurrentScreen, removeButton, renderTeamRoster, rowOf, save, settle, sppLine,
-  statChips, status, subLine, subOf, team, teamPlayerUrl, titleOf, toasts, toggle, view, withSpp,
+  alertLine, statChips, status, subLine, subOf, team, teamPlayerUrl, titleOf, toasts, toggle, view, withSpp,
 } from "./helpers/roster-screen.mjs";
 
 // The roster screen during a preparation and a match (stage 07a, Tasks 11 and 12): the banners, the taps of the match
@@ -695,8 +695,8 @@ test("«Injury in the match…» opens a sheet of five injuries; a lasting one a
     assert.equal(patches().length, 0);
     assert.ok(!injurySheet(), "closed once written");
     assert.ok(document.activeElement === injuryButton(), "the focus back on the button that opened it");
-    assert.equal(subLine("p1#0").textContent, "Lasting Injury (AG) · round 3");
-    assert.ok(subLine("p1#0").classList.contains("g-rtable__sub--alert"));
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Lasting Injury (AG) · round 3");
+    assert.equal(alertLine("p1#0")?.textContent, "Lasting Injury (AG) · round 3", "the injury in red, after his position");
     assert.equal(titleOf(banner()), "Match on · round 3 · records: 1");
     api.assertAnswered();
   });
@@ -707,7 +707,7 @@ test("a standing injury can be taken back by its own −1", async () => {
     coach({ events: [injuryRow({ code: "miss" })] });
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
-    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Seriously Hurt · round 3");
     fireEvent(injuryButton(), "click");
     await settle();
     assert.equal(removeButton().textContent, "Remove the record");
@@ -720,12 +720,12 @@ test("a standing injury can be taken back by its own −1", async () => {
     assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: "g2", playerId: "p1", counter: "injury", delta: -1, injury: { code: "miss" } }]);
     assert.ok(!injurySheet());
     assert.equal(subLine("p1#0").textContent, "Human Lineman");
-    assert.equal(subLine("p1#0").classList.contains("g-rtable__sub--alert"), false);
+    assert.equal(alertLine("p1#0"), null);
     // A friendly names itself in the line.
     coach({ events: [injuryRow({ code: "dead" })] });
     gamesAre([{ ...LIVE_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
     await renderTeamRoster("t1");
-    assert.equal(subLine("p1#0").textContent, "Dead · friendly");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Dead · friendly");
   });
 });
 
@@ -860,7 +860,7 @@ test("an injury in the air keeps the sheet busy: a second press sends nothing", 
     assert.ok(!recordButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus (button.mjs)");
     // «Remove the record» is drawn before it now (the injury on its way is counted), so the button is drawn anew.
     assert.ok(document.activeElement === optionFor("miss"), "the focus stays in the sheet, on the choice");
-    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3", "counted at once, as every tap on its way");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Seriously Hurt · round 3", "counted at once, as every tap on its way");
     assert.equal(removeButton().getAttribute("aria-busy"), "true", "nothing taken back while it is in the air either");
     fireEvent(removeButton(), "click");
     fireEvent(recordButton(), "click");
@@ -870,7 +870,7 @@ test("an injury in the air keeps the sheet busy: a second press sends nothing", 
     await settle();
     assert.equal(posts().length, 1);
     assert.ok(!injurySheet());
-    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Seriously Hurt · round 3");
   });
 });
 
@@ -902,7 +902,7 @@ test("an injury whose answer was lost: the sheet closes and the records are read
     await settle();
     assert.equal(posts().length, 1, "not sent again");
     assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1, "read once");
-    assert.equal(subLine("p1#0").textContent, "Dead · round 3", "what the server has");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Dead · round 3", "what the server has");
     assert.equal(injuryButton().hasAttribute("aria-disabled"), false);
   });
 });
@@ -973,7 +973,7 @@ test("an injury whose answer was lost, and whose read then failed, stays closed 
     await settle();
     assert.ok(!notice("danger"));
     assert.equal(injuryButton().hasAttribute("aria-disabled"), false);
-    assert.equal(subLine("p1#0").textContent, "Dead · round 3", "what the server has");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman · Dead · round 3", "what the server has");
     assert.equal(posts().length, 1);
   });
 });

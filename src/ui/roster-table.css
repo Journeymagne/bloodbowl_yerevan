@@ -94,13 +94,13 @@
   overflow-wrap: anywhere;
 }
 
-/* The position, or why he misses the match. */
+/* The position, then an injury or why he misses the match. */
 .g-rtable__sub {
   color: var(--muted);
   font: 400 13px/1.2 var(--font-body);
   overflow-wrap: anywhere;
 }
-.g-rtable__sub--alert { color: var(--danger); }
+.g-rtable__alert { color: var(--danger); }
 
 /* The skills under the name: the badge and the gap are 46px, and the chips start under the name. */
 .g-rtable__skills { padding: 0 0 var(--space-6) 46px; }

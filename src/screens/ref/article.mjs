@@ -13,7 +13,7 @@
  */
 import { drawScreen, escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { REF_SECTIONS, navRouteForPage, pageUrl, refUrl, skillTableUrl } from "../../core/routes.mjs";
+import { REF_SECTIONS, leagueKey, navRouteForPage, pageUrl, refUrl, skillTableUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -157,7 +157,7 @@ function renderTeamRules(page, groups) {
 }
 
 function showLeague(league) {
-  view.querySelector(`#league-${league.replace(/[^a-z0-9-]/g, "")}`)?.scrollIntoView?.({ block: "start" });
+  view.querySelector(`#league-${leagueKey(league)}`)?.scrollIntoView?.({ block: "start" });
 }
 
 /**

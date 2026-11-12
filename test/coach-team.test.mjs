@@ -124,7 +124,7 @@ test("a phone's opponent page: back to the table, his name and race, the next ma
   assert.equal(card.querySelector(".g-opp__coachsub").textContent, "@rival_bb · to arrange the match");
   assert.equal(rows().length, RIVAL.roster.players.length);
   assert.deepEqual(rows().map((row) => row.querySelector(".g-rtable__name").textContent), ["Brakk", "Kor", "Dunn"], "the most SPP first, who misses the match last");
-  assert.ok(rows()[2].querySelector(".g-rtable__sub--alert"), "why he misses the match, in red, as on the Roster");
+  assert.ok(rows()[2].querySelector(".g-rtable__sub .g-rtable__alert"), "why he misses the match, in red after his position, as on the Roster");
   assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, "Blitzer");
   assert.ok(rows()[1].querySelector(".g-num__captain"), "the captain's mark");
   assert.ok(rows().every((row) => row.getAttribute("class").includes("g-rtable__player--still")), "rows to read: none opens a player");
@@ -170,7 +170,7 @@ test("a desk's opponent page: its head with the coach and Telegram, the left col
   assert.deepEqual(brakk.querySelectorAll(".g-rtable__skills--desk [data-skill]").map((chip) => chip.textContent), ["Block", "Thick Skull", "Tackle", "Diving Tackle", "Wrestle"]);
   const cells = brakk.querySelectorAll("td.g-rtable__c").map((cell) => cell.textContent);
   assert.deepEqual([cells[5], cells[6], cells[11]], ["2", "1", "7"], "TD, CAS and the SPP earned");
-  assert.ok(rows()[2].querySelector(".g-rtable__sub--alert"));
+  assert.ok(rows()[2].querySelector(".g-rtable__sub .g-rtable__alert"));
   // A desk without a team goes back to the league's table.
   await (async () => {
     width(false);
@@ -301,9 +301,9 @@ test("one's own team at an opponent's address goes to its overview", async () =>
 test("why a player misses the match is said to another coach: a reason written by hand, as an injury", async () => {
   const absent = (absence) => ({ ...RIVAL, roster: { ...RIVAL.roster, players: [player("d2", 0, "2", "Dunn", { skipNextGame: true, absence })] } });
   await visit({ team: absent({ code: "other", note: "Suspended by the league" }) }, { phone: true });
-  assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, "Suspended by the league");
+  assert.equal(rows()[0].querySelector(".g-rtable__alert")?.textContent, "Suspended by the league", "in red, after his position");
   await visit({ team: absent({ code: "miss" }) });
-  assert.equal(rows()[0].querySelector(".g-rtable__sub").textContent, t("teamRoster.injury.miss"));
+  assert.equal(rows()[0].querySelector(".g-rtable__alert").textContent, t("teamRoster.injury.miss"));
 });
 
 test("a roster with nobody on it says so, as the Roster does, and draws no empty table", async () => {

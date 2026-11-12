@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
-// The release this branch ships. The changelog's date is set on day X, by the
-// redesign → main PR, so the top entry may still say «unreleased».
-const RELEASE = "3.0.0";
+// The release this branch ships. The changelog's date is set when it merges
+// into main, so the top entry may still say «unreleased».
+const RELEASE = "3.0.2";
 
-test("the release is 3.0.0 in package.json, its lock and the changelog's top entry", () => {
+test("the release is in package.json, its lock and the changelog's top entry", () => {
   const pkg = JSON.parse(read("package.json"));
   const lock = JSON.parse(read("package-lock.json"));
   assert.equal(pkg.version, RELEASE, "package.json");

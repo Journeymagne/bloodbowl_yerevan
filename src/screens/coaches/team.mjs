@@ -127,8 +127,8 @@ const squadRow = (line) => ({
   still: true,
   badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
   name: line.name,
-  sub: line.skip ? absenceWords(line) : line.position,
-  alert: line.skip,
+  sub: line.position,
+  alert: line.skip ? absenceWords(line) : "",
   cells: rosterCells(line, { mode: NO_MATCH }),
   skillsHtml: skillChipsMarkup(line),
 });
