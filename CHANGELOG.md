@@ -42,6 +42,10 @@ full, and every staff item has one name on every screen.
 - **A skill's sheet** says the advancement once, in the box of whose skill it
   is, with how it was rolled under it. The captain's gold chip has a darker
   gold ring, so it reads the size of the chips beside it.
+- **A player who misses the match or has fallen** keeps his position under his
+  name, and the reason follows it in red («Eagle Warrior Linewoman · Serious
+  Injury», «… · Fallen · Foul by …»); it replaced the position before. The
+  same on another coach's team page and for an injury in a match.
 - **Roster table on the desktop.** More room between the characteristics,
   career and SPP; no sideways scrollbar when there is nothing to scroll; no gap
   or line before the «Missing the match» and «Fallen» bands.

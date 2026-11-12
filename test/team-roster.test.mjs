@@ -57,9 +57,8 @@ test("a row: the number on the position's colour, the captain's «C», the name,
   const agility = bodyOf("p3#0").querySelectorAll(".g-rtable__row td")[2];
   assert.ok(agility.classList.contains("g-rtable__c--up"));
   assert.equal(agility.textContent, "2+ improved");
-  const skipping = bodyOf("p4#0").querySelector(".g-rtable__sub");
-  assert.ok(skipping.classList.contains("g-rtable__sub--alert"));
-  assert.equal(skipping.textContent, "Misses the next match");
+  const skipping = bodyOf("p4#0").querySelector(".g-rtable__sub .g-rtable__alert");
+  assert.equal(skipping?.textContent, "Misses the next match", "in red, after his position");
   // The career and the SPP: a zero is quiet, what he may spend is strong.
   const cells = captain.querySelectorAll(".g-rtable__row td");
   assert.equal(cells[5].textContent, "1");

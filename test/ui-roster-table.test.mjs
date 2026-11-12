@@ -523,7 +523,7 @@ test("the colours of the table are readable in every palette", () => {
   const grounds = ["--page", "--surface", "--surface-2"];
   assertReadable(SHEET, ".g-sort", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__sub", "color", grounds, 4.5);
-  assertReadable(SHEET, ".g-rtable__sub--alert", "color", grounds, 4.5);
+  assertReadable(SHEET, ".g-rtable__alert", "color", grounds, 4.5);
   assertReadable(SHEET, "[aria-sort] .g-sort", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__c--up", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__c--down", "color", grounds, 4.5);

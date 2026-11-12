@@ -8,7 +8,7 @@ import { inMedia } from "./helpers/css.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, READING, STYLES, api, aside, bodyOf, callKeys, coach, died, formatDay, headingText, invalidateGames, loadGames,
+  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, READING, STYLES, alertOf, api, aside, bodyOf, callKeys, coach, died, formatDay, headingText, invalidateGames, loadGames,
   namesIn, nextLine, openRow, page, releaseCurrentScreen, renderTeamRoster, save, settle, state, subOf, tables, team, teamPlayerUrl, text, toggle, view,
   withPlayers, words,
 } from "./helpers/roster-page.mjs";
@@ -69,11 +69,11 @@ test("one sort for the three tables: on a phone a header of any of them sorts al
 test("a reason in words under a name: an injury, another reason, the season's retirement, none from 2.x", async () => {
   coach();
   await renderTeamRoster("t1");
-  const subs = ["p4#0", "p5#0", "p6#0", "p7#0"].map(subOf);
-  assert.deepEqual(subs.map((sub) => sub.textContent), ["Lasting Injury (MA)", "Misses the next match", "Temporarily retired for the season", "Suspended"]);
-  for (const sub of subs) assert.ok(sub.classList.contains("g-rtable__sub--alert"));
-  assert.deepEqual(["p1#0", "p2#0", "p3#0"].map((key) => [subOf(key).textContent, subOf(key).classList.contains("g-rtable__sub--alert")]),
-    [["Human Lineman", false], ["Blitzer", false], ["Catcher", false]]);
+  const keys = ["p4#0", "p5#0", "p6#0", "p7#0"];
+  assert.deepEqual(keys.map((key) => alertOf(key)?.textContent), ["Lasting Injury (MA)", "Misses the next match", "Temporarily retired for the season", "Suspended"]);
+  for (const key of keys) assert.match(subOf(key).textContent, /^\S.* · \S/, "his position first, then why, in red");
+  assert.deepEqual(["p1#0", "p2#0", "p3#0"].map((key) => [subOf(key).textContent, alertOf(key) === null]),
+    [["Human Lineman", true], ["Blitzer", true], ["Catcher", true]]);
   // The other injuries, and another reason with no words written (K10): the 2.x line, never an empty red one.
   coach({
     teamAnswer: withPlayers([
@@ -86,7 +86,7 @@ test("a reason in words under a name: an injury, another reason, the season's re
     fallen: [],
   });
   await renderTeamRoster("t1");
-  assert.deepEqual(["q1#0", "q2#0", "q3#0", "q4#0", "q5#0"].map((key) => subOf(key).textContent),
+  assert.deepEqual(["q1#0", "q2#0", "q3#0", "q4#0", "q5#0"].map((key) => alertOf(key)?.textContent),
     ["Seriously Hurt", "Serious Injury", "Misses the next match", "Misses the next match", "Lasting Injury"]);
 });
 
@@ -115,8 +115,8 @@ test("a fallen row: a grey number, grey numbers and «Fallen · cause»; open on
     const pike = bodyOf("fallen-f1");
     assert.ok(pike.querySelector(".g-num--fallen"));
     assert.ok(!pike.querySelector(".g-num--blitzer"), "no position's colour");
-    assert.equal(subOf("fallen-f1").textContent, "Fallen · Foul by the Raiders");
-    assert.ok(subOf("fallen-f1").classList.contains("g-rtable__sub--alert"), "red, as every absence (StatsInjured.html)");
+    assert.equal(alertOf("fallen-f1")?.textContent, "Fallen · Foul by the Raiders", "red, as every absence (StatsInjured.html)");
+    assert.match(subOf("fallen-f1").textContent, /^\S.* · Fallen · Foul by the Raiders$/, "after his position");
     assert.deepEqual(pike.querySelectorAll(".g-rtable__row td").slice(0, 5).map((cell) => cell.textContent), ["7", "3", "3+", "4+", "9+"]);
     assert.ok(!pike.querySelector(".g-rtable__delta"));
     fireEvent(toggle("fallen-f1"), "click");
@@ -146,7 +146,7 @@ test("a death the post-match recorded says the administrator corrects it, and of
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
-    assert.equal(subOf("fallen-f2").textContent, "Fallen", "no cause, the state alone");
+    assert.equal(alertOf("fallen-f2")?.textContent, "Fallen", "no cause, the state alone");
     fireEvent(toggle("fallen-f2"), "click");
     const row = openRow();
     assert.ok(words(row).includes("No cause was recorded."));
@@ -282,7 +282,7 @@ test("every read of the team reads the fallen with it: a match that ends brings 
     fallenRead.release();
     await settle();
     assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann"]]);
-    assert.equal(subOf("fallen-f9").textContent, "Fallen · Crowd");
+    assert.equal(alertOf("fallen-f9")?.textContent, "Fallen · Crowd");
     assert.ok(!view.querySelector('[data-action-key="touchdowns"] [data-action-step="1"]').hasAttribute("aria-disabled"));
   }));
 });
@@ -368,8 +368,8 @@ test("the cause and the note are text", async () => {
         fallen: [{ ...PIKE, cause: HOSTILE }],
       });
       await renderTeamRoster("t1");
-      assert.equal(subOf("p7#0").textContent, HOSTILE);
-      assert.equal(subOf("fallen-f1").textContent, `Fallen · ${HOSTILE}`);
+      assert.equal(alertOf("p7#0")?.textContent, HOSTILE);
+      assert.equal(alertOf("fallen-f1")?.textContent, `Fallen · ${HOSTILE}`);
       fireEvent(toggle("fallen-f1"), "click");
       const where = phone ? openRow() : aside();
       assert.ok(words(where).includes(HOSTILE));
@@ -434,7 +434,7 @@ test("the fallen are grey and readable: their cells, the line under the name and
   assertReadable(sheet, ".g-roster__section--fallen .g-rtable__c", "color", ["--surface", "--surface-2", "--page"], 4.5);
   // The line under a fallen name is red, as every absence's (StatsInjured.html): roster-table.css's alert.
   assert.deepEqual(valuesOf(sheet, ".g-roster__section--fallen .g-rtable__sub", "color"), []);
-  assertReadable("src/ui/roster-table.css", ".g-rtable__sub--alert", "color", ["--surface", "--surface-2", "--page"], 4.5);
+  assertReadable("src/ui/roster-table.css", ".g-rtable__alert", "color", ["--surface", "--surface-2", "--page"], 4.5);
   assertReadable(sheet, ".g-fallen__stats .g-stat__v", "color", ["--surface-2"], 4.5);
   for (const selector of [".g-fallen__when", ".g-fallen__label", ".g-fallen__note", ".g-fallen__rules", ".g-fallen__career", ".g-fallen__rowpanel .g-fallen__career", ".g-fallen__cause--none"]) {
     assertReadable(sheet, selector, "color", ["--surface", "--surface-2"], 4.5);
@@ -618,7 +618,7 @@ test("a missed match marked: one PATCH, the sheet closes, he moves to «Missing 
     api.reply(PATCH, 200, { team: annMarked({ absence: { code: "lasting", stat: "ag" }, statMods: { ag: -1 }, injuryStatMods: { ag: -1 } }) });
     fireEvent(sendButton(), "click");
     assert.ok(!markSheet(), "closed at once: the step is the queue's");
-    assert.equal(subOf("p1#0").textContent, "Lasting Injury (AG)", "drawn at once from the queue's draft");
+    assert.equal(alertOf("p1#0")?.textContent, "Lasting Injury (AG)", "drawn at once from the queue's draft");
     assert.ok(document.activeElement === toggle("p1#0"), "the focus on his row's button");
     await settle();
     assert.equal(patches().length, 1);
@@ -631,8 +631,7 @@ test("a missed match marked: one PATCH, the sheet closes, he moves to «Missing 
     assert.match(headingText("roster-heading"), /^Active roster 2$/);
     assert.match(headingText("roster-skips-heading"), /^Missing the match 5$/);
     assert.deepEqual(tables().map(namesIn).slice(0, 2), [["Bors", "Cade"], ["Ann", "Dell", "Edda", "Finn", "Grom"]]);
-    assert.equal(subOf("p1#0").textContent, "Lasting Injury (AG)");
-    assert.ok(subOf("p1#0").classList.contains("g-rtable__sub--alert"));
+    assert.equal(alertOf("p1#0")?.textContent, "Lasting Injury (AG)");
     assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the panel keeps him");
     assert.equal(nextLine(), "Next match: Lasting Injury (AG) · sits it out");
     assert.equal(returnButton().textContent, "Back on the roster");
@@ -788,7 +787,7 @@ test("another tab's coach: no mark is sent, and the coach is told", async () => 
     assert.equal(toasts().at(-1), OTHER_TAB);
     await settle();
     assert.equal(patches().length, 0);
-    assert.equal(subOf("p4#0").textContent, "Lasting Injury (MA)");
+    assert.equal(alertOf("p4#0")?.textContent, "Lasting Injury (MA)");
   });
 });
 
@@ -921,7 +920,7 @@ test("a mark offline waits like a step: «Waiting for the network · edits: 1»"
     await settle();
     assert.ok(!markSheet());
     assert.equal(status(), "Waiting for the network · edits: 1");
-    assert.equal(subOf("p1#0").textContent, "Wedding", "the mark stays on the screen");
+    assert.equal(alertOf("p1#0")?.textContent, "Wedding", "the mark stays on the screen");
     assert.equal(save.saveState("t1").waiting, 1);
     assert.deepEqual(patches()[0].body.roster.players.find((player) => player.id === "p1").absence, { code: "other", note: "Wedding" });
     api.reply(PATCH, 200, { team: annMarked({ absence: { code: "other", note: "Wedding" } }) });
@@ -929,7 +928,7 @@ test("a mark offline waits like a step: «Waiting for the network · edits: 1»"
     await settle();
     assert.equal(status(), "Saved");
     assert.equal(save.saveState("t1").waiting, 0);
-    assert.equal(subOf("p1#0").textContent, "Wedding");
+    assert.equal(alertOf("p1#0")?.textContent, "Wedding");
   });
 });
 
@@ -1137,7 +1136,7 @@ test("a death marked: one POST with the cause and the revision; he moves to «Fa
     assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann", "Pike", "Joe"]]);
     assert.match(headingText("roster-heading"), /^Active roster 2$/);
     assert.match(headingText("roster-fallen-heading"), /^Fallen 3$/);
-    assert.equal(subOf("fallen-f9").textContent, "Fallen · Foul");
+    assert.equal(alertOf("fallen-f9")?.textContent, "Fallen · Foul");
     assert.ok(view.querySelector('.g-roster__aside[data-panel-player="fallen-f9"]'), "the panel is his profile now");
     assert.equal(state.myTeams.items[0].revision, 5, "the coach's list has the server's team");
     assert.equal(save.savedRevision("t1"), 5, "and so has the queue");

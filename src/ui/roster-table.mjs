@@ -137,7 +137,8 @@ function renderCell(cell, place) {
  */
 function renderWho(row) {
   const skills = row.skillsHtml ? `<div class="g-rtable__skills g-rtable__skills--desk">${row.skillsHtml}</div>` : "";
-  const sub = `<span class="${classNames("g-rtable__sub", row.alert && "g-rtable__sub--alert")}">${escapeHtml(row.sub ?? "")}</span>`;
+  const alert = row.alert ? ` · <span class="g-rtable__alert">${escapeHtml(row.alert)}</span>` : "";
+  const sub = `<span class="g-rtable__sub">${escapeHtml(row.sub ?? "")}${alert}</span>`;
   const text = `${row.badgeHtml}<span class="g-rtable__text"><span class="g-rtable__name">${escapeHtml(row.name)}</span>${sub}</span>`;
   if (row.still) return `<th scope="row" class="g-rtable__who"><span class="g-rtable__toggle">${text}</span>${skills}</th>`;
   const relation = row.controls
@@ -193,8 +194,8 @@ function renderFoot(columns, places, groups) {
  * @property {number} [reorderIndex] editable roster slot, enables hold-and-drag within this table
  * @property {string} badgeHtml markup from renderPlayerBadge
  * @property {string} name
- * @property {string} sub the line under the name (the position, or why he misses the match)
- * @property {boolean} [alert] `sub` states an injury or a missed match: drawn in --danger
+ * @property {string} sub the line under the name: the position
+ * @property {string} [alert] after the position, an injury or why he misses the match: drawn in --danger
  * @property {{text: string, tone?: ""|"zero"|"up"|"down"|"strong"|"quiet", note?: string, delta?: number}[]} cells one per column after the first
  * @property {string} [skillsHtml] markup from renderSkillChips
  * @property {boolean} [expanded] the row's panel is open (up to 900px)

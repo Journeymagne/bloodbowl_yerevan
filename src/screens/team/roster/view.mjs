@@ -148,8 +148,8 @@ function choiceOf(lines, { memory }) {
 }
 
 /**
- * A player of the roster: under his name an injury the match on has dealt him (Task 12), else why he misses the next
- * match (decision 14), else his position.
+ * A player of the roster: under his name his position, then an injury the match on has dealt him (Task 12), else why
+ * he misses the next match (decision 14).
  */
 function playerRowOf(line, screen) {
   const injury = injuryLine(line, screen.mode);
@@ -158,22 +158,22 @@ function playerRowOf(line, screen) {
     reorderIndex: !screen.lock && screen.mode.kind !== "match" ? line.index : undefined,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
     name: line.name,
-    sub: injury || (line.skip ? absenceWords(line) : line.position),
-    alert: Boolean(injury) || line.skip,
+    sub: line.position,
+    alert: injury || (line.skip ? absenceWords(line) : ""),
     cells: rosterCells(line, screen),
     skillsHtml: skillChipsMarkup(line),
   };
 }
 
-/** A fallen player (decision 15): his number grey, «Fallen · <cause>» in red under his name as every absence (StatsInjured.html), his numbers as they were. */
+/** A fallen player (decision 15): his number grey, his position and «Fallen · <cause>» in red under his name as every absence (StatsInjured.html), his numbers as they were. */
 function fallenRowOf(line) {
   const cause = causeOf(line);
   return {
     key: line.key,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true }),
     name: fallenName(line),
-    sub: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
-    alert: true,
+    sub: line.position,
+    alert: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
     cells: rosterCells(line, { mode: NO_MATCH }),
     skillsHtml: skillChipsMarkup(line),
   };
